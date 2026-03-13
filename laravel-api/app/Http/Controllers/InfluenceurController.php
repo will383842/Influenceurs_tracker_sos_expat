@@ -48,8 +48,9 @@ class InfluenceurController extends Controller
         $data = $request->validate([
             'name'                 => 'required|string|max:255',
             'handle'               => 'nullable|string|max:255',
-            'avatar_url'           => 'nullable|string|max:500',
-            'platforms'            => 'required|array',
+            'avatar_url'           => 'nullable|url|max:500',
+            'platforms'            => 'required|array|min:1',
+            'platforms.*'          => 'string|in:instagram,tiktok,youtube,linkedin,x,facebook,pinterest,podcast,blog,newsletter',
             'primary_platform'     => 'required|string|max:50',
             'followers'            => 'nullable|integer|min:0',
             'followers_secondary'  => 'nullable|array',
@@ -79,7 +80,6 @@ class InfluenceurController extends Controller
             'influenceur_id'  => $influenceur->id,
             'action'          => 'created',
             'details'         => ['name' => $influenceur->name],
-            'created_at'      => now(),
         ]);
 
         return response()->json($influenceur->load('assignedToUser:id,name'), 201);
@@ -100,8 +100,9 @@ class InfluenceurController extends Controller
         $data = $request->validate([
             'name'                => 'sometimes|string|max:255',
             'handle'              => 'nullable|string|max:255',
-            'avatar_url'          => 'nullable|string|max:500',
-            'platforms'           => 'sometimes|array',
+            'avatar_url'          => 'nullable|url|max:500',
+            'platforms'           => 'sometimes|array|min:1',
+            'platforms.*'         => 'string|in:instagram,tiktok,youtube,linkedin,x,facebook,pinterest,podcast,blog,newsletter',
             'primary_platform'    => 'sometimes|string|max:50',
             'followers'           => 'nullable|integer|min:0',
             'followers_secondary' => 'nullable|array',
@@ -138,7 +139,6 @@ class InfluenceurController extends Controller
             'influenceur_id' => $influenceur->id,
             'action'         => $action,
             'details'        => $data,
-            'created_at'     => now(),
         ]);
 
         return response()->json($influenceur->load('assignedToUser:id,name'));
@@ -151,7 +151,6 @@ class InfluenceurController extends Controller
             'influenceur_id' => null,
             'action'         => 'deleted',
             'details'        => ['name' => $influenceur->name, 'id' => $influenceur->id],
-            'created_at'     => now(),
         ]);
 
         $influenceur->delete();

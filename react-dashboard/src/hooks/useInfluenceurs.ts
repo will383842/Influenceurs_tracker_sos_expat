@@ -5,12 +5,14 @@ import type { Influenceur, InfluenceurFilters, PaginatedInfluenceurs } from '../
 export function useInfluenceurs() {
   const [influenceurs, setInfluenceurs] = useState<Influenceur[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filters, setFilters] = useState<InfluenceurFilters>({});
 
   const fetchPage = useCallback(async (cursor: string | null, currentFilters: InfluenceurFilters, reset: boolean) => {
     setLoading(true);
+    setError(null);
     try {
       const params: Record<string, unknown> = { per_page: 30, ...currentFilters };
       if (cursor) params.cursor = cursor;
@@ -19,6 +21,9 @@ export function useInfluenceurs() {
       setInfluenceurs(prev => reset ? data.data : [...prev, ...data.data]);
       setNextCursor(data.next_cursor);
       setHasMore(data.has_more);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur lors du chargement des influenceurs';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -56,7 +61,7 @@ export function useInfluenceurs() {
   }, []);
 
   return {
-    influenceurs, loading, hasMore, filters,
+    influenceurs, loading, error, hasMore, filters,
     load, loadMore, setFilters: load,
     createInfluenceur, updateInfluenceur, deleteInfluenceur,
   };

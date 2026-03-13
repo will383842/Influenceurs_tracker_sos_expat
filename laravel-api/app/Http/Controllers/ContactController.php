@@ -24,9 +24,9 @@ class ContactController extends Controller
     public function store(Request $request, Influenceur $influenceur)
     {
         $data = $request->validate([
-            'date'    => 'required|date',
-            'channel' => 'required|in:email,instagram,linkedin,whatsapp,phone,other',
-            'result'  => 'required|in:sent,replied,refused,registered,no_answer',
+            'date'    => 'required|date|before_or_equal:today',
+            'channel' => 'required|string|in:email,instagram,linkedin,whatsapp,phone,other',
+            'result'  => 'required|string|in:sent,replied,refused,registered,no_answer',
             'sender'  => 'nullable|string|max:255',
             'message' => 'nullable|string',
             'reply'   => 'nullable|string',
@@ -46,7 +46,6 @@ class ContactController extends Controller
                 'channel' => $data['channel'],
                 'result'  => $data['result'],
             ],
-            'created_at' => now(),
         ]);
 
         return response()->json($contact->load('user:id,name'), 201);

@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Influenceur extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'name', 'handle', 'avatar_url', 'platforms', 'primary_platform',
         'followers', 'followers_secondary', 'niche', 'country', 'language',

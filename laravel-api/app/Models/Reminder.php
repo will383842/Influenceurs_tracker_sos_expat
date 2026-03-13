@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Reminder extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'influenceur_id', 'due_date', 'status',
         'dismissed_by', 'dismissed_at', 'notes',

@@ -2,6 +2,9 @@
 -- Schema : influenceurs_tracker
 -- Projet  : Influenceurs_Tracker_sos_expat
 -- Port    : 3309 (dédié)
+-- NOTE: Laravel migrations (laravel-api/database/migrations/) are the
+--       source of truth for the database schema. This SQL dump is
+--       provided for reference only and may be out of date.
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS `influenceurs_tracker`

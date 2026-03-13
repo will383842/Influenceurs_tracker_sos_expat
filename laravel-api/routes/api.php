@@ -20,8 +20,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // IMPORTANT : routes statiques déclarées AVANT la route paramétrée {influenceur}
     Route::get('/influenceurs/reminders-pending', [InfluenceurController::class, 'remindersPending']);
-    Route::get('/influenceurs/exports/csv', [ExportController::class, 'csv'])->middleware('role:admin');
-    Route::get('/influenceurs/exports/excel', [ExportController::class, 'excel'])->middleware('role:admin');
+    Route::get('/influenceurs/exports/csv', [ExportController::class, 'csv'])->middleware(['role:admin', 'throttle:10,1']);
+    Route::get('/influenceurs/exports/excel', [ExportController::class, 'excel'])->middleware(['role:admin', 'throttle:10,1']);
 
     // CRUD influenceurs
     Route::get('/influenceurs', [InfluenceurController::class, 'index']);

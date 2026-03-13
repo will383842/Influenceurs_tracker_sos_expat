@@ -1,18 +1,31 @@
-# Laravel
-laravel-api/.env
-laravel-api/.env.testing
-laravel-api/vendor/
-laravel-api/storage/logs/
-laravel-api/storage/framework/cache/
+# Environment
+**/.env
+!**/.env.example
 
-# React
-react-dashboard/node_modules/
-react-dashboard/dist/
-react-dashboard/.env
+# Dependencies
+**/node_modules/
+**/vendor/
 
-# Scripts
-scripts/localstorage-export.json
+# Build
+**/dist/
+**/build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Laravel
+laravel-api/storage/*.key
+laravel-api/storage/logs/*
+!laravel-api/storage/logs/.gitkeep
+laravel-api/bootstrap/cache/*
+!laravel-api/bootstrap/cache/.gitkeep
+
+# Scripts
+scripts/localstorage-export.json

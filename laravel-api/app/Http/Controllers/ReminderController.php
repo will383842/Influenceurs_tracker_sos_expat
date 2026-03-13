@@ -45,7 +45,6 @@ class ReminderController extends Controller
             'influenceur_id' => $reminder->influenceur_id,
             'action'         => 'reminder_dismissed',
             'details'        => ['notes' => $request->notes],
-            'created_at'     => now(),
         ]);
 
         return response()->json($reminder);
@@ -53,6 +52,8 @@ class ReminderController extends Controller
 
     public function done(Request $request, Reminder $reminder)
     {
+        // Reuses dismissed_by/dismissed_at fields to record who completed the reminder and when,
+        // avoiding a separate migration for completed_by/completed_at columns.
         $reminder->update([
             'status'       => 'done',
             'dismissed_by' => $request->user()->id,
@@ -63,7 +64,6 @@ class ReminderController extends Controller
             'user_id'        => $request->user()->id,
             'influenceur_id' => $reminder->influenceur_id,
             'action'         => 'reminder_done',
-            'created_at'     => now(),
         ]);
 
         return response()->json($reminder);
