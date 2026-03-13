@@ -31,7 +31,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       csrfInitialized = false;
-      if (window.location.pathname !== '/login') {
+      // Don't redirect for /me check (handled by useAuth) or if already on /login
+      const url = error.config?.url || '';
+      if (url !== '/me' && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }
