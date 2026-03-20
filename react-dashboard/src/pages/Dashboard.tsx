@@ -40,14 +40,14 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div>
         <h2 className="font-title text-2xl font-bold text-white">Dashboard</h2>
         <p className="text-muted text-sm mt-1">Bienvenue, {user?.name}</p>
       </div>
 
       {/* Barre stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {statusOrder.map(status => (
           <div key={status} className="bg-surface border border-border rounded-xl p-4">
             <p className={`text-2xl font-bold font-title ${statusColors[status]}`}>
@@ -119,7 +119,7 @@ export default function Dashboard() {
                   <div className="w-7 h-7 rounded-full bg-violet/20 flex items-center justify-center text-violet-light text-xs font-bold flex-shrink-0">
                     {log.user?.name?.[0] ?? '?'}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm text-white">
                       <span className="font-medium">{log.user?.name}</span>{' '}
                       {ACTION_LABELS[log.action] ?? log.action}

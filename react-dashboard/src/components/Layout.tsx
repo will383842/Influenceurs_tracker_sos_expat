@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useReminders } from '../hooks/useReminders';
@@ -7,6 +7,7 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { reminders } = useReminders();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -23,25 +24,70 @@ export default function Layout() {
   const isAdmin = user?.role === 'admin';
   const isResearcher = user?.role === 'researcher';
 
+  const handleNavClick = () => {
+    setSidebarOpen(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-bg">
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-50 p-2 bg-surface border border-border rounded-lg text-white"
+        aria-label="Ouvrir le menu"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="3" y1="5" x2="17" y2="5" />
+          <line x1="3" y1="10" x2="17" y2="10" />
+          <line x1="3" y1="15" x2="17" y2="15" />
+        </svg>
+      </button>
+
+      {/* Backdrop overlay on mobile */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-60 flex-shrink-0 bg-surface border-r border-border flex flex-col">
-        <div className="p-5 border-b border-border">
-          <h1 className="font-title text-lg font-bold text-white">Influenceurs</h1>
-          <p className="text-xs text-muted mt-0.5">SOS-Expat CRM</p>
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-60 bg-surface border-r border-border flex flex-col
+          transform transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0 md:static md:flex-shrink-0
+        `}
+      >
+        <div className="p-5 border-b border-border flex items-center justify-between">
+          <div>
+            <h1 className="font-title text-lg font-bold text-white">Influenceurs</h1>
+            <p className="text-xs text-muted mt-0.5">SOS-Expat CRM</p>
+          </div>
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden text-muted hover:text-white transition-colors"
+            aria-label="Fermer le menu"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="4" y1="4" x2="16" y2="16" />
+              <line x1="16" y1="4" x2="4" y2="16" />
+            </svg>
+          </button>
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
           {isResearcher ? (
             <>
-              <NavLink to="/" end className={navClass}>
+              <NavLink to="/" end className={navClass} onClick={handleNavClick}>
                 <span>📊</span> Mon Tableau
               </NavLink>
-              <NavLink to="/influenceurs" className={navClass}>
+              <NavLink to="/influenceurs" className={navClass} onClick={handleNavClick}>
                 <span>👥</span> Influenceurs
               </NavLink>
-              <NavLink to="/a-relancer" className={navClass}>
+              <NavLink to="/a-relancer" className={navClass} onClick={handleNavClick}>
                 <span>🔔</span> A relancer
                 {reminders.length > 0 && (
                   <span className="ml-auto bg-amber text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
@@ -52,13 +98,13 @@ export default function Layout() {
             </>
           ) : (
             <>
-              <NavLink to="/" end className={navClass}>
+              <NavLink to="/" end className={navClass} onClick={handleNavClick}>
                 <span>📊</span> Dashboard
               </NavLink>
-              <NavLink to="/influenceurs" className={navClass}>
+              <NavLink to="/influenceurs" className={navClass} onClick={handleNavClick}>
                 <span>👥</span> Influenceurs
               </NavLink>
-              <NavLink to="/a-relancer" className={navClass}>
+              <NavLink to="/a-relancer" className={navClass} onClick={handleNavClick}>
                 <span>🔔</span> A relancer
                 {reminders.length > 0 && (
                   <span className="ml-auto bg-amber text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
@@ -66,15 +112,15 @@ export default function Layout() {
                   </span>
                 )}
               </NavLink>
-              <NavLink to="/statistiques" className={navClass}>
+              <NavLink to="/statistiques" className={navClass} onClick={handleNavClick}>
                 <span>📈</span> Statistiques
               </NavLink>
               {isAdmin && (
                 <>
-                  <NavLink to="/admin" className={navClass}>
+                  <NavLink to="/admin" className={navClass} onClick={handleNavClick}>
                     <span>⚡</span> Console Admin
                   </NavLink>
-                  <NavLink to="/equipe" className={navClass}>
+                  <NavLink to="/equipe" className={navClass} onClick={handleNavClick}>
                     <span>⚙️</span> Equipe
                   </NavLink>
                 </>

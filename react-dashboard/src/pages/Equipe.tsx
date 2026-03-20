@@ -65,8 +65,8 @@ export default function Equipe() {
   );
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-title text-2xl font-bold text-white">Équipe</h2>
           <p className="text-muted text-sm mt-1">{members.length} membre{members.length !== 1 ? 's' : ''}</p>
@@ -88,7 +88,7 @@ export default function Equipe() {
             <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">{error}</div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: 'Nom', field: 'name', type: 'text', placeholder: 'Prénom Nom' },
               { label: 'Email', field: 'email', type: 'email', placeholder: 'email@sos-expat.com' },
@@ -145,57 +145,59 @@ export default function Equipe() {
 
       {/* Liste membres */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              {['Membre', 'Email', 'Rôle', 'Statut', 'Dernière connexion', 'Actions'].map(h => (
-                <th key={h} className="text-left text-xs text-muted font-medium px-4 py-3">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {members.map(member => (
-              <tr key={member.id} className="border-b border-border last:border-0 hover:bg-surface2 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-violet/20 flex items-center justify-center text-violet-light font-bold text-sm">
-                      {member.name[0]}
-                    </div>
-                    <span className="text-white text-sm font-medium">{member.name}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-muted text-sm">{member.email}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${member.role === 'admin' ? 'bg-violet/20 text-violet-light' : 'bg-surface2 text-muted'}`}>
-                    {member.role}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${member.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                    {member.is_active ? 'Actif' : 'Désactivé'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-muted text-sm">
-                  {member.last_login_at
-                    ? new Date(member.last_login_at).toLocaleDateString('fr-FR')
-                    : 'Jamais'}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(member)} className="text-xs text-muted hover:text-white transition-colors">
-                      Modifier
-                    </button>
-                    {member.is_active && (
-                      <button onClick={() => handleDeactivate(member.id)} className="text-xs text-red-400 hover:text-red-300 transition-colors">
-                        Désactiver
-                      </button>
-                    )}
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                {['Membre', 'Email', 'Rôle', 'Statut', 'Dernière connexion', 'Actions'].map(h => (
+                  <th key={h} className="text-left text-xs text-muted font-medium px-4 py-3 whitespace-nowrap">{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {members.map(member => (
+                <tr key={member.id} className="border-b border-border last:border-0 hover:bg-surface2 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-violet/20 flex items-center justify-center text-violet-light font-bold text-sm flex-shrink-0">
+                        {member.name[0]}
+                      </div>
+                      <span className="text-white text-sm font-medium whitespace-nowrap">{member.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">{member.email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${member.role === 'admin' ? 'bg-violet/20 text-violet-light' : 'bg-surface2 text-muted'}`}>
+                      {member.role}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${member.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                      {member.is_active ? 'Actif' : 'Désactivé'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">
+                    {member.last_login_at
+                      ? new Date(member.last_login_at).toLocaleDateString('fr-FR')
+                      : 'Jamais'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(member)} className="text-xs text-muted hover:text-white transition-colors">
+                        Modifier
+                      </button>
+                      {member.is_active && (
+                        <button onClick={() => handleDeactivate(member.id)} className="text-xs text-red-400 hover:text-red-300 transition-colors">
+                          Désactiver
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ export default function ARelancer() {
   );
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="mb-6">
         <h2 className="font-title text-2xl font-bold text-white">À relancer</h2>
         <p className="text-muted text-sm mt-1">
@@ -40,7 +40,7 @@ export default function ARelancer() {
         <div className="space-y-3">
           {reminders.map(r => (
             <div key={r.id} className="bg-surface border border-border rounded-xl p-5">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Link
@@ -55,7 +55,7 @@ export default function ARelancer() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 mt-2 text-sm text-muted">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted">
                     <span>
                       Dernier contact :{' '}
                       {r.influenceur?.last_contact_at
@@ -73,7 +73,7 @@ export default function ARelancer() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                   <Link
                     to={`/influenceurs/${r.influenceur_id}`}
                     className="px-3 py-1.5 bg-violet/20 hover:bg-violet/30 text-violet-light text-sm rounded-lg transition-colors"
@@ -97,13 +97,13 @@ export default function ARelancer() {
 
               {/* Panneau dismiss avec note */}
               {dismissingId === r.id && (
-                <div className="mt-4 pt-4 border-t border-border flex gap-3">
+                <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-3">
                   <input
                     type="text"
                     value={dismissNote}
                     onChange={e => setDismissNote(e.target.value)}
                     placeholder="Note (optionnel)..."
-                    className="flex-1 bg-surface2 border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-muted focus:outline-none focus:border-violet"
+                    className="flex-1 min-w-[200px] bg-surface2 border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-muted focus:outline-none focus:border-violet"
                   />
                   <button
                     onClick={() => handleDismiss(r.id)}

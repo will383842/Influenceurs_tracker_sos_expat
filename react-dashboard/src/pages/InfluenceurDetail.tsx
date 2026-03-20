@@ -82,17 +82,17 @@ export default function InfluenceurDetail() {
   );
 
   if (!influenceur) return (
-    <div className="p-6 text-center text-muted">Influenceur introuvable.</div>
+    <div className="p-4 md:p-6 text-center text-muted">Influenceur introuvable.</div>
   );
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <button onClick={() => navigate(-1)} className="text-muted hover:text-white text-sm transition-colors">
           ← Retour
         </button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {editing ? (
             <>
               <button onClick={handleSave} className="px-4 py-2 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors">
@@ -123,7 +123,7 @@ export default function InfluenceurDetail() {
       )}
 
       {/* Fiche principale */}
-      <div className="bg-surface border border-border rounded-2xl p-6">
+      <div className="bg-surface border border-border rounded-2xl p-4 md:p-6">
         <div className="flex items-start gap-4">
           {influenceur.avatar_url ? (
             <img src={influenceur.avatar_url} alt={influenceur.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0" />
@@ -167,7 +167,7 @@ export default function InfluenceurDetail() {
         </div>
 
         {/* Infos détaillées */}
-        <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-border text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-6 border-t border-border text-sm">
           {[
             { label: 'Email', value: influenceur.email, field: 'email' },
             { label: 'Téléphone', value: influenceur.phone, field: 'phone' },
@@ -210,7 +210,7 @@ export default function InfluenceurDetail() {
         {/* Rappels */}
         <div className="mt-4 pt-4 border-t border-border">
           <p className="text-muted text-xs mb-2">Rappel automatique</p>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
               <input
                 type="checkbox"
@@ -254,8 +254,8 @@ export default function InfluenceurDetail() {
       </div>
 
       {/* Timeline contacts */}
-      <div className="bg-surface border border-border rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-surface border border-border rounded-2xl p-4 md:p-6">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="font-title font-semibold text-white">Timeline des contacts</h3>
           <button
             onClick={() => setShowContactForm(!showContactForm)}

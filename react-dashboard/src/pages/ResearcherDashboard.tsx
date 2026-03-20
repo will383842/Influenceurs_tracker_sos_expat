@@ -96,7 +96,7 @@ export default function ResearcherDashboard() {
   const totalCount = stats?.total ?? 0;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div>
         <h2 className="font-title text-2xl font-bold text-white">Mon Tableau de Bord</h2>
         <p className="text-muted text-sm mt-1">Bienvenue, {user?.name}</p>
@@ -109,7 +109,7 @@ export default function ResearcherDashboard() {
       )}
 
       {/* Section 1: Mon objectif */}
-      <div className="bg-surface border border-border rounded-xl p-6">
+      <div className="bg-surface border border-border rounded-xl p-4 md:p-6">
         <h3 className="font-title font-semibold text-white mb-4">Mon objectif</h3>
 
         {objectiveLoading ? (
@@ -117,7 +117,7 @@ export default function ResearcherDashboard() {
             <div className="w-6 h-6 border-2 border-violet border-t-transparent rounded-full animate-spin" />
           </div>
         ) : objective ? (
-          <div className="flex items-center gap-8">
+          <div className="flex flex-col sm:flex-row items-center gap-8">
             {/* Progress circle */}
             <div className="relative w-32 h-32 flex-shrink-0">
               <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
@@ -218,46 +218,48 @@ export default function ResearcherDashboard() {
             Aucun influenceur ajoute pour le moment.
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                {['Nom', 'Plateforme', 'Statut', "Date d'ajout"].map(h => (
-                  <th key={h} className="text-left text-xs text-muted font-medium px-4 py-3">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recentInfluenceurs.slice(0, 10).map(inf => (
-                <tr key={inf.id} className="border-b border-border last:border-0 hover:bg-surface2 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/influenceurs/${inf.id}`}
-                      className="text-sm font-medium text-white hover:text-violet-light transition-colors"
-                    >
-                      {inf.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-sm capitalize ${PLATFORM_COLORS[inf.primary_platform] ?? 'text-gray-300'}`}>
-                      {inf.primary_platform}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${STATUS_COLORS[inf.status] ?? 'bg-surface2 text-muted'}`}>
-                      {STATUS_LABELS[inf.status] ?? inf.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted text-sm">
-                    {new Date(inf.created_at).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  {['Nom', 'Plateforme', 'Statut', "Date d'ajout"].map(h => (
+                    <th key={h} className="text-left text-xs text-muted font-medium px-4 py-3 whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentInfluenceurs.slice(0, 10).map(inf => (
+                  <tr key={inf.id} className="border-b border-border last:border-0 hover:bg-surface2 transition-colors">
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/influenceurs/${inf.id}`}
+                        className="text-sm font-medium text-white hover:text-violet-light transition-colors whitespace-nowrap"
+                      >
+                        {inf.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-sm capitalize ${PLATFORM_COLORS[inf.primary_platform] ?? 'text-gray-300'}`}>
+                        {inf.primary_platform}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${STATUS_COLORS[inf.status] ?? 'bg-surface2 text-muted'}`}>
+                        {STATUS_LABELS[inf.status] ?? inf.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">
+                      {new Date(inf.created_at).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

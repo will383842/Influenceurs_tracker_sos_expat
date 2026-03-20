@@ -12,7 +12,7 @@ export default function InfluenceurCard({ influenceur }: Props) {
   return (
     <Link
       to={`/influenceurs/${influenceur.id}`}
-      className="bg-surface border border-border rounded-2xl p-5 hover:border-violet/40 hover:bg-surface2 transition-all block group"
+      className="bg-surface border border-border rounded-2xl p-5 hover:border-violet/40 hover:bg-surface2 transition-all block group overflow-hidden"
     >
       <div className="flex items-start gap-3">
         {influenceur.avatar_url ? (
@@ -49,7 +49,7 @@ export default function InfluenceurCard({ influenceur }: Props) {
       </div>
 
       <div className="flex items-center justify-between mt-3 text-sm">
-        <span className="text-muted">
+        <span className="text-muted truncate">
           {influenceur.followers != null
             ? `${influenceur.followers.toLocaleString('fr-FR')} followers`
             : 'Followers inconnus'}

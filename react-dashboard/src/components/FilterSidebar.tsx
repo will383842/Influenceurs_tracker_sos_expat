@@ -4,14 +4,15 @@ import type { InfluenceurFilters, Platform, Status, TeamMember } from '../types/
 
 interface Props {
   onFilterChange: (filters: InfluenceurFilters) => void;
+  onClose?: () => void;
 }
 
 const STATUSES: { value: Status; label: string }[] = [
   { value: 'prospect', label: 'Prospect' },
-  { value: 'contacted', label: 'Contact\u00e9' },
-  { value: 'negotiating', label: 'N\u00e9gociation' },
+  { value: 'contacted', label: 'Contacté' },
+  { value: 'negotiating', label: 'Négociation' },
   { value: 'active', label: 'Actif' },
-  { value: 'refused', label: 'Refus\u00e9' },
+  { value: 'refused', label: 'Refusé' },
   { value: 'inactive', label: 'Inactif' },
 ];
 
@@ -28,7 +29,7 @@ const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'newsletter', label: 'Newsletter' },
 ];
 
-export default function FilterSidebar({ onFilterChange }: Props) {
+export default function FilterSidebar({ onFilterChange, onClose }: Props) {
   const [filters, setFilters] = useState<InfluenceurFilters>({});
   const [search, setSearch] = useState('');
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -66,14 +67,24 @@ export default function FilterSidebar({ onFilterChange }: Props) {
   const hasFilters = Object.keys(filters).length > 0 || search;
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-surface border-r border-border p-4 overflow-auto">
+    <aside className={`${onClose ? 'fixed inset-0 z-50 bg-surface overflow-auto' : 'w-56 flex-shrink-0 bg-surface border-r border-border overflow-auto hidden md:block'} p-4`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-title text-sm font-semibold text-white">Filtres</h3>
-        {hasFilters && (
-          <button onClick={reset} className="text-xs text-muted hover:text-white transition-colors">
-            Réinitialiser
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasFilters && (
+            <button onClick={reset} className="text-xs text-muted hover:text-white transition-colors">
+              Réinitialiser
+            </button>
+          )}
+          {onClose && (
+            <button onClick={onClose} className="text-muted hover:text-white transition-colors" aria-label="Fermer les filtres">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="4" y1="4" x2="16" y2="16" />
+                <line x1="16" y1="4" x2="4" y2="16" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Recherche */}
@@ -123,7 +134,7 @@ export default function FilterSidebar({ onFilterChange }: Props) {
         </div>
       </div>
 
-      {/* Assign\u00e9 \u00e0 */}
+      {/* Assigné à */}
       {team.length > 0 && (
         <div className="mb-4">
           <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Assigné à</p>

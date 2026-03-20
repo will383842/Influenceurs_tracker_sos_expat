@@ -24,7 +24,7 @@ export default function Statistiques() {
   const tooltipStyle = { backgroundColor: '#101419', border: '1px solid #1e2530', borderRadius: 8, color: '#e2e8f0' };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <h2 className="font-title text-2xl font-bold text-white">Statistiques</h2>
 
       {/* KPIs */}
@@ -44,7 +44,7 @@ export default function Statistiques() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Évolution contacts */}
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
           <h3 className="font-title font-semibold text-white mb-4">Évolution des contacts (12 semaines)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={stats.contactsEvolution}>
@@ -64,7 +64,7 @@ export default function Statistiques() {
         </div>
 
         {/* Répartition statuts */}
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
           <h3 className="font-title font-semibold text-white mb-4">Répartition par statut</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -78,7 +78,7 @@ export default function Statistiques() {
         </div>
 
         {/* Plateformes */}
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
           <h3 className="font-title font-semibold text-white mb-4">Influenceurs par plateforme</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={stats.byPlatform}>
@@ -92,7 +92,7 @@ export default function Statistiques() {
         </div>
 
         {/* Taux de réponse par plateforme */}
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
           <h3 className="font-title font-semibold text-white mb-4">Taux de réponse par plateforme</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={stats.responseByPlatform}>
@@ -106,7 +106,7 @@ export default function Statistiques() {
         </div>
 
         {/* Funnel */}
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
           <h3 className="font-title font-semibold text-white mb-4">Funnel de conversion</h3>
           <div className="space-y-2">
             {stats.funnel.map((step, i) => {
@@ -129,7 +129,7 @@ export default function Statistiques() {
         </div>
 
         {/* Activité équipe */}
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
           <h3 className="font-title font-semibold text-white mb-4">Activité équipe ce mois</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={stats.teamActivity.map(t => ({ name: t.user?.name ?? '?', count: t.count }))}>

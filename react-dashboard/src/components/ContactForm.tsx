@@ -42,7 +42,7 @@ export default function ContactForm({ influenceurId, onSaved, onCancel }: Props)
         <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">{error}</div>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs text-muted mb-1.5">Date *</label>
           <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} required className={inputClass} />
