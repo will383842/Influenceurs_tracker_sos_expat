@@ -1,17 +1,52 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client';
-import type { ResearcherStat } from '../types/influenceur';
+import type { ResearcherStat, ObjectiveWithProgress } from '../types/influenceur';
 
-type ObjectiveForm = {
+interface ObjectiveForm {
+  country: string;
+  language: string;
+  niche: string;
   target_count: number;
-  period: 'daily' | 'weekly' | 'monthly';
+  deadline: string;
+}
+
+const emptyForm: ObjectiveForm = {
+  country: '',
+  language: '',
+  niche: '',
+  target_count: 10,
+  deadline: '',
 };
 
-const PERIOD_LABELS: Record<string, string> = {
-  daily: 'Quotidien',
-  weekly: 'Hebdomadaire',
-  monthly: 'Mensuel',
-};
+function getProgressBarColor(obj: ObjectiveWithProgress): string {
+  if (obj.days_remaining < 0) return 'bg-gray-500';
+  if (obj.percentage >= 80 && obj.days_remaining > 0) return 'bg-green-500';
+  if (obj.percentage >= 50 || obj.days_remaining <= 3) return 'bg-amber';
+  if (obj.percentage < 50 && obj.days_remaining <= 3) return 'bg-red-500';
+  return 'bg-violet';
+}
+
+function getProgressTextColor(obj: ObjectiveWithProgress): string {
+  if (obj.days_remaining < 0) return 'text-gray-400';
+  if (obj.percentage >= 80 && obj.days_remaining > 0) return 'text-green-400';
+  if (obj.percentage >= 50 || obj.days_remaining <= 3) return 'text-amber';
+  if (obj.percentage < 50 && obj.days_remaining <= 3) return 'text-red-400';
+  return 'text-violet-light';
+}
+
+function formatDeadline(deadline: string): string {
+  return new Date(deadline).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function getTomorrowDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
 
 export default function AdminConsole() {
   const [researchers, setResearchers] = useState<ResearcherStat[]>([]);
@@ -21,14 +56,20 @@ export default function AdminConsole() {
 
   // Objective form state
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
-  const [form, setForm] = useState<ObjectiveForm>({ target_count: 10, period: 'daily' });
+  const [form, setForm] = useState<ObjectiveForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+
+  // Summary stats
+  const [totalValid, setTotalValid] = useState(0);
 
   const fetchResearchers = async () => {
     try {
       setError('');
       const { data } = await api.get<ResearcherStat[]>('/researchers/stats');
       setResearchers(data);
+      // Compute total valid across all researchers
+      const total = data.reduce((sum, r) => sum + r.valid_count, 0);
+      setTotalValid(total);
     } catch {
       setError('Impossible de charger les statistiques des chercheurs.');
     } finally {
@@ -38,22 +79,25 @@ export default function AdminConsole() {
 
   useEffect(() => { fetchResearchers(); }, []);
 
-  const handleSetObjective = (researcher: ResearcherStat) => {
-    setEditingUserId(researcher.id);
+  const handleAddObjective = (researcherId: number) => {
+    setEditingUserId(researcherId);
+    setForm({ ...emptyForm, deadline: getTomorrowDate() });
     setSuccess('');
-    if (researcher.objective) {
-      setForm({
-        target_count: researcher.objective.target_count,
-        period: researcher.objective.period as ObjectiveForm['period'],
-      });
-    } else {
-      setForm({ target_count: 10, period: 'daily' });
-    }
   };
 
   const handleSubmitObjective = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUserId) return;
+
+    // Validate deadline is in the future
+    const deadlineDate = new Date(form.deadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (deadlineDate <= today) {
+      setError('La deadline doit etre une date future.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccess('');
@@ -61,10 +105,12 @@ export default function AdminConsole() {
       await api.post('/objectives', {
         user_id: editingUserId,
         target_count: form.target_count,
-        period: form.period,
-        start_date: new Date().toISOString().split('T')[0],
+        deadline: form.deadline,
+        country: form.country || null,
+        language: form.language || null,
+        niche: form.niche || null,
       });
-      setSuccess('Objectif mis a jour avec succes.');
+      setSuccess('Objectif cree avec succes.');
       setEditingUserId(null);
       await fetchResearchers();
     } catch (err: unknown) {
@@ -73,18 +119,6 @@ export default function AdminConsole() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 80) return 'bg-green-500';
-    if (percentage >= 50) return 'bg-amber';
-    return 'bg-red-500';
-  };
-
-  const getProgressTextColor = (percentage: number) => {
-    if (percentage >= 80) return 'text-green-400';
-    if (percentage >= 50) return 'text-amber';
-    return 'text-red-400';
   };
 
   if (loading) return (
@@ -97,7 +131,7 @@ export default function AdminConsole() {
     <div className="p-4 md:p-6 space-y-6">
       <div>
         <h2 className="font-title text-2xl font-bold text-white">Console Admin</h2>
-        <p className="text-muted text-sm mt-1">Gestion des chercheurs et objectifs</p>
+        <p className="text-muted text-sm mt-1">Gestion des chercheurs, objectifs et progression</p>
       </div>
 
       {error && (
@@ -112,11 +146,11 @@ export default function AdminConsole() {
         </div>
       )}
 
-      {/* Section: Chercheurs */}
+      {/* Section 1: Chercheurs & Objectifs */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
-          <h3 className="font-title font-semibold text-white">Chercheurs</h3>
-          <p className="text-xs text-muted mt-0.5">{researchers.length} chercheur{researchers.length !== 1 ? 's' : ''}</p>
+          <h3 className="font-title font-semibold text-white">Chercheurs & Objectifs</h3>
+          <p className="text-xs text-muted mt-0.5">{researchers.length} chercheur{researchers.length !== 1 ? 's' : ''} actif{researchers.length !== 1 ? 's' : ''}</p>
         </div>
 
         {researchers.length === 0 ? (
@@ -124,135 +158,215 @@ export default function AdminConsole() {
             Aucun chercheur enregistre. Ajoutez un membre avec le role "Chercheur" dans la page Equipe.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  {['Nom', 'Email', "Aujourd'hui", 'Semaine', 'Mois', 'Total', 'Objectif', 'Actions'].map(h => (
-                    <th key={h} className="text-left text-xs text-muted font-medium px-4 py-3 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {researchers.map(r => (
-                  <React.Fragment key={r.id}>
-                    <tr className="border-b border-border last:border-0 hover:bg-surface2 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-cyan/20 flex items-center justify-center text-cyan font-bold text-sm flex-shrink-0">
-                            {r.name[0]}
-                          </div>
-                          <span className="text-white text-sm font-medium whitespace-nowrap">{r.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">{r.email}</td>
-                      <td className="px-4 py-3 text-white text-sm font-mono">{r.created_today}</td>
-                      <td className="px-4 py-3 text-white text-sm font-mono">{r.created_this_week}</td>
-                      <td className="px-4 py-3 text-white text-sm font-mono">{r.created_this_month}</td>
-                      <td className="px-4 py-3 text-white text-sm font-mono font-bold">{r.total_created}</td>
-                      <td className="px-4 py-3">
-                        {r.objective ? (
-                          <div className="min-w-[140px]">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={`text-xs font-mono font-bold ${getProgressTextColor(r.objective.percentage)}`}>
-                                {r.objective.current_count}/{r.objective.target_count}
-                              </span>
-                              <span className={`text-xs font-mono ${getProgressTextColor(r.objective.percentage)}`}>
-                                {Math.round(r.objective.percentage)}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-surface2 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full transition-all ${getProgressColor(r.objective.percentage)}`}
-                                style={{ width: `${Math.min(r.objective.percentage, 100)}%` }}
-                              />
-                            </div>
-                            <p className="text-[10px] text-muted mt-0.5">{PERIOD_LABELS[r.objective.period] ?? r.objective.period}</p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted">Aucun objectif</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleSetObjective(r)}
-                          className="text-xs text-violet hover:text-violet-light transition-colors whitespace-nowrap"
-                        >
-                          {r.objective ? 'Modifier objectif' : 'Fixer objectif'}
-                        </button>
-                      </td>
-                    </tr>
+          <div className="divide-y divide-border">
+            {researchers.map(r => (
+              <div key={r.id} className="p-4 md:p-5">
+                {/* Researcher header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-cyan/20 flex items-center justify-center text-cyan font-bold text-sm flex-shrink-0">
+                      {r.name[0]}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{r.name}</p>
+                      <p className="text-muted text-xs">{r.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-white font-title">{r.total_created}</p>
+                      <p className="text-[10px] text-muted uppercase tracking-wider">Total crees</p>
+                    </div>
+                    <div className="w-px h-8 bg-border" />
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-green-400 font-title">{r.valid_count}</p>
+                      <p className="text-[10px] text-muted uppercase tracking-wider">Valides</p>
+                    </div>
+                    <div className="w-px h-8 bg-border" />
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-muted font-title">
+                        {r.total_created > 0 ? Math.round((r.valid_count / r.total_created) * 100) : 0}%
+                      </p>
+                      <p className="text-[10px] text-muted uppercase tracking-wider">Ratio</p>
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Inline objective form */}
-                    {editingUserId === r.id && (
-                      <tr className="border-b border-border">
-                        <td colSpan={8} className="px-4 py-4 bg-surface2/50">
-                          <form onSubmit={handleSubmitObjective} className="flex flex-wrap items-end gap-4">
-                            <div>
-                              <label className="block text-xs text-gray-400 mb-1">
-                                Objectif pour <span className="text-white font-medium">{r.name}</span>
-                              </label>
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-400 mb-1">Nombre cible</label>
-                              <input
-                                type="number"
-                                min={1}
-                                value={form.target_count}
-                                onChange={e => setForm(p => ({ ...p, target_count: parseInt(e.target.value) || 1 }))}
-                                className="w-24 bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-400 mb-1">Periode</label>
-                              <select
-                                value={form.period}
-                                onChange={e => setForm(p => ({ ...p, period: e.target.value as ObjectiveForm['period'] }))}
-                                className="bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
-                              >
-                                <option value="daily">Quotidien</option>
-                                <option value="weekly">Hebdomadaire</option>
-                                <option value="monthly">Mensuel</option>
-                              </select>
-                            </div>
-                            <button
-                              type="submit"
-                              disabled={saving}
-                              className="px-4 py-2 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
-                            >
-                              {saving ? 'Enregistrement...' : 'Enregistrer'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingUserId(null)}
-                              className="px-4 py-2 text-muted hover:text-white text-sm transition-colors"
-                            >
-                              Annuler
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                {/* Active objectives */}
+                {r.objectives.length > 0 ? (
+                  <div className="overflow-x-auto mb-3">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border/50">
+                          {['Pays', 'Langue', 'Niche', 'Cible', 'Progression', 'Deadline', 'Jours restants'].map(h => (
+                            <th key={h} className="text-left text-[10px] text-muted font-medium uppercase tracking-wider px-3 py-2 whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {r.objectives.map(obj => (
+                          <tr key={obj.id} className="border-b border-border/30 last:border-0">
+                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{obj.country ?? 'Tous pays'}</td>
+                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{obj.language ?? 'Toutes'}</td>
+                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{obj.niche ?? 'Tous types'}</td>
+                            <td className="px-3 py-2 text-white font-mono font-bold">{obj.target_count}</td>
+                            <td className="px-3 py-2 min-w-[160px]">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-surface2 rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full transition-all ${getProgressBarColor(obj)}`}
+                                    style={{ width: `${Math.min(obj.percentage, 100)}%` }}
+                                  />
+                                </div>
+                                <span className={`text-xs font-mono font-bold whitespace-nowrap ${getProgressTextColor(obj)}`}>
+                                  {obj.current_count}/{obj.target_count} ({Math.round(obj.percentage)}%)
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{formatDeadline(obj.deadline)}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {obj.days_remaining < 0 ? (
+                                <span className="text-gray-500 text-xs font-medium">Expire</span>
+                              ) : obj.days_remaining === 0 ? (
+                                <span className="text-red-400 text-xs font-bold">Aujourd'hui</span>
+                              ) : (
+                                <span className={`text-xs font-bold ${obj.days_remaining <= 3 ? 'text-amber' : 'text-gray-300'}`}>
+                                  {obj.days_remaining}j
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted mb-3 pl-1">Aucun objectif actif</p>
+                )}
+
+                {/* Add objective button */}
+                <button
+                  onClick={() => handleAddObjective(r.id)}
+                  className="text-xs text-violet hover:text-violet-light transition-colors font-medium"
+                >
+                  + Ajouter objectif
+                </button>
+
+                {/* Inline objective form */}
+                {editingUserId === r.id && (
+                  <div className="mt-4 bg-surface2/50 rounded-lg p-4 border border-border/50">
+                    <form onSubmit={handleSubmitObjective}>
+                      <p className="text-xs text-gray-400 mb-3">
+                        Nouvel objectif pour <span className="text-white font-medium">{r.name}</span>
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Pays</label>
+                          <input
+                            type="text"
+                            placeholder="ex: France"
+                            value={form.country}
+                            onChange={e => setForm(p => ({ ...p, country: e.target.value }))}
+                            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet placeholder:text-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Langue</label>
+                          <input
+                            type="text"
+                            placeholder="ex: fr"
+                            value={form.language}
+                            onChange={e => setForm(p => ({ ...p, language: e.target.value }))}
+                            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet placeholder:text-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Niche / Type</label>
+                          <input
+                            type="text"
+                            placeholder="ex: Voyage"
+                            value={form.niche}
+                            onChange={e => setForm(p => ({ ...p, niche: e.target.value }))}
+                            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet placeholder:text-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Quantite *</label>
+                          <input
+                            type="number"
+                            min={1}
+                            required
+                            value={form.target_count}
+                            onChange={e => setForm(p => ({ ...p, target_count: parseInt(e.target.value) || 1 }))}
+                            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Deadline *</label>
+                          <input
+                            type="date"
+                            required
+                            min={getTomorrowDate()}
+                            value={form.deadline}
+                            onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))}
+                            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="submit"
+                          disabled={saving}
+                          className="px-5 py-2 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium"
+                        >
+                          {saving ? 'Enregistrement...' : 'Creer l\'objectif'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingUserId(null)}
+                          className="px-4 py-2 text-muted hover:text-white text-sm transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Section: Doublons */}
-      <div className="bg-surface border border-border rounded-xl p-5">
-        <h3 className="font-title font-semibold text-white mb-2">Doublons</h3>
-        <div className="flex items-start gap-3 bg-surface2 rounded-lg p-4">
-          <span className="text-cyan text-lg">ℹ️</span>
-          <div>
-            <p className="text-sm text-gray-300">
-              Les doublons sont automatiquement bloques a la creation.
-            </p>
-            <p className="text-xs text-muted mt-1">
-              Le systeme verifie le handle et l'email avant d'enregistrer un nouvel influenceur. Si un doublon est detecte, la creation est refusee avec un message d'erreur explicite.
-            </p>
+      {/* Section 3: Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <h3 className="font-title font-semibold text-white mb-3">Resume global</h3>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <span className="text-2xl">✓</span>
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-green-400 font-title">{totalValid}</p>
+              <p className="text-xs text-muted">Influenceurs valides dans le systeme</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <h3 className="font-title font-semibold text-white mb-3">Doublons</h3>
+          <div className="flex items-start gap-3 bg-surface2 rounded-lg p-3">
+            <div className="w-8 h-8 rounded-lg bg-cyan/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-cyan text-sm">i</span>
+            </div>
+            <div>
+              <p className="text-sm text-gray-300">
+                Les doublons sont automatiquement bloques a la creation.
+              </p>
+              <p className="text-xs text-muted mt-1">
+                Le systeme verifie l'URL du profil avant d'enregistrer. Si un doublon est detecte, la creation est refusee.
+              </p>
+            </div>
           </div>
         </div>
       </div>

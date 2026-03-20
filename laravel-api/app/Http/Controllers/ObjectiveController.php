@@ -4,23 +4,32 @@ namespace App\Http\Controllers;
 
 use App\Models\Influenceur;
 use App\Models\Objective;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ObjectiveController extends Controller
 {
     /**
      * List objectives.
-     * Admin sees all, researcher sees own.
+     * Admin sees all active objectives grouped by user.
+     * Researcher sees only their own active objectives.
      */
     public function index(Request $request)
     {
-        $query = Objective::with(['user:id,name', 'creator:id,name']);
+        $query = Objective::with(['user:id,name', 'creator:id,name'])->active();
 
         if ($request->user()->isResearcher()) {
             $query->where('user_id', $request->user()->id);
         }
 
-        return response()->json($query->orderByDesc('created_at')->get());
+        $objectives = $query->orderByDesc('created_at')->get();
+
+        // Admin: group by user
+        if (!$request->user()->isResearcher()) {
+            return response()->json($objectives->groupBy('user_id'));
+        }
+
+        return response()->json($objectives);
     }
 
     /**
@@ -30,14 +39,13 @@ class ObjectiveController extends Controller
     {
         $data = $request->validate([
             'user_id'      => 'required|exists:users,id',
+            'country'      => 'nullable|string|max:100',
+            'language'     => 'nullable|string|max:10',
+            'niche'        => 'nullable|string|max:255',
             'target_count' => 'required|integer|min:1',
-            'period'       => 'required|in:daily,weekly,monthly',
-            'start_date'   => 'sometimes|date',
-            'end_date'     => 'nullable|date|after_or_equal:start_date',
-            'is_active'    => 'sometimes|boolean',
+            'deadline'     => 'required|date|after:today',
         ]);
 
-        $data['start_date']  = $data['start_date'] ?? now()->toDateString();
         $data['created_by'] = $request->user()->id;
 
         $objective = Objective::create($data);
@@ -51,10 +59,11 @@ class ObjectiveController extends Controller
     public function update(Request $request, Objective $objective)
     {
         $data = $request->validate([
+            'country'      => 'nullable|string|max:100',
+            'language'     => 'nullable|string|max:10',
+            'niche'        => 'nullable|string|max:255',
             'target_count' => 'sometimes|integer|min:1',
-            'period'       => 'sometimes|in:daily,weekly,monthly',
-            'start_date'   => 'sometimes|date',
-            'end_date'     => 'nullable|date|after_or_equal:start_date',
+            'deadline'     => 'sometimes|date|after:today',
             'is_active'    => 'sometimes|boolean',
         ]);
 
@@ -74,8 +83,8 @@ class ObjectiveController extends Controller
     }
 
     /**
-     * Return progress for a given user in the current period.
-     * Compares influenceurs created in the period vs the objective target.
+     * Return progress for a given user's active objectives.
+     * Admin can check any user via ?user_id=, researcher sees own only.
      */
     public function progress(Request $request)
     {
@@ -86,50 +95,73 @@ class ObjectiveController extends Controller
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
 
-        $objective = Objective::where('user_id', $userId)
-            ->where('is_active', true)
-            ->latest()
-            ->first();
+        $objectives = Objective::where('user_id', $userId)
+            ->active()
+            ->orderByDesc('created_at')
+            ->get();
 
-        if (!$objective) {
+        if ($objectives->isEmpty()) {
             return response()->json([
-                'has_objective' => false,
-                'message'       => 'Aucun objectif actif.',
+                'has_objectives'  => false,
+                'message'         => 'Aucun objectif actif.',
+                'objectives'      => [],
+                'global_progress' => null,
             ]);
         }
 
-        // Calculate period boundaries
-        $now = now();
-        switch ($objective->period) {
-            case 'daily':
-                $periodStart = $now->copy()->startOfDay();
-                $periodEnd   = $now->copy()->endOfDay();
-                break;
-            case 'weekly':
-                $periodStart = $now->copy()->startOfWeek();
-                $periodEnd   = $now->copy()->endOfWeek();
-                break;
-            case 'monthly':
-                $periodStart = $now->copy()->startOfMonth();
-                $periodEnd   = $now->copy()->endOfMonth();
-                break;
-        }
+        $totalTarget = 0;
+        $totalValid  = 0;
 
-        $count = Influenceur::where('created_by', $userId)
-            ->whereBetween('created_at', [$periodStart, $periodEnd])
-            ->count();
+        $objectivesData = $objectives->map(function ($objective) use ($userId, &$totalTarget, &$totalValid) {
+            $query = Influenceur::where('created_by', $userId)
+                ->validForObjective();
+
+            // Apply filters if set on the objective
+            if ($objective->country) {
+                $query->where('country', $objective->country);
+            }
+            if ($objective->language) {
+                $query->where('language', $objective->language);
+            }
+            if ($objective->niche) {
+                $query->where('niche', $objective->niche);
+            }
+
+            $currentCount = $query->count();
+            $daysRemaining = max(0, (int) now()->startOfDay()->diffInDays($objective->deadline, false));
+            $percentage = $objective->target_count > 0
+                ? round($currentCount / $objective->target_count * 100, 1)
+                : 0;
+
+            $totalTarget += $objective->target_count;
+            $totalValid  += $currentCount;
+
+            return [
+                'id'             => $objective->id,
+                'country'        => $objective->country,
+                'language'       => $objective->language,
+                'niche'          => $objective->niche,
+                'target_count'   => $objective->target_count,
+                'deadline'       => $objective->deadline->toDateString(),
+                'current_count'  => $currentCount,
+                'percentage'     => $percentage,
+                'days_remaining' => $daysRemaining,
+                'is_overdue'     => $daysRemaining === 0 && $objective->deadline->isPast(),
+            ];
+        });
+
+        $globalPercentage = $totalTarget > 0
+            ? round($totalValid / $totalTarget * 100, 1)
+            : 0;
 
         return response()->json([
-            'has_objective'  => true,
-            'objective_id'   => $objective->id,
-            'target_count'   => $objective->target_count,
-            'period'         => $objective->period,
-            'current_count'  => $count,
-            'percentage'     => $objective->target_count > 0
-                ? round($count / $objective->target_count * 100, 1)
-                : 0,
-            'period_start'   => $periodStart->toDateString(),
-            'period_end'     => $periodEnd->toDateString(),
+            'has_objectives'  => true,
+            'objectives'      => $objectivesData,
+            'global_progress' => [
+                'total_valid'  => $totalValid,
+                'total_target' => $totalTarget,
+                'percentage'   => $globalPercentage,
+            ],
         ]);
     }
 }

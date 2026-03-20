@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -56,5 +57,24 @@ class Influenceur extends Model
     public function activityLogs()
     {
         return $this->hasMany(ActivityLog::class);
+    }
+
+    /**
+     * Scope: influenceurs that count as "valid" for objective progress.
+     * Requires: profile_url, name, profile_url_domain, and at least email or phone.
+     */
+    public function scopeValidForObjective(Builder $query): Builder
+    {
+        return $query->whereNotNull('profile_url')
+            ->whereNotNull('name')
+            ->where('name', '!=', '')
+            ->whereNotNull('profile_url_domain')
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('email')->where('email', '!=', '');
+                })->orWhere(function ($q2) {
+                    $q2->whereNotNull('phone')->where('phone', '!=', '');
+                });
+            });
     }
 }

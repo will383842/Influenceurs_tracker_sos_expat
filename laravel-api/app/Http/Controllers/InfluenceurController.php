@@ -78,9 +78,9 @@ class InfluenceurController extends Controller
 
         $data['created_by'] = $request->user()->id;
 
-        // Extract and store normalized domain from profile_url
+        // Extract and store normalized profile URL domain
         if (!empty($data['profile_url'])) {
-            $data['profile_url_domain'] = self::normalizeUrlDomain($data['profile_url']);
+            $data['profile_url_domain'] = self::normalizeProfileUrl($data['profile_url']);
         }
 
         // Duplicate check on profile_url_domain
@@ -118,6 +118,13 @@ class InfluenceurController extends Controller
         if ($duplicateWarning) {
             $response['duplicate_warning'] = $duplicateWarning;
         }
+
+        // Check if valid for objective counting
+        $isValid = !empty($influenceur->profile_url)
+            && !empty($influenceur->name)
+            && !empty($influenceur->profile_url_domain)
+            && (!empty($influenceur->email) || !empty($influenceur->phone));
+        $response['is_valid_for_objective'] = $isValid;
 
         return response()->json($response, 201);
     }
@@ -170,7 +177,7 @@ class InfluenceurController extends Controller
         // Re-extract domain if profile_url changed
         if (isset($data['profile_url'])) {
             $data['profile_url_domain'] = !empty($data['profile_url'])
-                ? self::normalizeUrlDomain($data['profile_url'])
+                ? self::normalizeProfileUrl($data['profile_url'])
                 : null;
         }
 
@@ -246,35 +253,93 @@ class InfluenceurController extends Controller
     }
 
     /**
-     * Normalize a URL to its root domain + path for duplicate detection.
-     * Removes protocol, www, trailing slash, query params, fragments.
+     * Smart URL normalization: extract the profile/channel URL from video/post URLs.
+     * Used for duplicate detection and objective validation.
+     */
+    public static function normalizeProfileUrl(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        // Remove protocol, www, trailing slash, query params, fragments
+        $url = preg_replace('#^https?://(www\.)?#', '', $url);
+        $url = rtrim($url, '/');
+        $url = preg_replace('#\?.*$#', '', $url);
+        $url = preg_replace('#\#.*$#', '', $url);
+
+        // TikTok: keep only @username
+        if (str_contains($url, 'tiktok.com/')) {
+            if (preg_match('#tiktok\.com/(@[^/]+)#', $url, $m)) {
+                return 'tiktok.com/' . $m[1];
+            }
+        }
+
+        // YouTube: keep channel/username, strip video paths
+        if (str_contains($url, 'youtube.com/') || str_contains($url, 'youtu.be/')) {
+            if (preg_match('#youtube\.com/(@[^/]+)#', $url, $m)) {
+                return 'youtube.com/' . $m[1];
+            }
+            if (preg_match('#youtube\.com/(channel/[^/]+)#', $url, $m)) {
+                return 'youtube.com/' . $m[1];
+            }
+            if (preg_match('#youtube\.com/(c/[^/]+)#', $url, $m)) {
+                return 'youtube.com/' . $m[1];
+            }
+            // watch?v= or youtu.be/xxx — can't extract channel, keep as-is
+            return $url;
+        }
+
+        // Instagram: keep username only
+        if (str_contains($url, 'instagram.com/')) {
+            if (preg_match('#instagram\.com/([a-zA-Z0-9_.]+)#', $url, $m)) {
+                $username = $m[1];
+                // Skip non-profile paths
+                if (!in_array($username, ['p', 'reel', 'reels', 'stories', 'explore', 'tv'])) {
+                    return 'instagram.com/' . $username;
+                }
+            }
+        }
+
+        // LinkedIn: keep profile path
+        if (str_contains($url, 'linkedin.com/')) {
+            if (preg_match('#linkedin\.com/(in/[^/]+)#', $url, $m)) {
+                return 'linkedin.com/' . $m[1];
+            }
+            if (preg_match('#linkedin\.com/(company/[^/]+)#', $url, $m)) {
+                return 'linkedin.com/' . $m[1];
+            }
+        }
+
+        // Facebook: keep profile/page path
+        if (str_contains($url, 'facebook.com/')) {
+            if (preg_match('#facebook\.com/([a-zA-Z0-9.]+)#', $url, $m)) {
+                $name = $m[1];
+                if (!in_array($name, ['watch', 'video', 'videos', 'photo', 'photos', 'events', 'groups'])) {
+                    return 'facebook.com/' . $name;
+                }
+            }
+        }
+
+        // X/Twitter
+        if (str_contains($url, 'twitter.com/') || str_contains($url, 'x.com/')) {
+            if (preg_match('#(?:twitter|x)\.com/([a-zA-Z0-9_]+)#', $url, $m)) {
+                $username = $m[1];
+                if (!in_array($username, ['status', 'i', 'intent', 'search', 'hashtag'])) {
+                    return 'x.com/' . $username;
+                }
+            }
+        }
+
+        // Default: return cleaned URL
+        return $url;
+    }
+
+    /**
+     * Legacy alias — calls normalizeProfileUrl.
      */
     public static function normalizeUrlDomain(?string $url): ?string
     {
-        if (empty($url)) {
-            return null;
-        }
-
-        // Ensure URL has a scheme for parse_url to work
-        if (!preg_match('#^https?://#i', $url)) {
-            $url = 'https://' . $url;
-        }
-
-        $parsed = parse_url($url);
-        if (!$parsed || empty($parsed['host'])) {
-            return null;
-        }
-
-        $host = strtolower($parsed['host']);
-
-        // Remove www.
-        $host = preg_replace('/^www\./i', '', $host);
-
-        // Include path, remove trailing slash
-        $path = isset($parsed['path']) ? rtrim($parsed['path'], '/') : '';
-
-        $normalized = $host . $path;
-
-        return $normalized ?: null;
+        return self::normalizeProfileUrl($url);
     }
 }

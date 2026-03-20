@@ -2,17 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Objective extends Model
 {
     protected $fillable = [
-        'user_id', 'target_count', 'period', 'start_date', 'end_date', 'is_active', 'created_by',
+        'user_id', 'country', 'language', 'niche',
+        'target_count', 'deadline', 'is_active', 'created_by',
     ];
 
     protected $casts = [
-        'start_date'   => 'date',
-        'end_date'     => 'date',
+        'deadline'     => 'date',
         'is_active'    => 'boolean',
         'target_count' => 'integer',
     ];
@@ -25,5 +26,13 @@ class Objective extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Scope: only active objectives.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
     }
 }

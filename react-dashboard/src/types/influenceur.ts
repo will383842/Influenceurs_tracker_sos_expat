@@ -132,21 +132,29 @@ export interface ReminderWithInfluenceur extends Reminder {
 export interface Objective {
   id: number;
   user_id: number;
+  country: string | null;
+  language: string | null;
+  niche: string | null;
   target_count: number;
-  period: 'daily' | 'weekly' | 'monthly';
-  start_date: string;
-  end_date: string | null;
+  deadline: string;
   is_active: boolean;
   created_by: number;
   created_at: string;
 }
 
-export interface ObjectiveProgress {
-  target_count: number;
-  period: string;
+export interface ObjectiveWithProgress extends Objective {
   current_count: number;
   percentage: number;
-  start_date: string;
+  days_remaining: number;
+}
+
+export interface ObjectiveProgress {
+  objectives: ObjectiveWithProgress[];
+  global_progress: {
+    total_target: number;
+    total_current: number;
+    percentage: number;
+  };
 }
 
 export interface ResearcherStat {
@@ -154,13 +162,6 @@ export interface ResearcherStat {
   name: string;
   email: string;
   total_created: number;
-  created_today: number;
-  created_this_week: number;
-  created_this_month: number;
-  objective: {
-    target_count: number;
-    period: string;
-    current_count: number;
-    percentage: number;
-  } | null;
+  valid_count: number;
+  objectives: ObjectiveWithProgress[];
 }

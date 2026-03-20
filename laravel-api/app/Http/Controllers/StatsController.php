@@ -135,63 +135,68 @@ class StatsController extends Controller
             ->get();
 
         $stats = $researchers->map(function ($researcher) {
-            $totalCreated = Influenceur::where('created_by', $researcher->id)->count();
-            $createdToday = Influenceur::where('created_by', $researcher->id)
+            $baseQuery = Influenceur::where('created_by', $researcher->id);
+
+            $totalCreated = (clone $baseQuery)->count();
+            $validCount   = (clone $baseQuery)->validForObjective()->count();
+            $createdToday = (clone $baseQuery)
                 ->where('created_at', '>=', now()->startOfDay())
                 ->count();
-            $createdThisWeek = Influenceur::where('created_by', $researcher->id)
+            $createdThisWeek = (clone $baseQuery)
                 ->where('created_at', '>=', now()->startOfWeek())
                 ->count();
-            $createdThisMonth = Influenceur::where('created_by', $researcher->id)
+            $createdThisMonth = (clone $baseQuery)
                 ->where('created_at', '>=', now()->startOfMonth())
                 ->count();
 
-            // Active objective
-            $objective = Objective::where('user_id', $researcher->id)
-                ->where('is_active', true)
-                ->latest()
-                ->first();
+            // Active objectives with progress
+            $objectives = Objective::where('user_id', $researcher->id)
+                ->active()
+                ->orderByDesc('created_at')
+                ->get();
 
-            $objectiveData = null;
-            if ($objective) {
-                $now = now();
-                switch ($objective->period) {
-                    case 'daily':
-                        $periodStart = $now->copy()->startOfDay();
-                        $periodEnd   = $now->copy()->endOfDay();
-                        break;
-                    case 'weekly':
-                        $periodStart = $now->copy()->startOfWeek();
-                        $periodEnd   = $now->copy()->endOfWeek();
-                        break;
-                    case 'monthly':
-                        $periodStart = $now->copy()->startOfMonth();
-                        $periodEnd   = $now->copy()->endOfMonth();
-                        break;
+            $objectivesData = $objectives->map(function ($objective) use ($researcher) {
+                $query = Influenceur::where('created_by', $researcher->id)
+                    ->validForObjective();
+
+                if ($objective->country) {
+                    $query->where('country', $objective->country);
                 }
-                $periodCount = Influenceur::where('created_by', $researcher->id)
-                    ->whereBetween('created_at', [$periodStart, $periodEnd])
-                    ->count();
+                if ($objective->language) {
+                    $query->where('language', $objective->language);
+                }
+                if ($objective->niche) {
+                    $query->where('niche', $objective->niche);
+                }
 
-                $objectiveData = [
-                    'target_count'  => $objective->target_count,
-                    'period'        => $objective->period,
-                    'current_count' => $periodCount,
-                    'percentage'    => $objective->target_count > 0
-                        ? round($periodCount / $objective->target_count * 100, 1)
+                $currentCount = $query->count();
+                $daysRemaining = max(0, (int) now()->startOfDay()->diffInDays($objective->deadline, false));
+
+                return [
+                    'id'             => $objective->id,
+                    'country'        => $objective->country,
+                    'language'       => $objective->language,
+                    'niche'          => $objective->niche,
+                    'target_count'   => $objective->target_count,
+                    'deadline'       => $objective->deadline->toDateString(),
+                    'current_count'  => $currentCount,
+                    'percentage'     => $objective->target_count > 0
+                        ? round($currentCount / $objective->target_count * 100, 1)
                         : 0,
+                    'days_remaining' => $daysRemaining,
                 ];
-            }
+            });
 
             return [
                 'id'                 => $researcher->id,
                 'name'               => $researcher->name,
                 'email'              => $researcher->email,
                 'total_created'      => $totalCreated,
+                'valid_count'        => $validCount,
                 'created_today'      => $createdToday,
                 'created_this_week'  => $createdThisWeek,
                 'created_this_month' => $createdThisMonth,
-                'objective'          => $objectiveData,
+                'objectives'         => $objectivesData,
             ];
         });
 
