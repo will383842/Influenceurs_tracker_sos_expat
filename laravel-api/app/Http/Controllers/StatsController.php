@@ -33,7 +33,7 @@ class StatsController extends Controller
 
         // Évolution contacts (12 semaines)
         $contactsEvolution = Contact::select(
-            DB::raw('YEARWEEK(date, 1) as week'),
+            DB::raw("TO_CHAR(date, 'IYYY-IW') as week"),
             DB::raw('count(*) as count')
         )
             ->where('date', '>=', now()->subWeeks(12))
@@ -53,7 +53,7 @@ class StatsController extends Controller
             ->select(
                 'influenceurs.primary_platform',
                 DB::raw('count(*) as total'),
-                DB::raw('sum(case when contacts.result = "replied" then 1 else 0 end) as replied')
+                DB::raw("sum(case when contacts.result = 'replied' then 1 else 0 end) as replied")
             )
             ->groupBy('influenceurs.primary_platform')
             ->get()
