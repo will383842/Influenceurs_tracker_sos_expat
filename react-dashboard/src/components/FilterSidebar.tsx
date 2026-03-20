@@ -101,70 +101,64 @@ export default function FilterSidebar({ onFilterChange, onClose }: Props) {
       {/* Statut */}
       <div className="mb-4">
         <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Statut</p>
-        <div className="space-y-1">
+        <select
+          value={filters.status ?? ''}
+          onChange={e => update({ ...filters, status: e.target.value ? e.target.value as Status : undefined })}
+          className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+        >
+          <option value="">Tous les statuts</option>
           {STATUSES.map(s => (
-            <button
-              key={s.value}
-              onClick={() => update({ ...filters, status: filters.status === s.value ? undefined : s.value })}
-              className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                filters.status === s.value ? 'bg-violet/20 text-violet-light' : 'text-muted hover:bg-surface2 hover:text-white'
-              }`}
-            >
-              {s.label}
-            </button>
+            <option key={s.value} value={s.value}>{s.label}</option>
           ))}
-        </div>
+        </select>
       </div>
 
       {/* Plateforme */}
       <div className="mb-4">
         <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Plateforme</p>
-        <div className="space-y-1">
+        <select
+          value={filters.platform ?? ''}
+          onChange={e => update({ ...filters, platform: e.target.value ? e.target.value as Platform : undefined })}
+          className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+        >
+          <option value="">Toutes les plateformes</option>
           {PLATFORMS.map(p => (
-            <button
-              key={p.value}
-              onClick={() => update({ ...filters, platform: filters.platform === p.value ? undefined : p.value })}
-              className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                filters.platform === p.value ? 'bg-violet/20 text-violet-light' : 'text-muted hover:bg-surface2 hover:text-white'
-              }`}
-            >
-              {p.label}
-            </button>
+            <option key={p.value} value={p.value}>{p.label}</option>
           ))}
-        </div>
+        </select>
       </div>
 
       {/* Assigné à */}
       {team.length > 0 && (
         <div className="mb-4">
           <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Assigné à</p>
-          <div className="space-y-1">
+          <select
+            value={filters.assigned_to ?? ''}
+            onChange={e => update({ ...filters, assigned_to: e.target.value ? Number(e.target.value) : undefined })}
+            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+          >
+            <option value="">Tous les membres</option>
             {team.map(m => (
-              <button
-                key={m.id}
-                onClick={() => update({ ...filters, assigned_to: filters.assigned_to === m.id ? undefined : m.id })}
-                className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                  filters.assigned_to === m.id ? 'bg-violet/20 text-violet-light' : 'text-muted hover:bg-surface2 hover:text-white'
-                }`}
-              >
-                {m.name}
-              </button>
+              <option key={m.id} value={m.id}>{m.name}</option>
             ))}
-          </div>
+          </select>
         </div>
       )}
 
       {/* Rappels actifs */}
       <div>
         <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Rappels</p>
-        <button
-          onClick={() => update({ ...filters, has_reminder: filters.has_reminder ? undefined : true })}
-          className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${
-            filters.has_reminder ? 'bg-amber/20 text-amber' : 'text-muted hover:bg-surface2 hover:text-white'
-          }`}
-        >
-          À relancer uniquement
-        </button>
+        <label className="flex items-center gap-2 cursor-pointer text-sm px-1 py-1">
+          <input
+            type="checkbox"
+            checked={!!filters.has_reminder}
+            onChange={() => update({ ...filters, has_reminder: filters.has_reminder ? undefined : true })}
+            className="w-4 h-4 rounded border-border bg-surface2 text-violet accent-violet"
+          />
+          <span className={filters.has_reminder ? 'text-amber' : 'text-muted'}>
+            À relancer uniquement
+          </span>
+        </label>
       </div>
     </aside>
   );

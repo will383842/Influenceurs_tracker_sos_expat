@@ -161,6 +161,7 @@ export interface ResearcherStat {
   id: number;
   name: string;
   email: string;
+  last_login_at: string | null;
   total_created: number;
   valid_count: number;
   objectives: ObjectiveWithProgress[];

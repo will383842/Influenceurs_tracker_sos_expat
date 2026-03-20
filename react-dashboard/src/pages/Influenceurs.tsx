@@ -53,7 +53,7 @@ const EMPTY_FORM: CreateForm = {
 export default function Influenceurs() {
   const { influenceurs, loading, error, hasMore, load, loadMore, createInfluenceur } = useInfluenceurs();
   const { user } = useContext(AuthContext);
-  const [view, setView] = useState<'cards' | 'table'>('cards');
+  const [view, setView] = useState<'cards' | 'table'>('table');
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(EMPTY_FORM);
   const [createError, setCreateError] = useState('');

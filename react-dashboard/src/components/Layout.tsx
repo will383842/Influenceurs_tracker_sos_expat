@@ -87,6 +87,14 @@ export default function Layout() {
               <NavLink to="/influenceurs" className={navClass} onClick={handleNavClick}>
                 <span>👥</span> Influenceurs
               </NavLink>
+              <NavLink to="/a-relancer" className={navClass} onClick={handleNavClick}>
+                <span>🔔</span> A relancer
+                {reminders.length > 0 && (
+                  <span className="ml-auto bg-amber text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
+                    {reminders.length}
+                  </span>
+                )}
+              </NavLink>
             </>
           ) : (
             <>

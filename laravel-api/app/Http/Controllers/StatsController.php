@@ -131,7 +131,7 @@ class StatsController extends Controller
     {
         $researchers = User::where('role', 'researcher')
             ->where('is_active', true)
-            ->select('id', 'name', 'email', 'created_at')
+            ->select('id', 'name', 'email', 'last_login_at', 'created_at')
             ->get();
 
         $stats = $researchers->map(function ($researcher) {
@@ -191,6 +191,7 @@ class StatsController extends Controller
                 'id'                 => $researcher->id,
                 'name'               => $researcher->name,
                 'email'              => $researcher->email,
+                'last_login_at'      => $researcher->last_login_at?->toIso8601String(),
                 'total_created'      => $totalCreated,
                 'valid_count'        => $validCount,
                 'created_today'      => $createdToday,

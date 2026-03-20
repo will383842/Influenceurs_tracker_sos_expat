@@ -170,6 +170,12 @@ export default function AdminConsole() {
                     <div>
                       <p className="text-white font-medium">{r.name}</p>
                       <p className="text-muted text-xs">{r.email}</p>
+                      <p className="text-muted text-xs mt-0.5">
+                        Derniere connexion:{' '}
+                        {r.last_login_at
+                          ? new Date(r.last_login_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + new Date(r.last_login_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                          : 'Jamais'}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
