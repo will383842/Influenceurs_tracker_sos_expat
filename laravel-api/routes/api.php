@@ -9,6 +9,30 @@ use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Route;
 
+// Health check (public)
+Route::get('/health', function () {
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $dbOk = true;
+    } catch (\Throwable $e) {
+        $dbOk = false;
+    }
+    $redisOk = false;
+    try {
+        \Illuminate\Support\Facades\Cache::store('redis')->put('health', true, 10);
+        $redisOk = \Illuminate\Support\Facades\Cache::store('redis')->get('health') === true;
+    } catch (\Throwable $e) {
+        $redisOk = false;
+    }
+    $status = $dbOk && $redisOk ? 200 : 503;
+    return response()->json([
+        'status' => $status === 200 ? 'ok' : 'degraded',
+        'database' => $dbOk,
+        'redis' => $redisOk,
+        'timestamp' => now()->toIso8601String(),
+    ], $status);
+});
+
 // Auth publique
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
 

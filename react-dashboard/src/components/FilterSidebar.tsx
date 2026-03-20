@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import type { InfluenceurFilters, Platform, Status } from '../types/influenceur';
+import React, { useState, useEffect } from 'react';
+import api from '../api/client';
+import type { InfluenceurFilters, Platform, Status, TeamMember } from '../types/influenceur';
 
 interface Props {
   onFilterChange: (filters: InfluenceurFilters) => void;
@@ -7,10 +8,10 @@ interface Props {
 
 const STATUSES: { value: Status; label: string }[] = [
   { value: 'prospect', label: 'Prospect' },
-  { value: 'contacted', label: 'Contacté' },
-  { value: 'negotiating', label: 'Négociation' },
+  { value: 'contacted', label: 'Contact\u00e9' },
+  { value: 'negotiating', label: 'N\u00e9gociation' },
   { value: 'active', label: 'Actif' },
-  { value: 'refused', label: 'Refusé' },
+  { value: 'refused', label: 'Refus\u00e9' },
   { value: 'inactive', label: 'Inactif' },
 ];
 
@@ -29,6 +30,13 @@ const PLATFORMS: { value: Platform; label: string }[] = [
 export default function FilterSidebar({ onFilterChange }: Props) {
   const [filters, setFilters] = useState<InfluenceurFilters>({});
   const [search, setSearch] = useState('');
+  const [team, setTeam] = useState<TeamMember[]>([]);
+
+  useEffect(() => {
+    api.get<TeamMember[]>('/team')
+      .then(({ data }) => setTeam(data))
+      .catch(() => setTeam([]));
+  }, []);
 
   const update = (newFilters: InfluenceurFilters) => {
     setFilters(newFilters);
@@ -105,6 +113,26 @@ export default function FilterSidebar({ onFilterChange }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Assign\u00e9 \u00e0 */}
+      {team.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Assigné à</p>
+          <div className="space-y-1">
+            {team.map(m => (
+              <button
+                key={m.id}
+                onClick={() => update({ ...filters, assigned_to: filters.assigned_to === m.id ? undefined : m.id })}
+                className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                  filters.assigned_to === m.id ? 'bg-violet/20 text-violet-light' : 'text-muted hover:bg-surface2 hover:text-white'
+                }`}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Rappels actifs */}
       <div>

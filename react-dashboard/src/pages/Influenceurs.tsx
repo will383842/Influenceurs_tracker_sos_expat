@@ -1,14 +1,64 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useInfluenceurs } from '../hooks/useInfluenceurs';
 import InfluenceurCard from '../components/InfluenceurCard';
 import InfluenceurTable from '../components/InfluenceurTable';
 import FilterSidebar from '../components/FilterSidebar';
-import type { InfluenceurFilters } from '../types/influenceur';
+import { AuthContext } from '../hooks/useAuth';
+import type { InfluenceurFilters, Platform, Status } from '../types/influenceur';
+
+const PLATFORM_OPTIONS: { value: Platform; label: string }[] = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'x', label: 'X' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'pinterest', label: 'Pinterest' },
+  { value: 'podcast', label: 'Podcast' },
+  { value: 'blog', label: 'Blog' },
+  { value: 'newsletter', label: 'Newsletter' },
+];
+
+const STATUS_OPTIONS: { value: Status; label: string }[] = [
+  { value: 'prospect', label: 'Prospect' },
+  { value: 'contacted', label: 'Contacté' },
+  { value: 'negotiating', label: 'Négociation' },
+  { value: 'active', label: 'Actif' },
+  { value: 'refused', label: 'Refusé' },
+  { value: 'inactive', label: 'Inactif' },
+];
+
+type CreateForm = {
+  name: string;
+  handle: string;
+  platforms: Platform[];
+  primary_platform: Platform;
+  followers: string;
+  email: string;
+  phone: string;
+  country: string;
+  language: string;
+  niche: string;
+  profile_url: string;
+  status: Status;
+  notes: string;
+};
+
+const EMPTY_FORM: CreateForm = {
+  name: '', handle: '', platforms: ['instagram'], primary_platform: 'instagram',
+  followers: '', email: '', phone: '', country: '', language: '',
+  niche: '', profile_url: '', status: 'prospect', notes: '',
+};
 
 export default function Influenceurs() {
-  const { influenceurs, loading, hasMore, load, loadMore } = useInfluenceurs();
+  const { influenceurs, loading, error, hasMore, load, loadMore, createInfluenceur } = useInfluenceurs();
+  const { user } = useContext(AuthContext);
   const [view, setView] = useState<'cards' | 'table'>('cards');
   const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateForm>(EMPTY_FORM);
+  const [createError, setCreateError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { load(); }, []);
@@ -27,6 +77,58 @@ export default function Influenceurs() {
     load(filters);
   };
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError('');
+    setCreating(true);
+    try {
+      await createInfluenceur({
+        ...createForm,
+        followers: createForm.followers ? Number(createForm.followers) : null,
+      });
+      setShowCreate(false);
+      setCreateForm(EMPTY_FORM);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setCreateError(e.response?.data?.message ?? 'Erreur lors de la création.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleExport = async (format: 'csv' | 'excel') => {
+    setExporting(true);
+    try {
+      const response = await fetch(`/api/influenceurs/exports/${format}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Export failed');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `influenceurs-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      console.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const togglePlatform = (p: Platform) => {
+    setCreateForm(prev => {
+      const has = prev.platforms.includes(p);
+      const platforms = has ? prev.platforms.filter(x => x !== p) : [...prev.platforms, p];
+      if (platforms.length === 0) return prev;
+      const primary = platforms.includes(prev.primary_platform) ? prev.primary_platform : platforms[0];
+      return { ...prev, platforms, primary_platform: primary };
+    });
+  };
+
+  const inputClass = 'w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet transition-colors';
+
   return (
     <div className="flex h-screen overflow-hidden">
       <FilterSidebar onFilterChange={handleFilterChange} />
@@ -39,6 +141,26 @@ export default function Influenceurs() {
             <p className="text-muted text-sm mt-1">{influenceurs.length} chargé{influenceurs.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Export buttons (admin only) */}
+            {user?.role === 'admin' && (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => handleExport('csv')}
+                  disabled={exporting}
+                  className="px-3 py-2 bg-surface2 text-muted hover:text-white text-sm rounded-lg border border-border transition-colors disabled:opacity-50"
+                >
+                  CSV
+                </button>
+                <button
+                  onClick={() => handleExport('excel')}
+                  disabled={exporting}
+                  className="px-3 py-2 bg-surface2 text-muted hover:text-white text-sm rounded-lg border border-border transition-colors disabled:opacity-50"
+                >
+                  Excel
+                </button>
+              </div>
+            )}
+
             {/* Toggle vue */}
             <div className="flex bg-surface border border-border rounded-lg p-1">
               <button
@@ -55,13 +177,201 @@ export default function Influenceurs() {
               </button>
             </div>
             <button
-              onClick={() => alert('Fonctionnalité à venir : formulaire de création d\'influenceur.')}
+              onClick={() => setShowCreate(!showCreate)}
               className="px-4 py-2 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors"
             >
               + Ajouter
             </button>
           </div>
         </div>
+
+        {/* Formulaire de création */}
+        {showCreate && (
+          <form onSubmit={handleCreate} className="bg-surface border border-border rounded-xl p-5 mb-6 space-y-4">
+            <h3 className="font-title font-semibold text-white">Nouvel influenceur</h3>
+
+            {createError && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">{createError}</div>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Nom *</label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={e => setCreateForm(p => ({ ...p, name: e.target.value }))}
+                  required
+                  placeholder="Nom complet"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Handle</label>
+                <input
+                  type="text"
+                  value={createForm.handle}
+                  onChange={e => setCreateForm(p => ({ ...p, handle: e.target.value }))}
+                  placeholder="@handle"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Statut</label>
+                <select
+                  value={createForm.status}
+                  onChange={e => setCreateForm(p => ({ ...p, status: e.target.value as Status }))}
+                  className={inputClass}
+                >
+                  {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Email</label>
+                <input
+                  type="email"
+                  value={createForm.email}
+                  onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                  placeholder="email@example.com"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Téléphone</label>
+                <input
+                  type="text"
+                  value={createForm.phone}
+                  onChange={e => setCreateForm(p => ({ ...p, phone: e.target.value }))}
+                  placeholder="+33..."
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Followers</label>
+                <input
+                  type="number"
+                  value={createForm.followers}
+                  onChange={e => setCreateForm(p => ({ ...p, followers: e.target.value }))}
+                  placeholder="10000"
+                  min={0}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Pays</label>
+                <input
+                  type="text"
+                  value={createForm.country}
+                  onChange={e => setCreateForm(p => ({ ...p, country: e.target.value }))}
+                  placeholder="France"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Langue</label>
+                <input
+                  type="text"
+                  value={createForm.language}
+                  onChange={e => setCreateForm(p => ({ ...p, language: e.target.value }))}
+                  placeholder="FR"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Niche</label>
+                <input
+                  type="text"
+                  value={createForm.niche}
+                  onChange={e => setCreateForm(p => ({ ...p, niche: e.target.value }))}
+                  placeholder="Voyage, Expat..."
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            {/* Plateformes */}
+            <div>
+              <label className="block text-xs text-muted mb-2">Plateformes *</label>
+              <div className="flex flex-wrap gap-2">
+                {PLATFORM_OPTIONS.map(p => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => togglePlatform(p.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors border ${
+                      createForm.platforms.includes(p.value)
+                        ? 'bg-violet/20 text-violet-light border-violet/40'
+                        : 'bg-surface2 text-muted border-border hover:text-white'
+                    }`}
+                  >
+                    {p.label}
+                    {createForm.primary_platform === p.value && createForm.platforms.includes(p.value) && (
+                      <span className="ml-1 text-amber">*</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {createForm.platforms.length > 1 && (
+                <div className="mt-2">
+                  <label className="text-xs text-muted mr-2">Principale :</label>
+                  <select
+                    value={createForm.primary_platform}
+                    onChange={e => setCreateForm(p => ({ ...p, primary_platform: e.target.value as Platform }))}
+                    className="bg-surface2 border border-border rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-violet"
+                  >
+                    {createForm.platforms.map(pl => (
+                      <option key={pl} value={pl}>{PLATFORM_OPTIONS.find(o => o.value === pl)?.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted mb-1.5">URL du profil</label>
+              <input
+                type="url"
+                value={createForm.profile_url}
+                onChange={e => setCreateForm(p => ({ ...p, profile_url: e.target.value }))}
+                placeholder="https://instagram.com/..."
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted mb-1.5">Notes</label>
+              <textarea
+                value={createForm.notes}
+                onChange={e => setCreateForm(p => ({ ...p, notes: e.target.value }))}
+                rows={2}
+                placeholder="Notes internes..."
+                className={`${inputClass} resize-none`}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={creating}
+                className="px-4 py-2 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+              >
+                {creating ? 'Création...' : 'Créer'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowCreate(false); setCreateForm(EMPTY_FORM); setCreateError(''); }}
+                className="px-4 py-2 text-muted hover:text-white text-sm transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg mb-4">{error}</div>
+        )}
 
         {/* Content */}
         {view === 'cards' ? (

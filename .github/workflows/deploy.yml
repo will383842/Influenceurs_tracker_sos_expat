@@ -21,19 +21,32 @@ jobs:
           script: |
             cd /opt/influenceurs-tracker
 
-            # Pull latest code
+            # Backup .env.production before pull (protect secrets)
+            cp .env.production .env.production.bak 2>/dev/null || true
+
+            # Pull latest code (safe — does not overwrite untracked/ignored files)
             git fetch origin master
-            git reset --hard origin/master
+            git checkout master
+            git merge origin/master --ff-only || { echo "Merge conflict — aborting"; exit 1; }
+
+            # Restore .env.production (in case git removed it after gitignore change)
+            cp .env.production.bak .env.production 2>/dev/null || true
 
             # Rebuild and restart containers
             docker compose build --no-cache app queue scheduler frontend
-            docker compose up -d --force-recreate
+            docker compose up -d --force-recreate app queue scheduler frontend nginx-api
+
+            # Wait for app container to be ready
+            sleep 5
 
             # Clear Laravel caches
             docker exec inf-app php artisan optimize:clear
             docker exec inf-app php artisan optimize
 
-            # Run migrations
+            # Run migrations (safe — only runs pending)
             docker exec inf-app php artisan migrate --force
+
+            # Verify deployment
+            docker exec inf-app php artisan about || true
 
             echo "Deploy complete: $(date)"

@@ -50,6 +50,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(0);' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     volumes:
       - ./.env.production:/var/www/html/.env:ro
       - public_shared:/var/www/html/public-shared
@@ -119,6 +124,8 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8091:80"
+    depends_on:
+      - nginx-api
     networks:
       - internal
 

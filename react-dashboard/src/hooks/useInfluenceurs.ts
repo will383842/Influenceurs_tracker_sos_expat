@@ -62,7 +62,7 @@ export function useInfluenceurs() {
 
   return {
     influenceurs, loading, error, hasMore, filters,
-    load, loadMore, setFilters: load,
+    load, loadMore,
     createInfluenceur, updateInfluenceur, deleteInfluenceur,
   };
 }

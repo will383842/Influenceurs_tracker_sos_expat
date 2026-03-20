@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import { AuthContext } from '../hooks/useAuth';
 import type { Contact, Influenceur, TeamMember } from '../types/influenceur';
 import ContactTimeline from '../components/ContactTimeline';
 import ContactForm from '../components/ContactForm';
@@ -19,6 +20,7 @@ const STATUS_OPTIONS = [
 export default function InfluenceurDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [influenceur, setInfluenceur] = useState<Influenceur | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +28,7 @@ export default function InfluenceurDetail() {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Influenceur>>({});
   const [showContactForm, setShowContactForm] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -43,12 +46,25 @@ export default function InfluenceurDetail() {
 
   const handleSave = async () => {
     if (!id || !influenceur) return;
+    setSaveError('');
     try {
       const { data } = await api.put<Influenceur>(`/influenceurs/${id}`, formData);
       setInfluenceur(data);
       setEditing(false);
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setSaveError(e.response?.data?.message ?? 'Erreur lors de la sauvegarde.');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id || !confirm('Supprimer cet influenceur ? Cette action est irréversible.')) return;
+    try {
+      await api.delete(`/influenceurs/${id}`);
+      navigate('/influenceurs');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setSaveError(e.response?.data?.message ?? 'Erreur lors de la suppression.');
     }
   };
 
@@ -82,17 +98,29 @@ export default function InfluenceurDetail() {
               <button onClick={handleSave} className="px-4 py-2 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors">
                 Sauvegarder
               </button>
-              <button onClick={() => { setEditing(false); setFormData(influenceur); }} className="px-4 py-2 bg-surface2 text-muted hover:text-white text-sm rounded-lg border border-border transition-colors">
+              <button onClick={() => { setEditing(false); setFormData(influenceur); setSaveError(''); }} className="px-4 py-2 bg-surface2 text-muted hover:text-white text-sm rounded-lg border border-border transition-colors">
                 Annuler
               </button>
             </>
           ) : (
-            <button onClick={() => setEditing(true)} className="px-4 py-2 bg-surface2 text-muted hover:text-white text-sm rounded-lg border border-border transition-colors">
-              Modifier
-            </button>
+            <>
+              <button onClick={() => setEditing(true)} className="px-4 py-2 bg-surface2 text-muted hover:text-white text-sm rounded-lg border border-border transition-colors">
+                Modifier
+              </button>
+              {user?.role === 'admin' && (
+                <button onClick={handleDelete} className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm rounded-lg border border-red-500/30 transition-colors">
+                  Supprimer
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {/* Error */}
+      {saveError && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">{saveError}</div>
+      )}
 
       {/* Fiche principale */}
       <div className="bg-surface border border-border rounded-2xl p-6">
