@@ -67,7 +67,7 @@ class InfluenceurController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'contact_type'         => 'sometimes|in:' . implode(',', ContactType::values()),
+            'contact_type'         => 'sometimes|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'name'                 => 'required|string|max:255',
             'company'              => 'nullable|string|max:255',
             'position'             => 'nullable|string|max:255',
@@ -187,7 +187,7 @@ class InfluenceurController extends Controller
         }
 
         $data = $request->validate([
-            'contact_type'        => 'sometimes|in:' . implode(',', ContactType::values()),
+            'contact_type'        => 'sometimes|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'name'                => 'sometimes|string|max:255',
             'company'             => 'nullable|string|max:255',
             'position'            => 'nullable|string|max:255',

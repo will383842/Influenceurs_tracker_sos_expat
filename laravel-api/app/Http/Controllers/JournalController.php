@@ -50,7 +50,7 @@ class JournalController extends Controller
     {
         $data = $request->validate([
             'note'         => 'required|string|max:2000',
-            'contact_type' => 'nullable|in:' . implode(',', ContactType::values()),
+            'contact_type' => 'nullable|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
         ]);
 
         $log = ActivityLog::create([

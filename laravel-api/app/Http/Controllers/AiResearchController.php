@@ -18,7 +18,7 @@ class AiResearchController extends Controller
     public function launch(Request $request)
     {
         $data = $request->validate([
-            'contact_type' => 'required|in:' . implode(',', ContactType::values()),
+            'contact_type' => 'required|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'country'      => 'required|string|max:100',
             'language'     => 'sometimes|string|max:10',
         ]);

@@ -176,6 +176,16 @@ class EmailTemplateSeeder extends Seeder
                 'variables' => ['contactName'],
             ],
 
+            [
+                'contact_type' => 'erasmus',
+                'language' => 'fr',
+                'name' => 'Partenariat Erasmus',
+                'subject' => 'SOS-Expat - Assistance juridique pour vos étudiants internationaux',
+                'body' => "Bonjour,\n\nJe suis Williams, fondateur de SOS-Expat. Nous proposons un accès immédiat à un avocat francophone par téléphone en moins de 5 minutes, dans 197 pays.\n\nCe service est particulièrement utile pour vos étudiants en mobilité Erasmus+ qui font face à des questions juridiques dans leur pays d'accueil (logement, visa, contrats, litiges).\n\nNous souhaiterions établir un partenariat pour offrir un tarif préférentiel à vos étudiants sortants et entrants.\n\nPuis-je vous présenter notre offre ?\n\nWilliams, Fondateur SOS-Expat\nhttps://sos-expat.com",
+                'step' => 1,
+                'delay_days' => 0,
+            ],
+
             // ========== STEP 2: Relance J+3 ==========
             [
                 'contact_type' => 'influenceur',

@@ -39,7 +39,7 @@ class ObjectiveController extends Controller
     {
         $data = $request->validate([
             'user_id'      => 'required|exists:users,id',
-            'contact_type' => 'nullable|in:' . implode(',', \App\Enums\ContactType::values()),
+            'contact_type' => 'nullable|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'continent'    => 'nullable|string|max:50',
             'countries'    => 'nullable|array',
             'countries.*'  => 'string|max:100',
@@ -67,7 +67,7 @@ class ObjectiveController extends Controller
     public function update(Request $request, Objective $objective)
     {
         $data = $request->validate([
-            'contact_type' => 'nullable|in:' . implode(',', \App\Enums\ContactType::values()),
+            'contact_type' => 'nullable|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'continent'    => 'nullable|string|max:50',
             'countries'    => 'nullable|array',
             'countries.*'  => 'string|max:100',

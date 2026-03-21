@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $this->call(ContactTypeSeeder::class);
         $this->call(EmailTemplateSeeder::class);
     }
 }

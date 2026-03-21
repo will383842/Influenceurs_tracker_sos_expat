@@ -24,6 +24,7 @@ class AiPromptService
 
         $prompt = match ($contactType) {
             'school' => $this->schoolPrompt($country, $language),
+            'erasmus' => $this->erasmusPrompt($country, $language),
             'chatter', 'job_board' => $this->jobBoardPrompt($country, $language),
             'influenceur' => $this->influenceurPrompt($country, $language),
             'tiktoker' => $this->tiktokerPrompt($country, $language),
@@ -49,6 +50,11 @@ class AiPromptService
     private function schoolPrompt(string $country, string $lang): string
     {
         return "Trouve toutes les écoles internationales françaises (AEFE, homologuées, partenaires) en {$country} avec pour chaque école : nom complet, adresse, téléphone, email, site web (URL), nom du directeur si possible.\n\nFormat pour chaque école :\nNOM: ...\nADRESSE: ...\nTEL: ...\nEMAIL: ...\nURL: ...\nDIRECTEUR: ...";
+    }
+
+    private function erasmusPrompt(string $country, string $lang): string
+    {
+        return "Trouve toutes les universités et écoles supérieures en {$country} qui participent au programme Erasmus+ ou qui accueillent des étudiants internationaux francophones. Pour chaque établissement :\nNOM: nom complet de l'université/école\nEMAIL: email du bureau des relations internationales ou du coordinateur Erasmus\nTEL: téléphone du bureau international\nURL: page web du bureau international ou de la mobilité Erasmus\nCOORDINATEUR: nom du coordinateur Erasmus si disponible\nPROGRAMMES: types de programmes (échange, double diplôme, stage)\nLANGUES: langues d'enseignement";
     }
 
     private function jobBoardPrompt(string $country, string $lang): string

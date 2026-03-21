@@ -3,6 +3,7 @@
 use App\Http\Controllers\AiResearchController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ContactTypeController;
 use App\Http\Controllers\ContentMetricController;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\ExportController;
@@ -38,13 +39,13 @@ Route::get('/health', function () {
     ], $status);
 });
 
-// Enums (public, cacheable)
+// Enums (public, cacheable) — contact_types from DB, rest from PHP Enums
 Route::get('/enums', function () {
     return response()->json([
-        'contact_types'    => \App\Enums\ContactType::cases(),
+        'contact_types'     => \App\Models\ContactTypeModel::allActive(),
         'pipeline_statuses' => \App\Enums\PipelineStatus::cases(),
-        'platforms'        => \App\Enums\Platform::cases(),
-        'channels'         => \App\Enums\Channel::cases(),
+        'platforms'         => \App\Enums\Platform::cases(),
+        'channels'          => \App\Enums\Channel::cases(),
     ]);
 });
 
@@ -156,6 +157,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Couverture mondiale (admin uniquement)
     Route::get('/stats/coverage', [StatsController::class, 'coverage'])
         ->middleware('role:admin');
+
+    // ============================================================
+    // CONTACT TYPES (dynamic — managed from admin console)
+    // ============================================================
+    Route::get('/contact-types', [ContactTypeController::class, 'index']);
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/contact-types', [ContactTypeController::class, 'store']);
+        Route::put('/contact-types/{contactType}', [ContactTypeController::class, 'update']);
+        Route::delete('/contact-types/{contactType}', [ContactTypeController::class, 'destroy']);
+    });
 
     // ============================================================
     // ÉQUIPE (existing Tracker)

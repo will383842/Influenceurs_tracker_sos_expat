@@ -25,7 +25,7 @@ class TeamController extends Controller
             'password'        => 'required|string|min:8',
             'role'            => 'in:admin,member,researcher',
             'contact_types'   => 'nullable|array',
-            'contact_types.*' => 'in:' . implode(',', \App\Enums\ContactType::values()),
+            'contact_types.*' => 'in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
         ]);
 
         $data['password'] = Hash::make($data['password']);
@@ -52,7 +52,7 @@ class TeamController extends Controller
             'password'        => 'sometimes|string|min:8',
             'role'            => 'sometimes|in:admin,member,researcher',
             'contact_types'   => 'nullable|array',
-            'contact_types.*' => 'in:' . implode(',', \App\Enums\ContactType::values()),
+            'contact_types.*' => 'in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'is_active'       => 'sometimes|boolean',
         ]);
 

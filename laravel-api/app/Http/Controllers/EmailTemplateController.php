@@ -49,7 +49,7 @@ class EmailTemplateController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'contact_type' => 'required|in:' . implode(',', ContactType::values()),
+            'contact_type' => 'required|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'language'     => 'required|string|max:10',
             'name'         => 'required|string|max:255',
             'subject'      => 'required|string|max:500',
@@ -70,7 +70,7 @@ class EmailTemplateController extends Controller
     public function update(Request $request, EmailTemplate $template)
     {
         $data = $request->validate([
-            'contact_type' => 'sometimes|in:' . implode(',', ContactType::values()),
+            'contact_type' => 'sometimes|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'language'     => 'sometimes|string|max:10',
             'name'         => 'sometimes|string|max:255',
             'subject'      => 'sometimes|string|max:500',
