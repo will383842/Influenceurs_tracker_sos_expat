@@ -2,24 +2,32 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * FUSION: Add manual journal support to activity_logs.
- */
 return new class extends Migration
 {
     public function up(): void
     {
         Schema::table('activity_logs', function (Blueprint $table) {
-            $table->boolean('is_manual')->default(false)->after('details');
-            $table->text('manual_note')->nullable()->after('is_manual');
-            $table->string('contact_type', 50)->nullable()->after('manual_note');
+            if (!Schema::hasColumn('activity_logs', 'is_manual')) {
+                $table->boolean('is_manual')->default(false)->after('details');
+            }
+            if (!Schema::hasColumn('activity_logs', 'manual_note')) {
+                $table->text('manual_note')->nullable()->after('is_manual');
+            }
+            if (!Schema::hasColumn('activity_logs', 'contact_type')) {
+                $table->string('contact_type', 50)->nullable()->after('manual_note');
+            }
         });
 
-        Schema::table('activity_logs', function (Blueprint $table) {
-            $table->index(['user_id', 'is_manual', 'created_at'], 'idx_activity_journal');
-        });
+        $existingIndexes = collect(DB::select("SELECT indexname FROM pg_indexes WHERE tablename = 'activity_logs'"))->pluck('indexname')->toArray();
+
+        if (!in_array('idx_activity_journal', $existingIndexes)) {
+            Schema::table('activity_logs', function (Blueprint $table) {
+                $table->index(['user_id', 'is_manual', 'created_at'], 'idx_activity_journal');
+            });
+        }
     }
 
     public function down(): void
