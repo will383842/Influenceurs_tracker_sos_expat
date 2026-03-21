@@ -33,8 +33,8 @@ jobs:
             cp .env.production.bak .env.production 2>/dev/null || true
 
             # Rebuild and restart containers
-            docker compose build --no-cache app queue scheduler frontend
-            docker compose up -d --force-recreate app queue scheduler frontend nginx-api
+            docker compose build --no-cache app queue scheduler scraper frontend
+            docker compose up -d --force-recreate app queue scheduler scraper frontend nginx-api
 
             # Wait for app container to be ready
             sleep 5
