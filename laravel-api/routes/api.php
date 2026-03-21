@@ -94,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ============================================================
     Route::prefix('ai-research')->group(function () {
         Route::get('/', [AiResearchController::class, 'index']);
+        Route::post('/preview-prompt', [AiResearchController::class, 'previewPrompt']);
         Route::post('/launch', [AiResearchController::class, 'launch']);
         Route::get('/{session}', [AiResearchController::class, 'status']);
         Route::post('/{session}/import', [AiResearchController::class, 'import']);

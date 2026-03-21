@@ -13,14 +13,52 @@ use Illuminate\Http\Request;
 class AiResearchController extends Controller
 {
     /**
-     * Launch a new AI research session (async via job).
+     * Preview the prompt that will be sent (without launching).
      */
-    public function launch(Request $request)
+    public function previewPrompt(Request $request)
     {
         $data = $request->validate([
             'contact_type' => 'required|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
             'country'      => 'required|string|max:100',
             'language'     => 'sometimes|string|max:10',
+        ]);
+
+        $promptService = new \App\Services\AiPromptService();
+
+        // Collect existing URLs to show exclusion count
+        $existingDomains = Influenceur::where('contact_type', $data['contact_type'])
+            ->where('country', $data['country'])
+            ->whereNotNull('profile_url_domain')
+            ->pluck('profile_url_domain')
+            ->toArray();
+
+        $prompt = $promptService->buildPrompt(
+            $data['contact_type'],
+            $data['country'],
+            $data['language'] ?? 'fr',
+            $existingDomains
+        );
+
+        return response()->json([
+            'prompt'          => $prompt,
+            'contact_type'    => $data['contact_type'],
+            'country'         => $data['country'],
+            'language'        => $data['language'] ?? 'fr',
+            'excluded_count'  => count($existingDomains),
+        ]);
+    }
+
+    /**
+     * Launch a new AI research session (async via job).
+     * Accepts optional custom_prompt to override the default.
+     */
+    public function launch(Request $request)
+    {
+        $data = $request->validate([
+            'contact_type'  => 'required|in:' . implode(',', \App\Models\ContactTypeModel::validValues()),
+            'country'       => 'required|string|max:100',
+            'language'      => 'sometimes|string|max:10',
+            'custom_prompt' => 'nullable|string|max:5000',
         ]);
 
         $session = AiResearchSession::create([
@@ -31,7 +69,7 @@ class AiResearchController extends Controller
             'status'       => 'pending',
         ]);
 
-        RunAiResearchJob::dispatch($session->id);
+        RunAiResearchJob::dispatch($session->id, $data['custom_prompt'] ?? null);
 
         ActivityLog::create([
             'user_id'      => $request->user()->id,

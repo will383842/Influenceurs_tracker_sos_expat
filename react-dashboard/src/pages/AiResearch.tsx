@@ -4,7 +4,7 @@ import { CONTACT_TYPES, COUNTRIES, LANGUAGES, getContactType } from '../lib/cons
 import type { ContactType, ParsedContact } from '../types/influenceur';
 
 export default function AiResearch() {
-  const { session, history, launching, importing, error, launch, importContacts, importAll, loadHistory, setError } = useAiResearch();
+  const { session, history, launching, importing, error, previewPrompt, launch, importContacts, importAll, loadHistory, setError } = useAiResearch();
   const [contactType, setContactType] = useState<ContactType>('influenceur');
   const [country, setCountry] = useState('Thaïlande');
   const [language, setLanguage] = useState('fr');
@@ -12,12 +12,38 @@ export default function AiResearch() {
   const [tab, setTab] = useState<'search' | 'history'>('search');
   const [view, setView] = useState<'cards' | 'table'>('table');
 
+  // Prompt preview state
+  const [promptText, setPromptText] = useState<string>('');
+  const [promptVisible, setPromptVisible] = useState(false);
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [excludedCount, setExcludedCount] = useState(0);
+
   useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  // When type/country/language changes, hide the prompt preview
+  useEffect(() => {
+    setPromptVisible(false);
+    setPromptText('');
+  }, [contactType, country, language]);
+
+  const handlePreviewPrompt = async () => {
+    setPromptLoading(true);
+    setError(null);
+    const result = await previewPrompt(contactType, country, language);
+    if (result) {
+      setPromptText(result.prompt);
+      setExcludedCount(result.excluded_count);
+      setPromptVisible(true);
+    }
+    setPromptLoading(false);
+  };
 
   const handleLaunch = async () => {
     setSelected(new Set());
     setError(null);
-    await launch(contactType, country, language);
+    // Send the (potentially modified) prompt
+    await launch(contactType, country, language, promptVisible ? promptText : undefined);
+    setPromptVisible(false);
   };
 
   const toggleSelect = (index: number) => {
@@ -107,21 +133,74 @@ export default function AiResearch() {
                 </select>
               </div>
 
-              {/* Launch button */}
-              <div className="flex items-end">
-                <button onClick={handleLaunch} disabled={launching || isRunning}
-                  className="w-full bg-violet hover:bg-violet/80 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
-                  {launching || isRunning ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      {session?.status === 'running' ? 'Recherche en cours...' : 'Lancement...'}
-                    </span>
-                  ) : (
-                    <span>🚀 Lancer la Recherche</span>
-                  )}
-                </button>
+              {/* Buttons */}
+              <div className="flex items-end gap-2">
+                {!promptVisible ? (
+                  <button onClick={handlePreviewPrompt} disabled={promptLoading || launching || isRunning}
+                    className="w-full bg-surface2 hover:bg-surface border border-border hover:border-violet/30 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
+                    {promptLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Chargement...
+                      </span>
+                    ) : (
+                      <span>👁 Voir le prompt</span>
+                    )}
+                  </button>
+                ) : (
+                  <button onClick={handleLaunch} disabled={launching || isRunning || !promptText.trim()}
+                    className="w-full bg-violet hover:bg-violet/80 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
+                    {launching || isRunning ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {session?.status === 'running' ? 'Recherche en cours...' : 'Lancement...'}
+                      </span>
+                    ) : (
+                      <span>🚀 Lancer la Recherche</span>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Prompt preview + editor */}
+            {promptVisible && !isRunning && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h4 className="text-sm font-semibold text-white">Prompt de recherche</h4>
+                    {excludedCount > 0 && (
+                      <span className="text-[10px] bg-amber/20 text-amber px-2 py-0.5 rounded-full">
+                        {excludedCount} contacts déjà en base seront exclus
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => setPromptVisible(false)}
+                    className="text-xs text-muted hover:text-white transition-colors">
+                    ✕ Fermer
+                  </button>
+                </div>
+
+                <textarea
+                  value={promptText}
+                  onChange={e => setPromptText(e.target.value)}
+                  rows={12}
+                  className="w-full bg-bg border border-border rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-violet resize-y font-mono leading-relaxed"
+                />
+
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] text-muted">
+                    {promptText.length} caractères • Modifie librement avant de lancer • Ce prompt sera envoyé à Perplexity
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={handlePreviewPrompt}
+                      className="text-xs text-muted hover:text-white px-3 py-1.5 rounded-lg border border-border hover:border-violet/30 transition-colors">
+                      🔄 Réinitialiser
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Current search info */}
             {session && isRunning && (

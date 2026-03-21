@@ -43,6 +43,7 @@ class RunAiResearchJob implements ShouldQueue
 
     public function __construct(
         private int $sessionId,
+        private ?string $customPrompt = null,
     ) {}
 
     public function handle(
@@ -70,13 +71,17 @@ class RunAiResearchJob implements ShouldQueue
 
             $session->update(['excluded_domains' => $existingDomains]);
 
-            // 2. Build the search prompt
-            $prompt = $promptService->buildPrompt(
-                $contactType,
-                $session->country,
-                $session->language,
-                $existingDomains
-            );
+            // 2. Build the search prompt (use custom if provided)
+            if ($this->customPrompt) {
+                $prompt = $this->customPrompt;
+            } else {
+                $prompt = $promptService->buildPrompt(
+                    $contactType,
+                    $session->country,
+                    $session->language,
+                    $existingDomains
+                );
+            }
 
             $totalTokens = 0;
             $rawTexts = [];

@@ -15,7 +15,20 @@ export function useAiResearch() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
-  const launch = useCallback(async (contactType: ContactType, country: string, language = 'fr') => {
+  const previewPrompt = useCallback(async (contactType: ContactType, country: string, language = 'fr'): Promise<{ prompt: string; excluded_count: number } | null> => {
+    try {
+      const { data } = await api.post('/ai-research/preview-prompt', {
+        contact_type: contactType,
+        country,
+        language,
+      });
+      return data;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const launch = useCallback(async (contactType: ContactType, country: string, language = 'fr', customPrompt?: string) => {
     setLaunching(true);
     setError(null);
     try {
@@ -23,6 +36,7 @@ export function useAiResearch() {
         contact_type: contactType,
         country,
         language,
+        custom_prompt: customPrompt || undefined,
       });
       setSession(data);
 
@@ -89,7 +103,7 @@ export function useAiResearch() {
 
   return {
     session, history, launching, importing, error,
-    launch, importContacts, importAll, loadHistory,
+    previewPrompt, launch, importContacts, importAll, loadHistory,
     setSession, setError,
   };
 }
