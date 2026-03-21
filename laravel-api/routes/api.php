@@ -4,6 +4,7 @@ use App\Http\Controllers\AiResearchController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AiPromptController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ContactTypeController;
 use App\Http\Controllers\ContentMetricController;
 use App\Http\Controllers\EmailTemplateController;
@@ -159,6 +160,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Couverture mondiale (admin uniquement)
     Route::get('/stats/coverage', [StatsController::class, 'coverage'])
         ->middleware('role:admin');
+
+    // ============================================================
+    // SETTINGS — Scraper config etc. (admin only)
+    // ============================================================
+    Route::middleware('role:admin')->prefix('settings')->group(function () {
+        Route::get('/scraper', [SettingsController::class, 'scraperConfig']);
+        Route::put('/scraper', [SettingsController::class, 'updateScraperConfig']);
+    });
 
     // ============================================================
     // AI PROMPTS (admin-editable)

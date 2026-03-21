@@ -129,6 +129,9 @@ export default function Layout() {
                   <NavLink to="/admin/prompts" className={navClass} onClick={handleNavClick}>
                     <span>🤖</span> Prompts IA
                   </NavLink>
+                  <NavLink to="/admin/scraper" className={navClass} onClick={handleNavClick}>
+                    <span>🕷️</span> Scraper
+                  </NavLink>
                   <NavLink to="/equipe" className={navClass} onClick={handleNavClick}>
                     <span>⚙️</span> Équipe
                   </NavLink>
