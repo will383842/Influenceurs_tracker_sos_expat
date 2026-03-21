@@ -1,9 +1,13 @@
 <?php
 
+use App\Http\Controllers\AiResearchController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ContentMetricController;
+use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InfluenceurController;
+use App\Http\Controllers\JournalController;
 use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\StatsController;
@@ -34,6 +38,16 @@ Route::get('/health', function () {
     ], $status);
 });
 
+// Enums (public, cacheable)
+Route::get('/enums', function () {
+    return response()->json([
+        'contact_types'    => \App\Enums\ContactType::cases(),
+        'pipeline_statuses' => \App\Enums\PipelineStatus::cases(),
+        'platforms'        => \App\Enums\Platform::cases(),
+        'channels'         => \App\Enums\Channel::cases(),
+    ]);
+});
+
 // Auth publique
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
 
@@ -43,12 +57,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
-    // IMPORTANT : routes statiques déclarées AVANT la route paramétrée {influenceur}
+    // ============================================================
+    // INFLUENCEURS (Core CRM — ex-Tracker + Mission Control fusion)
+    // ============================================================
     Route::get('/influenceurs/reminders-pending', [InfluenceurController::class, 'remindersPending']);
     Route::get('/influenceurs/exports/csv', [ExportController::class, 'csv'])->middleware(['role:admin', 'throttle:10,1']);
     Route::get('/influenceurs/exports/excel', [ExportController::class, 'excel'])->middleware(['role:admin', 'throttle:10,1']);
 
-    // CRUD influenceurs (researchers can create/read/update via controller scoping)
     Route::get('/influenceurs', [InfluenceurController::class, 'index']);
     Route::post('/influenceurs', [InfluenceurController::class, 'store']);
     Route::get('/influenceurs/{influenceur}', [InfluenceurController::class, 'show']);
@@ -61,6 +76,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/influenceurs/{influenceur}/contacts/{contact}', [ContactController::class, 'update']);
     Route::delete('/influenceurs/{influenceur}/contacts/{contact}', [ContactController::class, 'destroy']);
 
+    // Outreach messages for specific influenceur
+    Route::get('/influenceurs/{influenceur}/outreach', [EmailTemplateController::class, 'generateForInfluenceur']);
+
     // Rappels
     Route::get('/reminders', [ReminderController::class, 'index']);
     Route::post('/reminders/{reminder}/dismiss', [ReminderController::class, 'dismiss']);
@@ -69,7 +87,60 @@ Route::middleware('auth:sanctum')->group(function () {
     // Statistiques
     Route::get('/stats', [StatsController::class, 'index']);
 
-    // Objectifs (lecture pour tous, écriture admin uniquement)
+    // ============================================================
+    // AI RESEARCH (NEW — from Mission Control)
+    // ============================================================
+    Route::prefix('ai-research')->group(function () {
+        Route::get('/', [AiResearchController::class, 'index']);
+        Route::post('/launch', [AiResearchController::class, 'launch']);
+        Route::get('/{session}', [AiResearchController::class, 'status']);
+        Route::post('/{session}/import', [AiResearchController::class, 'import']);
+        Route::post('/{session}/import-all', [AiResearchController::class, 'importAll']);
+    });
+
+    // ============================================================
+    // EMAIL TEMPLATES & OUTREACH (NEW — from Mission Control)
+    // ============================================================
+    Route::prefix('templates')->group(function () {
+        Route::get('/', [EmailTemplateController::class, 'index']);
+        Route::get('/{template}', [EmailTemplateController::class, 'show']);
+        Route::post('/{template}/preview', [EmailTemplateController::class, 'preview']);
+        Route::post('/generate-batch', [EmailTemplateController::class, 'generateBatch']);
+
+        // Admin-only write operations
+        Route::middleware('role:admin')->group(function () {
+            Route::post('/', [EmailTemplateController::class, 'store']);
+            Route::put('/{template}', [EmailTemplateController::class, 'update']);
+            Route::delete('/{template}', [EmailTemplateController::class, 'destroy']);
+        });
+    });
+
+    // ============================================================
+    // CONTENT ENGINE (NEW — from Mission Control)
+    // ============================================================
+    Route::prefix('content-metrics')->group(function () {
+        Route::get('/', [ContentMetricController::class, 'index']);
+        Route::get('/today', [ContentMetricController::class, 'today']);
+        Route::put('/today', [ContentMetricController::class, 'updateToday']);
+
+        Route::middleware('role:admin')->group(function () {
+            Route::post('/upsert', [ContentMetricController::class, 'upsert']);
+        });
+    });
+
+    // ============================================================
+    // JOURNAL (NEW — from Mission Control's activity journal)
+    // ============================================================
+    Route::prefix('journal')->group(function () {
+        Route::get('/', [JournalController::class, 'index']);
+        Route::post('/', [JournalController::class, 'store']);
+        Route::get('/today', [JournalController::class, 'today']);
+        Route::get('/weekly', [JournalController::class, 'weekly']);
+    });
+
+    // ============================================================
+    // OBJECTIFS (existing Tracker)
+    // ============================================================
     Route::get('/objectives', [ObjectiveController::class, 'index']);
     Route::get('/objectives/progress', [ObjectiveController::class, 'progress']);
     Route::middleware('role:admin')->group(function () {
@@ -86,7 +157,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stats/coverage', [StatsController::class, 'coverage'])
         ->middleware('role:admin');
 
-    // Équipe (admin uniquement)
+    // ============================================================
+    // ÉQUIPE (existing Tracker)
+    // ============================================================
     Route::middleware('role:admin')->group(function () {
         Route::get('/team', [TeamController::class, 'index']);
         Route::post('/team', [TeamController::class, 'store']);

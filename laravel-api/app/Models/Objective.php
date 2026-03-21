@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Objective extends Model
 {
     protected $fillable = [
-        'user_id', 'continent', 'countries', 'language', 'niche',
+        'user_id', 'contact_type', 'continent', 'countries', 'language', 'niche',
         'target_count', 'deadline', 'is_active', 'created_by',
     ];
 

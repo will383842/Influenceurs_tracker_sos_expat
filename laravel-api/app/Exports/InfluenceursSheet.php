@@ -23,8 +23,9 @@ class InfluenceursSheet implements FromQuery, WithHeadings, WithTitle, WithMappi
     public function headings(): array
     {
         return [
-            'ID', 'Nom', 'Handle', 'Plateforme', 'Followers',
-            'Statut', 'Pays', 'Email', 'Téléphone', 'Niche',
+            'ID', 'Type', 'Nom', 'Entreprise', 'Handle', 'Plateforme', 'Followers',
+            'Statut', 'Score', 'Pays', 'Langue', 'Email', 'Téléphone', 'Niche',
+            'Deal (€)', 'Probabilité', 'Source',
             'Assigné à', 'Dernier contact', 'Date partenariat', 'Notes',
         ];
     }
@@ -33,15 +34,22 @@ class InfluenceursSheet implements FromQuery, WithHeadings, WithTitle, WithMappi
     {
         return [
             $inf->id,
+            $inf->contact_type instanceof \App\Enums\ContactType ? $inf->contact_type->label() : $inf->contact_type,
             $inf->name,
+            $inf->company,
             $inf->handle,
             $inf->primary_platform,
             $inf->followers,
             $inf->status,
+            $inf->score,
             $inf->country,
+            $inf->language,
             $inf->email,
             $inf->phone,
             $inf->niche,
+            $inf->deal_value_cents ? number_format($inf->deal_value_cents / 100, 2) : '',
+            $inf->deal_probability ? $inf->deal_probability . '%' : '',
+            $inf->source,
             $inf->assignedToUser?->name,
             $inf->last_contact_at?->toDateString(),
             $inf->partnership_date?->toDateString(),

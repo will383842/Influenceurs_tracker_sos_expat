@@ -10,6 +10,10 @@ import InfluenceurDetail from './pages/InfluenceurDetail';
 import ARelancer from './pages/ARelancer';
 import Statistiques from './pages/Statistiques';
 import Equipe from './pages/Equipe';
+import AiResearch from './pages/AiResearch';
+import Outreach from './pages/Outreach';
+import ContentEngine from './pages/ContentEngine';
+import Journal from './pages/Journal';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -25,6 +29,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = React.useContext(AuthContext);
   return user?.role === 'admin' ? <>{children}</> : <Navigate to="/" replace />;
+}
+
+function AdminOrManagerRoute({ children }: { children: React.ReactNode }) {
+  const { user } = React.useContext(AuthContext);
+  return (user?.role === 'admin' || user?.role === 'manager') ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 function NonResearcherRoute({ children }: { children: React.ReactNode }) {
@@ -51,11 +60,23 @@ export default function App() {
           <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
             <Route index element={<IndexRoute />} />
             <Route path="mon-tableau" element={<ResearcherDashboard />} />
-            <Route path="admin" element={<AdminRoute><AdminConsole /></AdminRoute>} />
+
+            {/* Core CRM */}
             <Route path="influenceurs" element={<Influenceurs />} />
             <Route path="influenceurs/:id" element={<InfluenceurDetail />} />
             <Route path="a-relancer" element={<ARelancer />} />
+
+            {/* New modules (fusion) */}
+            <Route path="ai-research" element={<AdminOrManagerRoute><AiResearch /></AdminOrManagerRoute>} />
+            <Route path="outreach" element={<Outreach />} />
+            <Route path="content-engine" element={<ContentEngine />} />
+            <Route path="journal" element={<Journal />} />
+
+            {/* Analytics */}
             <Route path="statistiques" element={<NonResearcherRoute><Statistiques /></NonResearcherRoute>} />
+
+            {/* Admin */}
+            <Route path="admin" element={<AdminRoute><AdminConsole /></AdminRoute>} />
             <Route path="equipe" element={<AdminRoute><Equipe /></AdminRoute>} />
           </Route>
         </Routes>

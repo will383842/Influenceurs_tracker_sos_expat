@@ -10,10 +10,12 @@ class ActivityLog extends Model
 
     protected $fillable = [
         'user_id', 'influenceur_id', 'action', 'details',
+        'is_manual', 'manual_note', 'contact_type',
     ];
 
     protected $casts = [
         'details'    => 'array',
+        'is_manual'  => 'boolean',
         'created_at' => 'datetime',
     ];
 

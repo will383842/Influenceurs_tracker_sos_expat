@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ContactType;
+use App\Enums\PipelineStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,20 +13,27 @@ class Influenceur extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'name', 'handle', 'avatar_url', 'platforms', 'primary_platform',
-        'followers', 'followers_secondary', 'niche', 'country', 'language',
-        'email', 'phone', 'profile_url', 'profile_url_domain', 'status', 'assigned_to',
-        'reminder_days', 'reminder_active', 'last_contact_at',
-        'partnership_date', 'notes', 'tags', 'created_by',
+        'contact_type', 'name', 'company', 'position',
+        'handle', 'avatar_url', 'platforms', 'primary_platform',
+        'followers', 'followers_secondary', 'niche', 'country', 'language', 'timezone',
+        'email', 'phone', 'profile_url', 'profile_url_domain', 'website_url',
+        'status', 'deal_value_cents', 'deal_probability', 'expected_close_date',
+        'assigned_to', 'reminder_days', 'reminder_active', 'last_contact_at',
+        'partnership_date', 'notes', 'tags', 'score', 'source', 'created_by',
     ];
 
     protected $casts = [
-        'platforms'          => 'array',
-        'followers_secondary'=> 'array',
-        'tags'               => 'array',
-        'reminder_active'    => 'boolean',
-        'last_contact_at'    => 'datetime',
-        'partnership_date'   => 'date',
+        'contact_type'        => ContactType::class,
+        'platforms'           => 'array',
+        'followers_secondary' => 'array',
+        'tags'                => 'array',
+        'reminder_active'     => 'boolean',
+        'last_contact_at'     => 'datetime',
+        'partnership_date'    => 'date',
+        'expected_close_date' => 'date',
+        'deal_value_cents'    => 'integer',
+        'deal_probability'    => 'integer',
+        'score'               => 'integer',
     ];
 
     public function assignedToUser()

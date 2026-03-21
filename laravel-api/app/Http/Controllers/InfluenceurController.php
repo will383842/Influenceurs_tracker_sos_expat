@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ContactType;
+use App\Enums\PipelineStatus;
+use App\Enums\Platform;
 use App\Models\ActivityLog;
 use App\Models\Influenceur;
 use Illuminate\Http\Request;
@@ -15,8 +18,15 @@ class InfluenceurController extends Controller
         // Researcher scoping: only see own influenceurs
         if ($request->user()->isResearcher()) {
             $query->where('created_by', $request->user()->id);
+            // Auto-filter by assigned contact_types
+            if (!empty($request->user()->contact_types)) {
+                $query->whereIn('contact_type', $request->user()->contact_types);
+            }
         }
 
+        if ($request->contact_type) {
+            $query->where('contact_type', $request->contact_type);
+        }
         if ($request->status) {
             $query->where('status', $request->status);
         }
@@ -57,25 +67,35 @@ class InfluenceurController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
+            'contact_type'         => 'sometimes|in:' . implode(',', ContactType::values()),
             'name'                 => 'required|string|max:255',
+            'company'              => 'nullable|string|max:255',
+            'position'             => 'nullable|string|max:255',
             'handle'               => 'nullable|string|max:255',
             'avatar_url'           => 'nullable|url|max:500',
-            'platforms'            => 'required|array|min:1',
-            'platforms.*'          => 'string|in:instagram,tiktok,youtube,linkedin,x,facebook,pinterest,podcast,blog,newsletter',
-            'primary_platform'     => 'required|string|max:50',
+            'platforms'            => 'sometimes|array|min:1',
+            'platforms.*'          => 'string|in:' . implode(',', Platform::values()),
+            'primary_platform'     => 'sometimes|string|max:50',
             'followers'            => 'nullable|integer|min:0',
             'followers_secondary'  => 'nullable|array',
             'niche'                => 'nullable|string|max:255',
             'country'              => 'nullable|string|max:100',
             'language'             => 'nullable|string|max:10',
+            'timezone'             => 'nullable|string|max:50',
             'email'                => 'nullable|email',
             'phone'                => 'nullable|string|max:50',
             'profile_url'          => 'nullable|string|max:500',
-            'status'               => 'sometimes|in:prospect,contacted,negotiating,active,refused,inactive',
+            'website_url'          => 'nullable|string|max:500',
+            'status'               => 'sometimes|in:' . implode(',', PipelineStatus::values()),
+            'deal_value_cents'     => 'nullable|integer|min:0',
+            'deal_probability'     => 'nullable|integer|min:0|max:100',
+            'expected_close_date'  => 'nullable|date',
             'assigned_to'          => 'nullable|exists:users,id',
             'reminder_days'        => 'sometimes|integer|min:1|max:365',
             'notes'                => 'nullable|string',
             'tags'                 => 'nullable|array',
+            'score'                => 'nullable|integer|min:0|max:1000',
+            'source'               => 'nullable|string|max:100',
             'force_duplicate'      => 'sometimes|boolean',
         ]);
 
@@ -83,6 +103,15 @@ class InfluenceurController extends Controller
         unset($data['force_duplicate']);
 
         $data['created_by'] = $request->user()->id;
+
+        // Researcher can only create contacts of their assigned types
+        $user = $request->user();
+        if ($user->isResearcher() && !empty($user->contact_types)) {
+            $contactType = $data['contact_type'] ?? 'influenceur';
+            if (!in_array($contactType, $user->contact_types)) {
+                return response()->json(['message' => 'Vous n\'êtes pas autorisé à créer ce type de contact.'], 403);
+            }
+        }
 
         // Extract and store normalized profile URL domain
         if (!empty($data['profile_url'])) {
@@ -158,26 +187,36 @@ class InfluenceurController extends Controller
         }
 
         $data = $request->validate([
+            'contact_type'        => 'sometimes|in:' . implode(',', ContactType::values()),
             'name'                => 'sometimes|string|max:255',
+            'company'             => 'nullable|string|max:255',
+            'position'            => 'nullable|string|max:255',
             'handle'              => 'nullable|string|max:255',
             'avatar_url'          => 'nullable|url|max:500',
             'platforms'           => 'sometimes|array|min:1',
-            'platforms.*'         => 'string|in:instagram,tiktok,youtube,linkedin,x,facebook,pinterest,podcast,blog,newsletter',
+            'platforms.*'         => 'string|in:' . implode(',', Platform::values()),
             'primary_platform'    => 'sometimes|string|max:50',
             'followers'           => 'nullable|integer|min:0',
             'followers_secondary' => 'nullable|array',
             'niche'               => 'nullable|string|max:255',
             'country'             => 'nullable|string|max:100',
             'language'            => 'nullable|string|max:10',
+            'timezone'            => 'nullable|string|max:50',
             'email'               => 'nullable|email',
             'phone'               => 'nullable|string|max:50',
             'profile_url'         => 'nullable|string|max:500',
-            'status'              => 'sometimes|in:prospect,contacted,negotiating,active,refused,inactive',
+            'website_url'         => 'nullable|string|max:500',
+            'status'              => 'sometimes|in:' . implode(',', PipelineStatus::values()),
+            'deal_value_cents'    => 'nullable|integer|min:0',
+            'deal_probability'    => 'nullable|integer|min:0|max:100',
+            'expected_close_date' => 'nullable|date',
             'assigned_to'         => 'nullable|exists:users,id',
             'reminder_days'       => 'sometimes|integer|min:1|max:365',
             'reminder_active'     => 'sometimes|boolean',
             'notes'               => 'nullable|string',
             'tags'                => 'nullable|array',
+            'score'               => 'nullable|integer|min:0|max:1000',
+            'source'              => 'nullable|string|max:100',
         ]);
 
         // Re-extract domain if profile_url changed

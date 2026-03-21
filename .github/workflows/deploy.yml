@@ -46,6 +46,9 @@ jobs:
             # Run migrations (safe — only runs pending)
             docker exec inf-app php artisan migrate --force
 
+            # Seed email templates (updateOrCreate — safe to re-run)
+            docker exec inf-app php artisan db:seed --class=EmailTemplateSeeder --force
+
             # Verify deployment
             docker exec inf-app php artisan about || true
 

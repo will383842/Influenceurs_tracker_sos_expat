@@ -39,6 +39,7 @@ class ObjectiveController extends Controller
     {
         $data = $request->validate([
             'user_id'      => 'required|exists:users,id',
+            'contact_type' => 'nullable|in:' . implode(',', \App\Enums\ContactType::values()),
             'continent'    => 'nullable|string|max:50',
             'countries'    => 'nullable|array',
             'countries.*'  => 'string|max:100',
@@ -66,6 +67,7 @@ class ObjectiveController extends Controller
     public function update(Request $request, Objective $objective)
     {
         $data = $request->validate([
+            'contact_type' => 'nullable|in:' . implode(',', \App\Enums\ContactType::values()),
             'continent'    => 'nullable|string|max:50',
             'countries'    => 'nullable|array',
             'countries.*'  => 'string|max:100',
@@ -133,6 +135,11 @@ class ObjectiveController extends Controller
             $query = Influenceur::where('created_by', $userId)
                 ->validForObjective();
 
+            // Filter by contact_type if set on objective
+            if ($objective->contact_type) {
+                $query->where('contact_type', $objective->contact_type);
+            }
+
             // Apply filters — countries is now an array
             if (!empty($objective->countries)) {
                 $query->whereIn('country', $objective->countries);
@@ -155,6 +162,7 @@ class ObjectiveController extends Controller
 
             return [
                 'id'             => $objective->id,
+                'contact_type'   => $objective->contact_type,
                 'continent'      => $objective->continent,
                 'countries'      => $objective->countries,
                 'language'       => $objective->language,

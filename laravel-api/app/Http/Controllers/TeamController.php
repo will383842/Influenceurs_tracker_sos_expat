@@ -12,7 +12,7 @@ class TeamController extends Controller
     public function index()
     {
         return response()->json(
-            User::select('id', 'name', 'email', 'role', 'is_active', 'last_login_at', 'created_at')
+            User::select('id', 'name', 'email', 'role', 'contact_types', 'is_active', 'last_login_at', 'created_at')
                 ->get()
         );
     }
@@ -20,10 +20,12 @@ class TeamController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users',
-            'password' => 'required|string|min:8',
-            'role'     => 'in:admin,member,researcher',
+            'name'            => 'required|string|max:255',
+            'email'           => 'required|email|unique:users',
+            'password'        => 'required|string|min:8',
+            'role'            => 'in:admin,member,researcher',
+            'contact_types'   => 'nullable|array',
+            'contact_types.*' => 'in:' . implode(',', \App\Enums\ContactType::values()),
         ]);
 
         $data['password'] = Hash::make($data['password']);
@@ -37,7 +39,7 @@ class TeamController extends Controller
         ]);
 
         return response()->json(
-            $user->only('id', 'name', 'email', 'role', 'is_active'),
+            $user->only('id', 'name', 'email', 'role', 'contact_types', 'is_active'),
             201
         );
     }
@@ -45,11 +47,13 @@ class TeamController extends Controller
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
-            'name'      => 'sometimes|string|max:255',
-            'email'     => 'sometimes|email|unique:users,email,' . $user->id,
-            'password'  => 'sometimes|string|min:8',
-            'role'      => 'sometimes|in:admin,member,researcher',
-            'is_active' => 'sometimes|boolean',
+            'name'            => 'sometimes|string|max:255',
+            'email'           => 'sometimes|email|unique:users,email,' . $user->id,
+            'password'        => 'sometimes|string|min:8',
+            'role'            => 'sometimes|in:admin,member,researcher',
+            'contact_types'   => 'nullable|array',
+            'contact_types.*' => 'in:' . implode(',', \App\Enums\ContactType::values()),
+            'is_active'       => 'sometimes|boolean',
         ]);
 
         if (isset($data['password'])) {
@@ -59,7 +63,7 @@ class TeamController extends Controller
         $user->update($data);
 
         return response()->json(
-            $user->only('id', 'name', 'email', 'role', 'is_active')
+            $user->only('id', 'name', 'email', 'role', 'contact_types', 'is_active')
         );
     }
 

@@ -1,0 +1,202 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Http\Controllers\InfluenceurController;
+use App\Models\AiResearchSession;
+use App\Models\Influenceur;
+use App\Services\AiPromptService;
+use App\Services\ClaudeSearchService;
+use App\Services\PerplexitySearchService;
+use App\Services\ResultParserService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * AI Research Pipeline:
+ *
+ * STEP 1: Perplexity (the EYES) — searches the REAL web
+ *   → 2 parallel searches: discovery + deep dive
+ *   → Returns real URLs, real emails from actual web pages
+ *   → With citations (source URLs)
+ *
+ * STEP 2: Claude (the BRAIN) — analyzes and structures
+ *   → Receives raw Perplexity results
+ *   → Cleans, structures into NOM/EMAIL/TEL/URL format
+ *   → Scores reliability 1-5 for each contact
+ *   → Filters irrelevant results
+ *
+ * STEP 3: Parser — deduplicates against existing database
+ *
+ * FALLBACK: If Perplexity not configured → Claude alone (with low reliability warning)
+ */
+class RunAiResearchJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $timeout = 180; // 3 min (Perplexity + Claude)
+    public int $tries = 2;
+
+    public function __construct(
+        private int $sessionId,
+    ) {}
+
+    public function handle(
+        AiPromptService $promptService,
+        PerplexitySearchService $perplexityService,
+        ClaudeSearchService $claudeService,
+        ResultParserService $parserService,
+    ): void {
+        $session = AiResearchSession::find($this->sessionId);
+        if (!$session || $session->status !== 'pending') return;
+
+        $session->markRunning();
+
+        try {
+            $contactType = $session->contact_type instanceof \App\Enums\ContactType
+                ? $session->contact_type->value
+                : $session->contact_type;
+
+            // 1. Collect existing URLs to exclude
+            $existingDomains = Influenceur::where('contact_type', $contactType)
+                ->where('country', $session->country)
+                ->whereNotNull('profile_url_domain')
+                ->pluck('profile_url_domain')
+                ->toArray();
+
+            $session->update(['excluded_domains' => $existingDomains]);
+
+            // 2. Build the search prompt
+            $prompt = $promptService->buildPrompt(
+                $contactType,
+                $session->country,
+                $session->language,
+                $existingDomains
+            );
+
+            $totalTokens = 0;
+            $rawTexts = [];
+
+            // ============================================================
+            // STEP 1: Perplexity — Real web search
+            // ============================================================
+            if ($perplexityService->isConfigured()) {
+                Log::info('AI Research: Using Perplexity + Claude pipeline', ['session' => $session->id]);
+
+                // Two Perplexity searches in parallel
+                $deepPrompt = $prompt . "\n\nCherche en profondeur : pages 'Contact', 'About', profils sociaux avec email visible. Priorise les contacts avec email professionnel public.";
+
+                $perplexityResults = $perplexityService->searchParallel($prompt, $deepPrompt, $session->language);
+                $totalTokens += $perplexityResults['tokens'];
+
+                // Store raw Perplexity responses
+                $session->update([
+                    'perplexity_response' => $perplexityResults['responses']['discovery'] ?? '',
+                    'tavily_response'     => $perplexityResults['responses']['deep'] ?? '',
+                ]);
+
+                // Merge both Perplexity responses
+                $combinedPerplexity = trim(
+                    ($perplexityResults['responses']['discovery'] ?? '') . "\n\n---\n\n" .
+                    ($perplexityResults['responses']['deep'] ?? '')
+                );
+
+                // ============================================================
+                // STEP 2: Claude — Analyze and structure Perplexity results
+                // ============================================================
+                if (!empty($combinedPerplexity)) {
+                    $claudeResult = $claudeService->analyzeAndStructure(
+                        $combinedPerplexity,
+                        $contactType,
+                        $session->country,
+                        $perplexityResults['citations'] ?? []
+                    );
+
+                    if ($claudeResult['success']) {
+                        $rawTexts[] = $claudeResult['text'];
+                        $totalTokens += $claudeResult['tokens'];
+                    }
+
+                    $session->update([
+                        'claude_response' => $claudeResult['text'] ?? '',
+                    ]);
+                }
+            } else {
+                // ============================================================
+                // FALLBACK: Claude alone (no Perplexity)
+                // ============================================================
+                Log::info('AI Research: Perplexity not configured, using Claude fallback', ['session' => $session->id]);
+
+                $claudeResult = $claudeService->searchAlone($prompt);
+                if ($claudeResult['success']) {
+                    $rawTexts[] = $claudeResult['text'];
+                    $totalTokens += $claudeResult['tokens'];
+                }
+
+                $session->update([
+                    'claude_response'     => $claudeResult['text'] ?? '',
+                    'perplexity_response' => '[NOT CONFIGURED] Perplexity API key missing. Using Claude fallback with low reliability.',
+                ]);
+            }
+
+            // ============================================================
+            // STEP 3: Parse + Deduplicate
+            // ============================================================
+            $parsedContacts = $parserService->parseAndMerge($rawTexts, $contactType, $session->country);
+            $deduped = $parserService->checkDuplicates($parsedContacts);
+
+            // Add normalized profile_url_domain
+            foreach ($deduped['new'] as &$contact) {
+                if (!empty($contact['profile_url'])) {
+                    $contact['profile_url_domain'] = InfluenceurController::normalizeProfileUrl($contact['profile_url']);
+                }
+            }
+
+            // ============================================================
+            // DONE — Save results
+            // ============================================================
+            $session->update([
+                'status'              => 'completed',
+                'completed_at'        => now(),
+                'parsed_contacts'     => $deduped['new'],
+                'contacts_found'      => count($parsedContacts),
+                'contacts_duplicates' => count($deduped['duplicates']),
+                'tokens_used'         => $totalTokens,
+                'cost_cents'          => $this->estimateCost($totalTokens, $perplexityService->isConfigured()),
+            ]);
+
+            Log::info('AI Research completed', [
+                'session_id'   => $session->id,
+                'pipeline'     => $perplexityService->isConfigured() ? 'perplexity+claude' : 'claude-only',
+                'found'        => count($parsedContacts),
+                'new'          => count($deduped['new']),
+                'duplicates'   => count($deduped['duplicates']),
+                'tokens'       => $totalTokens,
+            ]);
+
+        } catch (\Throwable $e) {
+            $session->markFailed($e->getMessage());
+            Log::error('AI Research failed', [
+                'session_id' => $session->id,
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Estimate API cost in cents.
+     * Perplexity sonar: ~$1/1000 requests ($0.001 each)
+     * Claude Sonnet: ~$3/M input + $15/M output
+     */
+    private function estimateCost(int $tokens, bool $usedPerplexity): int
+    {
+        $claudeCost = (int) round($tokens * 0.009); // ~$9/M tokens
+        $perplexityCost = $usedPerplexity ? 2 : 0;   // ~$0.02 for 2 requests
+        return $claudeCost + $perplexityCost;
+    }
+}

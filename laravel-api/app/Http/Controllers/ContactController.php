@@ -35,8 +35,8 @@ class ContactController extends Controller
 
         $data = $request->validate([
             'date'    => 'required|date|before_or_equal:today',
-            'channel' => 'required|string|in:email,instagram,linkedin,whatsapp,phone,other',
-            'result'  => 'required|string|in:sent,replied,refused,registered,no_answer',
+            'channel' => 'required|string|in:' . implode(',', \App\Enums\Channel::values()),
+            'result'  => 'required|string|in:' . implode(',', \App\Enums\InteractionResult::values()),
             'sender'  => 'nullable|string|max:255',
             'message' => 'nullable|string',
             'reply'   => 'nullable|string',
@@ -72,8 +72,8 @@ class ContactController extends Controller
 
         $data = $request->validate([
             'date'    => 'sometimes|date',
-            'channel' => 'sometimes|in:email,instagram,linkedin,whatsapp,phone,other',
-            'result'  => 'sometimes|in:sent,replied,refused,registered,no_answer',
+            'channel' => 'sometimes|in:' . implode(',', \App\Enums\Channel::values()),
+            'result'  => 'sometimes|in:' . implode(',', \App\Enums\InteractionResult::values()),
             'sender'  => 'nullable|string|max:255',
             'message' => 'nullable|string',
             'reply'   => 'nullable|string',
