@@ -93,8 +93,8 @@ export default function AdminScraper() {
             </p>
           </div>
           <button onClick={toggleGlobal} disabled={saving}
-            className={`relative w-14 h-7 rounded-full transition-colors ${config.global_enabled ? 'bg-emerald-500' : 'bg-gray-600'}`}>
-            <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-transform shadow ${config.global_enabled ? 'translate-x-7' : 'translate-x-0.5'}`} />
+            style={{ width: 56, height: 28, borderRadius: 14, backgroundColor: config.global_enabled ? '#10b981' : '#4b5563', position: 'relative', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}>
+            <span style={{ position: 'absolute', top: 2, left: config.global_enabled ? 30 : 2, width: 24, height: 24, borderRadius: 12, backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
           </button>
         </div>
       </div>
@@ -132,8 +132,8 @@ export default function AdminScraper() {
                   <button
                     onClick={() => toggleType(type.value, type.scraper_enabled)}
                     disabled={saving}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${type.scraper_enabled ? 'bg-emerald-500' : 'bg-gray-600'}`}>
-                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow ${type.scraper_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: type.scraper_enabled ? '#10b981' : '#4b5563', position: 'relative', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}>
+                    <span style={{ position: 'absolute', top: 2, left: type.scraper_enabled ? 22 : 2, width: 20, height: 20, borderRadius: 10, backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }} />
                   </button>
                 </td>
                 <td className="p-3 w-24">
