@@ -7,10 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Perplexity API (sonar) — searches the REAL web in real-time.
- * This is the "eyes" of the research engine: it finds actual contacts
- * with real URLs, real emails from public web pages.
- *
- * API docs: https://docs.perplexity.ai/
+ * This is the "eyes" of the research engine.
  */
 class PerplexitySearchService
 {
@@ -29,19 +26,19 @@ class PerplexitySearchService
     }
 
     /**
-     * Search the web for real contacts using Perplexity sonar.
-     * Returns structured results with REAL data from the web.
+     * Search the web for real contacts.
      */
     public function search(string $query, string $language = 'fr'): array
     {
         if (!$this->isConfigured()) {
-            Log::warning('Perplexity API key not configured');
             return ['success' => false, 'text' => '', 'citations' => [], 'error' => 'API key not configured'];
         }
 
-        $systemPrompt = $language === 'fr'
-            ? "Tu es un assistant de recherche spécialisé en prospection B2B. Tu cherches des contacts RÉELS et VÉRIFIÉS sur le web. Pour chaque contact trouvé, tu DOIS fournir :\n- NOM: le vrai nom (personne ou organisation)\n- EMAIL: l'email RÉEL trouvé sur leur site web (pas inventé)\n- TEL: le téléphone RÉEL (pas inventé)\n- URL: le lien EXACT vers leur site ou profil\n- SOURCE: l'URL de la page web où tu as trouvé cette information\n\nSi tu ne trouves PAS un email ou téléphone sur le web, écris 'NON TROUVÉ' — ne JAMAIS inventer. La précision est plus importante que la quantité."
-            : "You are a B2B prospecting research assistant. Search for REAL, VERIFIED contacts on the web. For each contact found, you MUST provide:\n- NAME: the real name\n- EMAIL: the REAL email found on their website (never invent)\n- PHONE: the REAL phone (never invent)\n- URL: the EXACT link to their site or profile\n- SOURCE: the URL where you found this information\n\nIf you can NOT find an email or phone, write 'NOT FOUND' — NEVER invent. Accuracy over quantity.";
+        // System prompt: ENCOURAGE results, don't block them
+        $systemPrompt = "Tu es un assistant de recherche web. Ton rôle est de trouver un MAXIMUM de contacts pertinents. "
+            . "Pour chaque contact trouvé, donne : NOM, EMAIL (si trouvé sur le web, sinon écris 'non trouvé'), TEL (si trouvé, sinon 'non trouvé'), URL (lien vers le site/profil), SOURCE (page web source). "
+            . "IMPORTANT : donne TOUS les résultats que tu trouves, même si l'email ou le téléphone manque. Un contact avec juste un nom et une URL est utile. "
+            . "Ne filtre PAS les résultats — c'est l'utilisateur qui décidera lesquels sont pertinents.";
 
         try {
             $response = Http::withHeaders([
@@ -53,10 +50,10 @@ class PerplexitySearchService
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $query],
                 ],
-                'max_tokens'         => 4000,
-                'temperature'        => 0.1,  // Low = more factual
-                'return_citations'   => true,
-                'search_recency_filter' => 'year', // Last 12 months
+                'max_tokens'       => 4000,
+                'temperature'      => 0.5,  // Medium: balanced between creative and factual
+                'return_citations' => true,
+                // NO search_recency_filter — search ALL time periods
             ]);
 
             if ($response->successful()) {
@@ -64,6 +61,12 @@ class PerplexitySearchService
                 $text = $data['choices'][0]['message']['content'] ?? '';
                 $citations = $data['citations'] ?? [];
                 $tokens = ($data['usage']['prompt_tokens'] ?? 0) + ($data['usage']['completion_tokens'] ?? 0);
+
+                Log::info('Perplexity search OK', [
+                    'text_length' => strlen($text),
+                    'citations'   => count($citations),
+                    'tokens'      => $tokens,
+                ]);
 
                 return [
                     'success'   => true,
@@ -77,7 +80,7 @@ class PerplexitySearchService
             return ['success' => false, 'text' => '', 'citations' => [], 'error' => 'HTTP ' . $response->status()];
 
         } catch (\Throwable $e) {
-            Log::error('Perplexity API exception', ['message' => $e->getMessage()]);
+            Log::error('Perplexity exception', ['message' => $e->getMessage()]);
             return ['success' => false, 'text' => '', 'citations' => [], 'error' => $e->getMessage()];
         }
     }
@@ -91,9 +94,9 @@ class PerplexitySearchService
             return ['responses' => ['discovery' => '', 'deep' => ''], 'citations' => [], 'tokens' => 0];
         }
 
-        $system = $language === 'fr'
-            ? "Tu es un assistant de recherche. Cherche des contacts RÉELS sur le web. Pour chaque contact : NOM:, EMAIL: (réel ou 'NON TROUVÉ'), TEL: (réel ou 'NON TROUVÉ'), URL: (lien exact), SOURCE: (où trouvé). Ne JAMAIS inventer de données."
-            : "You are a research assistant. Find REAL contacts on the web. For each: NAME:, EMAIL: (real or 'NOT FOUND'), PHONE: (real or 'NOT FOUND'), URL: (exact link), SOURCE: (where found). NEVER invent data.";
+        $system = "Tu es un assistant de recherche web. Trouve un MAXIMUM de contacts. "
+            . "Pour chaque : NOM, EMAIL (ou 'non trouvé'), TEL (ou 'non trouvé'), URL, SOURCE. "
+            . "Donne TOUS les résultats, même partiels. Ne filtre rien.";
 
         try {
             $responses = Http::pool(fn ($pool) => [
@@ -107,9 +110,8 @@ class PerplexitySearchService
                             ['role' => 'user', 'content' => $query1],
                         ],
                         'max_tokens' => 4000,
-                        'temperature' => 0.1,
+                        'temperature' => 0.5,
                         'return_citations' => true,
-                        'search_recency_filter' => 'year',
                     ]),
                 $pool->as('deep')
                     ->withHeaders(['Authorization' => 'Bearer ' . $this->apiKey, 'Content-Type' => 'application/json'])
@@ -121,9 +123,8 @@ class PerplexitySearchService
                             ['role' => 'user', 'content' => $query2],
                         ],
                         'max_tokens' => 4000,
-                        'temperature' => 0.2,
+                        'temperature' => 0.7, // More creative for deep search
                         'return_citations' => true,
-                        'search_recency_filter' => 'year',
                     ]),
             ]);
 
@@ -141,10 +142,16 @@ class PerplexitySearchService
                 }
             }
 
+            Log::info('Perplexity parallel OK', [
+                'discovery_len' => strlen($results['discovery']),
+                'deep_len'      => strlen($results['deep']),
+                'citations'     => count($allCitations),
+            ]);
+
             return ['responses' => $results, 'citations' => array_unique($allCitations), 'tokens' => $totalTokens];
 
         } catch (\Throwable $e) {
-            Log::error('Perplexity parallel search failed', ['error' => $e->getMessage()]);
+            Log::error('Perplexity parallel failed', ['error' => $e->getMessage()]);
             return ['responses' => ['discovery' => '', 'deep' => ''], 'citations' => [], 'tokens' => 0];
         }
     }

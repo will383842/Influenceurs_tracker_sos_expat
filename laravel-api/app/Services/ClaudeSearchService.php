@@ -63,14 +63,15 @@ Tu reçois des résultats BRUTS d'une recherche web (Perplexity). Ta mission :
    2 = Nom et plateforme mais URL incertaine
    1 = Données partielles, forte probabilité d'approximation
 
-3. RÈGLES STRICTES :
-   - Ne JAMAIS inventer un email, téléphone ou URL
-   - Si l'email n'est pas dans les données Perplexity → écrire "NON TROUVÉ"
+3. RÈGLES :
+   - Si l'email n'est pas dans les données → écrire "NON TROUVÉ" (ne pas inventer)
    - Si le téléphone n'est pas mentionné → écrire "NON TROUVÉ"
-   - Garder les URLs EXACTES (ne pas modifier)
+   - Garder les URLs telles quelles
    - Supprimer les doublons évidents
 
-4. FILTRER : ne garder que les contacts pertinents pour {$contactType} en {$country}.
+4. IMPORTANT : GARDE TOUS LES CONTACTS trouvés, même ceux avec des données partielles (juste un nom + URL suffit).
+   Ne supprime PAS un contact parce qu'il manque un email ou un téléphone.
+   L'utilisateur décidera lui-même ce qui est pertinent.
 PROMPT;
 
         try {
