@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client';
-import type { ResearcherStat, ObjectiveWithProgress } from '../types/influenceur';
+import type { ContactType, ResearcherStat, ObjectiveWithProgress } from '../types/influenceur';
+import { CONTACT_TYPE_OPTIONS } from '../components/ContactTypeBadge';
+import ContactTypeBadge from '../components/ContactTypeBadge';
 import { CONTINENTS } from '../data/countries';
 
 interface ObjectiveForm {
+  contact_type: string;
   continent: string;
   countries: string[];
   language: string;
@@ -13,6 +16,7 @@ interface ObjectiveForm {
 }
 
 const emptyForm: ObjectiveForm = {
+  contact_type: '',
   continent: '',
   countries: [],
   language: '',
@@ -160,6 +164,7 @@ export default function AdminConsole() {
     try {
       await api.post('/objectives', {
         user_id: editingUserId,
+        contact_type: form.contact_type || null,
         target_count: form.target_count,
         deadline: form.deadline,
         continent: form.continent || null,
@@ -262,7 +267,7 @@ export default function AdminConsole() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border/50">
-                          {['Continent/Pays', 'Langue', 'Niche', 'Cible', 'Progression', 'Deadline', 'Jours restants'].map(h => (
+                          {['Type', 'Continent/Pays', 'Langue', 'Niche', 'Cible', 'Progression', 'Deadline', 'Jours restants'].map(h => (
                             <th key={h} className="text-left text-[10px] text-muted font-medium uppercase tracking-wider px-3 py-2 whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -270,6 +275,9 @@ export default function AdminConsole() {
                       <tbody>
                         {r.objectives.map(obj => (
                           <tr key={obj.id} className="border-b border-border/30 last:border-0">
+                            <td className="px-3 py-2">
+                              {obj.contact_type ? <ContactTypeBadge type={obj.contact_type as ContactType} /> : <span className="text-muted text-xs">Tous</span>}
+                            </td>
                             <td className="px-3 py-2 text-gray-300 max-w-[200px]">
                               <span title={obj.countries?.join(', ') ?? 'Tous pays'}>
                                 {formatCountries(obj.countries, obj.continent)}
@@ -328,8 +336,21 @@ export default function AdminConsole() {
                         Nouvel objectif pour <span className="text-white font-medium">{r.name}</span>
                       </p>
 
-                      {/* Row 1: Continent + Language + Niche + Quantity + Deadline */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+                      {/* Row 1: Type + Continent + Language + Niche + Quantity + Deadline */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Type de contact</label>
+                          <select
+                            value={form.contact_type}
+                            onChange={e => setForm(p => ({ ...p, contact_type: e.target.value }))}
+                            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+                          >
+                            <option value="">Tous les types</option>
+                            {CONTACT_TYPE_OPTIONS.map(t => (
+                              <option key={t.value} value={t.value}>{t.label}</option>
+                            ))}
+                          </select>
+                        </div>
                         <div>
                           <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Continent</label>
                           <select
@@ -475,7 +496,7 @@ export default function AdminConsole() {
             </div>
             <div>
               <p className="text-3xl font-bold text-green-400 font-title">{totalValid}</p>
-              <p className="text-xs text-muted">Influenceurs valides dans le systeme</p>
+              <p className="text-xs text-muted">Contacts valides dans le systeme</p>
             </div>
           </div>
         </div>

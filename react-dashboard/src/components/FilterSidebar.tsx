@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
-import type { InfluenceurFilters, Platform, Status, TeamMember } from '../types/influenceur';
+import type { ContactType, InfluenceurFilters, Platform, Status, TeamMember } from '../types/influenceur';
+import { CONTACT_TYPE_OPTIONS } from './ContactTypeBadge';
 
 interface Props {
   onFilterChange: (filters: InfluenceurFilters) => void;
@@ -112,6 +113,21 @@ export default function FilterSidebar({ onFilterChange, onClose }: Props) {
           placeholder="Nom, handle..."
           className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm placeholder-muted focus:outline-none focus:border-violet transition-colors"
         />
+      </div>
+
+      {/* Type de contact */}
+      <div className="mb-4">
+        <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Type</p>
+        <select
+          value={filters.contact_type ?? ''}
+          onChange={e => update({ ...filters, contact_type: e.target.value ? e.target.value as ContactType : undefined })}
+          className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+        >
+          <option value="">Tous les types</option>
+          {CONTACT_TYPE_OPTIONS.map(t => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Statut */}

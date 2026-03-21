@@ -2,9 +2,10 @@ import React, { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { AuthContext } from '../hooks/useAuth';
-import type { Contact, Influenceur, TeamMember } from '../types/influenceur';
+import type { Contact, ContactType, Influenceur, TeamMember } from '../types/influenceur';
 import ContactTimeline from '../components/ContactTimeline';
 import ContactForm from '../components/ContactForm';
+import ContactTypeBadge, { CONTACT_TYPE_OPTIONS } from '../components/ContactTypeBadge';
 import StatusBadge from '../components/StatusBadge';
 import PlatformBadge from '../components/PlatformBadge';
 
@@ -143,8 +144,19 @@ export default function InfluenceurDetail() {
               <h1 className="text-2xl font-title font-bold text-white">{influenceur.name}</h1>
             )}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {editing ? (
+                <select
+                  value={formData.contact_type ?? influenceur.contact_type}
+                  onChange={e => setFormData(p => ({ ...p, contact_type: e.target.value as ContactType }))}
+                  className="bg-surface2 border border-border rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-violet"
+                >
+                  {CONTACT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              ) : (
+                <ContactTypeBadge type={influenceur.contact_type} size="md" />
+              )}
               {influenceur.handle && <span className="font-mono text-sm text-cyan">@{influenceur.handle}</span>}
-              <PlatformBadge platform={influenceur.primary_platform} />
+              {influenceur.primary_platform && <PlatformBadge platform={influenceur.primary_platform} />}
               {editing ? (
                 <select
                   value={formData.status ?? influenceur.status}

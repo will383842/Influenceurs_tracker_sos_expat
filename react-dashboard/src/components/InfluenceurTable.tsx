@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Influenceur } from '../types/influenceur';
+import ContactTypeBadge from './ContactTypeBadge';
 import PlatformBadge from './PlatformBadge';
 import StatusBadge from './StatusBadge';
 
@@ -49,6 +50,7 @@ export default function InfluenceurTable({ influenceurs }: Props) {
           <thead>
             <tr className="border-b border-border">
               <Th label="Nom" field="name" />
+              <Th label="Type" />
               <Th label="Plateforme" />
               <Th label="Statut" field="status" />
               <Th label="Followers" field="followers" />
@@ -66,7 +68,8 @@ export default function InfluenceurTable({ influenceurs }: Props) {
                     {inf.handle && <span className="text-muted font-normal"> @{inf.handle}</span>}
                   </Link>
                 </td>
-                <td className="px-4 py-3"><PlatformBadge platform={inf.primary_platform} /></td>
+                <td className="px-4 py-3"><ContactTypeBadge type={inf.contact_type} /></td>
+                <td className="px-4 py-3">{inf.primary_platform && <PlatformBadge platform={inf.primary_platform} />}</td>
                 <td className="px-4 py-3"><StatusBadge status={inf.status} /></td>
                 <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">
                   {inf.followers != null ? inf.followers.toLocaleString('fr-FR') : '—'}

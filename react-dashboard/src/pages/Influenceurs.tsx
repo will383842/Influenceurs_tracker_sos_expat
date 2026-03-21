@@ -4,7 +4,8 @@ import InfluenceurCard from '../components/InfluenceurCard';
 import InfluenceurTable from '../components/InfluenceurTable';
 import FilterSidebar from '../components/FilterSidebar';
 import { AuthContext } from '../hooks/useAuth';
-import type { InfluenceurFilters, Platform, Status } from '../types/influenceur';
+import type { ContactType, InfluenceurFilters, Platform, Status } from '../types/influenceur';
+import { CONTACT_TYPE_OPTIONS } from '../components/ContactTypeBadge';
 
 const PLATFORM_OPTIONS: { value: Platform; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
@@ -28,7 +29,10 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: 'inactive', label: 'Inactif' },
 ];
 
+const TYPES_WITH_PLATFORMS: ContactType[] = ['influenceur', 'blogger', 'group_admin'];
+
 type CreateForm = {
+  contact_type: ContactType;
   name: string;
   handle: string;
   platforms: Platform[];
@@ -45,6 +49,7 @@ type CreateForm = {
 };
 
 const EMPTY_FORM: CreateForm = {
+  contact_type: 'influenceur',
   name: '', handle: '', platforms: ['instagram'], primary_platform: 'instagram',
   followers: '', email: '', phone: '', country: '', language: '',
   niche: '', profile_url: '', status: 'prospect', notes: '',
@@ -83,10 +88,25 @@ export default function Influenceurs() {
     setCreateError('');
     setCreating(true);
     try {
-      await createInfluenceur({
-        ...createForm,
+      const payload: Record<string, unknown> = {
+        contact_type: createForm.contact_type,
+        name: createForm.name,
+        handle: createForm.handle || null,
+        email: createForm.email || null,
+        phone: createForm.phone || null,
+        country: createForm.country || null,
+        language: createForm.language || null,
+        niche: createForm.niche || null,
+        profile_url: createForm.profile_url || null,
+        status: createForm.status,
+        notes: createForm.notes || null,
         followers: createForm.followers ? Number(createForm.followers) : null,
-      });
+      };
+      if (TYPES_WITH_PLATFORMS.includes(createForm.contact_type)) {
+        payload.platforms = createForm.platforms;
+        payload.primary_platform = createForm.primary_platform;
+      }
+      await createInfluenceur(payload);
       setShowCreate(false);
       setCreateForm(EMPTY_FORM);
     } catch (err: unknown) {
@@ -149,7 +169,7 @@ export default function Influenceurs() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
-            <h2 className="font-title text-2xl font-bold text-white">Influenceurs</h2>
+            <h2 className="font-title text-2xl font-bold text-white">Contacts</h2>
             <p className="text-muted text-sm mt-1">{influenceurs.length} chargé{influenceurs.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -208,13 +228,23 @@ export default function Influenceurs() {
         {/* Formulaire de création */}
         {showCreate && (
           <form onSubmit={handleCreate} className="bg-surface border border-border rounded-xl p-5 mb-6 space-y-4">
-            <h3 className="font-title font-semibold text-white">Nouvel influenceur</h3>
+            <h3 className="font-title font-semibold text-white">Nouveau contact</h3>
 
             {createError && (
               <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">{createError}</div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-muted mb-1.5">Type de contact *</label>
+                <select
+                  value={createForm.contact_type}
+                  onChange={e => setCreateForm(p => ({ ...p, contact_type: e.target.value as ContactType }))}
+                  className={inputClass}
+                >
+                  {CONTACT_TYPE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs text-muted mb-1.5">Nom *</label>
                 <input
@@ -309,8 +339,8 @@ export default function Influenceurs() {
               </div>
             </div>
 
-            {/* Plateformes */}
-            <div>
+            {/* Plateformes (only for influenceur/blogger/group_admin) */}
+            {TYPES_WITH_PLATFORMS.includes(createForm.contact_type) && <div>
               <label className="block text-xs text-muted mb-2">Plateformes *</label>
               <div className="flex flex-wrap gap-2">
                 {PLATFORM_OPTIONS.map(p => (
@@ -345,10 +375,10 @@ export default function Influenceurs() {
                   </select>
                 </div>
               )}
-            </div>
+            </div>}
 
             <div>
-              <label className="block text-xs text-muted mb-1.5">URL du profil</label>
+              <label className="block text-xs text-muted mb-1.5">URL du profil / site web</label>
               <input
                 type="url"
                 value={createForm.profile_url}
@@ -410,13 +440,13 @@ export default function Influenceurs() {
             <div className="w-6 h-6 border-2 border-violet border-t-transparent rounded-full animate-spin" />
           )}
           {!loading && !hasMore && influenceurs.length > 0 && (
-            <p className="text-muted text-sm">Tous les influenceurs sont chargés.</p>
+            <p className="text-muted text-sm">Tous les contacts sont chargés.</p>
           )}
           {!loading && influenceurs.length === 0 && (
             <div className="text-center py-12">
               <p className="text-4xl mb-3">👥</p>
-              <p className="text-white font-medium">Aucun influenceur trouvé</p>
-              <p className="text-muted text-sm mt-1">Modifiez les filtres ou ajoutez un influenceur.</p>
+              <p className="text-white font-medium">Aucun contact trouvé</p>
+              <p className="text-muted text-sm mt-1">Modifiez les filtres ou ajoutez un contact.</p>
             </div>
           )}
         </div>

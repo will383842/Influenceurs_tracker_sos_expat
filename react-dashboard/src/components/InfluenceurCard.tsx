@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Influenceur } from '../types/influenceur';
+import ContactTypeBadge from './ContactTypeBadge';
 import PlatformBadge from './PlatformBadge';
 import StatusBadge from './StatusBadge';
 
@@ -44,7 +45,8 @@ export default function InfluenceurCard({ influenceur }: Props) {
       </div>
 
       <div className="flex items-center gap-2 mt-3 flex-wrap">
-        <PlatformBadge platform={influenceur.primary_platform} />
+        <ContactTypeBadge type={influenceur.contact_type} />
+        {influenceur.primary_platform && <PlatformBadge platform={influenceur.primary_platform} />}
         <StatusBadge status={influenceur.status} />
       </div>
 

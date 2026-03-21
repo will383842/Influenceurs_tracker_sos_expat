@@ -22,6 +22,14 @@ class StatsController extends Controller
         if ($isResearcher) {
             $baseInfluenceurQuery->where('created_by', $userId);
         }
+        if ($request->contact_type) {
+            $baseInfluenceurQuery->where('contact_type', $request->contact_type);
+        }
+
+        // By contact type
+        $byContactType = (clone $baseInfluenceurQuery)->select('contact_type', DB::raw('count(*) as count'))
+            ->groupBy('contact_type')
+            ->pluck('count', 'contact_type');
 
         // Totaux par statut
         $total    = (clone $baseInfluenceurQuery)->count();
@@ -117,7 +125,7 @@ class StatsController extends Controller
         $recentActivity = $recentActivityQuery->get();
 
         return response()->json(compact(
-            'total', 'byStatus', 'responseRate', 'conversionRate',
+            'total', 'byStatus', 'byContactType', 'responseRate', 'conversionRate',
             'newThisMonth', 'active', 'contactsEvolution',
             'byPlatform', 'responseByPlatform', 'teamActivity',
             'funnel', 'recentActivity'
@@ -159,6 +167,9 @@ class StatsController extends Controller
                 $query = Influenceur::where('created_by', $researcher->id)
                     ->validForObjective();
 
+                if ($objective->contact_type) {
+                    $query->where('contact_type', $objective->contact_type);
+                }
                 if (!empty($objective->countries)) {
                     $query->whereIn('country', $objective->countries);
                 }
@@ -174,6 +185,7 @@ class StatsController extends Controller
 
                 return [
                     'id'             => $objective->id,
+                    'contact_type'   => $objective->contact_type,
                     'continent'      => $objective->continent,
                     'countries'      => $objective->countries,
                     'language'       => $objective->language,

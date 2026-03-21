@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client';
-import type { TeamMember } from '../types/influenceur';
+import type { ContactType, TeamMember } from '../types/influenceur';
+import ContactTypeBadge, { CONTACT_TYPE_OPTIONS } from '../components/ContactTypeBadge';
 
 type MemberForm = {
   name: string;
   email: string;
   password: string;
   role: 'admin' | 'member' | 'researcher';
+  contact_types: ContactType[];
 };
 
 export default function Equipe() {
@@ -14,7 +16,7 @@ export default function Equipe() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState<MemberForm>({ name: '', email: '', password: '', role: 'member' });
+  const [form, setForm] = useState<MemberForm>({ name: '', email: '', password: '', role: 'member', contact_types: [] });
   const [error, setError] = useState('');
 
   const fetchMembers = async () => {
@@ -30,16 +32,16 @@ export default function Equipe() {
     setError('');
     try {
       if (editingId) {
-        const payload: Partial<MemberForm> = { name: form.name, email: form.email, role: form.role };
+        const payload: Record<string, unknown> = { name: form.name, email: form.email, role: form.role, contact_types: form.contact_types.length > 0 ? form.contact_types : null };
         if (form.password) payload.password = form.password;
         await api.put(`/team/${editingId}`, payload);
       } else {
-        await api.post('/team', form);
+        await api.post('/team', { ...form, contact_types: form.contact_types.length > 0 ? form.contact_types : null });
       }
       await fetchMembers();
       setShowForm(false);
       setEditingId(null);
-      setForm({ name: '', email: '', password: '', role: 'member' });
+      setForm({ name: '', email: '', password: '', role: 'member', contact_types: [] });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       setError(e.response?.data?.message ?? 'Erreur lors de la sauvegarde.');
@@ -48,7 +50,7 @@ export default function Equipe() {
 
   const handleEdit = (member: TeamMember) => {
     setEditingId(member.id);
-    setForm({ name: member.name, email: member.email, password: '', role: member.role });
+    setForm({ name: member.name, email: member.email, password: '', role: member.role, contact_types: member.contact_types ?? [] });
     setShowForm(true);
   };
 
@@ -72,7 +74,7 @@ export default function Equipe() {
           <p className="text-muted text-sm mt-1">{members.length} membre{members.length !== 1 ? 's' : ''}</p>
         </div>
         <button
-          onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ name: '', email: '', password: '', role: 'member' }); }}
+          onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ name: '', email: '', password: '', role: 'member', contact_types: [] }); }}
           className="px-4 py-2 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors"
         >
           + Ajouter un membre
@@ -132,6 +134,44 @@ export default function Equipe() {
             </div>
           </div>
 
+          {/* Contact types assignment (visible for researchers) */}
+          {form.role === 'researcher' && (
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Types de contacts assignés</label>
+              <div className="flex flex-wrap gap-2">
+                {CONTACT_TYPE_OPTIONS.map(t => {
+                  const isChecked = form.contact_types.includes(t.value);
+                  return (
+                    <label
+                      key={t.value}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs cursor-pointer border transition-colors ${
+                        isChecked
+                          ? 'bg-violet/20 text-violet-light border-violet/40'
+                          : 'bg-surface2 text-muted border-border hover:text-white'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          setForm(p => ({
+                            ...p,
+                            contact_types: isChecked
+                              ? p.contact_types.filter(ct => ct !== t.value)
+                              : [...p.contact_types, t.value],
+                          }));
+                        }}
+                        className="w-3.5 h-3.5 accent-violet"
+                      />
+                      {t.label}
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted mt-1">Vide = accès à tous les types</p>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button type="submit" className="px-4 py-2 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors">
               {editingId ? 'Sauvegarder' : 'Créer'}
@@ -149,7 +189,7 @@ export default function Equipe() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                {['Membre', 'Email', 'Rôle', 'Statut', 'Dernière connexion', 'Actions'].map(h => (
+                {['Membre', 'Email', 'Rôle', 'Types assignés', 'Statut', 'Dernière connexion', 'Actions'].map(h => (
                   <th key={h} className="text-left text-xs text-muted font-medium px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -170,6 +210,17 @@ export default function Equipe() {
                     <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${member.role === 'admin' ? 'bg-violet/20 text-violet-light' : 'bg-surface2 text-muted'}`}>
                       {member.role}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {member.role === 'researcher' && member.contact_types && member.contact_types.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {member.contact_types.map(ct => (
+                          <ContactTypeBadge key={ct} type={ct} />
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted text-xs">{member.role === 'researcher' ? 'Tous' : '—'}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${member.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>

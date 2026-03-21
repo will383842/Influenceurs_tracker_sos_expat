@@ -5,6 +5,8 @@ import { useReminders } from '../hooks/useReminders';
 import { AuthContext } from '../hooks/useAuth';
 import api from '../api/client';
 import { CONTINENTS, TOTAL_COUNTRIES, getCountryFlag } from '../data/countries';
+import ContactTypeBadge from '../components/ContactTypeBadge';
+import type { ContactType } from '../types/influenceur';
 
 const STATUS_LABELS: Record<string, string> = {
   prospect: 'Prospect', contacted: 'Contacté', negotiating: 'Négociation',
@@ -99,12 +101,27 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Répartition par type */}
+      {stats?.byContactType && Object.keys(stats.byContactType).length > 0 && (
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <h3 className="font-title font-semibold text-white mb-3">Par type de contact</h3>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(stats.byContactType).map(([type, count]) => (
+              <div key={type} className="flex items-center gap-2 bg-surface2 rounded-lg px-3 py-2">
+                <ContactTypeBadge type={type as ContactType} size="md" />
+                <span className="text-white font-bold font-title">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Couverture mondiale */}
       {user?.role === 'admin' && (
         <div className="bg-surface border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
             <h3 className="font-title font-semibold text-white">Couverture mondiale</h3>
-            <p className="text-xs text-muted mt-0.5">Repartition des influenceurs par pays, langue et continent</p>
+            <p className="text-xs text-muted mt-0.5">Répartition des contacts par pays, langue et continent</p>
           </div>
 
           {coverageLoading ? (
@@ -117,7 +134,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="bg-surface2 rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-cyan font-title">{coverage.total_influenceurs}</p>
-                  <p className="text-[10px] text-muted uppercase tracking-wider mt-1">Total influenceurs</p>
+                  <p className="text-[10px] text-muted uppercase tracking-wider mt-1">Total contacts</p>
                 </div>
                 <div className="bg-surface2 rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-violet font-title">{coverage.countries_covered}</p>
@@ -145,7 +162,7 @@ export default function Dashboard() {
                     style={{ width: `${Math.min(coveragePct, 100)}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-muted mt-1">{coverage.countries_covered} pays sur {TOTAL_COUNTRIES} ont au moins 1 influenceur</p>
+                <p className="text-[10px] text-muted mt-1">{coverage.countries_covered} pays sur {TOTAL_COUNTRIES} ont au moins 1 contact</p>
               </div>
 
               {/* Tabs */}

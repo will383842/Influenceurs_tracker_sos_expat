@@ -79,7 +79,7 @@ export default function Statistiques() {
 
         {/* Plateformes */}
         <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
-          <h3 className="font-title font-semibold text-white mb-4">Influenceurs par plateforme</h3>
+          <h3 className="font-title font-semibold text-white mb-4">Contacts par plateforme</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={stats.byPlatform}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2530" />
