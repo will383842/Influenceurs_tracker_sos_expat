@@ -163,10 +163,40 @@ class RunAiResearchJob implements ShouldQueue
 
             // ============================================================
             // STEP 4: AUTO-IMPORT all new contacts into influenceurs table
+            // Checks: name+country duplicate, email duplicate, URL duplicate
             // ============================================================
             $imported = 0;
+            $skippedDuplicates = 0;
             foreach ($deduped['new'] as $contact) {
                 try {
+                    // Check duplicate by name + country (case-insensitive)
+                    $nameExists = Influenceur::whereRaw('LOWER(name) = ?', [strtolower($contact['name'])])
+                        ->where('country', $session->country)
+                        ->exists();
+                    if ($nameExists) {
+                        $skippedDuplicates++;
+                        Log::debug('Auto-import: skipped name duplicate', ['name' => $contact['name']]);
+                        continue;
+                    }
+
+                    // Check duplicate by profile_url_domain (if we have one)
+                    if (!empty($contact['profile_url_domain'])) {
+                        $urlExists = Influenceur::where('profile_url_domain', $contact['profile_url_domain'])->exists();
+                        if ($urlExists) {
+                            $skippedDuplicates++;
+                            continue;
+                        }
+                    }
+
+                    // Check duplicate by email
+                    if (!empty($contact['email'])) {
+                        $emailExists = Influenceur::where('email', strtolower($contact['email']))->exists();
+                        if ($emailExists) {
+                            $skippedDuplicates++;
+                            continue;
+                        }
+                    }
+
                     Influenceur::create([
                         'contact_type'       => $contact['contact_type'] ?? $contactType,
                         'name'               => $contact['name'],
@@ -182,7 +212,7 @@ class RunAiResearchJob implements ShouldQueue
                         'notes'              => $contact['notes'] ?? null,
                         'source'             => 'ai_research',
                         'status'             => 'new',
-                        'score'              => ($contact['reliability_score'] ?? 1) * 20, // 1-5 → 20-100
+                        'score'              => ($contact['reliability_score'] ?? 1) * 20,
                         'created_by'         => $session->user_id,
                     ]);
                     $imported++;
