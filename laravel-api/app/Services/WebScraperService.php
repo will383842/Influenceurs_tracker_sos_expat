@@ -59,6 +59,7 @@ class WebScraperService
             'emails'        => [],
             'phones'        => [],
             'social_links'  => [],
+            'addresses'     => [],
             'scraped_pages' => [],
             'success'       => false,
             'error'         => null,
@@ -125,6 +126,7 @@ class WebScraperService
             $result['emails']       = array_values(array_unique($result['emails']));
             $result['phones']       = array_values(array_unique($result['phones']));
             $result['social_links'] = $this->deduplicateSocialLinks($result['social_links']);
+            $result['addresses']    = array_values(array_unique($result['addresses']));
             $result['success']      = true;
 
         } catch (\Throwable $e) {
@@ -238,7 +240,8 @@ class WebScraperService
         // Extract from plain text
         $this->extractEmails($text, $result['emails']);
         $this->extractPhones($text, $result['phones']);
-        $this->extractSocialLinks($html, $result['social_links']);
+        $this->extractSocialLinks($html, $result['social_links'], $result['phones']);
+        $this->extractAddresses($text, $result['addresses']);
     }
 
     /**
@@ -294,13 +297,19 @@ class WebScraperService
     /**
      * Extract social media profile URLs from HTML href attributes.
      */
-    private function extractSocialLinks(string $html, array &$socialLinks): void
+    private function extractSocialLinks(string $html, array &$socialLinks, array &$phones = []): void
     {
         $platforms = [
             'facebook'  => 'facebook\.com/[a-zA-Z0-9._\-]+',
             'linkedin'  => 'linkedin\.com/(in|company)/[a-zA-Z0-9._\-]+',
             'twitter'   => '(twitter\.com|x\.com)/[a-zA-Z0-9._\-]+',
             'instagram' => 'instagram\.com/[a-zA-Z0-9._\-]+',
+            'tiktok'    => 'tiktok\.com/@[a-zA-Z0-9._\-]+',
+            'youtube'   => 'youtube\.com/(@[a-zA-Z0-9._\-]+|c/[a-zA-Z0-9._\-]+|channel/[a-zA-Z0-9._\-]+)',
+            'pinterest' => 'pinterest\.(com|fr|de|co\.uk)/[a-zA-Z0-9._\-]+',
+            'telegram'  => 't\.me/[a-zA-Z0-9._\-]+',
+            'skype'     => '(join\.skype\.com/[a-zA-Z0-9._\-]+)',
+            'line'      => 'line\.me/(R/ti/p/|R/)?[a-zA-Z0-9._\-~@]+',
         ];
 
         foreach ($platforms as $platform => $pattern) {
@@ -312,6 +321,97 @@ class WebScraperService
                         continue;
                     }
                     $socialLinks[$platform] = $socialLinks[$platform] ?? $url;
+                }
+            }
+        }
+
+        // WhatsApp: wa.me/XXXXX and api.whatsapp.com/send?phone=XXXXX
+        if (preg_match_all('/https?:\/\/(www\.)?wa\.me\/(\d+)/i', $html, $matches)) {
+            foreach ($matches[0] as $idx => $url) {
+                $url = rtrim($url, '/');
+                $socialLinks['whatsapp'] = $socialLinks['whatsapp'] ?? $url;
+                // Also extract the phone number
+                $phoneNumber = '+' . $matches[2][$idx];
+                if ($this->isValidPhone($phoneNumber)) {
+                    $phones[] = $this->normalizePhone($phoneNumber);
+                }
+            }
+        }
+
+        if (preg_match_all('/https?:\/\/(www\.)?api\.whatsapp\.com\/send\?phone=(\d+)/i', $html, $matches)) {
+            foreach ($matches[0] as $idx => $url) {
+                $cleanUrl = preg_replace('/&.*$/', '', $url); // Keep only phone param
+                $socialLinks['whatsapp'] = $socialLinks['whatsapp'] ?? $cleanUrl;
+                // Also extract the phone number
+                $phoneNumber = '+' . $matches[2][$idx];
+                if ($this->isValidPhone($phoneNumber)) {
+                    $phones[] = $this->normalizePhone($phoneNumber);
+                }
+            }
+        }
+
+        // Skype: skype:username pattern (not a URL, found in href="skype:...")
+        if (!isset($socialLinks['skype'])) {
+            if (preg_match('/skype:([a-zA-Z0-9._\-]+)/i', $html, $match)) {
+                $socialLinks['skype'] = 'skype:' . $match[1];
+            }
+        }
+
+        // WeChat: detect common wechat ID patterns (often displayed as text/images)
+        if (preg_match('/(?:wechat|weixin|微信)\s*(?:id|ID|Id)?\s*[:：]\s*([a-zA-Z0-9_\-]+)/i', $html, $match)) {
+            $socialLinks['wechat'] = $socialLinks['wechat'] ?? 'wechat:' . $match[1];
+        }
+    }
+
+    /**
+     * Extract postal addresses from plain text.
+     */
+    private function extractAddresses(string $text, array &$addresses): void
+    {
+        // Normalize whitespace for easier matching
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        // Pattern 1: Street number + street name (French style: "12 Rue de la Paix", "123 Avenue des Champs")
+        $streetPatterns = [
+            '/\b(\d{1,5}\s*,?\s*(?:rue|avenue|boulevard|bvd|blvd|allée|impasse|chemin|place|cours|passage|route|voie)\s+[A-ZÀ-Ÿa-zà-ÿ\s\'\-]{3,50}(?:\s*,\s*\d{4,5}\s+[A-ZÀ-Ÿa-zà-ÿ\s\'\-]+)?)/iu',
+            // English style: "123 Main Street", "456 Oak Avenue"
+            '/\b(\d{1,5}\s+[A-Za-z\s\'\-]{2,30}\s+(?:street|st|road|rd|avenue|ave|boulevard|blvd|drive|dr|lane|ln|way|court|ct|place|pl|circle|cir|terrace|ter)\.?\b(?:\s*,\s*[A-Za-z\s]+(?:\s*,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)?)?)/iu',
+        ];
+
+        foreach ($streetPatterns as $pattern) {
+            if (preg_match_all($pattern, $text, $matches)) {
+                foreach ($matches[1] as $address) {
+                    $address = trim($address, " ,.");
+                    if (mb_strlen($address) >= 10 && mb_strlen($address) <= 200) {
+                        $addresses[] = $address;
+                    }
+                }
+            }
+        }
+
+        // Pattern 2: BP / PO Box patterns
+        if (preg_match_all('/\b((?:BP|B\.P\.|P\.?O\.?\s*Box)\s*\d{1,6}(?:\s*,\s*\d{4,5}\s+[A-ZÀ-Ÿa-zà-ÿ\s\'\-]+)?)/iu', $text, $matches)) {
+            foreach ($matches[1] as $address) {
+                $address = trim($address, " ,.");
+                if (mb_strlen($address) >= 5) {
+                    $addresses[] = $address;
+                }
+            }
+        }
+
+        // Pattern 3: Zip code + city near address keywords
+        $keywords = 'adresse|address|siège|siege|localisation|location|bureau|office|headquarter|sitz';
+        // Look for content near address keywords: capture up to 150 chars after keyword
+        if (preg_match_all('/(?:' . $keywords . ')\s*[:：]?\s*(.{10,150})/iu', $text, $matches)) {
+            foreach ($matches[1] as $candidate) {
+                // Must contain a zip code pattern (4-5 digits) to be considered an address
+                if (preg_match('/\b\d{4,5}\b/', $candidate)) {
+                    // Trim at sentence boundary
+                    $candidate = preg_replace('/[.!?|].*$/', '', $candidate);
+                    $candidate = trim($candidate, " ,.\t\n\r");
+                    if (mb_strlen($candidate) >= 10 && mb_strlen($candidate) <= 200) {
+                        $addresses[] = $candidate;
+                    }
                 }
             }
         }

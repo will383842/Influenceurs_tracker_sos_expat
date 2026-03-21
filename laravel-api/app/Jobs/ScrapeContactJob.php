@@ -80,7 +80,8 @@ class ScrapeContactJob implements ShouldQueue
                 'scraper_status'  => $result['success'] ? 'completed' : 'failed',
                 'scraped_emails'  => $result['emails'] ?: null,
                 'scraped_phones'  => $result['phones'] ?: null,
-                'scraped_social'  => $result['social_links'] ?: null,
+                'scraped_social'    => $result['social_links'] ?: null,
+                'scraped_addresses' => $result['addresses'] ?: null,
             ];
 
             // Only fill NULL/empty fields — NEVER overwrite existing data
@@ -100,7 +101,8 @@ class ScrapeContactJob implements ShouldQueue
                 'pages_scraped' => count($result['scraped_pages']),
                 'emails_found'  => count($result['emails']),
                 'phones_found'  => count($result['phones']),
-                'social_found'  => count($result['social_links']),
+                'social_found'    => count($result['social_links']),
+                'addresses_found' => count($result['addresses'] ?? []),
                 'success'       => $result['success'],
             ];
 

@@ -181,12 +181,13 @@ export default function InfluenceurDetail() {
         {/* Infos détaillées */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-6 border-t border-border text-sm">
           {[
-            { label: 'Email', value: influenceur.email, field: 'email' },
-            { label: 'Téléphone', value: influenceur.phone, field: 'phone' },
-            { label: 'Pays', value: influenceur.country, field: 'country' },
-            { label: 'Langue', value: influenceur.language, field: 'language' },
-            { label: 'Niche', value: influenceur.niche, field: 'niche' },
-          ].map(({ label, value, field }) => (
+            { label: 'Email', value: influenceur.email, field: 'email', href: influenceur.email ? `mailto:${influenceur.email}` : null },
+            { label: 'Téléphone', value: influenceur.phone, field: 'phone', href: influenceur.phone ? `tel:${influenceur.phone}` : null },
+            { label: 'Profil URL', value: influenceur.profile_url, field: 'profile_url', href: influenceur.profile_url, external: true },
+            { label: 'Pays', value: influenceur.country, field: 'country', href: null },
+            { label: 'Langue', value: influenceur.language, field: 'language', href: null },
+            { label: 'Niche', value: influenceur.niche, field: 'niche', href: null },
+          ].map(({ label, value, field, href, external }: { label: string; value: string | null | undefined; field: string; href?: string | null; external?: boolean }) => (
             <div key={field}>
               <p className="text-muted text-xs mb-1">{label}</p>
               {editing ? (
@@ -195,6 +196,8 @@ export default function InfluenceurDetail() {
                   onChange={e => setFormData(p => ({ ...p, [field]: e.target.value }))}
                   className="bg-surface2 border border-border rounded px-2 py-1 text-white text-sm w-full focus:outline-none focus:border-violet"
                 />
+              ) : href && value ? (
+                <a href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="text-cyan hover:underline break-all">{value}</a>
               ) : (
                 <p className="text-white">{value ?? '—'}</p>
               )}
@@ -261,6 +264,114 @@ export default function InfluenceurDetail() {
             />
           ) : (
             <p className="text-white text-sm whitespace-pre-wrap">{influenceur.notes ?? '—'}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Scraped contact data */}
+      <div className="bg-surface border border-border rounded-xl p-5">
+        <h3 className="font-title font-semibold text-white mb-4 flex items-center gap-2">
+          {'📋'} Informations de contact scrapées
+          {influenceur.scraper_status && (
+            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full font-mono ${
+              influenceur.scraper_status === 'completed' ? 'bg-green-500/20 text-green-400' :
+              influenceur.scraper_status === 'failed' ? 'bg-red-500/20 text-red-400' :
+              influenceur.scraper_status === 'pending' ? 'bg-amber/20 text-amber' :
+              'bg-white/10 text-muted'
+            }`}>
+              {influenceur.scraper_status}
+            </span>
+          )}
+          {!influenceur.scraper_status && (
+            <span className="ml-2 text-xs text-muted">Non scrapé</span>
+          )}
+        </h3>
+        {influenceur.scraped_at && (
+          <p className="text-muted text-xs mb-4">
+            Scrapé le {new Date(influenceur.scraped_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
+
+        <div className="space-y-4">
+          {/* Emails */}
+          <div>
+            <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Emails</p>
+            {influenceur.scraped_emails && influenceur.scraped_emails.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {influenceur.scraped_emails.map((em) => (
+                  <a key={em} href={`mailto:${em}`} className="text-cyan hover:underline text-sm flex items-center gap-1">
+                    {em === influenceur.email && <span title="Email principal">{'✅'}</span>}
+                    {em}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted text-sm">Aucun email trouvé</p>
+            )}
+          </div>
+
+          {/* Phones */}
+          <div>
+            <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Téléphones</p>
+            {influenceur.scraped_phones && influenceur.scraped_phones.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {influenceur.scraped_phones.map((ph) => (
+                  <span key={ph} className="text-sm flex items-center gap-1.5">
+                    {ph === influenceur.phone && <span title="Téléphone principal">{'✅'}</span>}
+                    <a href={`tel:${ph}`} className="text-cyan hover:underline">{ph}</a>
+                    {ph.startsWith('+') && (
+                      <a href={`https://wa.me/${ph.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 text-xs" title="WhatsApp">
+                        {'💬'}
+                      </a>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted text-sm">Aucun téléphone trouvé</p>
+            )}
+          </div>
+
+          {/* Social links */}
+          <div>
+            <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Réseaux sociaux</p>
+            {influenceur.scraped_social && Object.keys(influenceur.scraped_social).length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(influenceur.scraped_social).map(([platform, url]) => {
+                  const icons: Record<string, string> = {
+                    facebook: '🔵', linkedin: '🔗', twitter: '𝕏', x: '𝕏',
+                    instagram: '📸', whatsapp: '💬', telegram: '✈️',
+                    youtube: '🎬', tiktok: '🎵',
+                  };
+                  return (
+                    <a
+                      key={platform}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-surface2 border border-border rounded-lg text-cyan hover:text-white hover:border-cyan/50 text-sm transition-colors"
+                    >
+                      <span>{icons[platform.toLowerCase()] ?? '🌐'}</span>
+                      <span className="capitalize">{platform}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-muted text-sm">Aucun réseau social trouvé</p>
+            )}
+          </div>
+
+          {/* Addresses */}
+          {influenceur.scraped_addresses && influenceur.scraped_addresses.length > 0 && (
+            <div>
+              <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Adresses</p>
+              <div className="space-y-1">
+                {influenceur.scraped_addresses.map((addr, i) => (
+                  <p key={i} className="text-white text-sm">{addr}</p>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>

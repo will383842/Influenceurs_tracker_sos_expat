@@ -119,6 +119,13 @@ export interface Influenceur {
   tags: string[] | null;
   score: number;
   source: string | null;
+  // Scraped data
+  scraper_status: 'completed' | 'failed' | 'pending' | 'skipped' | null;
+  scraped_at: string | null;
+  scraped_emails: string[] | null;
+  scraped_phones: string[] | null;
+  scraped_social: Record<string, string> | null;
+  scraped_addresses: string[] | null;
   created_by: number;
   created_at: string;
   updated_at: string;
