@@ -10,7 +10,7 @@ class WebScraperService
     private const USER_AGENT = 'Mozilla/5.0 (compatible; MissionControlBot/1.0; +https://life-expat.com)';
     private const TIMEOUT = 10;
     private const MAX_REDIRECTS = 3;
-    private const MAX_PAGES = 5;
+    private const MAX_PAGES = 8;
     private const DELAY_BETWEEN_REQUESTS_MS = 2000;
 
     /**
@@ -19,13 +19,27 @@ class WebScraperService
     private const CONTACT_PATHS = [
         '/contact',
         '/contact-us',
+        '/contact.html',
+        '/contact.php',
         '/about',
         '/about-us',
+        '/about.html',
         '/a-propos',
         '/nous-contacter',
         '/contactez-nous',
         '/impressum',
         '/kontakt',
+        '/info',
+        '/information',
+        '/team',
+        '/staff',
+        '/our-team',
+        '/notre-equipe',
+        '/equipe',
+        '/direction',
+        '/administration',
+        '/coordonnees',
+        '/footer',
     ];
 
     /**
@@ -51,18 +65,19 @@ class WebScraperService
     /**
      * Scrape a URL and extract contact information.
      *
-     * @return array{emails: string[], phones: string[], social_links: array, scraped_pages: string[], success: bool, error?: string}
+     * @return array{emails: string[], phones: string[], social_links: array, addresses: string[], contact_persons: string[], scraped_pages: string[], success: bool, error?: string}
      */
     public function scrape(string $url): array
     {
         $result = [
-            'emails'        => [],
-            'phones'        => [],
-            'social_links'  => [],
-            'addresses'     => [],
-            'scraped_pages' => [],
-            'success'       => false,
-            'error'         => null,
+            'emails'          => [],
+            'phones'          => [],
+            'social_links'    => [],
+            'addresses'       => [],
+            'contact_persons' => [],
+            'scraped_pages'   => [],
+            'success'         => false,
+            'error'           => null,
         ];
 
         try {
@@ -92,14 +107,54 @@ class WebScraperService
                 return $result;
             }
 
-            // 1. Scrape the main page
-            $mainHtml = $this->fetchPage($url);
+            // 1. Scrape the main page (with HTTPS→HTTP fallback)
+            $mainHtml = $this->fetchPageWithFallback($url, $baseUrl);
             if ($mainHtml !== null) {
                 $result['scraped_pages'][] = $url;
                 $this->extractFromHtml($mainHtml, $result);
             }
 
-            // 2. Try contact/about pages (up to MAX_PAGES total)
+            // Also try the URL without /fr/ or /en/ prefix if present
+            $altUrl = $this->stripLocalePrefix($url);
+            if ($altUrl !== null && $this->normalizeUrl($altUrl) !== $this->normalizeUrl($url)) {
+                $altHtml = $this->fetchPageWithFallback($altUrl, $baseUrl);
+                if ($altHtml !== null && count($result['scraped_pages']) < self::MAX_PAGES) {
+                    $result['scraped_pages'][] = $altUrl;
+                    $this->extractFromHtml($altHtml, $result);
+                }
+            }
+
+            // 2. Discover contact pages from links found in main page HTML
+            $discoveredPages = [];
+            if ($mainHtml !== null) {
+                $discoveredPages = $this->discoverContactPages($mainHtml, $baseUrl);
+            }
+
+            // Track already-scraped normalized URLs to avoid duplicates
+            $scrapedNormalized = array_map([$this, 'normalizeUrl'], $result['scraped_pages']);
+
+            // 3. Try discovered pages FIRST (more likely to be real contact pages)
+            foreach ($discoveredPages as $pageUrl) {
+                if (count($result['scraped_pages']) >= self::MAX_PAGES) {
+                    break;
+                }
+
+                $normalized = $this->normalizeUrl($pageUrl);
+                if (in_array($normalized, $scrapedNormalized, true)) {
+                    continue;
+                }
+
+                usleep(self::DELAY_BETWEEN_REQUESTS_MS * 1000);
+
+                $html = $this->fetchPage($pageUrl);
+                if ($html !== null) {
+                    $result['scraped_pages'][] = $pageUrl;
+                    $scrapedNormalized[] = $normalized;
+                    $this->extractFromHtml($html, $result);
+                }
+            }
+
+            // 4. Try hardcoded contact/about pages (up to MAX_PAGES total)
             foreach (self::CONTACT_PATHS as $path) {
                 if (count($result['scraped_pages']) >= self::MAX_PAGES) {
                     break;
@@ -107,8 +162,8 @@ class WebScraperService
 
                 $pageUrl = rtrim($baseUrl, '/') . $path;
 
-                // Skip if same as the main URL
-                if ($this->normalizeUrl($pageUrl) === $this->normalizeUrl($url)) {
+                $normalized = $this->normalizeUrl($pageUrl);
+                if (in_array($normalized, $scrapedNormalized, true)) {
                     continue;
                 }
 
@@ -118,16 +173,18 @@ class WebScraperService
                 $html = $this->fetchPage($pageUrl);
                 if ($html !== null) {
                     $result['scraped_pages'][] = $pageUrl;
+                    $scrapedNormalized[] = $normalized;
                     $this->extractFromHtml($html, $result);
                 }
             }
 
             // Deduplicate results
-            $result['emails']       = array_values(array_unique($result['emails']));
-            $result['phones']       = array_values(array_unique($result['phones']));
-            $result['social_links'] = $this->deduplicateSocialLinks($result['social_links']);
-            $result['addresses']    = array_values(array_unique($result['addresses']));
-            $result['success']      = true;
+            $result['emails']          = array_values(array_unique($result['emails']));
+            $result['phones']          = array_values(array_unique($result['phones']));
+            $result['social_links']    = $this->deduplicateSocialLinks($result['social_links']);
+            $result['addresses']       = array_values(array_unique($result['addresses']));
+            $result['contact_persons'] = array_values(array_unique($result['contact_persons']));
+            $result['success']         = true;
 
         } catch (\Throwable $e) {
             $result['error'] = $e->getMessage();
@@ -242,6 +299,12 @@ class WebScraperService
         $this->extractPhones($text, $result['phones']);
         $this->extractSocialLinks($html, $result['social_links'], $result['phones']);
         $this->extractAddresses($text, $result['addresses']);
+
+        // Extract contact person names
+        $persons = $this->extractContactPersons($text);
+        foreach ($persons as $person) {
+            $result['contact_persons'][] = $person;
+        }
     }
 
     /**
@@ -489,6 +552,165 @@ class WebScraperService
         $url = strtolower(rtrim($url, '/'));
         $url = preg_replace('/^https?:\/\/(www\.)?/', '', $url);
         return $url;
+    }
+
+    /**
+     * Fetch a page with HTTPS→HTTP fallback.
+     */
+    private function fetchPageWithFallback(string $url, string $baseUrl): ?string
+    {
+        $html = $this->fetchPage($url);
+        if ($html !== null) {
+            return $html;
+        }
+
+        // If HTTPS failed, try HTTP
+        if (str_starts_with($url, 'https://')) {
+            $httpUrl = preg_replace('/^https:/', 'http:', $url);
+            $html = $this->fetchPage($httpUrl);
+            if ($html !== null) {
+                return $html;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Strip locale prefix from URL path (e.g., /fr/, /en/, /de/).
+     * Returns the modified URL or null if no locale prefix found.
+     */
+    private function stripLocalePrefix(string $url): ?string
+    {
+        $parsed = parse_url($url);
+        $path = $parsed['path'] ?? '/';
+
+        // Match common locale prefixes: /fr/, /en/, /de/, /es/, /it/, /pt/, /nl/, /pl/, /ru/, etc.
+        if (preg_match('#^/([a-z]{2}(?:-[a-z]{2})?)(/.*)?$#i', $path, $matches)) {
+            $locale = strtolower($matches[1]);
+            $rest = $matches[2] ?? '/';
+            if (in_array($locale, ['fr', 'en', 'de', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'ar', 'zh', 'ja', 'ko', 'th', 'vi', 'tr'])) {
+                $scheme = $parsed['scheme'] ?? 'https';
+                $host = $parsed['host'] ?? '';
+                return "{$scheme}://{$host}{$rest}";
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Discover contact/about pages from links found in page HTML.
+     * Returns an array of full URLs to try.
+     */
+    private function discoverContactPages(string $html, string $baseUrl): array
+    {
+        $pages = [];
+
+        if (preg_match_all('/href=["\']([^"\']+)["\']/', $html, $matches)) {
+            $contactKeywords = [
+                'contact', 'about', 'team', 'staff', 'equipe', 'direction',
+                'admin', 'info', 'coordonn', 'nous-contacter', 'a-propos',
+                'impressum', 'kontakt', 'who-we-are', 'our-people',
+                'notre-equipe', 'our-team', 'contactez', 'joindre',
+            ];
+
+            $baseHost = parse_url($baseUrl, PHP_URL_HOST);
+
+            foreach ($matches[1] as $href) {
+                $hrefLower = strtolower($href);
+
+                // Skip anchors, javascript, mailto, tel
+                if (str_starts_with($hrefLower, '#') || str_starts_with($hrefLower, 'javascript:')
+                    || str_starts_with($hrefLower, 'mailto:') || str_starts_with($hrefLower, 'tel:')) {
+                    continue;
+                }
+
+                // Check if it contains a contact keyword
+                foreach ($contactKeywords as $keyword) {
+                    if (str_contains($hrefLower, $keyword)) {
+                        // Resolve to full URL
+                        if (str_starts_with($href, '/')) {
+                            $pages[] = rtrim($baseUrl, '/') . $href;
+                        } elseif (str_starts_with($hrefLower, 'http')) {
+                            $hrefHost = parse_url($href, PHP_URL_HOST);
+                            if ($hrefHost && str_contains($hrefHost, $baseHost)) {
+                                $pages[] = $href;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        return array_unique($pages);
+    }
+
+    /**
+     * Extract contact person names found near titles/roles or email addresses.
+     */
+    private function extractContactPersons(string $text): array
+    {
+        $persons = [];
+
+        // Normalize whitespace
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        // Pattern 1: Title/role followed by a name
+        // e.g., "Director: John Smith", "Directeur : Marie Dupont", "President - Jane Doe"
+        $titlePatterns = [
+            // English titles
+            'director', 'principal', 'president', 'chairman', 'chairwoman', 'chairperson',
+            'ceo', 'cto', 'cfo', 'coo', 'founder', 'co-founder', 'cofounder',
+            'manager', 'head of', 'chief', 'lead', 'coordinator', 'supervisor',
+            'owner', 'partner', 'editor', 'publisher', 'secretary', 'treasurer',
+            // French titles
+            'directeur', 'directrice', 'président', 'présidente', 'responsable',
+            'gérant', 'gérante', 'fondateur', 'fondatrice', 'rédacteur', 'rédactrice',
+            'coordinateur', 'coordinatrice', 'secrétaire', 'trésorier', 'trésorière',
+            'chef', 'patron', 'patronne',
+            // German titles
+            'geschäftsführer', 'geschäftsführerin', 'leiter', 'leiterin', 'inhaber', 'inhaberin',
+            'vorsitzender', 'vorsitzende',
+        ];
+
+        $titlesRegex = implode('|', array_map(fn($t) => preg_quote($t, '/'), $titlePatterns));
+
+        // Match: Title [separator] Firstname Lastname
+        // Name pattern: uppercase letter followed by lowercase, e.g., "Jean-Pierre Dupont"
+        $namePattern = '([A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+(?:[\-\s][A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+){1,3})';
+
+        if (preg_match_all('/(?:' . $titlesRegex . ')\s*[:：\-–—,]?\s*' . $namePattern . '/iu', $text, $matches)) {
+            foreach ($matches[1] as $name) {
+                $name = trim($name);
+                if (mb_strlen($name) >= 4 && mb_strlen($name) <= 60) {
+                    $persons[] = $name;
+                }
+            }
+        }
+
+        // Pattern 2: "Contact: Name" or "Contact : Name"
+        if (preg_match_all('/contact\s*[:：]\s*' . $namePattern . '/iu', $text, $matches)) {
+            foreach ($matches[1] as $name) {
+                $name = trim($name);
+                if (mb_strlen($name) >= 4 && mb_strlen($name) <= 60) {
+                    $persons[] = $name;
+                }
+            }
+        }
+
+        // Pattern 3: Name followed by email (e.g., "Marie Dupont marie@example.com")
+        if (preg_match_all('/' . $namePattern . '\s+[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/u', $text, $matches)) {
+            foreach ($matches[1] as $name) {
+                $name = trim($name);
+                if (mb_strlen($name) >= 4 && mb_strlen($name) <= 60) {
+                    $persons[] = $name;
+                }
+            }
+        }
+
+        return $persons;
     }
 
     /**

@@ -288,6 +288,87 @@ class StatsController extends Controller
     }
 
     /**
+     * Admin-only: progress stats — per country, per contact_type, per language.
+     * Shows total, with_email, with_phone, scraped counts + percentages.
+     */
+    public function progress()
+    {
+        // Progress by country
+        $byCountry = Influenceur::select(
+                'country',
+                DB::raw('count(*) as total'),
+                DB::raw('count(email) as with_email'),
+                DB::raw('count(phone) as with_phone'),
+                DB::raw('count(scraped_at) as scraped')
+            )
+            ->whereNotNull('country')
+            ->where('country', '!=', '')
+            ->groupBy('country')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn($row) => [
+                'country'       => $row->country,
+                'total'         => $row->total,
+                'with_email'    => $row->with_email,
+                'email_pct'     => $row->total > 0 ? round($row->with_email / $row->total * 100, 1) : 0,
+                'with_phone'    => $row->with_phone,
+                'phone_pct'     => $row->total > 0 ? round($row->with_phone / $row->total * 100, 1) : 0,
+                'scraped'       => $row->scraped,
+            ]);
+
+        // Progress by contact_type
+        $byContactType = Influenceur::select(
+                'contact_type',
+                DB::raw('count(*) as total'),
+                DB::raw('count(email) as with_email'),
+                DB::raw('count(phone) as with_phone'),
+                DB::raw('count(scraped_at) as scraped')
+            )
+            ->whereNotNull('contact_type')
+            ->groupBy('contact_type')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn($row) => [
+                'contact_type'  => $row->contact_type,
+                'total'         => $row->total,
+                'with_email'    => $row->with_email,
+                'email_pct'     => $row->total > 0 ? round($row->with_email / $row->total * 100, 1) : 0,
+                'with_phone'    => $row->with_phone,
+                'phone_pct'     => $row->total > 0 ? round($row->with_phone / $row->total * 100, 1) : 0,
+                'scraped'       => $row->scraped,
+            ]);
+
+        // Progress by language
+        $byLanguage = Influenceur::select(
+                'language',
+                DB::raw('count(*) as total'),
+                DB::raw('count(email) as with_email'),
+                DB::raw('count(phone) as with_phone'),
+                DB::raw('count(scraped_at) as scraped')
+            )
+            ->whereNotNull('language')
+            ->where('language', '!=', '')
+            ->groupBy('language')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn($row) => [
+                'language'      => $row->language,
+                'total'         => $row->total,
+                'with_email'    => $row->with_email,
+                'email_pct'     => $row->total > 0 ? round($row->with_email / $row->total * 100, 1) : 0,
+                'with_phone'    => $row->with_phone,
+                'phone_pct'     => $row->total > 0 ? round($row->with_phone / $row->total * 100, 1) : 0,
+                'scraped'       => $row->scraped,
+            ]);
+
+        return response()->json([
+            'by_country'      => $byCountry,
+            'by_contact_type' => $byContactType,
+            'by_language'     => $byLanguage,
+        ]);
+    }
+
+    /**
      * Map lowercase country names to continents.
      */
     private function getContinentMap(): array

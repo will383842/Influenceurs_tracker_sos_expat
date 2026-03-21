@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ContactType;
 use App\Enums\PipelineStatus;
 use App\Enums\Platform;
+use App\Jobs\ScrapeContactJob;
 use App\Models\ActivityLog;
 use App\Models\Influenceur;
 use Illuminate\Http\Request;
@@ -271,6 +272,34 @@ class InfluenceurController extends Controller
         $influenceur->delete();
 
         return response()->json(null, 204);
+    }
+
+    public function rescrape(Request $request, Influenceur $influenceur)
+    {
+        // Researcher can only rescrape own influenceurs
+        if ($request->user()->isResearcher() && $influenceur->created_by !== $request->user()->id) {
+            return response()->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        $influenceur->update([
+            'scraped_at'     => null,
+            'scraper_status' => null,
+        ]);
+
+        ScrapeContactJob::dispatch($influenceur->id);
+
+        ActivityLog::create([
+            'user_id'        => $request->user()->id,
+            'influenceur_id' => $influenceur->id,
+            'action'         => 'rescrape_triggered',
+            'details'        => ['name' => $influenceur->name],
+        ]);
+
+        return response()->json($influenceur->fresh()->load([
+            'assignedToUser:id,name',
+            'createdBy:id,name',
+            'pendingReminder',
+        ]));
     }
 
     public function remindersPending(Request $request)

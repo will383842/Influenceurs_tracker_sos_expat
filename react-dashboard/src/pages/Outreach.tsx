@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTemplates } from '../hooks/useTemplates';
-import { CONTACT_TYPES, LANGUAGES, getContactType } from '../lib/constants';
+import { CONTACT_TYPES, LANGUAGES, getContactType, getLanguageLabel } from '../lib/constants';
 import type { ContactType, EmailTemplate } from '../types/influenceur';
 
 export default function Outreach() {
@@ -145,7 +145,7 @@ export default function Outreach() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs bg-violet/20 text-violet-light px-1.5 py-0.5 rounded">Étape {t.step}</span>
-                            <span className="text-xs text-muted">{t.language.toUpperCase()}</span>
+                            <span className="text-xs text-muted">{getLanguageLabel(t.language)}</span>
                             {t.delay_days > 0 && <span className="text-xs text-muted">J+{t.delay_days}</span>}
                           </div>
                           <p className="text-sm font-medium text-white mt-1">{t.name}</p>

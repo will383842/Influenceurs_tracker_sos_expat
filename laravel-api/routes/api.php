@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/influenceurs', [InfluenceurController::class, 'store']);
     Route::get('/influenceurs/{influenceur}', [InfluenceurController::class, 'show']);
     Route::put('/influenceurs/{influenceur}', [InfluenceurController::class, 'update']);
+    Route::post('/influenceurs/{influenceur}/rescrape', [InfluenceurController::class, 'rescrape']);
     Route::delete('/influenceurs/{influenceur}', [InfluenceurController::class, 'destroy']);
 
     // Contacts / Timeline
@@ -159,6 +160,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Couverture mondiale (admin uniquement)
     Route::get('/stats/coverage', [StatsController::class, 'coverage'])
+        ->middleware('role:admin');
+
+    // Progress par pays / type / langue (admin uniquement)
+    Route::get('/stats/progress', [StatsController::class, 'progress'])
         ->middleware('role:admin');
 
     // ============================================================

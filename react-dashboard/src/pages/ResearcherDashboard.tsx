@@ -4,6 +4,7 @@ import api from '../api/client';
 import { AuthContext } from '../hooks/useAuth';
 import type { ObjectiveProgress, ObjectiveWithProgress, Influenceur } from '../types/influenceur';
 import { getCountryFlag } from '../data/countries';
+import { getLanguageLabel } from '../lib/constants';
 
 const PLATFORM_COLORS: Record<string, string> = {
   instagram: 'text-pink-400',
@@ -198,7 +199,7 @@ export default function ResearcherDashboard() {
                           : 'Tous pays'}
                       </p>
                       <p className="text-xs text-muted mt-0.5">
-                        {obj.language ?? 'Toutes langues'} {obj.niche ? `/ ${obj.niche}` : '/ Tous types'}
+                        {obj.language ? getLanguageLabel(obj.language) : 'Toutes langues'} {obj.niche ? `/ ${obj.niche}` : '/ Tous types'}
                       </p>
                     </div>
                     <span className={`text-2xl font-bold font-title ${pctColor}`}>
@@ -343,7 +344,7 @@ export default function ResearcherDashboard() {
                         {inf.country ?? '-'}
                       </td>
                       <td className="px-4 py-3 text-gray-300 text-sm whitespace-nowrap">
-                        {inf.language ?? '-'}
+                        {inf.language ? getLanguageLabel(inf.language) : '-'}
                       </td>
                       <td className="px-4 py-3">
                         {validation.valid ? (

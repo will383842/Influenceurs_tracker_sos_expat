@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { AuthContext } from '../hooks/useAuth';
@@ -8,6 +8,7 @@ import ContactForm from '../components/ContactForm';
 import ContactTypeBadge, { CONTACT_TYPE_OPTIONS } from '../components/ContactTypeBadge';
 import StatusBadge from '../components/StatusBadge';
 import PlatformBadge from '../components/PlatformBadge';
+import { getLanguageLabel, getCountryFlag } from '../lib/constants';
 
 const STATUS_OPTIONS = [
   { value: 'prospect', label: 'Prospect' },
@@ -17,6 +18,68 @@ const STATUS_OPTIONS = [
   { value: 'refused', label: 'Refusé' },
   { value: 'inactive', label: 'Inactif' },
 ];
+
+// ============================================================
+// Email role classification
+// ============================================================
+type EmailRole = 'Contact général' | 'Direction' | 'Admissions' | 'Accueil' | 'Autre';
+
+const EMAIL_ROLE_PREFIXES: { prefixes: string[]; role: EmailRole }[] = [
+  { prefixes: ['contact@', 'info@', 'admin@'], role: 'Contact général' },
+  { prefixes: ['principal@', 'direction@', 'directeur@'], role: 'Direction' },
+  { prefixes: ['admissions@', 'inscription@'], role: 'Admissions' },
+  { prefixes: ['enquiries@', 'office@'], role: 'Accueil' },
+];
+
+function classifyEmail(email: string): EmailRole {
+  const lower = email.toLowerCase();
+  for (const { prefixes, role } of EMAIL_ROLE_PREFIXES) {
+    if (prefixes.some(prefix => lower.startsWith(prefix))) {
+      return role;
+    }
+  }
+  return 'Autre';
+}
+
+function groupEmailsByRole(emails: string[]): { role: EmailRole; emails: string[] }[] {
+  const map = new Map<EmailRole, string[]>();
+  for (const email of emails) {
+    const role = classifyEmail(email);
+    if (!map.has(role)) map.set(role, []);
+    map.get(role)!.push(email);
+  }
+  const order: EmailRole[] = ['Contact général', 'Direction', 'Admissions', 'Accueil', 'Autre'];
+  return order
+    .filter(role => map.has(role))
+    .map(role => ({ role, emails: map.get(role)! }));
+}
+
+// ============================================================
+// Copy to clipboard helper
+// ============================================================
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // fallback
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="ml-1.5 px-1.5 py-0.5 text-xs bg-surface2 border border-border rounded hover:bg-white/10 text-muted hover:text-white transition-colors"
+      title="Copier"
+    >
+      {copied ? '✓' : '📋 Copier'}
+    </button>
+  );
+}
 
 export default function InfluenceurDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,9 +93,11 @@ export default function InfluenceurDetail() {
   const [formData, setFormData] = useState<Partial<Influenceur>>({});
   const [showContactForm, setShowContactForm] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [rescraping, setRescraping] = useState(false);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!id) return;
+    setLoading(true);
     Promise.all([
       api.get<Influenceur>(`/influenceurs/${id}`),
       api.get<Contact[]>(`/influenceurs/${id}/contacts`),
@@ -44,6 +109,10 @@ export default function InfluenceurDetail() {
       setTeam(teamRes.data);
     }).finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSave = async () => {
     if (!id || !influenceur) return;
@@ -69,6 +138,22 @@ export default function InfluenceurDetail() {
     }
   };
 
+  const handleRescrape = async () => {
+    if (!id || rescraping) return;
+    setRescraping(true);
+    setSaveError('');
+    try {
+      const { data } = await api.post<Influenceur>(`/influenceurs/${id}/rescrape`);
+      setInfluenceur(data);
+      setFormData(data);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setSaveError(e.response?.data?.message ?? 'Erreur lors du re-scraping.');
+    } finally {
+      setRescraping(false);
+    }
+  };
+
   const refreshContacts = async () => {
     if (!id) return;
     const { data } = await api.get<Contact[]>(`/influenceurs/${id}/contacts`);
@@ -85,6 +170,11 @@ export default function InfluenceurDetail() {
   if (!influenceur) return (
     <div className="p-4 md:p-6 text-center text-muted">Influenceur introuvable.</div>
   );
+
+  // Extract contact_persons from scraped_social if present
+  const contactPersons = (influenceur.scraped_social as Record<string, unknown> | null)?.contact_persons as
+    | { name: string; role?: string; email?: string; phone?: string }[]
+    | undefined;
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
@@ -184,10 +274,10 @@ export default function InfluenceurDetail() {
             { label: 'Email', value: influenceur.email, field: 'email', href: influenceur.email ? `mailto:${influenceur.email}` : null },
             { label: 'Téléphone', value: influenceur.phone, field: 'phone', href: influenceur.phone ? `tel:${influenceur.phone}` : null },
             { label: 'Profil URL', value: influenceur.profile_url, field: 'profile_url', href: influenceur.profile_url, external: true },
-            { label: 'Pays', value: influenceur.country, field: 'country', href: null },
-            { label: 'Langue', value: influenceur.language, field: 'language', href: null },
+            { label: 'Pays', value: influenceur.country ? `${getCountryFlag(influenceur.country)} ${influenceur.country}` : null, field: 'country', href: null, rawEdit: influenceur.country },
+            { label: 'Langue', value: influenceur.language ? getLanguageLabel(influenceur.language) : null, field: 'language', href: null, rawEdit: influenceur.language },
             { label: 'Niche', value: influenceur.niche, field: 'niche', href: null },
-          ].map(({ label, value, field, href, external }: { label: string; value: string | null | undefined; field: string; href?: string | null; external?: boolean }) => (
+          ].map(({ label, value, field, href, external, rawEdit }: { label: string; value: string | null | undefined; field: string; href?: string | null; external?: boolean; rawEdit?: string | null }) => (
             <div key={field}>
               <p className="text-muted text-xs mb-1">{label}</p>
               {editing ? (
@@ -196,7 +286,7 @@ export default function InfluenceurDetail() {
                   onChange={e => setFormData(p => ({ ...p, [field]: e.target.value }))}
                   className="bg-surface2 border border-border rounded px-2 py-1 text-white text-sm w-full focus:outline-none focus:border-violet"
                 />
-              ) : href && value ? (
+              ) : href && (rawEdit ?? value) ? (
                 <a href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="text-cyan hover:underline break-all">{value}</a>
               ) : (
                 <p className="text-white">{value ?? '—'}</p>
@@ -285,6 +375,20 @@ export default function InfluenceurDetail() {
           {!influenceur.scraper_status && (
             <span className="ml-2 text-xs text-muted">Non scrapé</span>
           )}
+          <button
+            onClick={handleRescrape}
+            disabled={rescraping}
+            className="ml-auto px-3 py-1.5 bg-violet/20 hover:bg-violet/30 text-violet-light text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {rescraping ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-violet-light border-t-transparent rounded-full animate-spin inline-block" />
+                Scraping...
+              </>
+            ) : (
+              <>{'🔄'} Re-scraper</>
+            )}
+          </button>
         </h3>
         {influenceur.scraped_at && (
           <p className="text-muted text-xs mb-4">
@@ -293,16 +397,24 @@ export default function InfluenceurDetail() {
         )}
 
         <div className="space-y-4">
-          {/* Emails */}
+          {/* Emails — grouped by role */}
           <div>
             <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Emails</p>
             {influenceur.scraped_emails && influenceur.scraped_emails.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {influenceur.scraped_emails.map((em) => (
-                  <a key={em} href={`mailto:${em}`} className="text-cyan hover:underline text-sm flex items-center gap-1">
-                    {em === influenceur.email && <span title="Email principal">{'✅'}</span>}
-                    {em}
-                  </a>
+              <div className="space-y-3">
+                {groupEmailsByRole(influenceur.scraped_emails).map(({ role, emails }) => (
+                  <div key={role}>
+                    <p className="text-muted text-xs font-medium mb-1">{role}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {emails.map((em) => (
+                        <span key={em} className="flex items-center gap-1 text-sm">
+                          {em === influenceur.email && <span title="Email principal">{'✅'}</span>}
+                          <a href={`mailto:${em}`} className="text-cyan hover:underline">{em}</a>
+                          <CopyButton text={em} />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -324,6 +436,7 @@ export default function InfluenceurDetail() {
                         {'💬'}
                       </a>
                     )}
+                    <CopyButton text={ph} />
                   </span>
                 ))}
               </div>
@@ -332,12 +445,35 @@ export default function InfluenceurDetail() {
             )}
           </div>
 
+          {/* Contact persons */}
+          {contactPersons && contactPersons.length > 0 && (
+            <div>
+              <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Personnes de contact</p>
+              <div className="space-y-2">
+                {contactPersons.map((person, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2 bg-surface2 border border-border rounded-lg text-sm flex-wrap">
+                    <span className="text-white font-medium">{person.name}</span>
+                    {person.role && <span className="text-muted text-xs">({person.role})</span>}
+                    {person.email && (
+                      <a href={`mailto:${person.email}`} className="text-cyan hover:underline text-xs">{person.email}</a>
+                    )}
+                    {person.phone && (
+                      <a href={`tel:${person.phone}`} className="text-cyan hover:underline text-xs">{person.phone}</a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Social links */}
           <div>
             <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Réseaux sociaux</p>
-            {influenceur.scraped_social && Object.keys(influenceur.scraped_social).length > 0 ? (
+            {influenceur.scraped_social && Object.keys(influenceur.scraped_social).filter(k => k !== 'contact_persons').length > 0 ? (
               <div className="flex flex-wrap gap-3">
-                {Object.entries(influenceur.scraped_social).map(([platform, url]) => {
+                {Object.entries(influenceur.scraped_social)
+                  .filter(([platform]) => platform !== 'contact_persons')
+                  .map(([platform, url]) => {
                   const icons: Record<string, string> = {
                     facebook: '🔵', linkedin: '🔗', twitter: '𝕏', x: '𝕏',
                     instagram: '📸', whatsapp: '💬', telegram: '✈️',
@@ -346,7 +482,7 @@ export default function InfluenceurDetail() {
                   return (
                     <a
                       key={platform}
-                      href={url}
+                      href={url as string}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 px-2.5 py-1 bg-surface2 border border-border rounded-lg text-cyan hover:text-white hover:border-cyan/50 text-sm transition-colors"

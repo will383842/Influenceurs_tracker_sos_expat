@@ -4,6 +4,7 @@ import type { ContactType, ResearcherStat, ObjectiveWithProgress } from '../type
 import { CONTACT_TYPE_OPTIONS } from '../components/ContactTypeBadge';
 import ContactTypeBadge from '../components/ContactTypeBadge';
 import { CONTINENTS } from '../data/countries';
+import { getLanguageLabel } from '../lib/constants';
 
 interface ObjectiveForm {
   contact_type: string;
@@ -283,7 +284,7 @@ export default function AdminConsole() {
                                 {formatCountries(obj.countries, obj.continent)}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{obj.language ?? 'Toutes'}</td>
+                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{obj.language ? getLanguageLabel(obj.language) : 'Toutes'}</td>
                             <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{obj.niche ?? 'Tous types'}</td>
                             <td className="px-3 py-2 text-white font-mono font-bold">{obj.target_count}</td>
                             <td className="px-3 py-2 min-w-[160px]">

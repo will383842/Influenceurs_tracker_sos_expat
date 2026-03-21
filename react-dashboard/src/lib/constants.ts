@@ -140,6 +140,19 @@ export const LANGUAGES = [
   { code: 'hi', label: 'हिन्दी',       flag: '🇮🇳' },
 ];
 
+export const LANGUAGE_MAP = Object.fromEntries(
+  LANGUAGES.map(l => [l.code, l])
+) as Record<string, (typeof LANGUAGES)[number]>;
+
+export function getLanguageLabel(code: string): string {
+  const lang = LANGUAGES.find(l => l.code === code);
+  return lang ? `${lang.flag} ${lang.label}` : code;
+}
+
+export function getLanguageFlag(code: string): string {
+  return LANGUAGES.find(l => l.code === code)?.flag ?? '🌍';
+}
+
 // ============================================================
 // CONTENT ENGINE METRICS CONFIG
 // ============================================================

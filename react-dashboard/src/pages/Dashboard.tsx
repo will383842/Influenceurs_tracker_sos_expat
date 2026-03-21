@@ -9,8 +9,8 @@ import { useReminders } from '../hooks/useReminders';
 import { AuthContext } from '../hooks/useAuth';
 import api from '../api/client';
 import { getCountryFlag } from '../data/countries';
-import { CONTACT_TYPES, CONTACT_TYPE_MAP, PIPELINE_STATUSES, STATUS_MAP } from '../lib/constants';
-import type { ContactType, CoverageData } from '../types/influenceur';
+import { CONTACT_TYPES, CONTACT_TYPE_MAP, PIPELINE_STATUSES, STATUS_MAP, getLanguageLabel, getLanguageFlag } from '../lib/constants';
+import type { ContactType, CoverageData, ProgressData, ProgressCountryRow } from '../types/influenceur';
 
 // ── Labels ──────────────────────────────────────────────────
 const ACTION_LABELS: Record<string, string> = {
@@ -59,6 +59,8 @@ export default function Dashboard() {
   const { user } = useContext(AuthContext);
   const [coverage, setCoverage] = useState<CoverageData | null>(null);
   const [coverageLoading, setCoverageLoading] = useState(true);
+  const [progress, setProgress] = useState<ProgressData | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -66,8 +68,14 @@ export default function Dashboard() {
         .then(({ data }) => setCoverage(data))
         .catch(() => {})
         .finally(() => setCoverageLoading(false));
+
+      api.get<ProgressData>('/stats/progress')
+        .then(({ data }) => setProgress(data))
+        .catch(() => {})
+        .finally(() => setProgressLoading(false));
     } else {
       setCoverageLoading(false);
+      setProgressLoading(false);
     }
   }, [user]);
 
@@ -375,7 +383,7 @@ export default function Dashboard() {
                         const d = payload[0].payload;
                         return (
                           <div className="bg-surface border border-border rounded-lg px-3 py-2 shadow-xl">
-                            <p className="text-sm font-bold text-white">{d.language}</p>
+                            <p className="text-sm font-bold text-white">{getLanguageLabel(d.language)}</p>
                             <p className="text-xs text-muted">{d.total} contacts</p>
                           </div>
                         );
@@ -394,7 +402,7 @@ export default function Dashboard() {
                         className="w-2 h-2 rounded-full inline-block flex-shrink-0"
                         style={{ backgroundColor: LANG_COLORS[i % LANG_COLORS.length] }}
                       />
-                      {lang.language.toUpperCase()} ({lang.total})
+                      {getLanguageLabel(lang.language)} ({lang.total})
                     </span>
                   ))}
                 </div>
@@ -403,6 +411,56 @@ export default function Dashboard() {
               <p className="text-muted text-sm text-center py-8">Aucune donnée langue.</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          6b. PROGRESS PAR PAYS (admin only)
+      ═══════════════════════════════════════════════════════ */}
+      {user?.role === 'admin' && (
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <h3 className="font-title font-semibold text-white mb-4">Progress par pays</h3>
+          {progressLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
+            </div>
+          ) : progress?.by_country && progress.by_country.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-xs text-muted font-medium px-3 py-2 whitespace-nowrap">Pays</th>
+                    <th className="text-right text-xs text-muted font-medium px-3 py-2 whitespace-nowrap">Total</th>
+                    <th className="text-right text-xs text-muted font-medium px-3 py-2 whitespace-nowrap">Avec email</th>
+                    <th className="text-right text-xs text-muted font-medium px-3 py-2 whitespace-nowrap">Avec tel</th>
+                    <th className="text-right text-xs text-muted font-medium px-3 py-2 whitespace-nowrap">Scrape</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progress.by_country.map(row => (
+                    <tr key={row.country} className="border-b border-border/40 last:border-0 hover:bg-surface2 transition-colors">
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className="mr-1.5">{getCountryFlag(row.country)}</span>
+                        <span className="text-white">{row.country}</span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-white font-mono font-bold">{row.total}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <span className="text-emerald-400 font-mono">{row.with_email}</span>
+                        <span className="text-muted text-xs ml-1">({row.email_pct}%)</span>
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <span className="text-cyan font-mono">{row.with_phone}</span>
+                        <span className="text-muted text-xs ml-1">({row.phone_pct}%)</span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-amber font-mono">{row.scraped}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-muted text-sm text-center py-8">Aucune donnée de progress.</p>
+          )}
         </div>
       )}
 

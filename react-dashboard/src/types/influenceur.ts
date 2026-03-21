@@ -377,3 +377,34 @@ export interface CoverageData {
   languages_covered: number;
   total_influenceurs: number;
 }
+
+// ============================================================
+// PROGRESS (per country / contact_type / language)
+// ============================================================
+
+export interface ProgressRow {
+  total: number;
+  with_email: number;
+  email_pct: number;
+  with_phone: number;
+  phone_pct: number;
+  scraped: number;
+}
+
+export interface ProgressCountryRow extends ProgressRow {
+  country: string;
+}
+
+export interface ProgressContactTypeRow extends ProgressRow {
+  contact_type: string;
+}
+
+export interface ProgressLanguageRow extends ProgressRow {
+  language: string;
+}
+
+export interface ProgressData {
+  by_country: ProgressCountryRow[];
+  by_contact_type: ProgressContactTypeRow[];
+  by_language: ProgressLanguageRow[];
+}
