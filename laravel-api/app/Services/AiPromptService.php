@@ -64,32 +64,32 @@ class AiPromptService
 
     private function influenceurPrompt(string $country, string $lang): string
     {
-        return "Trouve 15 influenceurs francophones (Instagram, TikTok, YouTube) qui créent du contenu sur l'expatriation ou le voyage en {$country}. Pour chaque :\nNOM: pseudo\nPLATEFORME: ...\nABONNES: ...\nEMAIL: (si visible)\nURL: lien profil\nPAYS: ...";
+        return "Cherche sur le web des influenceurs francophones qui vivent en {$country} ou créent du contenu sur l'expatriation/voyage en {$country}. Cherche sur Instagram, TikTok, YouTube, et les blogs. Utilise des recherches comme \"influenceur français {$country}\", \"expatrié {$country} YouTube\", \"vie en {$country} Instagram français\", \"digital nomad {$country} francophone\". Pour chaque profil trouvé, donne : NOM (pseudo), PLATEFORME, ABONNÉS, EMAIL (cherche sur leur site/bio/page contact), URL (lien DIRECT vers leur profil), SOURCE (page web où tu as trouvé l'info).";
     }
 
     private function tiktokerPrompt(string $country, string $lang): string
     {
-        return "Trouve 10 créateurs TikTok francophones qui font du contenu sur l'expatriation, le voyage ou la vie à l'étranger en {$country}. Pour chaque :\nNOM: pseudo TikTok\nABONNES: ...\nEMAIL: (si visible dans bio)\nURL: lien profil TikTok\nPAYS: ...";
+        return "Cherche sur TikTok et le web des créateurs TikTok francophones qui font du contenu sur {$country}, la vie en {$country}, ou l'expatriation en {$country}. Cherche \"tiktok français {$country}\", \"tiktoker expatrié {$country}\", \"vie à [capitale de {$country}] tiktok\". Pour chaque : NOM (pseudo TikTok avec @), ABONNÉS, EMAIL (si trouvé sur leur site/bio), URL (lien DIRECT tiktok.com/@...), SOURCE.";
     }
 
     private function youtuberPrompt(string $country, string $lang): string
     {
-        return "Trouve 10 YouTubeurs francophones qui font du contenu sur l'expatriation ou la vie à l'étranger en {$country}. Pour chaque :\nNOM: nom de la chaîne\nABONNES: ...\nEMAIL: (email professionnel)\nURL: lien chaîne YouTube\nPAYS: ...";
+        return "Cherche sur YouTube et le web des chaînes YouTube francophones sur l'expatriation, le voyage ou la vie quotidienne en {$country}. Cherche \"youtube français {$country}\", \"chaîne youtube expatrié {$country}\", \"vivre en {$country} youtube\", \"s'installer en {$country} vlog\". Pour chaque chaîne : NOM (nom de la chaîne), ABONNÉS, EMAIL (souvent dans \"À propos\" ou description), URL (lien youtube.com/@... ou youtube.com/c/...), SOURCE.";
     }
 
     private function instagramerPrompt(string $country, string $lang): string
     {
-        return "Trouve 10 créateurs Instagram francophones qui font du contenu sur l'expatriation ou le voyage en {$country}. Pour chaque :\nNOM: pseudo Instagram\nABONNES: ...\nEMAIL: (si visible dans bio)\nURL: lien profil Instagram\nPAYS: ...";
+        return "Cherche sur Instagram et le web des créateurs Instagram francophones qui vivent en {$country} ou partagent du contenu expatriation/voyage en {$country}. Cherche \"instagram français {$country}\", \"expatrié {$country} instagram\", \"photographe français [capitale de {$country}]\". Pour chaque : NOM (@pseudo), ABONNÉS, EMAIL (bio ou site linktr.ee), URL (lien instagram.com/...), SOURCE.";
     }
 
     private function bloggerPrompt(string $country, string $lang): string
     {
-        return "Trouve 10 blogs francophones sur l'expatriation ou le voyage en {$country}. Pour chaque :\nNOM: nom du blog\nAUTEUR: ...\nEMAIL: ...\nURL: ...\nDA: Domain Authority estimé";
+        return "Cherche sur Google des blogs francophones écrits par des expatriés vivant en {$country} ou sur le thème du voyage/installation en {$country}. Cherche \"blog expatrié {$country}\", \"blog français {$country}\", \"vivre en {$country} blog\", \"s'expatrier en {$country} témoignage\". Pour chaque blog : NOM (du blog), AUTEUR, EMAIL (page contact du blog), URL (adresse du blog), SOURCE.";
     }
 
     private function associationPrompt(string $country, string $lang): string
     {
-        return "Trouve toutes les associations d'expatriés français en {$country}. Pour chaque :\nNOM: ...\nEMAIL: ...\nURL: ...\nTEL: ...\nRESPONSABLE: ...";
+        return "Cherche sur le web toutes les associations de Français et francophones expatriés en {$country}. Cherche \"association français {$country}\", \"communauté française [capitale]\", \"accueil français {$country}\", \"UFE {$country}\", \"ADFE {$country}\". Pour chaque association : NOM, EMAIL (page contact), URL (site web), TEL, RESPONSABLE (président/contact).";
     }
 
     private function pressPrompt(string $country, string $lang): string

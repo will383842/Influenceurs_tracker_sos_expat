@@ -123,6 +123,9 @@ export default function Layout() {
                   <NavLink to="/admin" className={navClass} onClick={handleNavClick}>
                     <span>⚡</span> Console Admin
                   </NavLink>
+                  <NavLink to="/admin/types" className={navClass} onClick={handleNavClick}>
+                    <span>🏷️</span> Types de Contacts
+                  </NavLink>
                   <NavLink to="/equipe" className={navClass} onClick={handleNavClick}>
                     <span>⚙️</span> Équipe
                   </NavLink>
