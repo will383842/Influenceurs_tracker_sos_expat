@@ -29,15 +29,31 @@ const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'newsletter', label: 'Newsletter' },
 ];
 
+interface CoverageCountry { country: string; total: number }
+interface CoverageLanguage { language: string; total: number }
+
 export default function FilterSidebar({ onFilterChange, onClose }: Props) {
   const [filters, setFilters] = useState<InfluenceurFilters>({});
   const [search, setSearch] = useState('');
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [countries, setCountries] = useState<CoverageCountry[]>([]);
+  const [languages, setLanguages] = useState<CoverageLanguage[]>([]);
 
   useEffect(() => {
     api.get<TeamMember[]>('/team')
       .then(({ data }) => setTeam(data))
       .catch(() => setTeam([]));
+
+    // Load available countries and languages from coverage endpoint (admin)
+    // or fallback gracefully for non-admin users
+    api.get<{ by_country: CoverageCountry[]; by_language: CoverageLanguage[] }>('/stats/coverage')
+      .then(({ data }) => {
+        setCountries(data.by_country ?? []);
+        setLanguages(data.by_language ?? []);
+      })
+      .catch(() => {
+        // Non-admin: endpoint returns 403, lists stay empty (dropdowns hidden)
+      });
   }, []);
 
   const update = (newFilters: InfluenceurFilters) => {
@@ -127,6 +143,40 @@ export default function FilterSidebar({ onFilterChange, onClose }: Props) {
           ))}
         </select>
       </div>
+
+      {/* Pays */}
+      {countries.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Pays</p>
+          <select
+            value={filters.country ?? ''}
+            onChange={e => update({ ...filters, country: e.target.value || undefined })}
+            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+          >
+            <option value="">Tous les pays</option>
+            {countries.map(c => (
+              <option key={c.country} value={c.country}>{c.country} ({c.total})</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Langue */}
+      {languages.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Langue</p>
+          <select
+            value={filters.language ?? ''}
+            onChange={e => update({ ...filters, language: e.target.value || undefined })}
+            className="w-full bg-surface2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet"
+          >
+            <option value="">Toutes les langues</option>
+            {languages.map(l => (
+              <option key={l.language} value={l.language}>{l.language.toUpperCase()} ({l.total})</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Assigné à */}
       {team.length > 0 && (

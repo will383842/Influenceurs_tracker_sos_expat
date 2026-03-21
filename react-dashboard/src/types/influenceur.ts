@@ -94,6 +94,8 @@ export interface InfluenceurFilters {
   platform?: Platform;
   assigned_to?: number;
   has_reminder?: boolean;
+  country?: string;
+  language?: string;
   search?: string;
 }
 

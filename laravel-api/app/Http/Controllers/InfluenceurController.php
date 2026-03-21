@@ -29,6 +29,12 @@ class InfluenceurController extends Controller
         if ($request->has_reminder) {
             $query->whereHas('pendingReminder');
         }
+        if ($request->country) {
+            $query->where('country', $request->country);
+        }
+        if ($request->language) {
+            $query->where('language', $request->language);
+        }
         if ($request->search) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
