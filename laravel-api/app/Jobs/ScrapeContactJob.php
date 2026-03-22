@@ -59,6 +59,24 @@ class ScrapeContactJob implements ShouldQueue
 
         // Determine which URL to scrape
         $url = $influenceur->website_url ?: $influenceur->profile_url;
+
+        // If no URL at all, try to discover the website via DuckDuckGo search
+        if (empty($url) && !empty($influenceur->name)) {
+            $discoveredUrl = $scraper->discoverWebsiteUrl(
+                $influenceur->name,
+                $influenceur->country
+            );
+            if ($discoveredUrl) {
+                $url = $discoveredUrl;
+                // Save discovered URL for future use
+                $influenceur->update(['website_url' => $discoveredUrl]);
+                Log::info('ScrapeContactJob: discovered website URL via search', [
+                    'id'  => $influenceur->id,
+                    'url' => $discoveredUrl,
+                ]);
+            }
+        }
+
         if (empty($url)) {
             $this->markStatus($influenceur, 'skipped');
             return;
@@ -85,6 +103,10 @@ class ScrapeContactJob implements ShouldQueue
             }
             if (!empty($result['contact_persons'])) {
                 $socialData['_contact_persons'] = $result['contact_persons'];
+            }
+            // Store suggested emails in social data (displayed separately in frontend)
+            if (!empty($result['suggested_emails'])) {
+                $socialData['_suggested_emails'] = $result['suggested_emails'];
             }
 
             // Update the influenceur with scraped data
@@ -116,6 +138,9 @@ class ScrapeContactJob implements ShouldQueue
                 $updateData['email'] = $result['emails'][0];
             }
 
+            // Suggested emails are stored for display only — NEVER auto-fill
+            // to avoid sending to invalid addresses and getting our domain blacklisted
+
             if (empty($influenceur->phone) && !empty($result['phones'])) {
                 $updateData['phone'] = $result['phones'][0];
             }
@@ -124,13 +149,14 @@ class ScrapeContactJob implements ShouldQueue
 
             // Log the activity
             $details = [
-                'url'           => $url,
-                'pages_scraped' => count($result['scraped_pages']),
-                'emails_found'  => count($result['emails']),
-                'phones_found'  => count($result['phones']),
-                'social_found'    => count($result['social_links']),
-                'addresses_found' => count($result['addresses'] ?? []),
-                'success'       => $result['success'],
+                'url'              => $url,
+                'pages_scraped'    => count($result['scraped_pages']),
+                'emails_found'     => count($result['emails']),
+                'suggested_emails' => count($result['suggested_emails'] ?? []),
+                'phones_found'     => count($result['phones']),
+                'social_found'     => count($result['social_links']),
+                'addresses_found'  => count($result['addresses'] ?? []),
+                'success'          => $result['success'],
             ];
 
             if ($result['error']) {

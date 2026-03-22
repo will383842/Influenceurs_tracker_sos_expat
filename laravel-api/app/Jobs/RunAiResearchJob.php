@@ -197,13 +197,23 @@ class RunAiResearchJob implements ShouldQueue
                         }
                     }
 
+                    // For non-social contact types, the URL is a website, not a social profile
+                    // Store it in BOTH profile_url (for duplicate detection) and website_url (for scraper)
+                    $websiteUrl = null;
+                    $nonSocialTypes = Influenceur::NON_SOCIAL_TYPES;
+                    $effectiveType = $contact['contact_type'] ?? $contactType;
+                    if (in_array($effectiveType, $nonSocialTypes) && !empty($contact['profile_url'])) {
+                        $websiteUrl = $contact['profile_url'];
+                    }
+
                     Influenceur::create([
-                        'contact_type'       => $contact['contact_type'] ?? $contactType,
+                        'contact_type'       => $effectiveType,
                         'name'               => $contact['name'],
                         'email'              => $contact['email'] ?? null,
                         'phone'              => $contact['phone'] ?? null,
                         'profile_url'        => $contact['profile_url'] ?? null,
                         'profile_url_domain' => $contact['profile_url_domain'] ?? null,
+                        'website_url'        => $websiteUrl,
                         'country'            => $contact['country'] ?? $session->country,
                         'language'           => $session->language,
                         'platforms'          => $contact['platforms'] ?? [],

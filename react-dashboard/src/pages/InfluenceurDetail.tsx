@@ -182,8 +182,9 @@ export default function InfluenceurDetail() {
     <div className="p-4 md:p-6 text-center text-muted">Influenceur introuvable.</div>
   );
 
-  // Extract linked contacts (name ↔ email ↔ phone ↔ role) from scraped_social
+  // Extract linked contacts (name ↔ email ↔ phone ↔ role) and suggested emails from scraped_social
   const social = influenceur.scraped_social as Record<string, unknown> | null;
+  const suggestedEmails = (social?.['_suggested_emails'] as string[] | undefined) ?? [];
   const linkedContacts = (social?._linked_contacts ?? social?.contact_persons ?? []) as
     { name: string | null; role: string | null; email: string | null; phone: string | null }[];
   // Deduplicate by email
@@ -436,8 +437,27 @@ export default function InfluenceurDetail() {
                   </div>
                 ))}
               </div>
+            ) : influenceur.scraped_at ? (
+              <div className="space-y-2">
+                <p className="text-red-400 text-sm font-medium">Aucun email trouvé sur le site</p>
+                {suggestedEmails.length > 0 && (
+                  <div>
+                    <p className="text-amber text-xs font-medium mb-1.5">Emails probables (basés sur le domaine) :</p>
+                    <div className="flex flex-wrap gap-2">
+                      {suggestedEmails.slice(0, 6).map((em) => (
+                        <span key={em} className="flex items-center gap-1 text-sm">
+                          <span className="text-amber text-xs" title="Non vérifié">{'?'}</span>
+                          <a href={`mailto:${em}`} className="text-amber/80 hover:text-amber hover:underline">{em}</a>
+                          <CopyButton text={em} />
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-muted text-xs mt-1 italic">Ces emails sont des suggestions non vérifiées basées sur les enregistrements MX du domaine.</p>
+                  </div>
+                )}
+              </div>
             ) : (
-              <p className="text-muted text-sm">Aucun email trouvé</p>
+              <p className="text-muted text-sm">Non scrapé</p>
             )}
           </div>
 
@@ -459,8 +479,10 @@ export default function InfluenceurDetail() {
                   </span>
                 ))}
               </div>
+            ) : influenceur.scraped_at ? (
+              <p className="text-red-400/70 text-sm">Aucun téléphone trouvé sur le site</p>
             ) : (
-              <p className="text-muted text-sm">Aucun téléphone trouvé</p>
+              <p className="text-muted text-sm">Non scrapé</p>
             )}
           </div>
 
@@ -526,8 +548,10 @@ export default function InfluenceurDetail() {
                   );
                 })}
               </div>
+            ) : influenceur.scraped_at ? (
+              <p className="text-red-400/70 text-sm">Aucun réseau social trouvé sur le site</p>
             ) : (
-              <p className="text-muted text-sm">Aucun réseau social trouvé</p>
+              <p className="text-muted text-sm">Non scrapé</p>
             )}
           </div>
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiResearchController;
+use App\Http\Controllers\AutoCampaignController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AiPromptController;
@@ -182,6 +183,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{contactType}', [AiPromptController::class, 'show']);
         Route::put('/', [AiPromptController::class, 'upsert']);
         Route::delete('/{contactType}', [AiPromptController::class, 'destroy']);
+    });
+
+    // ============================================================
+    // AUTO CAMPAIGNS (automated country×type research)
+    // ============================================================
+    Route::middleware('role:admin')->prefix('auto-campaigns')->group(function () {
+        Route::get('/config', [AutoCampaignController::class, 'config']);
+        Route::get('/', [AutoCampaignController::class, 'index']);
+        Route::post('/', [AutoCampaignController::class, 'store']);
+        Route::get('/{campaign}', [AutoCampaignController::class, 'show']);
+        Route::post('/{campaign}/pause', [AutoCampaignController::class, 'pause']);
+        Route::post('/{campaign}/resume', [AutoCampaignController::class, 'resume']);
+        Route::post('/{campaign}/cancel', [AutoCampaignController::class, 'cancel']);
+        Route::post('/{campaign}/retry-failed', [AutoCampaignController::class, 'retryFailed']);
     });
 
     // ============================================================

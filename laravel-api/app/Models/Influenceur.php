@@ -12,6 +12,16 @@ class Influenceur extends Model
 {
     use SoftDeletes;
 
+    /**
+     * Contact types that represent organizations with websites (not social profiles).
+     * Used to decide whether to store profile_url as website_url for scraping.
+     */
+    public const NON_SOCIAL_TYPES = [
+        'school', 'association', 'enterprise', 'insurer', 'press',
+        'travel_agency', 'real_estate', 'translator', 'lawyer', 'partner',
+        'job_board', 'backlink',
+    ];
+
     protected $fillable = [
         'contact_type', 'name', 'company', 'position',
         'handle', 'avatar_url', 'platforms', 'primary_platform',

@@ -148,6 +148,15 @@ class AiResearchController extends Controller
                 continue;
             }
 
+            // For non-social contact types, store URL as website_url too (for scraper)
+            $websiteUrl = null;
+            $nonSocialTypes = \App\Models\Influenceur::NON_SOCIAL_TYPES;
+            $effectiveType = $contact['contact_type'] ?? $session->contact_type;
+            $effectiveType = $effectiveType instanceof \App\Enums\ContactType ? $effectiveType->value : $effectiveType;
+            if (in_array($effectiveType, $nonSocialTypes) && !empty($contact['profile_url'])) {
+                $websiteUrl = $contact['profile_url'];
+            }
+
             // Create the influenceur
             Influenceur::create([
                 'contact_type'      => $contact['contact_type'] ?? $session->contact_type,
@@ -158,6 +167,7 @@ class AiResearchController extends Controller
                 'profile_url_domain' => !empty($contact['profile_url'])
                     ? InfluenceurController::normalizeProfileUrl($contact['profile_url'])
                     : null,
+                'website_url'       => $websiteUrl,
                 'country'           => $contact['country'] ?? $session->country,
                 'language'          => $session->language,
                 'platforms'         => $contact['platforms'] ?? [],

@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Log;
 
 class WebScraperService
 {
-    private const USER_AGENT = 'Mozilla/5.0 (compatible; MissionControlBot/1.0; +https://life-expat.com)';
-    private const TIMEOUT = 10;
+    private const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    private const TIMEOUT = 15;
     private const MAX_REDIRECTS = 3;
     private const MAX_PAGES = 8;
     private const DELAY_BETWEEN_REQUESTS_MS = 2000;
@@ -92,6 +92,7 @@ class WebScraperService
             'addresses'        => [],
             'contact_persons'  => [],
             'linked_contacts'  => [],  // name ↔ email ↔ phone ↔ role associations
+            'suggested_emails' => [],  // Guessed from domain MX when scraping finds nothing
             'scraped_pages'    => [],
             'success'          => false,
             'error'            => null,
@@ -222,6 +223,11 @@ class WebScraperService
             $uniqueLinked[] = $lc;
         }
         $result['linked_contacts'] = $uniqueLinked;
+
+        // If no emails found by scraping, try to guess common emails for the domain
+        if (empty($result['emails'])) {
+            $result['suggested_emails'] = $this->guessEmailsForDomain($url);
+        }
 
         return $result;
     }
@@ -383,8 +389,16 @@ class WebScraperService
     {
         try {
             $response = Http::withHeaders([
-                    'User-Agent' => self::USER_AGENT,
-                    'Accept'     => 'text/html,application/xhtml+xml',
+                    'User-Agent'      => self::USER_AGENT,
+                    'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Accept-Language' => 'en-US,en;q=0.9,fr;q=0.8',
+                    'Accept-Encoding' => 'gzip, deflate, br',
+                    'Cache-Control'   => 'no-cache',
+                    'Sec-Fetch-Dest'  => 'document',
+                    'Sec-Fetch-Mode'  => 'navigate',
+                    'Sec-Fetch-Site'  => 'none',
+                    'Sec-Fetch-User'  => '?1',
+                    'Upgrade-Insecure-Requests' => '1',
                 ])
                 ->timeout(self::TIMEOUT)
                 ->maxRedirects(self::MAX_REDIRECTS)
@@ -404,10 +418,13 @@ class WebScraperService
 
             $body = $response->body();
 
-            // Sanity check: must look like HTML
-            if (!str_contains(strtolower(substr($body, 0, 1000)), '<html')
-                && !str_contains(strtolower(substr($body, 0, 1000)), '<!doctype')
-                && !str_contains(strtolower($contentType), 'text/html')) {
+            // Sanity check: must look like HTML (check in full body, not just first 1000 chars)
+            $bodyLower = strtolower($body);
+            $isHtmlContent = str_contains(strtolower($contentType), 'text/html');
+            $hasHtmlTags = str_contains($bodyLower, '<html') || str_contains($bodyLower, '<!doctype')
+                || str_contains($bodyLower, '<head') || str_contains($bodyLower, '<body')
+                || str_contains($bodyLower, '<div') || str_contains($bodyLower, '<p');
+            if (!$isHtmlContent && !$hasHtmlTags) {
                 return null;
             }
 
@@ -428,7 +445,10 @@ class WebScraperService
     private function isAllowedByRobotsTxt(string $baseUrl): bool
     {
         try {
-            $response = Http::withHeaders(['User-Agent' => self::USER_AGENT])
+            $response = Http::withHeaders([
+                    'User-Agent' => self::USER_AGENT,
+                    'Accept'     => 'text/plain,*/*',
+                ])
                 ->timeout(5)
                 ->get(rtrim($baseUrl, '/') . '/robots.txt');
 
@@ -439,12 +459,15 @@ class WebScraperService
 
             $body = strtolower($response->body());
 
-            // Simple check: look for "user-agent: *" followed by "disallow: /"
-            // This is intentionally simple — we respect full-site blocks only
-            if (preg_match('/user-agent:\s*\*.*?disallow:\s*\/\s*$/m', $body)) {
-                // Check if there's an explicit allow that overrides it
-                if (!str_contains($body, 'allow: /')) {
-                    return false;
+            // Check for full-site disallow: "user-agent: *" block containing "disallow: /"
+            // Split into blocks per user-agent, check the wildcard block
+            if (preg_match('/user-agent:\s*\*\s*\n(.*?)(?=user-agent:|\z)/is', $body, $blockMatch)) {
+                $block = $blockMatch[1];
+                if (preg_match('/disallow:\s*\/\s*$/m', $block)) {
+                    // Check if there's an explicit allow that overrides it
+                    if (!preg_match('/allow:\s*\/\s/m', $block)) {
+                        return false;
+                    }
                 }
             }
 
@@ -461,20 +484,30 @@ class WebScraperService
      */
     private function extractFromHtml(string $html, array &$result): void
     {
-        // Strip scripts and styles first to avoid false positives
+        // 1. Decode CloudFlare email protection BEFORE stripping scripts
+        $html = $this->decodeCloudflareEmails($html);
+
+        // 2. Strip scripts and styles to avoid false positives
         $cleaned = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $html);
         $cleaned = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $cleaned);
 
-        // Extract from raw HTML (catches mailto: and href links)
+        // 3. Extract emails from HTML attributes (data-email, value, content, etc.)
+        $this->extractEmailsFromAttributes($html, $result['emails']);
+
+        // 4. Extract from raw HTML (catches mailto: and href links)
         $this->extractEmails($html, $result['emails']);
         $this->extractEmails($cleaned, $result['emails']);
 
-        // Strip HTML tags for text-based extraction
+        // 5. Strip HTML tags for text-based extraction
         $text = strip_tags($cleaned);
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-        // Extract from plain text
+        // 6. Extract from plain text
         $this->extractEmails($text, $result['emails']);
+
+        // 7. Extract obfuscated emails: "info [at] domain [dot] com" etc.
+        $this->extractObfuscatedEmails($text, $result['emails']);
+
         $this->extractPhones($text, $result['phones']);
         $this->extractSocialLinks($html, $result['social_links'], $result['phones']);
         $this->extractAddresses($text, $result['addresses']);
@@ -494,12 +527,87 @@ class WebScraperService
     }
 
     /**
-     * Extract email addresses using regex.
+     * Decode CloudFlare email protection.
+     * CF encodes emails as hex in data-cfemail attributes and /cdn-cgi/l/email-protection# URLs.
+     * Format: first 2 hex chars = XOR key, remaining pairs XOR'd with key = original chars.
      */
-    private function extractEmails(string $text, array &$emails): void
+    private function decodeCloudflareEmails(string $html): string
     {
-        // Match mailto: links
-        if (preg_match_all('/mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i', $text, $matches)) {
+        // Pattern 1: <a href="/cdn-cgi/l/email-protection#HEX">
+        $html = preg_replace_callback(
+            '/href=["\']\/cdn-cgi\/l\/email-protection#([0-9a-fA-F]+)["\']/',
+            function ($m) {
+                $decoded = $this->cfDecode($m[1]);
+                return $decoded ? 'href="mailto:' . $decoded . '"' : $m[0];
+            },
+            $html
+        );
+
+        // Pattern 2: data-cfemail="HEX"
+        $html = preg_replace_callback(
+            '/data-cfemail=["\']([0-9a-fA-F]+)["\']/',
+            function ($m) {
+                $decoded = $this->cfDecode($m[1]);
+                return $decoded ? 'data-cfemail-decoded="' . $decoded . '"' : $m[0];
+            },
+            $html
+        );
+
+        // Pattern 3: [email&#160;protected] or [email protected] placeholder text → replace with decoded email from nearby attribute
+        // After decoding attributes above, also replace the visible placeholder
+        $html = preg_replace_callback(
+            '/<span[^>]*class=["\'][^"\']*__cf_email__[^"\']*["\'][^>]*data-cfemail-decoded=["\']([^"\']+)["\'][^>]*>.*?<\/span>/is',
+            function ($m) {
+                return $m[1]; // Replace entire span with the decoded email
+            },
+            $html
+        );
+
+        // Also try reversed attribute order
+        $html = preg_replace_callback(
+            '/<span[^>]*data-cfemail-decoded=["\']([^"\']+)["\'][^>]*class=["\'][^"\']*__cf_email__[^"\']*["\'][^>]*>.*?<\/span>/is',
+            function ($m) {
+                return $m[1];
+            },
+            $html
+        );
+
+        return $html;
+    }
+
+    /**
+     * Decode a CloudFlare hex-encoded email string.
+     * Algorithm: first byte = XOR key, remaining bytes XOR'd with key.
+     */
+    private function cfDecode(string $hex): ?string
+    {
+        if (strlen($hex) < 4 || strlen($hex) % 2 !== 0) {
+            return null;
+        }
+
+        try {
+            $key = hexdec(substr($hex, 0, 2));
+            $decoded = '';
+            for ($i = 2, $len = strlen($hex); $i < $len; $i += 2) {
+                $decoded .= chr(hexdec(substr($hex, $i, 2)) ^ $key);
+            }
+            // Validate it looks like an email
+            if (filter_var($decoded, FILTER_VALIDATE_EMAIL)) {
+                return $decoded;
+            }
+            return null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Extract emails from HTML attributes: data-email, value, content (meta tags), title, alt, etc.
+     */
+    private function extractEmailsFromAttributes(string $html, array &$emails): void
+    {
+        // data-email="...", data-mail="...", data-contact="..."
+        if (preg_match_all('/data-(?:email|mail|contact|e-mail)[=:]["\']?\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i', $html, $matches)) {
             foreach ($matches[1] as $email) {
                 $email = strtolower(trim($email));
                 if ($this->isValidEmail($email)) {
@@ -508,8 +616,91 @@ class WebScraperService
             }
         }
 
-        // Match email patterns in text
-        if (preg_match_all('/\b([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\b/', $text, $matches)) {
+        // <input ... value="email@domain.com" ... > (contact forms pre-filled)
+        if (preg_match_all('/<input[^>]*value=["\']([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})["\'][^>]*>/i', $html, $matches)) {
+            foreach ($matches[1] as $email) {
+                $email = strtolower(trim($email));
+                if ($this->isValidEmail($email)) {
+                    $emails[] = $email;
+                }
+            }
+        }
+
+        // <meta content="email@domain.com"> (often in meta tags for contact)
+        if (preg_match_all('/<meta[^>]*content=["\']([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})["\'][^>]*>/i', $html, $matches)) {
+            foreach ($matches[1] as $email) {
+                $email = strtolower(trim($email));
+                if ($this->isValidEmail($email)) {
+                    $emails[] = $email;
+                }
+            }
+        }
+
+        // JSON-LD structured data: "email":"contact@domain.com"
+        if (preg_match_all('/"(?:email|contactPoint|e-?mail)":\s*"([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})"/i', $html, $matches)) {
+            foreach ($matches[1] as $email) {
+                $email = strtolower(trim($email));
+                if ($this->isValidEmail($email)) {
+                    $emails[] = $email;
+                }
+            }
+        }
+
+        // href="mailto:" already handled in extractEmails, but also catch encoded mailto
+        // &#109;&#97;&#105;&#108;&#116;&#111;&#58; = "mailto:" (WordPress antispambot)
+        $decoded = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if ($decoded !== $html) {
+            if (preg_match_all('/mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i', $decoded, $matches)) {
+                foreach ($matches[1] as $email) {
+                    $email = strtolower(trim($email));
+                    if ($this->isValidEmail($email)) {
+                        $emails[] = $email;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Extract obfuscated email patterns from plain text.
+     * Catches: "info [at] domain [dot] com", "info(at)domain(dot)com",
+     *          "info AT domain DOT com", "info @ domain . com" (with extra spaces)
+     */
+    private function extractObfuscatedEmails(string $text, array &$emails): void
+    {
+        // Patterns for [at]/@/AT/(at) and [dot]/./DOT/(dot)
+        $atPatterns = '\s*(?:\[at\]|\(at\)|@|\{at\}|AT|\bat\b)\s*';
+        $dotPatterns = '\s*(?:\[dot\]|\(dot\)|\{dot\}|DOT|\bdot\b)\s*';
+
+        $pattern = '/([a-zA-Z0-9._%+\-]+)' . $atPatterns . '([a-zA-Z0-9.\-]+)' . $dotPatterns . '([a-zA-Z]{2,})/i';
+
+        if (preg_match_all($pattern, $text, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $email = strtolower(trim($m[1]) . '@' . trim($m[2]) . '.' . trim($m[3]));
+                if ($this->isValidEmail($email)) {
+                    $emails[] = $email;
+                }
+            }
+        }
+    }
+
+    /**
+     * Extract email addresses using regex.
+     */
+    private function extractEmails(string $text, array &$emails): void
+    {
+        // Match mailto: links (TLD max 12 chars)
+        if (preg_match_all('/mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,12})/i', $text, $matches)) {
+            foreach ($matches[1] as $email) {
+                $email = strtolower(trim($email));
+                if ($this->isValidEmail($email)) {
+                    $emails[] = $email;
+                }
+            }
+        }
+
+        // Match email patterns in text (TLD max 12 chars to avoid matching "user@domain.myhoraires")
+        if (preg_match_all('/\b([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,12})\b/', $text, $matches)) {
             foreach ($matches[1] as $email) {
                 $email = strtolower(trim($email));
                 if ($this->isValidEmail($email)) {
@@ -906,5 +1097,153 @@ class WebScraperService
     {
         // Already keyed by platform, so just return as-is
         return $links;
+    }
+
+    /**
+     * Discover a website URL for a contact by searching DuckDuckGo.
+     * Uses DuckDuckGo HTML endpoint (no CAPTCHA, no API key needed).
+     * Returns the first non-social, non-directory result URL.
+     */
+    public function discoverWebsiteUrl(string $name, ?string $country = null): ?string
+    {
+        try {
+            $query = $name;
+            if ($country) {
+                $query .= ' ' . $country;
+            }
+
+            $searchUrl = 'https://html.duckduckgo.com/html/?q=' . urlencode($query);
+
+            $response = Http::withHeaders([
+                    'User-Agent'      => self::USER_AGENT,
+                    'Accept'          => 'text/html,application/xhtml+xml',
+                    'Accept-Language' => 'en-US,en;q=0.9,fr;q=0.8',
+                ])
+                ->timeout(10)
+                ->maxRedirects(3)
+                ->get($searchUrl);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $html = $response->body();
+
+            // DuckDuckGo HTML embeds result URLs in uddg= redirect parameter
+            $urls = [];
+            if (preg_match_all('/uddg=(https?[^&"]+)/', $html, $matches)) {
+                foreach ($matches[1] as $u) {
+                    $urls[] = urldecode($u);
+                }
+            }
+
+            // Fallback: result__a class links
+            if (empty($urls) && preg_match_all('/class="result__a"[^>]*href="([^"]+)"/', $html, $matches)) {
+                foreach ($matches[1] as $u) {
+                    $urls[] = urldecode($u);
+                }
+            }
+
+            // Filter out social media, search engines, and directories
+            $skipDomains = array_merge(self::SKIP_DOMAINS, [
+                'duckduckgo.com', 'google.com', 'google.fr',
+                'gstatic.com', 'googleapis.com',
+                'amazon.com', 'amazon.fr',
+            ]);
+
+            // Deduplicate and filter
+            $seen = [];
+            foreach ($urls as $url) {
+                // Already decoded during extraction, don't double-decode
+                $host = parse_url($url, PHP_URL_HOST);
+                if (!$host) continue;
+                $host = strtolower($host);
+
+                // Skip duplicates
+                if (isset($seen[$host])) continue;
+                $seen[$host] = true;
+
+                // Skip unwanted domains
+                $skip = false;
+                foreach ($skipDomains as $skipDomain) {
+                    if (str_contains($host, $skipDomain)) {
+                        $skip = true;
+                        break;
+                    }
+                }
+                if ($skip) continue;
+
+                // Found a valid URL
+                return rtrim($url, '/');
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            Log::debug('WebScraper: website discovery failed', [
+                'name'  => $name,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Common email prefixes to try when scraping finds no email.
+     */
+    private const COMMON_EMAIL_PREFIXES = [
+        'info',
+        'contact',
+        'admin',
+        'office',
+        'enquiries',
+        'hello',
+        'mail',
+        'reception',
+        'secretary',
+        'accueil',
+        'direction',
+        'secretariat',
+        'general',
+    ];
+
+    /**
+     * Guess likely email addresses for a domain by checking if MX records exist,
+     * then returning common prefix@domain candidates.
+     *
+     * @return string[] List of suggested email addresses (unverified but domain has MX)
+     */
+    public function guessEmailsForDomain(string $url): array
+    {
+        try {
+            $parsed = parse_url($url);
+            $host = $parsed['host'] ?? '';
+            if (empty($host)) {
+                return [];
+            }
+
+            // Strip www.
+            $domain = preg_replace('/^www\./', '', strtolower($host));
+
+            // Check if domain has MX records (= can receive email)
+            $mxRecords = [];
+            if (!getmxrr($domain, $mxRecords)) {
+                // No MX records — also try DNS_A as fallback (some small sites use A record for mail)
+                $dnsA = dns_get_record($domain, DNS_A);
+                if (empty($dnsA)) {
+                    return [];
+                }
+            }
+
+            // Domain can receive email — suggest common prefixes
+            $suggestions = [];
+            foreach (self::COMMON_EMAIL_PREFIXES as $prefix) {
+                $suggestions[] = "{$prefix}@{$domain}";
+            }
+
+            return $suggestions;
+        } catch (\Throwable $e) {
+            Log::debug('WebScraper: email guess failed', ['url' => $url, 'error' => $e->getMessage()]);
+            return [];
+        }
     }
 }
