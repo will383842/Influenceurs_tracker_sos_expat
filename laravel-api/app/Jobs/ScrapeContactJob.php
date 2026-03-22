@@ -66,6 +66,8 @@ class ScrapeContactJob implements ShouldQueue
             'aefe.fr', 'aefe.gouv.fr', 'mlfmonde.org',
             'lepetitjournal.com', 'thailandee.com', 'vivre-en-',
             'odyssey.education', 'education.gouv.fr', 'wikipedia.org',
+            'forumvietnam.fr', 'expatries.org', 'expat.com',
+            'femmexpat.com', 'french-schools.org', 'internations.org',
         ];
         $isDirectory = false;
         if (!empty($url)) {
