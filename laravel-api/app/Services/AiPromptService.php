@@ -69,8 +69,8 @@ class AiPromptService
 MISSION : Trouver la liste EXHAUSTIVE et COMPLÈTE de TOUTES les écoles françaises, francophones et bilingues français en {$country}. Je veux un MINIMUM de 10-20 résultats. Ne t'arrête pas aux 5 premiers.
 
 CATÉGORIES À CHERCHER (toutes) :
-1. Écoles du réseau AEFE (homologuées) — cherche sur aefe.fr/fr/etablissements la liste pour {$country}
-2. Écoles du réseau MLF (Mission Laïque Française) — mlfmonde.org
+1. Écoles du réseau AEFE (homologuées)
+2. Écoles du réseau MLF (Mission Laïque Française)
 3. Écoles partenaires AEFE
 4. Écoles françaises privées hors réseau
 5. Sections françaises dans des écoles internationales
@@ -82,8 +82,6 @@ CATÉGORIES À CHERCHER (toutes) :
 MOTS-CLÉS de recherche à utiliser :
 - "lycée français {$country}"
 - "école française {$country}"
-- "AEFE {$country}" et chercher sur aefe.fr la liste complète
-- "MLF {$country}" et chercher sur mlfmonde.org
 - "école francophone {$country}"
 - "french school {$country}"
 - "école bilingue français {$country}"
@@ -97,11 +95,17 @@ MOTS-CLÉS de recherche à utiliser :
 
 IMPORTANT : Cherche dans TOUTES les villes du pays, pas seulement la capitale. Inclus aussi les petites structures.
 
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE de l'école elle-même (ex: lyceefrancais-machin.org, ecole-bilingue-truc.com)
+- JAMAIS une URL de répertoire, annuaire ou site gouvernemental comme : aefe.fr, mlfmonde.org, education.gouv.fr, onisep.fr, letudiant.fr, campusfrance.org, diplomatie.gouv.fr, expat.com, internations.org, lepetitjournal.com, wikipedia.org, odyssey.education, french-schools.org
+- Si tu ne trouves pas le site web propre de l'école, mets URL: INCONNU — ne mets JAMAIS un lien de répertoire à la place
+- Chaque contact doit être UNE école individuelle, PAS un article qui LISTE des écoles
+
 Pour CHAQUE école trouvée, donne :
-NOM: nom complet officiel
-EMAIL: email trouvé sur leur site web (page contact, admissions, secrétariat)
+NOM: nom complet officiel de l'école
+EMAIL: email trouvé sur LEUR PROPRE site web (page contact, admissions, secrétariat)
 TEL: téléphone avec indicatif international
-URL: site web officiel (PAS aefe.fr ou mlfmonde.org, mais le VRAI site de l'école)
+URL: site web PROPRE de l'école (voir règle ci-dessus)
 DIRECTEUR: nom du directeur/proviseur si disponible
 SOURCE: URL où tu as trouvé l'info
 PROMPT;
@@ -120,7 +124,13 @@ Mots-clés :
 - "study abroad {$country} french"
 - site:erasmus-plus.ec.europa.eu {$country}
 
-Pour chaque université : NOM, EMAIL (bureau international), TEL, URL (page mobilité internationale), COORDINATEUR Erasmus si trouvé, SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE de l'université (ex: universite-machin.edu, uni-truc.ac.be)
+- JAMAIS un répertoire comme : erasmus-plus.ec.europa.eu, campusfrance.org, education.gouv.fr, onisep.fr, letudiant.fr, wikipedia.org, expat.com
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UNE université, PAS un article qui en liste plusieurs
+
+Pour chaque université : NOM, EMAIL (bureau international), TEL, URL (site PROPRE de l'université), COORDINATEUR Erasmus si trouvé, SOURCE.
 PROMPT;
     }
 
@@ -135,7 +145,13 @@ Mots-clés :
 - "offre emploi francophone {$country}"
 - "freelance job board {$country}"
 
-Pour chaque : NOM du site, URL, EMAIL (si page contact trouvée), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE du job board (ex: jobs-machin.com)
+- JAMAIS un répertoire ou agrégateur comme : indeed.com, glassdoor.com, wikipedia.org, expat.com
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UN site d'emploi, PAS un article qui en liste plusieurs
+
+Pour chaque : NOM du site, URL (site PROPRE), EMAIL (si page contact trouvée), SOURCE.
 PROMPT;
     }
 
@@ -152,7 +168,14 @@ Mots-clés :
 - "créateur contenu français {$country}"
 - "french influencer {$country}"
 
-Cherche sur Instagram, TikTok, YouTube, et les blogs. Pour chaque profil trouvé : NOM (pseudo), PLATEFORME, ABONNÉS, EMAIL (cherche sur leur site/bio/page contact), URL (lien DIRECT vers leur profil), SOURCE.
+Cherche sur Instagram, TikTok, YouTube, et les blogs.
+
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le lien DIRECT vers le profil de l'influenceur ou son site personnel
+- JAMAIS un article de blog/média qui LISTE des influenceurs (lepetitjournal.com, expat.com, etc.)
+- Chaque contact = UN influenceur individuel, PAS un article qui en liste plusieurs
+
+Pour chaque profil trouvé : NOM (pseudo), PLATEFORME, ABONNÉS, EMAIL (cherche sur leur site/bio/page contact), URL (lien DIRECT vers leur profil), SOURCE.
 PROMPT;
     }
 
@@ -166,6 +189,11 @@ Mots-clés :
 - "tiktoker expatrié {$country}"
 - "vie à {$country} tiktok francophone"
 - "{$country} expat tiktok french"
+
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le lien DIRECT TikTok du créateur (tiktok.com/@pseudo)
+- JAMAIS un article qui LISTE des tiktokers (lepetitjournal.com, expat.com, buzzfeed.com, etc.)
+- Chaque contact = UN tiktoker individuel
 
 Pour chaque : NOM (pseudo TikTok avec @), ABONNÉS, EMAIL (si trouvé sur leur site/bio), URL (lien DIRECT tiktok.com/@...), SOURCE.
 PROMPT;
@@ -183,6 +211,11 @@ Mots-clés :
 - "s'installer en {$country} vlog"
 - "{$country} expat vlog french"
 
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le lien DIRECT YouTube de la chaîne (youtube.com/@pseudo)
+- JAMAIS un article qui LISTE des chaînes YouTube
+- Chaque contact = UNE chaîne YouTube individuelle
+
 Pour chaque chaîne : NOM, ABONNÉS, EMAIL (souvent dans "À propos"), URL (lien youtube.com/@... ou youtube.com/c/...), SOURCE.
 PROMPT;
     }
@@ -197,6 +230,11 @@ Mots-clés :
 - "expatrié {$country} instagram"
 - "photographe français {$country}"
 - "{$country} life instagram francophone"
+
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le lien DIRECT Instagram du créateur (instagram.com/pseudo)
+- JAMAIS un article qui LISTE des instagrameurs
+- Chaque contact = UN compte Instagram individuel
 
 Pour chaque : NOM (@pseudo), ABONNÉS, EMAIL (bio ou linktr.ee), URL (lien instagram.com/...), SOURCE.
 PROMPT;
@@ -214,7 +252,13 @@ Mots-clés :
 - "s'expatrier en {$country} témoignage"
 - "blog voyage {$country} francophone"
 
-Pour chaque blog : NOM, AUTEUR, EMAIL (page contact du blog), URL (adresse du blog), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE PROPRE du blog (ex: monblog-expat.com, vivre-a-bangkok.fr)
+- JAMAIS un répertoire comme : expat.com, lepetitjournal.com, femmexpat.com, internations.org
+- Si tu ne trouves pas le site propre du blog, mets URL: INCONNU
+- Chaque contact = UN blog individuel, PAS un article qui en liste plusieurs
+
+Pour chaque blog : NOM, AUTEUR, EMAIL (page contact du blog), URL (site PROPRE du blog), SOURCE.
 PROMPT;
     }
 
@@ -232,7 +276,13 @@ Mots-clés :
 - "français du monde {$country}"
 - "French expat association {$country}"
 
-Pour chaque : NOM, EMAIL (page contact), URL (site web), TEL, RESPONSABLE (président/contact), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE de l'association (ex: ufe-japon.org, accueil-francais-berlin.de)
+- JAMAIS un répertoire comme : expat.com, internations.org, femmexpat.com, lepetitjournal.com, diplomatie.gouv.fr, wikipedia.org
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UNE association individuelle, PAS un article qui en liste plusieurs
+
+Pour chaque : NOM, EMAIL (page contact), URL (site PROPRE de l'association), TEL, RESPONSABLE (président/contact), SOURCE.
 PROMPT;
     }
 
@@ -249,7 +299,12 @@ Mots-clés :
 - "presse française expatriés {$country}"
 - "magazine expatriation {$country}"
 
-Pour chaque média : NOM, EMAIL (rédaction), URL, JOURNALISTE (nom si trouvé), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE du média (ex: gazette-berlin.de, info-japon.com)
+- JAMAIS un agrégateur ou gros média national comme : lemonde.fr, lefigaro.fr, france24.com, rfi.fr, wikipedia.org
+- Chaque contact = UN média individuel, PAS un article qui en liste plusieurs
+
+Pour chaque média : NOM, EMAIL (rédaction), URL (site PROPRE du média), JOURNALISTE (nom si trouvé), SOURCE.
 PROMPT;
     }
 
@@ -268,7 +323,12 @@ Mots-clés :
 - "annuaire avocat international"
 - "répertoire services expatriés"
 
-Pour chaque site : NOM, URL, TYPE (annuaire/guest post/forum/communiqué), EMAIL (contact pour soumission), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE où poster (ex: annuaire-expats.fr, forum-expat.org)
+- JAMAIS un gros site généraliste comme : google.com, wikipedia.org, amazon.com
+- Chaque contact = UN site individuel, PAS un article qui en liste plusieurs
+
+Pour chaque site : NOM, URL (site PROPRE), TYPE (annuaire/guest post/forum/communiqué), EMAIL (contact pour soumission), SOURCE.
 PROMPT;
     }
 
@@ -284,7 +344,13 @@ Mots-clés :
 - "real estate expat {$country}"
 - "agence relocation francophone {$country}"
 
-Pour chaque agence : NOM, EMAIL (page contact), URL (site web), TEL, SPÉCIALITÉ (location/vente/relocation), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE de l'agence (ex: relocation-tokyo.com, expat-immo-dubai.com)
+- JAMAIS un répertoire comme : expat.com, internations.org, seloger.com, tripadvisor.com, pagesjaunes.fr
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UNE agence individuelle, PAS un article qui en liste plusieurs
+
+Pour chaque agence : NOM, EMAIL (page contact), URL (site PROPRE de l'agence), TEL, SPÉCIALITÉ (location/vente/relocation), SOURCE.
 PROMPT;
     }
 
@@ -300,7 +366,13 @@ Mots-clés :
 - "agence traduction francophone {$country}"
 - "traducteur juridique français {$country}"
 
-Pour chaque : NOM, EMAIL, URL (site web), TEL, LANGUES, ASSERMENTÉ (oui/non), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE du traducteur ou cabinet (ex: traduction-dupont.com)
+- JAMAIS un répertoire comme : pagesjaunes.fr, kompass.com, societe.com, expat.com
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UN traducteur ou cabinet individuel
+
+Pour chaque : NOM, EMAIL, URL (site PROPRE), TEL, LANGUES, ASSERMENTÉ (oui/non), SOURCE.
 PROMPT;
     }
 
@@ -316,7 +388,13 @@ Mots-clés :
 - "travel agency expat {$country}"
 - "agence installation {$country}"
 
-Pour chaque : NOM, EMAIL, URL, TEL, SERVICES proposés, SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE de l'agence (ex: demenagement-expat.com, reloc-service-berlin.de)
+- JAMAIS un répertoire comme : expat.com, internations.org, tripadvisor.com, booking.com
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UNE agence individuelle
+
+Pour chaque : NOM, EMAIL, URL (site PROPRE), TEL, SERVICES proposés, SOURCE.
 PROMPT;
     }
 
@@ -333,7 +411,13 @@ Cherche les {$label} en {$country}.
 Mots-clés :
 - {$keywords}
 
-Pour chaque : NOM, EMAIL, URL, TEL, CONTACT (responsable RH/mobilité si trouvé), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE de l'entreprise/assureur (ex: axa-expat.com, april-international.com)
+- JAMAIS un répertoire comme : expat.com, kompass.com, societe.com, glassdoor.com, indeed.com
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UNE entreprise/assureur individuel
+
+Pour chaque : NOM, EMAIL, URL (site PROPRE), TEL, CONTACT (responsable RH/mobilité si trouvé), SOURCE.
 PROMPT;
     }
 
@@ -351,7 +435,13 @@ Mots-clés :
 - "CCEF {$country}"
 - "banque française {$country}"
 
-Pour chaque : NOM, EMAIL, URL (site officiel), TEL, TYPE (ambassade/chambre/alliance/banque), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE de l'institution (ex: ambafrance-jp.org, ccifrance-japon.or.jp)
+- JAMAIS un répertoire comme : diplomatie.gouv.fr (sauf la page locale de l'ambassade), expat.com, wikipedia.org
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UNE institution individuelle
+
+Pour chaque : NOM, EMAIL, URL (site PROPRE de l'institution), TEL, TYPE (ambassade/chambre/alliance/banque), SOURCE.
 PROMPT;
     }
 
@@ -368,7 +458,13 @@ Mots-clés :
 - "avocat expatrié {$country}"
 - "barreau de Paris {$country}"
 
-Pour chaque avocat/cabinet : NOM, EMAIL, URL (site du cabinet), TEL, SPÉCIALITÉ, SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE du cabinet d'avocats (ex: cabinet-dupont-avocats.com)
+- JAMAIS un répertoire comme : pagesjaunes.fr, avocats.fr, kompass.com, societe.com, expat.com
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UN avocat ou cabinet individuel
+
+Pour chaque avocat/cabinet : NOM, EMAIL, URL (site PROPRE du cabinet), TEL, SPÉCIALITÉ, SOURCE.
 PROMPT;
     }
 
@@ -384,7 +480,12 @@ Mots-clés :
 - "forum expatriés {$country}"
 - "WhatsApp français {$country}"
 
-Pour chaque groupe : NOM, PLATEFORME (Facebook/WhatsApp/Forum), MEMBRES (nombre), URL (lien du groupe), ADMIN (nom si visible), SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le lien DIRECT vers le groupe Facebook/WhatsApp/Forum
+- JAMAIS un article qui LISTE des groupes (lepetitjournal.com, expat.com, femmexpat.com)
+- Chaque contact = UN groupe individuel, PAS un article qui en liste plusieurs
+
+Pour chaque groupe : NOM, PLATEFORME (Facebook/WhatsApp/Forum), MEMBRES (nombre), URL (lien DIRECT du groupe), ADMIN (nom si visible), SOURCE.
 PROMPT;
     }
 
@@ -398,7 +499,13 @@ Mots-clés :
 - "{$type} français {$country}"
 - "{$type} expat {$country}"
 
-Pour chaque : NOM, EMAIL, URL, TEL, NOTES, SOURCE.
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB PROPRE du contact
+- JAMAIS un répertoire, annuaire ou article de blog qui LISTE des contacts
+- Si tu ne trouves pas le site propre, mets URL: INCONNU
+- Chaque contact = UN professionnel/organisme individuel
+
+Pour chaque : NOM, EMAIL, URL (site PROPRE), TEL, NOTES, SOURCE.
 PROMPT;
     }
 }

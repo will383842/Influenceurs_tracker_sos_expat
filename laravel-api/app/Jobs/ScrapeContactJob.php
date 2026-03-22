@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\ContactTypeModel;
 use App\Models\Influenceur;
 use App\Models\Setting;
+use App\Services\DirectoryScraperService;
 use App\Services\WebScraperService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -63,11 +64,34 @@ class ScrapeContactJob implements ShouldQueue
         // Detect directory/aggregator URLs that are NOT the actual website
         // These happen when AI research returns aefe.fr, lepetitjournal.com, etc.
         $directoryDomains = [
+            // School/education directories & government
             'aefe.fr', 'aefe.gouv.fr', 'mlfmonde.org',
-            'lepetitjournal.com', 'thailandee.com', 'vivre-en-',
-            'odyssey.education', 'education.gouv.fr', 'wikipedia.org',
-            'forumvietnam.fr', 'expatries.org', 'expat.com',
-            'femmexpat.com', 'french-schools.org', 'internations.org',
+            'education.gouv.fr', 'enseignementsup-recherche.gouv.fr',
+            'onisep.fr', 'letudiant.fr', 'studyrama.com',
+            'campusfrance.org', 'odyssey.education', 'french-schools.org',
+            'efep.education', 'diplomatie.gouv.fr', 'service-public.fr',
+            'data.gouv.fr',
+            // Expat directories & forums
+            'expat.com', 'expatries.org', 'internations.org',
+            'femmexpat.com', 'expatfocus.com', 'expatica.com',
+            'justlanded.com', 'angloinfo.com',
+            'forumvietnam.fr', 'thailandee.com',
+            // News/media aggregators
+            'lepetitjournal.com', 'france24.com', 'rfi.fr',
+            'tv5monde.com', 'courrierinternational.com',
+            // Listing/review aggregators
+            'tripadvisor.com', 'tripadvisor.fr',
+            'pagesjaunes.fr', 'yellowpages.com',
+            'kompass.com', 'societe.com', 'europages.fr',
+            'cylex.fr', 'mappy.com',
+            'indeed.com', 'indeed.fr', 'glassdoor.com',
+            // General purpose
+            'wikipedia.org', 'wikidata.org',
+            'google.com', 'google.fr',
+            'numbeo.com', 'livingcost.org',
+            // Patterns (partial match)
+            'vivre-en-',
+            '.gouv.fr',    // All French government sites
         ];
         $isDirectory = false;
         if (!empty($url)) {
@@ -77,6 +101,33 @@ class ScrapeContactJob implements ShouldQueue
                     $isDirectory = true;
                     break;
                 }
+            }
+        }
+
+        // === DIRECTORY EXPLOITATION MODE ===
+        // Instead of just skipping directory URLs, we exploit them as data sources.
+        // Known directories (AEFE, MLF, etc.) are scraped to extract individual contacts.
+        if ($isDirectory && !empty($url) && DirectoryScraperService::isExploitableDirectory($url)) {
+            $this->handleDirectoryScraping($influenceur, $url, $contactType);
+            // Also try to discover the real website for THIS contact
+            if (!empty($influenceur->name)) {
+                $discoveredUrl = $scraper->discoverWebsiteUrl(
+                    $influenceur->name,
+                    $influenceur->country
+                );
+                if ($discoveredUrl) {
+                    $url = $discoveredUrl;
+                    $influenceur->update(['website_url' => $discoveredUrl]);
+                    Log::info('ScrapeContactJob: discovered real website after directory scraping', [
+                        'id'  => $influenceur->id,
+                        'url' => $discoveredUrl,
+                    ]);
+                } else {
+                    // Directory was exploited, but no own website found — we're done
+                    return;
+                }
+            } else {
+                return;
             }
         }
 
@@ -244,6 +295,132 @@ class ScrapeContactJob implements ShouldQueue
             ]);
 
             Log::error('ScrapeContactJob: exception', [
+                'id'    => $influenceur->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Exploit a directory URL (AEFE, MLF, etc.) to extract individual contacts.
+     * Creates new Influenceur records for each contact found in the listing.
+     */
+    private function handleDirectoryScraping(Influenceur $influenceur, string $url, string $contactType): void
+    {
+        Log::info('ScrapeContactJob: exploiting directory as data source', [
+            'id'  => $influenceur->id,
+            'url' => $url,
+        ]);
+
+        try {
+            $directoryScraper = app(DirectoryScraperService::class);
+            $result = $directoryScraper->scrapeDirectory($url, $contactType, $influenceur->country);
+
+            $created = 0;
+            $skipped = 0;
+
+            if ($result['success'] && !empty($result['contacts'])) {
+                foreach ($result['contacts'] as $contactData) {
+                    // Skip contacts with the same name as the original (avoid self-duplication)
+                    if (strtolower(trim($contactData['name'])) === strtolower(trim($influenceur->name))) {
+                        continue;
+                    }
+
+                    // Check if contact already exists (by name + country + type)
+                    $exists = Influenceur::where('name', $contactData['name'])
+                        ->where('contact_type', $contactType)
+                        ->where('country', $influenceur->country)
+                        ->exists();
+
+                    if ($exists) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Also check by website URL if available
+                    if (!empty($contactData['website_url'])) {
+                        $existsByUrl = Influenceur::where('website_url', $contactData['website_url'])
+                            ->where('contact_type', $contactType)
+                            ->exists();
+
+                        if ($existsByUrl) {
+                            $skipped++;
+                            continue;
+                        }
+                    }
+
+                    // Create new contact from directory data
+                    Influenceur::create([
+                        'name'         => $contactData['name'],
+                        'contact_type' => $contactType,
+                        'country'      => $contactData['country'] ?? $influenceur->country,
+                        'language'     => $influenceur->language ?? 'fr',
+                        'email'        => $contactData['email'] ?? null,
+                        'phone'        => $contactData['phone'] ?? null,
+                        'website_url'  => $contactData['website_url'] ?? null,
+                        'source'       => 'directory:' . parse_url($url, PHP_URL_HOST),
+                        'status'       => 'prospect',
+                        'created_by'   => $influenceur->created_by,
+                        'notes'        => 'Auto-extracted from directory: ' . $url,
+                    ]);
+
+                    $created++;
+                }
+            }
+
+            // Mark original contact as directory-scraped
+            $influenceur->update([
+                'scraped_at'     => now(),
+                'scraper_status' => 'directory_scraped',
+                'scraped_social' => [
+                    '_directory_extraction' => [
+                        'source_url'      => $url,
+                        'contacts_found'  => count($result['contacts']),
+                        'contacts_created' => $created,
+                        'contacts_skipped' => $skipped,
+                        'pages_scraped'   => $result['pages_scraped'],
+                    ],
+                ],
+            ]);
+
+            ActivityLog::create([
+                'user_id'        => $influenceur->created_by,
+                'influenceur_id' => $influenceur->id,
+                'action'         => 'directory_scraped',
+                'details'        => [
+                    'url'              => $url,
+                    'contacts_found'   => count($result['contacts']),
+                    'contacts_created' => $created,
+                    'contacts_skipped' => $skipped,
+                    'pages_scraped'    => $result['pages_scraped'],
+                    'error'            => $result['error'],
+                ],
+                'contact_type' => $contactType,
+            ]);
+
+            Log::info('ScrapeContactJob: directory extraction complete', [
+                'id'               => $influenceur->id,
+                'url'              => $url,
+                'contacts_found'   => count($result['contacts']),
+                'contacts_created' => $created,
+                'contacts_skipped' => $skipped,
+            ]);
+
+        } catch (\Throwable $e) {
+            $this->markStatus($influenceur, 'failed');
+
+            ActivityLog::create([
+                'user_id'        => $influenceur->created_by,
+                'influenceur_id' => $influenceur->id,
+                'action'         => 'directory_scrape_failed',
+                'details'        => [
+                    'url'   => $url,
+                    'error' => substr($e->getMessage(), 0, 500),
+                ],
+                'contact_type' => $contactType,
+            ]);
+
+            Log::error('ScrapeContactJob: directory scraping exception', [
                 'id'    => $influenceur->id,
                 'error' => $e->getMessage(),
             ]);

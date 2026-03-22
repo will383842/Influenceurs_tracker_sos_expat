@@ -53,6 +53,10 @@ class WebScraperService
         'facebook.com', 'fb.com',
         'x.com', 'twitter.com',
         'linkedin.com',
+        'threads.net',
+        'snapchat.com',
+        'pinterest.com',
+
         // News/aggregator sites (scraping these gives OTHER people's emails)
         'lepetitjournal.com',
         'lefigaro.fr',
@@ -60,14 +64,71 @@ class WebScraperService
         'france24.com',
         'rfi.fr',
         'bfmtv.com',
-        'google.com', 'google.fr',
+        'leparisien.fr',
+        'liberation.fr',
+        'huffingtonpost.fr',
+        'ouest-france.fr',
+        'nouvelobs.com',
+        'lepoint.fr',
+        'lexpress.fr',
+        'courrierinternational.com',
+        'tv5monde.com',
+
+        // Search engines & encyclopedias
+        'google.com', 'google.fr', 'google.de', 'google.co.uk', 'google.es',
+        'bing.com',
         'wikipedia.org',
-        'aefe.fr',          // Directory, not individual school
-        'aefe.gouv.fr',     // Same
-        'tripadvisor.com',
-        'yelp.com',
+        'wikidata.org',
+        'wikimedia.org',
+
+        // School/education directories & government (NOT individual schools)
+        'aefe.fr',
+        'aefe.gouv.fr',
+        'mlfmonde.org',
+        'education.gouv.fr',
+        'enseignementsup-recherche.gouv.fr',
+        'onisep.fr',
+        'letudiant.fr',
+        'studyrama.com',
+        'campusfrance.org',
+        'odyssey.education',
+        'french-schools.org',
+        'efep.education',
+        'diplomatie.gouv.fr',
+        'service-public.fr',
+        'data.gouv.fr',
+
+        // Expat directories & forums (list sites, not individual orgs)
+        'expat.com',
+        'expatries.org',
+        'internations.org',
+        'femmexpat.com',
+        'expatfocus.com',
+        'expatica.com',
+        'justlanded.com',
+        'angloinfo.com',
+        'numbeo.com',
+        'livingcost.org',
+        'forumvietnam.fr',
+
+        // Review/listing aggregators
+        'tripadvisor.com', 'tripadvisor.fr',
+        'yelp.com', 'yelp.fr',
         'pagesjaunes.fr',
         'yellowpages.com',
+        'trustpilot.com',
+        'glassdoor.com', 'glassdoor.fr',
+        'indeed.com', 'indeed.fr',
+        'kompass.com',
+        'societe.com',
+        'europages.fr',
+        'mappy.com',
+        'cylex.fr',
+
+        // General purpose / e-commerce / other
+        'amazon.com', 'amazon.fr',
+        'booking.com',
+        'airbnb.com', 'airbnb.fr',
     ];
 
     /**
@@ -1203,11 +1264,28 @@ class WebScraperService
                 }
             }
 
-            // Filter out social media, search engines, and directories
+            // Filter out social media, search engines, directories, and aggregators
             $skipDomains = array_merge(self::SKIP_DOMAINS, [
-                'duckduckgo.com', 'google.com', 'google.fr',
+                'duckduckgo.com',
                 'gstatic.com', 'googleapis.com',
-                'amazon.com', 'amazon.fr',
+                // Education directories (for school lookups)
+                'mlfmonde.org', 'campusfrance.org', 'onisep.fr',
+                'letudiant.fr', 'studyrama.com', 'odyssey.education',
+                'french-schools.org', 'efep.education',
+                // Government sites
+                'education.gouv.fr', 'diplomatie.gouv.fr',
+                'service-public.fr', 'data.gouv.fr',
+                '.gouv.fr',
+                // Expat directories
+                'expat.com', 'expatries.org', 'internations.org',
+                'femmexpat.com', 'expatfocus.com', 'expatica.com',
+                'justlanded.com', 'angloinfo.com',
+                'forumvietnam.fr', 'thailandee.com',
+                // Listing aggregators
+                'kompass.com', 'societe.com', 'europages.fr',
+                'cylex.fr', 'mappy.com',
+                'indeed.com', 'indeed.fr', 'glassdoor.com',
+                'numbeo.com', 'livingcost.org',
             ]);
 
             // Deduplicate and filter
