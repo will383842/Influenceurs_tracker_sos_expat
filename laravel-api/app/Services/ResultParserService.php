@@ -145,8 +145,13 @@ class ResultParserService
     private function extractField(string $block, array $labels): ?string
     {
         foreach ($labels as $label) {
-            if (preg_match('/(?:^|\n)\s*' . preg_quote($label, '/') . '\s*:\s*(.+)/mi', $block, $match)) {
+            // Support plain text AND Markdown bold: "NOM:", "**NOM**:", "**NOM:**"
+            $escaped = preg_quote($label, '/');
+            $pattern = '/(?:^|\n)\s*\*{0,2}' . $escaped . '\*{0,2}\s*:?\s*:?\s*(.+)/mi';
+            if (preg_match($pattern, $block, $match)) {
                 $value = trim($match[1]);
+                // Remove trailing markdown bold markers
+                $value = trim($value, '* ');
                 // Filter out "not found" markers
                 if ($value && !preg_match('/^(N\/A|non disponible|inconnu|n\.a\.|—|-|aucun|not available|unknown|non trouvé|not found|non\s*trouvé|pas trouvé|indisponible)$/i', $value)) {
                     return $value;
@@ -158,7 +163,8 @@ class ResultParserService
 
     private function extractUrl(string $block): ?string
     {
-        if (preg_match('/(?:URL|url|Site|site|SITE|Site web|LIEN|Lien)\s*:\s*(https?:\/\/[^\s]+)/mi', $block, $match)) {
+        // Support both plain and Markdown bold: "URL:", "**URL**:", "**URL:**"
+        if (preg_match('/\*{0,2}(?:URL|url|Site|site|SITE|Site web|LIEN|Lien)\*{0,2}\s*:?\s*:?\s*(https?:\/\/[^\s*]+)/mi', $block, $match)) {
             return rtrim(trim($match[1]), '.,;)');
         }
         if (preg_match('/(https?:\/\/[^\s]+)/mi', $block, $match)) {
