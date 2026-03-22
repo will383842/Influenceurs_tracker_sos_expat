@@ -86,14 +86,15 @@ class WebScraperService
     public function scrape(string $url): array
     {
         $result = [
-            'emails'          => [],
-            'phones'          => [],
-            'social_links'    => [],
-            'addresses'       => [],
-            'contact_persons' => [],
-            'scraped_pages'   => [],
-            'success'         => false,
-            'error'           => null,
+            'emails'           => [],
+            'phones'           => [],
+            'social_links'     => [],
+            'addresses'        => [],
+            'contact_persons'  => [],
+            'linked_contacts'  => [],  // name ↔ email ↔ phone ↔ role associations
+            'scraped_pages'    => [],
+            'success'          => false,
+            'error'            => null,
         ];
 
         try {
@@ -211,6 +212,17 @@ class WebScraperService
         $result['addresses'] = array_values(array_unique($result['addresses']));
         $result['contact_persons'] = array_values(array_unique($result['contact_persons']));
 
+        // Deduplicate linked contacts by email
+        $seenLinked = [];
+        $uniqueLinked = [];
+        foreach ($result['linked_contacts'] as $lc) {
+            $key = $lc['email'] ?? $lc['phone'] ?? $lc['name'] ?? '';
+            if (empty($key) || isset($seenLinked[$key])) continue;
+            $seenLinked[$key] = true;
+            $uniqueLinked[] = $lc;
+        }
+        $result['linked_contacts'] = $uniqueLinked;
+
         return $result;
     }
 
@@ -238,6 +250,130 @@ class WebScraperService
         }
 
         return $cleaned;
+    }
+
+    /**
+     * Extract linked contacts: associate names with nearby emails/phones/roles.
+     * Analyzes proximity in the text to link data that belongs together.
+     */
+    private function extractLinkedContacts(string $text, array &$linkedContacts): void
+    {
+        try {
+            $text = preg_replace('/\s+/', ' ', $text);
+
+            // Split text into chunks of ~300 chars around email addresses
+            $emailPattern = '/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/';
+            if (!preg_match_all($emailPattern, $text, $emailMatches, PREG_OFFSET_CAPTURE)) {
+                return;
+            }
+
+            $namePattern = '/([A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+(?:[\-\s][A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+){1,3})/u';
+            $phonePattern = '/(\+?\d[\d\s.\-()]{7,18}\d)/';
+            $rolePatterns = [
+                'director' => 'Directeur',
+                'directeur' => 'Directeur', 'directrice' => 'Directrice',
+                'principal' => 'Principal',
+                'president' => 'Président', 'présidente' => 'Présidente',
+                'responsable' => 'Responsable',
+                'manager' => 'Manager',
+                'founder' => 'Fondateur', 'fondateur' => 'Fondateur', 'fondatrice' => 'Fondatrice',
+                'secretary' => 'Secrétaire', 'secrétaire' => 'Secrétaire',
+                'admissions' => 'Admissions',
+                'coordinator' => 'Coordinateur', 'coordinateur' => 'Coordinateur',
+                'contact' => 'Contact',
+                'head' => 'Responsable',
+                'chef' => 'Chef',
+            ];
+
+            $seenEmails = [];
+
+            foreach ($emailMatches[0] as [$email, $offset]) {
+                $email = strtolower($email);
+                if (!$this->isValidEmail($email) || isset($seenEmails[$email])) continue;
+                $seenEmails[$email] = true;
+
+                // Get context: 200 chars before and after the email
+                $start = max(0, $offset - 200);
+                $length = min(strlen($text) - $start, 400 + strlen($email));
+                $context = substr($text, $start, $length);
+
+                // Find name in context
+                $name = null;
+                if (preg_match($namePattern, $context, $nameMatch)) {
+                    $candidateName = trim($nameMatch[1]);
+                    // Validate: at least 2 words, not too long
+                    if (mb_strlen($candidateName) >= 5 && mb_strlen($candidateName) <= 60 && str_contains($candidateName, ' ')) {
+                        $name = $candidateName;
+                    }
+                }
+
+                // Find phone in context
+                $phone = null;
+                if (preg_match($phonePattern, $context, $phoneMatch)) {
+                    $candidatePhone = trim($phoneMatch[1]);
+                    $digits = preg_replace('/\D/', '', $candidatePhone);
+                    if (strlen($digits) >= 8 && strlen($digits) <= 15) {
+                        $phone = $candidatePhone;
+                    }
+                }
+
+                // Find role in context
+                $role = null;
+                $contextLower = strtolower($context);
+                foreach ($rolePatterns as $keyword => $label) {
+                    if (str_contains($contextLower, $keyword)) {
+                        $role = $label;
+                        break;
+                    }
+                }
+
+                $linkedContacts[] = [
+                    'name'  => $name,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'role'  => $role,
+                ];
+            }
+
+            // Also add phones that weren't near any email
+            if (preg_match_all($phonePattern, $text, $phoneMatches, PREG_OFFSET_CAPTURE)) {
+                $linkedPhones = array_column(array_column($linkedContacts, 'phone'), null);
+                foreach ($phoneMatches[0] as [$phone, $offset]) {
+                    $phone = trim($phone);
+                    $digits = preg_replace('/\D/', '', $phone);
+                    if (strlen($digits) < 8 || strlen($digits) > 15) continue;
+
+                    // Check if already linked
+                    $alreadyLinked = false;
+                    foreach ($linkedContacts as $lc) {
+                        if ($lc['phone'] === $phone) { $alreadyLinked = true; break; }
+                    }
+                    if ($alreadyLinked) continue;
+
+                    // Get context around this phone
+                    $start = max(0, $offset - 150);
+                    $context = substr($text, $start, 300 + strlen($phone));
+
+                    $name = null;
+                    if (preg_match($namePattern, $context, $nameMatch)) {
+                        $candidateName = trim($nameMatch[1]);
+                        if (mb_strlen($candidateName) >= 5 && mb_strlen($candidateName) <= 60 && str_contains($candidateName, ' ')) {
+                            $name = $candidateName;
+                        }
+                    }
+
+                    $linkedContacts[] = [
+                        'name'  => $name,
+                        'email' => null,
+                        'phone' => $phone,
+                        'role'  => null,
+                    ];
+                }
+            }
+
+        } catch (\Throwable $e) {
+            Log::debug('WebScraper: linked contacts extraction failed', ['error' => $e->getMessage()]);
+        }
     }
 
     /**
@@ -352,6 +488,9 @@ class WebScraperService
         } catch (\Throwable $e) {
             Log::debug('WebScraper: person extraction failed', ['error' => $e->getMessage()]);
         }
+
+        // Extract linked contacts: associate names ↔ emails ↔ phones ↔ roles
+        $this->extractLinkedContacts($text, $result['linked_contacts']);
     }
 
     /**

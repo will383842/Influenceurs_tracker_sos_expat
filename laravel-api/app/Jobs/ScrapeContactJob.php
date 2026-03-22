@@ -78,13 +78,22 @@ class ScrapeContactJob implements ShouldQueue
             $hasData = !empty($result['emails']) || !empty($result['phones']) || !empty($result['social_links']) || !empty($result['addresses']);
             $status = ($result['success'] || $hasData) ? 'completed' : 'failed';
 
+            // Merge social links + linked contacts into scraped_social
+            $socialData = $result['social_links'] ?: [];
+            if (!empty($result['linked_contacts'])) {
+                $socialData['_linked_contacts'] = $result['linked_contacts'];
+            }
+            if (!empty($result['contact_persons'])) {
+                $socialData['_contact_persons'] = $result['contact_persons'];
+            }
+
             // Update the influenceur with scraped data
             $updateData = [
-                'scraped_at'      => now(),
-                'scraper_status'  => $status,
-                'scraped_emails'  => $result['emails'] ?: null,
-                'scraped_phones'  => $result['phones'] ?: null,
-                'scraped_social'    => $result['social_links'] ?: null,
+                'scraped_at'        => now(),
+                'scraper_status'    => $status,
+                'scraped_emails'    => $result['emails'] ?: null,
+                'scraped_phones'    => $result['phones'] ?: null,
+                'scraped_social'    => !empty($socialData) ? $socialData : null,
                 'scraped_addresses' => $result['addresses'] ?: null,
             ];
 

@@ -182,10 +182,18 @@ export default function InfluenceurDetail() {
     <div className="p-4 md:p-6 text-center text-muted">Influenceur introuvable.</div>
   );
 
-  // Extract contact_persons from scraped_social if present
-  const contactPersons = (influenceur.scraped_social as Record<string, unknown> | null)?.contact_persons as
-    | { name: string; role?: string; email?: string; phone?: string }[]
-    | undefined;
+  // Extract linked contacts (name ↔ email ↔ phone ↔ role) from scraped_social
+  const social = influenceur.scraped_social as Record<string, unknown> | null;
+  const linkedContacts = (social?._linked_contacts ?? social?.contact_persons ?? []) as
+    { name: string | null; role: string | null; email: string | null; phone: string | null }[];
+  // Deduplicate by email
+  const seenLC = new Set<string>();
+  const contactPersons = linkedContacts.filter(lc => {
+    const key = lc.email || lc.phone || lc.name || '';
+    if (!key || seenLC.has(key)) return false;
+    seenLC.add(key);
+    return true;
+  });
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
@@ -463,13 +471,27 @@ export default function InfluenceurDetail() {
               <div className="space-y-2">
                 {contactPersons.map((person, i) => (
                   <div key={i} className="flex items-center gap-3 px-3 py-2 bg-surface2 border border-border rounded-lg text-sm flex-wrap">
-                    <span className="text-white font-medium">{person.name}</span>
-                    {person.role && <span className="text-muted text-xs">({person.role})</span>}
+                    <span className="text-white font-medium">
+                      {person.name || <span className="text-muted italic">Contact non identifié</span>}
+                    </span>
+                    {person.role && <span className="text-xs bg-violet/20 text-violet-light px-1.5 py-0.5 rounded">{person.role}</span>}
                     {person.email && (
-                      <a href={`mailto:${person.email}`} className="text-cyan hover:underline text-xs">{person.email}</a>
+                      <a href={`mailto:${person.email}`} className="text-cyan hover:underline text-xs">✉️ {person.email}</a>
                     )}
                     {person.phone && (
-                      <a href={`tel:${person.phone}`} className="text-cyan hover:underline text-xs">{person.phone}</a>
+                      <>
+                        <a href={`tel:${person.phone}`} className="text-cyan hover:underline text-xs">📞 {person.phone}</a>
+                        {person.phone.startsWith('+') && (
+                          <a href={`https://wa.me/${person.phone.replace(/[^0-9]/g, '')}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded hover:bg-green-500/30">
+                            💬 WhatsApp
+                          </a>
+                        )}
+                      </>
+                    )}
+                    {!person.email && !person.phone && (
+                      <span className="text-muted/50 text-xs italic">aucune coordonnée</span>
                     )}
                   </div>
                 ))}
@@ -480,10 +502,10 @@ export default function InfluenceurDetail() {
           {/* Social links */}
           <div>
             <p className="text-muted text-xs mb-1.5 uppercase tracking-wider">Réseaux sociaux</p>
-            {influenceur.scraped_social && Object.keys(influenceur.scraped_social).filter(k => k !== 'contact_persons').length > 0 ? (
+            {influenceur.scraped_social && Object.keys(influenceur.scraped_social).filter(k => !k.startsWith('_')).length > 0 ? (
               <div className="flex flex-wrap gap-3">
                 {Object.entries(influenceur.scraped_social)
-                  .filter(([platform]) => platform !== 'contact_persons')
+                  .filter(([platform]) => !platform.startsWith('_'))
                   .map(([platform, url]) => {
                   const icons: Record<string, string> = {
                     facebook: '🔵', linkedin: '🔗', twitter: '𝕏', x: '𝕏',
