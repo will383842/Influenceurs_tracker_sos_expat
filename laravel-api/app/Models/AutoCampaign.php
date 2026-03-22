@@ -75,7 +75,7 @@ class AutoCampaign extends Model
 
         // Rate limit: respect delay between tasks
         if ($this->last_task_at) {
-            $elapsed = now()->diffInSeconds($this->last_task_at);
+            $elapsed = (int) abs(now()->diffInSeconds($this->last_task_at));
             if ($elapsed < $this->delay_between_tasks_seconds) {
                 return false;
             }
