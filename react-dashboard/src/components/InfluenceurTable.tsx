@@ -4,6 +4,7 @@ import type { Influenceur } from '../types/influenceur';
 import ContactTypeBadge from './ContactTypeBadge';
 import PlatformBadge from './PlatformBadge';
 import StatusBadge from './StatusBadge';
+import { getCountryFlag, getLanguageLabel } from '../lib/constants';
 
 type SortKey = 'name' | 'followers' | 'status' | 'last_contact_at';
 
@@ -51,10 +52,11 @@ export default function InfluenceurTable({ influenceurs }: Props) {
             <tr className="border-b border-border">
               <Th label="Nom" field="name" />
               <Th label="Type" />
-              <Th label="Plateforme" />
+              <Th label="Pays" />
+              <Th label="Langue" />
               <Th label="Statut" field="status" />
-              <Th label="Followers" field="followers" />
-              <Th label="Assigné à" />
+              <Th label="Email" />
+              <Th label="Tél" />
               <Th label="Dernier contact" field="last_contact_at" />
               <Th label="Rappel" />
             </tr>
@@ -69,12 +71,19 @@ export default function InfluenceurTable({ influenceurs }: Props) {
                   </Link>
                 </td>
                 <td className="px-4 py-3"><ContactTypeBadge type={inf.contact_type} /></td>
-                <td className="px-4 py-3">{inf.primary_platform && <PlatformBadge platform={inf.primary_platform} />}</td>
-                <td className="px-4 py-3"><StatusBadge status={inf.status} /></td>
-                <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">
-                  {inf.followers != null ? inf.followers.toLocaleString('fr-FR') : '—'}
+                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  {inf.country ? <span>{getCountryFlag(inf.country)} {inf.country}</span> : <span className="text-muted">—</span>}
                 </td>
-                <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">{inf.assigned_to_user ? inf.assigned_to_user.name : '—'}</td>
+                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  {inf.language ? <span>{getLanguageLabel(inf.language)}</span> : <span className="text-muted">—</span>}
+                </td>
+                <td className="px-4 py-3"><StatusBadge status={inf.status} /></td>
+                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  {inf.email ? <a href={`mailto:${inf.email}`} className="text-cyan hover:underline text-xs">{inf.email}</a> : <span className="text-red-400/50 text-xs">manquant</span>}
+                </td>
+                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  {inf.phone ? <a href={`tel:${inf.phone}`} className="text-muted text-xs">{inf.phone}</a> : <span className="text-muted/30 text-xs">—</span>}
+                </td>
                 <td className="px-4 py-3 text-muted text-sm whitespace-nowrap">
                   {inf.last_contact_at ? new Date(inf.last_contact_at).toLocaleDateString('fr-FR') : '—'}
                 </td>
