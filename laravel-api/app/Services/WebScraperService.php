@@ -46,12 +46,28 @@ class WebScraperService
      * Social media domains we should never scrape (handled differently).
      */
     private const SKIP_DOMAINS = [
+        // Social platforms
         'youtube.com', 'youtu.be',
         'tiktok.com',
         'instagram.com',
         'facebook.com', 'fb.com',
         'x.com', 'twitter.com',
         'linkedin.com',
+        // News/aggregator sites (scraping these gives OTHER people's emails)
+        'lepetitjournal.com',
+        'lefigaro.fr',
+        'lemonde.fr',
+        'france24.com',
+        'rfi.fr',
+        'bfmtv.com',
+        'google.com', 'google.fr',
+        'wikipedia.org',
+        'aefe.fr',          // Directory, not individual school
+        'aefe.gouv.fr',     // Same
+        'tripadvisor.com',
+        'yelp.com',
+        'pagesjaunes.fr',
+        'yellowpages.com',
     ];
 
     /**

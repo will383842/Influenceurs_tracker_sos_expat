@@ -88,13 +88,27 @@ class ScrapeContactJob implements ShouldQueue
                 'scraped_addresses' => $result['addresses'] ?: null,
             ];
 
+            // Safety: if too many emails found (>10), this is probably an aggregator page
+            // Keep the data but don't auto-fill the primary email
+            $isSuspiciousAggregator = count($result['emails']) > 10;
+
+            if ($isSuspiciousAggregator) {
+                Log::warning('ScrapeContactJob: suspicious aggregator page', [
+                    'id' => $influenceur->id,
+                    'url' => $url,
+                    'emails_found' => count($result['emails']),
+                ]);
+                // Cap stored emails to 10 max
+                $updateData['scraped_emails'] = array_slice($result['emails'], 0, 10);
+            }
+
             // Only fill NULL/empty fields — NEVER overwrite existing data
-            if (empty($influenceur->email) && !empty($result['emails'])) {
-                $updateData['email'] = $result['emails'][0]; // Use first found email
+            if (empty($influenceur->email) && !empty($result['emails']) && !$isSuspiciousAggregator) {
+                $updateData['email'] = $result['emails'][0];
             }
 
             if (empty($influenceur->phone) && !empty($result['phones'])) {
-                $updateData['phone'] = $result['phones'][0]; // Use first found phone
+                $updateData['phone'] = $result['phones'][0];
             }
 
             $influenceur->update($updateData);
