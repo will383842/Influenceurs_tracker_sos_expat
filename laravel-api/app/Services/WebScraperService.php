@@ -322,7 +322,7 @@ class WebScraperService
     }
 
     /**
-     * Clean and deduplicate emails — removes u003e prefix, trims, lowercases, deduplicates.
+     * Clean and deduplicate emails — aggressive cleaning to remove garbage.
      */
     private function cleanAndDeduplicateEmails(array $emails): array
     {
@@ -332,7 +332,35 @@ class WebScraperService
         foreach ($emails as $email) {
             // Fix unicode escapes (u003e = ">", common in JSON-in-HTML)
             $email = preg_replace('/u003[ce]/i', '', $email);
-            $email = strtolower(trim($email, " \t\n\r\0\x0B<>"));
+            // Remove URL-encoded characters (%20, %3A, etc.)
+            $email = urldecode($email);
+            // Remove leading/trailing garbage
+            $email = strtolower(trim($email, " \t\n\r\0\x0B<>()[]{}\"'"));
+            // Remove leading digits/garbage glued before the local part
+            // e.g. "6200enquiries@pembroke.sa.edu.au" → "enquiries@pembroke.sa.edu.au"
+            // Only if there's a suspicious digit prefix that's not part of a normal email
+            if (preg_match('/^(\d{2,})([a-z])/i', $email, $m)) {
+                $email = substr($email, strlen($m[1]));
+            }
+            // Remove leading %20 / space that got decoded
+            $email = ltrim($email, " \t");
+            // Remove trailing garbage glued after TLD
+            // e.g. "info@sunway.edu.mydiscover" → remove if TLD has appended text
+            if (preg_match('/^([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,6})[a-z]*$/i', $email, $m)) {
+                // Check if the clean version is valid
+                $candidate = $m[1];
+                if (filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
+                    $email = $candidate;
+                }
+            }
+            // Final extract: if email still has garbage, try to extract clean email from within
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if (preg_match('/([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,6})/i', $email, $m)) {
+                    $email = strtolower($m[1]);
+                } else {
+                    continue;
+                }
+            }
 
             // Re-validate after cleaning
             if (!$this->isValidEmail($email)) continue;
@@ -573,6 +601,9 @@ class WebScraperService
      */
     private function extractFromHtml(string $html, array &$result): void
     {
+        // 0. Try to extract from JSON-LD structured data (works even on JS sites!)
+        $this->extractFromJsonLd($html, $result);
+
         // 1. Decode CloudFlare email protection BEFORE stripping scripts
         $html = $this->decodeCloudflareEmails($html);
 
@@ -740,8 +771,8 @@ class WebScraperService
             }
         }
 
-        // JSON-LD structured data: "email":"contact@domain.com"
-        if (preg_match_all('/"(?:email|contactPoint|e-?mail)":\s*"([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})"/i', $html, $matches)) {
+        // JSON-LD and JS object structured data: "email":"contact@domain.com"
+        if (preg_match_all('/"(?:email|contactPoint|e-?mail|contactEmail|schoolEmail)":\s*"([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})"/i', $html, $matches)) {
             foreach ($matches[1] as $email) {
                 $email = strtolower(trim($email));
                 if ($this->isValidEmail($email)) {
@@ -1442,6 +1473,137 @@ class WebScraperService
             Log::debug('WebScraper: email guess failed', ['url' => $url, 'error' => $e->getMessage()]);
             return [];
         }
+    }
+
+    /**
+     * Extract contact info from JSON-LD structured data.
+     * Many sites (even JS-heavy ones) include JSON-LD for SEO — it often
+     * contains email, phone, address that the visible HTML doesn't show.
+     */
+    private function extractFromJsonLd(string $html, array &$result): void
+    {
+        try {
+            // Find all <script type="application/ld+json"> blocks
+            if (!preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/is', $html, $matches)) {
+                return;
+            }
+
+            foreach ($matches[1] as $jsonText) {
+                $jsonText = trim($jsonText);
+                if (empty($jsonText)) continue;
+
+                $data = json_decode($jsonText, true);
+                if (!is_array($data)) continue;
+
+                // Handle @graph arrays
+                $items = [];
+                if (isset($data['@graph']) && is_array($data['@graph'])) {
+                    $items = $data['@graph'];
+                } else {
+                    $items = [$data];
+                }
+
+                foreach ($items as $item) {
+                    if (!is_array($item)) continue;
+
+                    // Extract email
+                    $emailFields = ['email', 'contactPoint.email', 'author.email'];
+                    foreach ($emailFields as $field) {
+                        $value = $this->getNestedValue($item, $field);
+                        if ($value && is_string($value)) {
+                            $email = strtolower(str_replace('mailto:', '', trim($value)));
+                            if ($this->isValidEmail($email)) {
+                                $result['emails'][] = $email;
+                            }
+                        }
+                    }
+
+                    // Extract from contactPoint array
+                    if (isset($item['contactPoint'])) {
+                        $points = is_array($item['contactPoint']) && isset($item['contactPoint'][0])
+                            ? $item['contactPoint']
+                            : [$item['contactPoint']];
+                        foreach ($points as $cp) {
+                            if (!is_array($cp)) continue;
+                            if (!empty($cp['email'])) {
+                                $email = strtolower(str_replace('mailto:', '', trim($cp['email'])));
+                                if ($this->isValidEmail($email)) {
+                                    $result['emails'][] = $email;
+                                }
+                            }
+                            if (!empty($cp['telephone'])) {
+                                $phone = trim($cp['telephone']);
+                                if ($this->isValidPhone($phone)) {
+                                    $result['phones'][] = $this->normalizePhone($phone);
+                                }
+                            }
+                        }
+                    }
+
+                    // Extract telephone
+                    $phoneFields = ['telephone', 'phone', 'faxNumber'];
+                    foreach ($phoneFields as $field) {
+                        $value = $item[$field] ?? null;
+                        if ($value && is_string($value)) {
+                            $phone = trim($value);
+                            if ($this->isValidPhone($phone)) {
+                                $result['phones'][] = $this->normalizePhone($phone);
+                            }
+                        }
+                    }
+
+                    // Extract address
+                    if (isset($item['address']) && is_array($item['address'])) {
+                        $addr = $item['address'];
+                        $parts = array_filter([
+                            $addr['streetAddress'] ?? null,
+                            $addr['postalCode'] ?? null,
+                            $addr['addressLocality'] ?? null,
+                            $addr['addressRegion'] ?? null,
+                            $addr['addressCountry'] ?? null,
+                        ]);
+                        if (count($parts) >= 2) {
+                            $result['addresses'][] = implode(', ', $parts);
+                        }
+                    }
+
+                    // Extract social links from sameAs
+                    if (isset($item['sameAs']) && is_array($item['sameAs'])) {
+                        foreach ($item['sameAs'] as $sameAs) {
+                            if (!is_string($sameAs)) continue;
+                            // Detect platform from URL
+                            $platforms = [
+                                'facebook' => 'facebook.com', 'linkedin' => 'linkedin.com',
+                                'twitter' => 'twitter.com', 'x' => 'x.com',
+                                'instagram' => 'instagram.com', 'youtube' => 'youtube.com',
+                                'tiktok' => 'tiktok.com',
+                            ];
+                            foreach ($platforms as $platform => $domain) {
+                                if (str_contains($sameAs, $domain)) {
+                                    $result['social_links'][$platform] = $result['social_links'][$platform] ?? $sameAs;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::debug('WebScraper: JSON-LD extraction failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Get a nested value from an array using dot notation.
+     */
+    private function getNestedValue(array $data, string $key): mixed
+    {
+        $keys = explode('.', $key);
+        $value = $data;
+        foreach ($keys as $k) {
+            if (!is_array($value) || !isset($value[$k])) return null;
+            $value = $value[$k];
+        }
+        return $value;
     }
 
     /**
