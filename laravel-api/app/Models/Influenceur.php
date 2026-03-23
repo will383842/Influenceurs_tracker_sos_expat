@@ -19,7 +19,7 @@ class Influenceur extends Model
     public const NON_SOCIAL_TYPES = [
         'school', 'association', 'enterprise', 'insurer', 'press',
         'travel_agency', 'real_estate', 'translator', 'lawyer', 'partner',
-        'job_board', 'backlink',
+        'job_board', 'backlink', 'consulat', 'erasmus',
     ];
 
     protected $fillable = [

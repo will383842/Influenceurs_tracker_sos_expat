@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useContactTypes } from '../hooks/useContactTypes';
 import { useReminders } from '../hooks/useReminders';
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  useContactTypes(); // Load dynamic contact types from API on mount
   const { reminders } = useReminders();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -110,6 +112,9 @@ export default function Layout() {
               </NavLink>
               <NavLink to="/journal" className={navClass} onClick={handleNavClick}>
                 <span>📝</span> Journal
+              </NavLink>
+              <NavLink to="/directories" className={navClass} onClick={handleNavClick}>
+                <span>📚</span> Annuaires
               </NavLink>
 
               <SectionLabel>Analyse</SectionLabel>

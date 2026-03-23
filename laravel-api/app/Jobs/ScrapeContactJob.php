@@ -4,8 +4,10 @@ namespace App\Jobs;
 
 use App\Models\ActivityLog;
 use App\Models\ContactTypeModel;
+use App\Models\Directory;
 use App\Models\Influenceur;
 use App\Models\Setting;
+use App\Services\BlockedDomainService;
 use App\Services\DirectoryScraperService;
 use App\Services\WebScraperService;
 use Illuminate\Bus\Queueable;
@@ -61,48 +63,8 @@ class ScrapeContactJob implements ShouldQueue
         // Determine which URL to scrape
         $url = $influenceur->website_url ?: $influenceur->profile_url;
 
-        // Detect directory/aggregator URLs that are NOT the actual website
-        // These happen when AI research returns aefe.fr, lepetitjournal.com, etc.
-        $directoryDomains = [
-            // School/education directories & government
-            'aefe.fr', 'aefe.gouv.fr', 'mlfmonde.org',
-            'education.gouv.fr', 'enseignementsup-recherche.gouv.fr',
-            'onisep.fr', 'letudiant.fr', 'studyrama.com',
-            'campusfrance.org', 'odyssey.education', 'french-schools.org',
-            'efep.education', 'diplomatie.gouv.fr', 'service-public.fr',
-            'data.gouv.fr',
-            // Expat directories & forums
-            'expat.com', 'expatries.org', 'internations.org',
-            'femmexpat.com', 'expatfocus.com', 'expatica.com',
-            'justlanded.com', 'angloinfo.com',
-            'forumvietnam.fr', 'thailandee.com',
-            // News/media aggregators
-            'lepetitjournal.com', 'france24.com', 'rfi.fr',
-            'tv5monde.com', 'courrierinternational.com',
-            // Listing/review aggregators
-            'tripadvisor.com', 'tripadvisor.fr',
-            'pagesjaunes.fr', 'yellowpages.com',
-            'kompass.com', 'societe.com', 'europages.fr',
-            'cylex.fr', 'mappy.com',
-            'indeed.com', 'indeed.fr', 'glassdoor.com',
-            // General purpose
-            'wikipedia.org', 'wikidata.org',
-            'google.com', 'google.fr',
-            'numbeo.com', 'livingcost.org',
-            // Patterns (partial match)
-            'vivre-en-',
-            '.gouv.fr',    // All French government sites
-        ];
-        $isDirectory = false;
-        if (!empty($url)) {
-            $urlLower = strtolower($url);
-            foreach ($directoryDomains as $dd) {
-                if (str_contains($urlLower, $dd)) {
-                    $isDirectory = true;
-                    break;
-                }
-            }
-        }
+        // Detect directory/aggregator URLs using centralized service
+        $isDirectory = BlockedDomainService::isDirectoryUrl($url);
 
         // === DIRECTORY EXPLOITATION MODE ===
         // Instead of just skipping directory URLs, we exploit them as data sources.
@@ -313,6 +275,26 @@ class ScrapeContactJob implements ShouldQueue
         ]);
 
         try {
+            // Auto-register in directories table if not already present
+            $domain = Directory::extractDomain($url);
+            $existingDir = Directory::where('domain', $domain)
+                ->where('category', $contactType)
+                ->first();
+
+            if (!$existingDir) {
+                Directory::create([
+                    'name'       => 'Auto: ' . $domain,
+                    'url'        => $url,
+                    'domain'     => $domain,
+                    'category'   => $contactType,
+                    'country'    => $influenceur->country,
+                    'language'   => $influenceur->language,
+                    'status'     => 'scraping',
+                    'notes'      => 'Auto-détecté depuis scraping contact #' . $influenceur->id,
+                    'created_by' => $influenceur->created_by,
+                ]);
+            }
+
             $directoryScraper = app(DirectoryScraperService::class);
             $result = $directoryScraper->scrapeDirectory($url, $contactType, $influenceur->country);
 
@@ -366,6 +348,21 @@ class ScrapeContactJob implements ShouldQueue
 
                     $created++;
                 }
+            }
+
+            // Update directory record with results
+            $dirRecord = Directory::where('domain', $domain)
+                ->where('category', $contactType)
+                ->first();
+            if ($dirRecord) {
+                $dirRecord->update([
+                    'status'             => $result['success'] ? 'completed' : 'failed',
+                    'contacts_extracted' => count($result['contacts']),
+                    'contacts_created'   => $dirRecord->contacts_created + $created,
+                    'pages_scraped'      => $result['pages_scraped'],
+                    'last_scraped_at'    => now(),
+                    'cooldown_until'     => now()->addHours(24),
+                ]);
             }
 
             // Mark original contact as directory-scraped

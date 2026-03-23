@@ -587,6 +587,16 @@ class WebScraperService
         // Extract linked contacts: associate names ↔ emails ↔ phones ↔ roles
         $this->extractLinkedContacts($text, $result['linked_contacts']);
 
+        // 8. DOM-based structured extraction: tables, team lists, contact cards
+        // This catches data that regex on flat text misses
+        $this->extractStructuredContacts($cleaned, $result);
+
+        // 9. Extract WhatsApp from onclick/data attributes and button text
+        $this->extractWhatsAppExtended($html, $result['social_links'], $result['phones']);
+
+        // 10. Extract tel: links (href="tel:+123456789")
+        $this->extractTelLinks($html, $result['phones']);
+
         // Detect language (only on first page, where lang= attribute is most reliable)
         if ($result['detected_language'] === null) {
             $result['detected_language'] = $this->detectLanguage($html, $text);
@@ -1381,6 +1391,360 @@ class WebScraperService
         } catch (\Throwable $e) {
             Log::debug('WebScraper: email guess failed', ['url' => $url, 'error' => $e->getMessage()]);
             return [];
+        }
+    }
+
+    /**
+     * DOM-based structured contact extraction.
+     *
+     * Parses HTML as DOM to find structured contact blocks:
+     * - Tables with columns (Name, Email, Phone, Role, etc.)
+     * - Team/staff cards (<div class="team-member">, <article>, etc.)
+     * - Definition lists (<dl><dt>Name</dt><dd>details</dd></dl>)
+     * - Structured lists (<ul><li> with emails/phones)
+     *
+     * This catches data that flat-text regex misses because it understands
+     * which email belongs to which person/department.
+     */
+    private function extractStructuredContacts(string $html, array &$result): void
+    {
+        try {
+            $dom = new \DOMDocument();
+            @$dom->loadHTML('<?xml encoding="utf-8"?>' . $html, LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new \DOMXPath($dom);
+
+            // Strategy 1: Tables with contact data
+            $this->extractFromContactTables($xpath, $result);
+
+            // Strategy 2: Team/staff cards
+            $this->extractFromTeamCards($xpath, $result);
+
+            // Strategy 3: Contact sections with labels
+            $this->extractFromLabeledSections($xpath, $result);
+
+        } catch (\Throwable $e) {
+            Log::debug('WebScraper: structured extraction failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Extract contacts from HTML tables (team pages, directory tables).
+     */
+    private function extractFromContactTables(\DOMXPath $xpath, array &$result): void
+    {
+        $tables = $xpath->query('//table');
+        if ($tables->length === 0) return;
+
+        foreach ($tables as $table) {
+            $rows = $xpath->query('.//tr', $table);
+            if ($rows->length < 2) continue;
+
+            foreach ($rows as $row) {
+                $text = trim($row->textContent);
+                if (strlen($text) < 10) continue;
+
+                // Extract all emails from this row
+                $rowEmails = [];
+                $this->extractEmails($text, $rowEmails);
+
+                // Extract all phones
+                $rowPhones = [];
+                $this->extractPhones($text, $rowPhones);
+
+                // Extract mailto links
+                $mailtoLinks = $xpath->query('.//a[starts-with(@href, "mailto:")]', $row);
+                foreach ($mailtoLinks as $link) {
+                    $email = strtolower(trim(str_replace('mailto:', '', explode('?', $link->getAttribute('href'))[0])));
+                    if ($this->isValidEmail($email)) {
+                        $rowEmails[] = $email;
+                    }
+                }
+
+                // Extract tel links
+                $telLinks = $xpath->query('.//a[starts-with(@href, "tel:")]', $row);
+                foreach ($telLinks as $link) {
+                    $phone = trim(str_replace('tel:', '', $link->getAttribute('href')));
+                    $phone = preg_replace('/[^\d+\-\s.]/', '', $phone);
+                    if ($this->isValidPhone($phone)) {
+                        $rowPhones[] = $this->normalizePhone($phone);
+                    }
+                }
+
+                if (empty($rowEmails) && empty($rowPhones)) continue;
+
+                // Try to find a name in the first cell or strong tag
+                $cells = $xpath->query('.//td', $row);
+                $name = null;
+                $role = null;
+
+                if ($cells->length >= 2) {
+                    $firstCell = trim($cells->item(0)->textContent);
+                    if (strlen($firstCell) >= 3 && strlen($firstCell) <= 80 && !str_contains($firstCell, '@')) {
+                        $name = $firstCell;
+                    }
+                    // Check if second cell looks like a role/position
+                    $secondCell = trim($cells->item(1)->textContent);
+                    if (strlen($secondCell) >= 3 && strlen($secondCell) <= 100 && !str_contains($secondCell, '@') && !preg_match('/^\+?\d/', $secondCell)) {
+                        $role = $secondCell;
+                    }
+                }
+
+                // Add unique emails and phones to global result
+                foreach ($rowEmails as $email) {
+                    $email = strtolower(trim($email));
+                    if ($this->isValidEmail($email)) {
+                        $result['emails'][] = $email;
+                    }
+                }
+                foreach ($rowPhones as $phone) {
+                    $result['phones'][] = $phone;
+                }
+
+                // Create linked contact if we have a name
+                if ($name && (!empty($rowEmails) || !empty($rowPhones))) {
+                    $result['linked_contacts'][] = [
+                        'name'  => $name,
+                        'email' => !empty($rowEmails) ? strtolower($rowEmails[0]) : null,
+                        'phone' => !empty($rowPhones) ? $rowPhones[0] : null,
+                        'role'  => $role,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * Extract contacts from team/staff card structures.
+     */
+    private function extractFromTeamCards(\DOMXPath $xpath, array &$result): void
+    {
+        // Common patterns for team member cards
+        $cardQueries = [
+            '//div[contains(@class,"team")]//div[contains(@class,"member")]',
+            '//div[contains(@class,"team")]//article',
+            '//div[contains(@class,"team")]//li',
+            '//div[contains(@class,"staff")]//div',
+            '//div[contains(@class,"staff")]//article',
+            '//div[contains(@class,"equipe")]//div',
+            '//div[contains(@class,"personnel")]//div',
+            '//div[contains(@class,"contact")]//div[contains(@class,"card")]',
+            '//div[contains(@class,"contact")]//article',
+            '//section[contains(@class,"team")]//div',
+            '//section[contains(@class,"contact")]//div[contains(@class,"item")]',
+            // vCard structured data
+            '//div[contains(@class,"vcard")]',
+            '//div[contains(@class,"h-card")]',
+        ];
+
+        $processed = [];
+
+        foreach ($cardQueries as $query) {
+            $nodes = $xpath->query($query);
+            if ($nodes->length < 1 || $nodes->length > 100) continue;
+
+            foreach ($nodes as $node) {
+                $text = trim($node->textContent);
+                if (strlen($text) < 15 || strlen($text) > 2000) continue;
+
+                // Avoid processing same content twice
+                $key = substr(preg_replace('/\s+/', ' ', $text), 0, 80);
+                if (isset($processed[$key])) continue;
+                $processed[$key] = true;
+
+                // Extract email
+                $emails = [];
+                $this->extractEmails($text, $emails);
+                $mailtoLinks = $xpath->query('.//a[starts-with(@href, "mailto:")]', $node);
+                foreach ($mailtoLinks as $link) {
+                    $email = strtolower(trim(str_replace('mailto:', '', explode('?', $link->getAttribute('href'))[0])));
+                    if ($this->isValidEmail($email)) {
+                        $emails[] = $email;
+                    }
+                }
+
+                // Extract phones
+                $phones = [];
+                $this->extractPhones($text, $phones);
+                $telLinks = $xpath->query('.//a[starts-with(@href, "tel:")]', $node);
+                foreach ($telLinks as $link) {
+                    $phone = trim(str_replace('tel:', '', $link->getAttribute('href')));
+                    $phone = preg_replace('/[^\d+\-\s.]/', '', $phone);
+                    if ($this->isValidPhone($phone)) {
+                        $phones[] = $this->normalizePhone($phone);
+                    }
+                }
+
+                if (empty($emails) && empty($phones)) continue;
+
+                // Find name (h2/h3/h4/strong)
+                $name = null;
+                foreach (['h2', 'h3', 'h4', 'h5', 'strong', 'b'] as $tag) {
+                    $headings = $xpath->query(".//{$tag}", $node);
+                    if ($headings->length > 0) {
+                        $candidate = trim($headings->item(0)->textContent);
+                        if (strlen($candidate) >= 3 && strlen($candidate) <= 80 && !str_contains($candidate, '@')) {
+                            $name = $candidate;
+                            break;
+                        }
+                    }
+                }
+
+                // Find role (p.role, span.role, p.position, etc.)
+                $role = null;
+                $roleNodes = $xpath->query('.//*[contains(@class,"role") or contains(@class,"position") or contains(@class,"title") or contains(@class,"fonction") or contains(@class,"poste")]', $node);
+                if ($roleNodes->length > 0) {
+                    $role = trim($roleNodes->item(0)->textContent);
+                    if (strlen($role) > 100 || str_contains($role, '@')) {
+                        $role = null;
+                    }
+                }
+
+                // Add to results
+                foreach ($emails as $email) {
+                    $email = strtolower(trim($email));
+                    if ($this->isValidEmail($email)) {
+                        $result['emails'][] = $email;
+                    }
+                }
+                foreach ($phones as $phone) {
+                    $result['phones'][] = $phone;
+                }
+
+                if ($name) {
+                    $result['linked_contacts'][] = [
+                        'name'  => $name,
+                        'email' => !empty($emails) ? strtolower($emails[0]) : null,
+                        'phone' => !empty($phones) ? $phones[0] : null,
+                        'role'  => $role,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * Extract contacts from labeled sections (label: value patterns in DOM).
+     * Catches: "Email: x@y.com", "Tél: +33...", "WhatsApp: +66..."
+     */
+    private function extractFromLabeledSections(\DOMXPath $xpath, array &$result): void
+    {
+        // Definition lists: <dt>Email</dt><dd>contact@example.com</dd>
+        $dts = $xpath->query('//dl/dt');
+        foreach ($dts as $dt) {
+            $label = strtolower(trim($dt->textContent));
+            $dd = $xpath->query('following-sibling::dd[1]', $dt);
+            if ($dd->length === 0) continue;
+
+            $value = trim($dd->item(0)->textContent);
+            if (empty($value) || strlen($value) > 300) continue;
+
+            if (preg_match('/e-?mail|courriel|correo/i', $label)) {
+                $emails = [];
+                $this->extractEmails($value, $emails);
+                foreach ($emails as $e) {
+                    if ($this->isValidEmail($e)) $result['emails'][] = strtolower($e);
+                }
+            } elseif (preg_match('/t[eé]l|phone|fax|mobile|portable|whatsapp|cellulaire/i', $label)) {
+                $phones = [];
+                $this->extractPhones($value, $phones);
+                foreach ($phones as $p) $result['phones'][] = $p;
+            } elseif (preg_match('/adresse|address|location|localisation|si[eè]ge/i', $label)) {
+                if (strlen($value) >= 10 && strlen($value) <= 200) {
+                    $result['addresses'][] = $value;
+                }
+            }
+        }
+
+        // List items with explicit labels
+        $lis = $xpath->query('//li');
+        foreach ($lis as $li) {
+            $text = trim($li->textContent);
+            if (strlen($text) < 8 || strlen($text) > 300) continue;
+
+            // "Email: contact@example.com" or "Tel: +33 1 23 45 67 89"
+            if (preg_match('/^(?:e-?mail|courriel)\s*[:：]\s*(.+)/i', $text, $m)) {
+                $emails = [];
+                $this->extractEmails($m[1], $emails);
+                foreach ($emails as $e) {
+                    if ($this->isValidEmail($e)) $result['emails'][] = strtolower($e);
+                }
+            }
+            if (preg_match('/^(?:t[eé]l|phone|mobile|whatsapp|fax)\s*[:：]\s*(.+)/i', $text, $m)) {
+                $phones = [];
+                $this->extractPhones($m[1], $phones);
+                foreach ($phones as $p) $result['phones'][] = $p;
+            }
+
+            // Also check for mailto/tel links in this li
+            $mailtoLinks = $xpath->query('.//a[starts-with(@href, "mailto:")]', $li);
+            foreach ($mailtoLinks as $link) {
+                $email = strtolower(trim(str_replace('mailto:', '', explode('?', $link->getAttribute('href'))[0])));
+                if ($this->isValidEmail($email)) $result['emails'][] = $email;
+            }
+            $telLinks = $xpath->query('.//a[starts-with(@href, "tel:")]', $li);
+            foreach ($telLinks as $link) {
+                $phone = trim(str_replace('tel:', '', $link->getAttribute('href')));
+                $phone = preg_replace('/[^\d+\-\s.]/', '', $phone);
+                if ($this->isValidPhone($phone)) $result['phones'][] = $this->normalizePhone($phone);
+            }
+        }
+    }
+
+    /**
+     * Extract WhatsApp links from onclick handlers, data attributes, and button text.
+     * Complements the existing wa.me/api.whatsapp.com detection.
+     */
+    private function extractWhatsAppExtended(string $html, array &$socialLinks, array &$phones): void
+    {
+        // onclick="window.open('https://wa.me/...')" or onclick handlers with WhatsApp
+        if (preg_match_all('/(?:onclick|data-href|data-url|data-whatsapp)\s*=\s*["\'][^"\']*wa\.me\/(\d+)/i', $html, $matches)) {
+            foreach ($matches[1] as $number) {
+                $phone = '+' . $number;
+                if ($this->isValidPhone($phone)) {
+                    $socialLinks['whatsapp'] = $socialLinks['whatsapp'] ?? 'https://wa.me/' . $number;
+                    $phones[] = $this->normalizePhone($phone);
+                }
+            }
+        }
+
+        // WhatsApp business links with phone
+        if (preg_match_all('/(?:onclick|data-href|data-url)\s*=\s*["\'][^"\']*whatsapp\.com\/send\?phone=(\d+)/i', $html, $matches)) {
+            foreach ($matches[1] as $number) {
+                $phone = '+' . $number;
+                if ($this->isValidPhone($phone)) {
+                    $socialLinks['whatsapp'] = $socialLinks['whatsapp'] ?? 'https://wa.me/' . $number;
+                    $phones[] = $this->normalizePhone($phone);
+                }
+            }
+        }
+
+        // "WhatsApp: +66 123 456 789" or "WhatsApp : 06 12 34 56 78" in text
+        if (preg_match_all('/whatsapp\s*[:：]\s*(\+?\d[\d\s.\-()]{7,18}\d)/i', $html, $matches)) {
+            foreach ($matches[1] as $phone) {
+                $phone = trim($phone);
+                if ($this->isValidPhone($phone)) {
+                    $normalized = $this->normalizePhone($phone);
+                    $phones[] = $normalized;
+                    $number = preg_replace('/[^\d]/', '', $normalized);
+                    $socialLinks['whatsapp'] = $socialLinks['whatsapp'] ?? 'https://wa.me/' . $number;
+                }
+            }
+        }
+    }
+
+    /**
+     * Extract phone numbers from tel: links (href="tel:+123456789").
+     */
+    private function extractTelLinks(string $html, array &$phones): void
+    {
+        if (preg_match_all('/href\s*=\s*["\']tel:([^"\']+)["\']/i', $html, $matches)) {
+            foreach ($matches[1] as $phone) {
+                $phone = urldecode(trim($phone));
+                $phone = preg_replace('/[^\d+\-\s.]/', '', $phone);
+                if ($this->isValidPhone($phone)) {
+                    $phones[] = $this->normalizePhone($phone);
+                }
+            }
         }
     }
 }

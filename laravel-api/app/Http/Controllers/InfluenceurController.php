@@ -6,8 +6,11 @@ use App\Enums\ContactType;
 use App\Enums\PipelineStatus;
 use App\Enums\Platform;
 use App\Jobs\ScrapeContactJob;
+use App\Jobs\ScrapeDirectoryJob;
 use App\Models\ActivityLog;
+use App\Models\Directory;
 use App\Models\Influenceur;
+use App\Services\BlockedDomainService;
 use Illuminate\Http\Request;
 
 class InfluenceurController extends Controller
@@ -112,6 +115,44 @@ class InfluenceurController extends Controller
             if (!in_array($contactType, $user->contact_types)) {
                 return response()->json(['message' => 'Vous n\'êtes pas autorisé à créer ce type de contact.'], 403);
             }
+        }
+
+        // === INTERCEPT: Redirect directory URLs to directories table ===
+        $urlToCheck = $data['profile_url'] ?? $data['website_url'] ?? null;
+        if (BlockedDomainService::isScrapableDirectory($urlToCheck)) {
+            $domain = Directory::extractDomain($urlToCheck);
+            $contactType = $data['contact_type'] ?? 'school';
+
+            $existingDir = Directory::where('domain', $domain)
+                ->where('category', $contactType)
+                ->first();
+
+            if (!$existingDir) {
+                $dir = Directory::create([
+                    'name'       => $data['name'],
+                    'url'        => $urlToCheck,
+                    'domain'     => $domain,
+                    'category'   => $contactType,
+                    'country'    => $data['country'] ?? null,
+                    'language'   => $data['language'] ?? null,
+                    'status'     => 'pending',
+                    'notes'      => 'Ajouté manuellement',
+                    'created_by' => $request->user()->id,
+                ]);
+                ScrapeDirectoryJob::dispatch($dir->id);
+
+                return response()->json([
+                    'redirected_to_directory' => true,
+                    'message'     => "URL d'annuaire détectée ! Ajouté dans Annuaires & Répertoires. Le scraping va extraire les contacts individuels.",
+                    'directory'   => $dir,
+                ], 201);
+            }
+
+            return response()->json([
+                'redirected_to_directory' => true,
+                'message'     => "Cet annuaire existe déjà dans la section Annuaires.",
+                'directory'   => $existingDir,
+            ], 409);
         }
 
         // Extract and store normalized profile URL domain

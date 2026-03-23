@@ -5,6 +5,7 @@ use App\Http\Controllers\AutoCampaignController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AiPromptController;
+use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ContactTypeController;
 use App\Http\Controllers\ContentMetricController;
@@ -197,6 +198,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{campaign}/resume', [AutoCampaignController::class, 'resume']);
         Route::post('/{campaign}/cancel', [AutoCampaignController::class, 'cancel']);
         Route::post('/{campaign}/retry-failed', [AutoCampaignController::class, 'retryFailed']);
+    });
+
+    // ============================================================
+    // DIRECTORIES / ANNUAIRES (admin only)
+    // ============================================================
+    Route::prefix('directories')->group(function () {
+        Route::get('/', [DirectoryController::class, 'index']);
+        Route::get('/stats', [DirectoryController::class, 'stats']);
+        Route::get('/{directory}', [DirectoryController::class, 'show']);
+        Route::get('/{directory}/contacts', [DirectoryController::class, 'contacts']);
+
+        Route::middleware('role:admin')->group(function () {
+            Route::post('/', [DirectoryController::class, 'store']);
+            Route::put('/{directory}', [DirectoryController::class, 'update']);
+            Route::delete('/{directory}', [DirectoryController::class, 'destroy']);
+            Route::post('/{directory}/scrape', [DirectoryController::class, 'scrape']);
+            Route::post('/batch-scrape', [DirectoryController::class, 'batchScrape']);
+        });
     });
 
     // ============================================================

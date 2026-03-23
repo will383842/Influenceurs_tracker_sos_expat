@@ -36,6 +36,7 @@ class AiPromptService
         $prompt = match ($contactType) {
             'school' => $this->schoolPrompt($country, $language),
             'erasmus' => $this->erasmusPrompt($country, $language),
+            'consulat' => $this->consulatPrompt($country, $language),
             'chatter', 'job_board' => $this->jobBoardPrompt($country, $language),
             'influenceur' => $this->influenceurPrompt($country, $language),
             'tiktoker' => $this->tiktokerPrompt($country, $language),
@@ -486,6 +487,40 @@ Mots-clés :
 - Chaque contact = UN groupe individuel, PAS un article qui en liste plusieurs
 
 Pour chaque groupe : NOM, PLATEFORME (Facebook/WhatsApp/Forum), MEMBRES (nombre), URL (lien DIRECT du groupe), ADMIN (nom si visible), SOURCE.
+PROMPT;
+    }
+
+    private function consulatPrompt(string $country, string $lang): string
+    {
+        return <<<PROMPT
+MISSION : Trouver TOUS les consulats, ambassades et représentations diplomatiques francophones en {$country}.
+
+CATÉGORIES À CHERCHER :
+1. Ambassade de France en {$country}
+2. Consulat(s) de France (général et honoraires)
+3. Consulats de Belgique, Suisse, Canada, Luxembourg
+4. Alliance Française en {$country}
+5. Institut Français en {$country}
+6. Chambre de Commerce Franco-{$country}
+7. Conseillers des Français de l'étranger en {$country}
+8. Services consulaires des pays francophones (Sénégal, Côte d'Ivoire, Tunisie, Maroc, etc.)
+
+Mots-clés :
+- "ambassade France {$country}"
+- "consulat France {$country}"
+- "consul honoraire France {$country}"
+- "Alliance Française {$country}"
+- "Institut Français {$country}"
+- "CCIFI {$country}"
+- "French embassy {$country}"
+
+⚠️ RÈGLE ABSOLUE — URL :
+- L'URL doit être le SITE WEB OFFICIEL du consulat/ambassade
+- JAMAIS une page d'annuaire comme diplomatie.gouv.fr, france-consulat.org, etc.
+- Si pas de site propre, donne l'URL de la fiche officielle sur le site du MAE
+- Chaque contact = UN consulat/ambassade individuel
+
+Pour chaque : NOM, EMAIL, URL (site OFFICIEL), TEL, ADRESSE, NOTES, SOURCE.
 PROMPT;
     }
 

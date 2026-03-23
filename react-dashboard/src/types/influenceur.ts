@@ -2,12 +2,9 @@
 // TYPES — Synchronized with Laravel backend (fusion)
 // ============================================================
 
-// 19 contact types (was 6)
-export type ContactType =
-  | 'influenceur' | 'group_admin' | 'blogger' | 'partner' | 'school' | 'association'
-  | 'chatter' | 'tiktoker' | 'youtuber' | 'instagramer' | 'backlink'
-  | 'travel_agency' | 'real_estate' | 'translator' | 'insurer'
-  | 'enterprise' | 'press' | 'lawyer' | 'job_board';
+// Contact types are now dynamic (managed in DB via admin console).
+// Using string allows new types (consulat, erasmus, etc.) without frontend changes.
+export type ContactType = string;
 
 // 14 pipeline statuses (was 6)
 export type PipelineStatus =

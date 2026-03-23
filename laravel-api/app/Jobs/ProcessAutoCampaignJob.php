@@ -8,7 +8,9 @@ use App\Models\AiResearchSession;
 use App\Models\AutoCampaign;
 use App\Models\AutoCampaignTask;
 use App\Models\Influenceur;
+use App\Models\Directory;
 use App\Services\AiPromptService;
+use App\Services\BlockedDomainService;
 use App\Services\ClaudeSearchService;
 use App\Services\PerplexitySearchService;
 use App\Services\ResultParserService;
@@ -266,8 +268,41 @@ class ProcessAutoCampaignJob implements ShouldQueue
         $imported = 0;
         $nonSocialTypes = Influenceur::NON_SOCIAL_TYPES;
 
+        $directoriesFound = 0;
+
         foreach ($deduped['new'] as $contact) {
             try {
+                // === INTERCEPT: Redirect directory URLs to directories table ===
+                $profileUrl = $contact['profile_url'] ?? null;
+                if (BlockedDomainService::isScrapableDirectory($profileUrl)) {
+                    $domain = Directory::extractDomain($profileUrl);
+                    $existingDir = Directory::where('url', $profileUrl)
+                        ->where('category', $contactType)
+                        ->first();
+
+                    if (!$existingDir) {
+                        $dir = Directory::create([
+                            'name'       => $contact['name'] ?? 'Annuaire ' . $domain,
+                            'url'        => $profileUrl,
+                            'domain'     => $domain,
+                            'category'   => $contactType,
+                            'country'    => $contact['country'] ?? $country,
+                            'language'   => $language,
+                            'status'     => 'pending',
+                            'notes'      => 'Auto-détecté depuis campagne IA',
+                            'created_by' => $campaign->created_by,
+                        ]);
+                        ScrapeDirectoryJob::dispatch($dir->id);
+                        $directoriesFound++;
+                        Log::info('AutoCampaign: directory URL intercepted → directories table', [
+                            'url'    => $profileUrl,
+                            'domain' => $domain,
+                            'dir_id' => $dir->id,
+                        ]);
+                    }
+                    continue; // Don't import as contact
+                }
+
                 // Duplicate checks
                 $nameExists = Influenceur::whereRaw('LOWER(name) = ?', [strtolower($contact['name'])])
                     ->where('country', $country)
@@ -287,7 +322,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
                     $websiteUrl = $contact['profile_url'];
                 }
 
-                Influenceur::create([
+                $influenceur = Influenceur::create([
                     'contact_type'       => $contact['contact_type'] ?? $contactType,
                     'name'               => $contact['name'],
                     'email'              => $contact['email'] ?? null,
@@ -306,6 +341,12 @@ class ProcessAutoCampaignJob implements ShouldQueue
                     'score'              => ($contact['reliability_score'] ?? 1) * 20,
                     'created_by'         => $campaign->created_by,
                 ]);
+
+                // Auto-dispatch scraping to fill emails, phones, addresses, etc.
+                if (!empty($websiteUrl) || !empty($contact['profile_url'])) {
+                    ScrapeContactJob::dispatch($influenceur->id);
+                }
+
                 $imported++;
             } catch (\Throwable $e) {
                 Log::debug('AutoCampaign: import failed', ['name' => $contact['name'] ?? '?', 'error' => $e->getMessage()]);

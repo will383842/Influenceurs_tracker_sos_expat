@@ -18,6 +18,7 @@ import AiResearch from './pages/AiResearch';
 import Outreach from './pages/Outreach';
 import ContentEngine from './pages/ContentEngine';
 import Journal from './pages/Journal';
+import Directories from './pages/Directories';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -75,6 +76,9 @@ export default function App() {
             <Route path="outreach" element={<Outreach />} />
             <Route path="content-engine" element={<ContentEngine />} />
             <Route path="journal" element={<Journal />} />
+
+            {/* Directories */}
+            <Route path="directories" element={<Directories />} />
 
             {/* Analytics */}
             <Route path="statistiques" element={<NonResearcherRoute><Statistiques /></NonResearcherRoute>} />

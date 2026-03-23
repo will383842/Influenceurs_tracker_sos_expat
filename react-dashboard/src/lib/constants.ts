@@ -2,7 +2,8 @@ import type { ContactType, PipelineStatus } from '../types/influenceur';
 import { countriesData, type CountryData } from '../data/countries-full';
 
 // ============================================================
-// 19 CONTACT TYPES — icon, label, color, tailwind classes
+// CONTACT TYPES — Hardcoded defaults + dynamic types from API
+// New types created in admin console are loaded via useContactTypes()
 // ============================================================
 
 export interface ContactTypeConfig {
@@ -14,7 +15,8 @@ export interface ContactTypeConfig {
   text: string;         // tailwind text class
 }
 
-export const CONTACT_TYPES: ContactTypeConfig[] = [
+// Default configs for known types (fallback when API not loaded yet)
+export const DEFAULT_CONTACT_TYPES: ContactTypeConfig[] = [
   { value: 'school',         label: 'Écoles',              icon: '🏫', color: '#10B981', bg: 'bg-emerald-500/20',  text: 'text-emerald-400' },
   { value: 'chatter',        label: 'Chatters',            icon: '💬', color: '#FF6B6B', bg: 'bg-red-400/20',      text: 'text-red-400' },
   { value: 'tiktoker',       label: 'TikTokeurs',          icon: '🎵', color: '#FF0050', bg: 'bg-rose-500/20',     text: 'text-rose-400' },
@@ -36,12 +38,58 @@ export const CONTACT_TYPES: ContactTypeConfig[] = [
   { value: 'group_admin',    label: 'Group Admins',        icon: '👥', color: '#F472B6', bg: 'bg-pink-400/20',     text: 'text-pink-300' },
 ];
 
-export const CONTACT_TYPE_MAP = Object.fromEntries(
-  CONTACT_TYPES.map(t => [t.value, t])
-) as Record<ContactType, ContactTypeConfig>;
+// Mutable list: starts with defaults, merged with API types at runtime
+export let CONTACT_TYPES: ContactTypeConfig[] = [...DEFAULT_CONTACT_TYPES];
+
+const DEFAULT_TYPE_MAP = Object.fromEntries(
+  DEFAULT_CONTACT_TYPES.map(t => [t.value, t])
+) as Record<string, ContactTypeConfig>;
+
+export let CONTACT_TYPE_MAP: Record<string, ContactTypeConfig> = { ...DEFAULT_TYPE_MAP };
+
+/**
+ * Merge API-loaded contact types into the runtime list.
+ * Called by useContactTypes() hook after loading from /enums.
+ */
+export function mergeApiContactTypes(apiTypes: Array<{ value: string; label: string; icon: string; color: string }>) {
+  const merged = new Map<string, ContactTypeConfig>();
+
+  // Start with defaults
+  for (const t of DEFAULT_CONTACT_TYPES) {
+    merged.set(t.value, t);
+  }
+
+  // Overlay API types (adds new ones, updates existing labels/icons/colors)
+  for (const api of apiTypes) {
+    const existing = merged.get(api.value);
+    if (existing) {
+      // Update label/icon from DB (admin may have changed them)
+      merged.set(api.value, { ...existing, label: api.label, icon: api.icon, color: api.color });
+    } else {
+      // New type from DB — generate tailwind classes from hex color
+      merged.set(api.value, {
+        value: api.value,
+        label: api.label,
+        icon: api.icon,
+        color: api.color,
+        bg: 'bg-gray-500/20',
+        text: 'text-gray-300',
+      });
+    }
+  }
+
+  CONTACT_TYPES = Array.from(merged.values());
+  CONTACT_TYPE_MAP = Object.fromEntries(CONTACT_TYPES.map(t => [t.value, t]));
+}
+
+// Default fallback for unknown types
+const FALLBACK_TYPE: ContactTypeConfig = {
+  value: 'unknown', label: 'Autre', icon: '📁', color: '#6B7280',
+  bg: 'bg-gray-500/20', text: 'text-gray-400',
+};
 
 export function getContactType(type: ContactType): ContactTypeConfig {
-  return CONTACT_TYPE_MAP[type] ?? CONTACT_TYPES[0];
+  return CONTACT_TYPE_MAP[type] ?? { ...FALLBACK_TYPE, value: type, label: type };
 }
 
 // ============================================================

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\ContactType;
 use App\Jobs\RunAiResearchJob;
+use App\Jobs\ScrapeContactJob;
 use App\Models\AiResearchSession;
 use App\Models\ActivityLog;
 use App\Models\Influenceur;
 use App\Http\Controllers\InfluenceurController;
+use App\Services\BlockedDomainService;
 use Illuminate\Http\Request;
 
 class AiResearchController extends Controller
@@ -158,7 +160,7 @@ class AiResearchController extends Controller
             }
 
             // Create the influenceur
-            Influenceur::create([
+            $influenceur = Influenceur::create([
                 'contact_type'      => $contact['contact_type'] ?? $session->contact_type,
                 'name'              => $contact['name'],
                 'email'             => $contact['email'] ?? null,
@@ -178,6 +180,11 @@ class AiResearchController extends Controller
                 'status'            => 'new',
                 'created_by'        => $request->user()->id,
             ]);
+
+            // Auto-dispatch scraping to fill emails, phones, addresses, etc.
+            if (!empty($websiteUrl) || !empty($contact['profile_url'])) {
+                ScrapeContactJob::dispatch($influenceur->id);
+            }
 
             $imported++;
         }
