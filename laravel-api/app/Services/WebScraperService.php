@@ -46,6 +46,20 @@ class WebScraperService
         '/inscriptions',
         '/notre-ecole',
         '/our-school',
+        // Legal pages (often contain address, phone, email in footer/legal)
+        '/mentions-legales',
+        '/mentions-legales.html',
+        '/legal',
+        '/legal-notice',
+        '/privacy',
+        '/privacy-policy',
+        '/politique-de-confidentialite',
+        '/cgv',
+        '/cgu',
+        '/terms',
+        // Footer / sitemap
+        '/sitemap',
+        '/plan-du-site',
         // Deeper pages
         '/about/contact',
         '/about/team',
@@ -1083,6 +1097,8 @@ class WebScraperService
                 'admission', 'enrolment', 'enrollment', 'inscription',
                 'our-school', 'notre-ecole', 'governance', 'leadership',
                 'management', 'people', 'faculty', 'personnel',
+                'mention', 'legal', 'privacy', 'cgv', 'cgu', 'footer',
+                'sitemap', 'plan-du-site', 'terms',
             ];
 
             $baseHost = parse_url($baseUrl, PHP_URL_HOST);

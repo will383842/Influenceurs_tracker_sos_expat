@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import api from '../api/client';
 import { COUNTRIES } from '../lib/constants';
+import { countriesData } from '../data/countries-full';
 
 // ============================================================
 // Types
@@ -79,6 +80,167 @@ const REGION_LABELS: Record<string, string> = {
   ameriques: 'Amériques',
   asie_oceanie: 'Asie & Océanie',
 };
+
+// ============================================================
+// Country selector with all 197 countries grouped by continent
+// ============================================================
+const CONTINENT_LABELS: Record<string, string> = {
+  Europe: 'Europe',
+  Africa: 'Afrique',
+  Americas: 'Amériques',
+  Asia: 'Asie',
+  Oceania: 'Océanie',
+  'Middle East': 'Moyen-Orient',
+};
+
+function CountrySelector({ selected, onChange }: { selected: string[]; onChange: (v: string[]) => void }) {
+  const [search, setSearch] = useState('');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // Group countries by region
+  const grouped = useMemo(() => {
+    const validCountries = countriesData.filter(c => c.code !== 'SEPARATOR' && !c.disabled);
+    const groups: Record<string, { name: string; flag: string }[]> = {};
+    for (const c of validCountries) {
+      const region = c.region || 'Other';
+      if (!groups[region]) groups[region] = [];
+      groups[region].push({ name: c.nameFr, flag: c.flag });
+    }
+    // Sort countries within each group
+    for (const region of Object.keys(groups)) {
+      groups[region].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    }
+    return groups;
+  }, []);
+
+  const allCountryNames = useMemo(() =>
+    countriesData.filter(c => c.code !== 'SEPARATOR' && !c.disabled).map(c => c.nameFr),
+  []);
+
+  const toggleContinent = (region: string) => {
+    const countries = grouped[region]?.map(c => c.name) || [];
+    const allSelected = countries.every(c => selected.includes(c));
+    if (allSelected) {
+      onChange(selected.filter(c => !countries.includes(c)));
+    } else {
+      onChange([...new Set([...selected, ...countries])]);
+    }
+  };
+
+  const toggleCollapse = (region: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      next.has(region) ? next.delete(region) : next.add(region);
+      return next;
+    });
+  };
+
+  const toggleCountry = (name: string) => {
+    onChange(selected.includes(name) ? selected.filter(c => c !== name) : [...selected, name]);
+  };
+
+  const filteredGrouped = useMemo(() => {
+    if (!search) return grouped;
+    const s = search.toLowerCase();
+    const result: Record<string, { name: string; flag: string }[]> = {};
+    for (const [region, countries] of Object.entries(grouped)) {
+      const filtered = countries.filter(c => c.name.toLowerCase().includes(s));
+      if (filtered.length > 0) result[region] = filtered;
+    }
+    return result;
+  }, [grouped, search]);
+
+  return (
+    <div>
+      <label className="block text-sm text-muted mb-2">Pays ({selected.length} / {allCountryNames.length} sélectionnés)</label>
+
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <button
+          onClick={() => onChange([...allCountryNames])}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+            selected.length === allCountryNames.length
+              ? 'bg-green-500/20 border-green-500 text-green-400'
+              : 'bg-violet/20 border-violet text-violet-light hover:bg-violet/30'
+          }`}
+        >
+          {selected.length === allCountryNames.length ? '✓ ' : ''}Tous les {allCountryNames.length} pays
+        </button>
+        {Object.entries(grouped).map(([region, countries]) => {
+          const allSel = countries.every(c => selected.includes(c.name));
+          return (
+            <button
+              key={region}
+              onClick={() => toggleContinent(region)}
+              className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                allSel
+                  ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                  : 'bg-surface2 border-border text-muted hover:text-white'
+              }`}
+            >
+              {allSel ? '✓ ' : ''}{CONTINENT_LABELS[region] || region} ({countries.length})
+            </button>
+          );
+        })}
+        {selected.length > 0 && (
+          <button
+            onClick={() => onChange([])}
+            className="px-2.5 py-1 rounded-lg text-xs border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            Tout désélectionner
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Rechercher un pays..."
+        className="w-full bg-surface2 border border-border rounded-lg px-3 py-1.5 text-sm text-white mb-3 focus:outline-none focus:border-violet"
+      />
+
+      {/* Countries by continent */}
+      <div className="max-h-64 overflow-y-auto space-y-2 border border-border rounded-lg p-2 bg-bg">
+        {Object.entries(filteredGrouped).map(([region, countries]) => {
+          const allSel = countries.every(c => selected.includes(c.name));
+          const isCollapsed = collapsed.has(region) && !search;
+          return (
+            <div key={region}>
+              <div className="flex items-center gap-2 mb-1">
+                <button onClick={() => toggleCollapse(region)} className="text-muted text-xs">{isCollapsed ? '▶' : '▼'}</button>
+                <button
+                  onClick={() => toggleContinent(region)}
+                  className={`text-xs font-medium transition-colors ${allSel ? 'text-green-400' : 'text-violet-light hover:underline'}`}
+                >
+                  {allSel ? '✓ ' : ''}{CONTINENT_LABELS[region] || region} ({countries.length})
+                </button>
+              </div>
+              {!isCollapsed && (
+                <div className="flex flex-wrap gap-1 ml-4">
+                  {countries.map(c => (
+                    <button
+                      key={c.name}
+                      onClick={() => toggleCountry(c.name)}
+                      className={`px-1.5 py-0.5 rounded text-[11px] border transition-colors ${
+                        selected.includes(c.name)
+                          ? 'bg-violet/20 border-violet/50 text-white'
+                          : 'bg-surface2 border-border/50 text-muted hover:text-white'
+                      }`}
+                    >
+                      {c.flag} {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function AutoCampaignPage() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -293,66 +455,11 @@ export default function AutoCampaignPage() {
             </button>
           </div>
 
-          {/* Countries: presets by region + all countries */}
-          <div>
-            <label className="block text-sm text-muted mb-2">Pays ({formCountries.length} sélectionnés)</label>
-
-            {/* Quick actions */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              <button
-                onClick={() => setFormCountries(COUNTRIES.map(c => c.name))}
-                className="px-3 py-1 rounded-lg text-xs font-medium bg-violet/20 border border-violet text-violet-light hover:bg-violet/30 transition-colors"
-              >
-                Tous les pays ({COUNTRIES.length})
-              </button>
-              <button
-                onClick={() => setFormCountries([])}
-                className="px-3 py-1 rounded-lg text-xs font-medium bg-surface2 border border-border text-muted hover:text-white transition-colors"
-              >
-                Tout désélectionner
-              </button>
-            </div>
-
-            {/* Region presets */}
-            {Object.entries(config.country_presets).map(([region, countries]) => {
-              const allSelected = countries.every((c: string) => formCountries.includes(c));
-              return (
-                <div key={region} className="mb-3">
-                  <button
-                    onClick={() => selectRegion(region)}
-                    className={`text-sm font-medium mb-1 transition-colors ${allSelected ? 'text-green-400' : 'text-violet hover:underline'}`}
-                  >
-                    {allSelected ? '✓ ' : ''}{REGION_LABELS[region] || region} ({countries.length})
-                  </button>
-                  <div className="flex flex-wrap gap-1.5 ml-2">
-                    {countries.map((c: string) => (
-                      <button
-                        key={c}
-                        onClick={() => toggleArrayItem(formCountries, c, setFormCountries)}
-                        className={`px-2 py-0.5 rounded text-xs border transition-colors ${
-                          formCountries.includes(c)
-                            ? 'bg-violet/20 border-violet text-white'
-                            : 'bg-surface2 border-border text-muted hover:text-white'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Show count if many selected */}
-            {formCountries.length > 0 && (
-              <p className="text-xs text-muted mt-2">
-                {formCountries.length} pays sélectionnés
-                {formCountries.length > 10 && (
-                  <button onClick={() => setFormCountries([])} className="text-red-400 hover:underline ml-2">Réinitialiser</button>
-                )}
-              </p>
-            )}
-          </div>
+          {/* Countries: ALL 197 countries grouped by continent */}
+          <CountrySelector
+            selected={formCountries}
+            onChange={setFormCountries}
+          />
 
           {/* Languages */}
           <div>
