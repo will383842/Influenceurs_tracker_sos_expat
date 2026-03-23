@@ -10,7 +10,7 @@ class WebScraperService
     private const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
     private const TIMEOUT = 15;
     private const MAX_REDIRECTS = 3;
-    private const MAX_PAGES = 8;
+    private const MAX_PAGES = 12;
     private const DELAY_BETWEEN_REQUESTS_MS = 2000;
 
     /**
@@ -39,7 +39,22 @@ class WebScraperService
         '/direction',
         '/administration',
         '/coordonnees',
-        '/footer',
+        // School-specific
+        '/admissions',
+        '/enrolment',
+        '/enrollment',
+        '/inscriptions',
+        '/notre-ecole',
+        '/our-school',
+        // Deeper pages
+        '/about/contact',
+        '/about/team',
+        '/about/staff',
+        '/about/our-team',
+        '/en/contact',
+        '/fr/contact',
+        '/en/about',
+        '/fr/a-propos',
     ];
 
     /**
@@ -286,10 +301,8 @@ class WebScraperService
         }
         $result['linked_contacts'] = $uniqueLinked;
 
-        // If no emails found by scraping, try to guess common emails for the domain
-        if (empty($result['emails'])) {
-            $result['suggested_emails'] = $this->guessEmailsForDomain($url);
-        }
+        // NO suggested/guessed emails — only real data from the website
+        // The old guessEmailsForDomain() generated fake emails that confused users
 
         return $result;
     }
@@ -1067,6 +1080,9 @@ class WebScraperService
                 'admin', 'info', 'coordonn', 'nous-contacter', 'a-propos',
                 'impressum', 'kontakt', 'who-we-are', 'our-people',
                 'notre-equipe', 'our-team', 'contactez', 'joindre',
+                'admission', 'enrolment', 'enrollment', 'inscription',
+                'our-school', 'notre-ecole', 'governance', 'leadership',
+                'management', 'people', 'faculty', 'personnel',
             ];
 
             $baseHost = parse_url($baseUrl, PHP_URL_HOST);
@@ -1188,17 +1204,25 @@ class WebScraperService
             return strtolower($match[1]);
         }
 
-        // 3. Content analysis — count French vs English indicator words
+        // 3. og:locale meta tag
+        if (preg_match('/<meta[^>]*property=["\']og:locale["\'][^>]*content=["\']([a-z]{2})/i', $html, $match)) {
+            return strtolower($match[1]);
+        }
+
+        // 4. Content analysis — count indicator words with strict thresholds
         $textLower = strtolower($text);
 
-        $frenchWords = ['école', 'lycée', 'collège', 'maternelle', 'primaire', 'inscriptions',
-            'bienvenue', 'accueil', 'notre', 'établissement', 'enseignement', 'pédagogie',
-            'parents', 'élèves', 'nous contacter', 'actualités', 'rentrée', 'secrétariat',
-            'cantine', 'horaires', 'directeur', 'directrice', 'professeurs'];
+        // Use words that are UNIQUELY French (not shared with English)
+        $frenchWords = ['école', 'lycée', 'collège', 'maternelle', 'inscriptions',
+            'bienvenue', 'accueil', 'établissement', 'enseignement', 'pédagogie',
+            'élèves', 'nous contacter', 'actualités', 'rentrée', 'secrétariat',
+            'cantine', 'horaires', 'directeur', 'directrice', 'professeurs',
+            'consulat', 'ambassade', 'préfecture', 'mairie'];
 
         $englishWords = ['school', 'welcome', 'admission', 'enrolment', 'enrollment',
             'curriculum', 'campus', 'about us', 'contact us', 'our school', 'students',
-            'teachers', 'principal', 'headmaster', 'facilities', 'learning', 'tuition'];
+            'teachers', 'principal', 'headmaster', 'facilities', 'learning', 'tuition',
+            'apply now', 'enquiries', 'admissions', 'newsletter', 'donate'];
 
         $frCount = 0;
         $enCount = 0;
@@ -1210,12 +1234,22 @@ class WebScraperService
             $enCount += substr_count($textLower, $w);
         }
 
-        // Need at least 3 matches to be confident
-        if ($frCount >= 3 && $frCount > $enCount * 1.5) return 'fr';
-        if ($enCount >= 3 && $enCount > $frCount * 1.5) return 'en';
+        // Strict: language must clearly dominate (2x more occurrences)
+        if ($frCount >= 5 && $frCount > $enCount * 2) return 'fr';
+        if ($enCount >= 5 && $enCount > $frCount * 2) return 'en';
 
-        // If both present equally, likely bilingual — still useful
-        if ($frCount >= 2 && $enCount >= 2) return 'fr'; // Bilingual with French = still relevant
+        // Medium confidence: clear majority
+        if ($frCount >= 3 && $enCount === 0) return 'fr';
+        if ($enCount >= 3 && $frCount === 0) return 'en';
+
+        // If both present, determine by ratio (NOT biased toward French)
+        if ($frCount >= 3 && $enCount >= 3) {
+            $ratio = $frCount / max($enCount, 1);
+            if ($ratio > 2.0) return 'fr';
+            if ($ratio < 0.5) return 'en';
+            // Too close to call — don't set language, leave it null
+            return null;
+        }
 
         return null;
     }

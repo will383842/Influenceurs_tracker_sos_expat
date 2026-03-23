@@ -439,24 +439,7 @@ export default function InfluenceurDetail() {
                 ))}
               </div>
             ) : influenceur.scraped_at ? (
-              <div className="space-y-2">
-                <p className="text-red-400 text-sm font-medium">Aucun email trouvé sur le site</p>
-                {suggestedEmails.length > 0 && (
-                  <div>
-                    <p className="text-amber text-xs font-medium mb-1.5">Emails probables (basés sur le domaine) :</p>
-                    <div className="flex flex-wrap gap-2">
-                      {suggestedEmails.slice(0, 6).map((em) => (
-                        <span key={em} className="flex items-center gap-1 text-sm">
-                          <span className="text-amber text-xs" title="Non vérifié">{'?'}</span>
-                          <a href={`mailto:${em}`} className="text-amber/80 hover:text-amber hover:underline">{em}</a>
-                          <CopyButton text={em} />
-                        </span>
-                      ))}
-                    </div>
-                    <p className="text-muted text-xs mt-1 italic">Ces emails sont des suggestions non vérifiées basées sur les enregistrements MX du domaine.</p>
-                  </div>
-                )}
-              </div>
+              <p className="text-red-400/70 text-sm">Aucun email trouvé sur le site</p>
             ) : (
               <p className="text-muted text-sm">Non scrapé</p>
             )}

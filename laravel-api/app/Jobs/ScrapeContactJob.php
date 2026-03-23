@@ -21,7 +21,7 @@ class ScrapeContactJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 60;
+    public int $timeout = 120; // 2 min (up to 12 pages × 2s delay + processing)
     public int $tries = 1; // Don't retry failed scrapes
 
     public function __construct(
