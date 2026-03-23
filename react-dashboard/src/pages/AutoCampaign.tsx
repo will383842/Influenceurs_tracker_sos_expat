@@ -525,20 +525,25 @@ export default function AutoCampaignPage() {
           )}
 
           {/* Submit */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleCreate}
-              disabled={creating || !formName || formTypes.length === 0 || formCountries.length === 0}
-              className="px-6 py-2.5 bg-violet hover:bg-violet/80 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {creating ? 'Lancement...' : `Lancer la campagne (${taskCombos} tâches)`}
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-muted hover:text-white transition-colors"
-            >
-              Annuler
-            </button>
+          <div className="space-y-2">
+            {!formName && <p className="text-amber text-xs">Entrez un nom pour la campagne</p>}
+            {formTypes.length === 0 && <p className="text-amber text-xs">Sélectionnez au moins un type de contact</p>}
+            {formCountries.length === 0 && <p className="text-amber text-xs">Sélectionnez au moins un pays</p>}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCreate}
+                disabled={creating || !formName.trim() || formTypes.length === 0 || formCountries.length === 0}
+                className="px-6 py-2.5 bg-violet hover:bg-violet/80 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creating ? 'Lancement...' : `Lancer la campagne (${taskCombos} tâches)`}
+              </button>
+              <button
+                onClick={() => setShowForm(false)}
+                className="px-4 py-2 text-muted hover:text-white transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         </div>
       )}
