@@ -32,6 +32,7 @@ interface Campaign {
 interface CampaignDetail {
   campaign: Campaign & { tasks: Task[] };
   status_counts: Record<string, number>;
+  country_counts: Record<string, Record<string, number>>;
   alerts: Alert[];
   progress: number;
 }
@@ -47,6 +48,7 @@ interface Task {
   contacts_imported: number;
   error_message: string | null;
   completed_at: string | null;
+  updated_at: string | null;
 }
 
 interface Alert {
@@ -280,14 +282,12 @@ export default function AutoCampaignPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Auto-refresh running campaign every 30s
-  // Use ref to avoid re-creating interval on every campaigns state change
+  // Auto-refresh running campaign every 10s
   const runningIdRef = React.useRef<number | null>(null);
   useEffect(() => {
     const running = campaigns.find(c => c.status === 'running');
     const newId = running?.id ?? null;
 
-    // Only reset interval if the running campaign ID changed
     if (newId === runningIdRef.current) return;
     runningIdRef.current = newId;
 
@@ -301,7 +301,7 @@ export default function AutoCampaignPage() {
         setSelectedCampaign(detailRes.data);
         setCampaigns(listRes.data.data || []);
       } catch { /* ignore polling errors */ }
-    }, 30000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [campaigns]);
 
@@ -702,51 +702,131 @@ export default function AutoCampaignPage() {
             </div>
           )}
 
-          {/* Task status breakdown */}
-          <div>
-            <h3 className="text-sm font-medium text-muted mb-2">Status des tâches</h3>
-            <div className="flex flex-wrap gap-3">
-              {Object.entries(selectedCampaign.status_counts).map(([status, count]) => (
-                <div key={status} className={`px-3 py-1.5 rounded-lg text-sm ${STATUS_COLORS[status]}`}>
-                  {status}: {count as number}
-                </div>
-              ))}
+          {/* Status + dernière tâche */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Status counts */}
+            <div className="bg-surface2 border border-border rounded-lg p-3">
+              <h3 className="text-xs font-medium text-muted uppercase mb-2">Répartition</h3>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(selectedCampaign.status_counts).map(([status, count]) => (
+                  <div key={status} className={`px-2.5 py-1 rounded text-xs font-mono ${STATUS_COLORS[status]}`}>
+                    {status}: {count as number}
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Dernière tâche + stats */}
+            {(() => {
+              const lastDone = [...selectedCampaign.campaign.tasks]
+                .filter(t => t.status === 'completed' && t.updated_at)
+                .sort((a, b) => new Date(b.updated_at!).getTime() - new Date(a.updated_at!).getTime())[0];
+              const running = selectedCampaign.campaign.tasks.find(t => t.status === 'running');
+              const current = running || lastDone;
+              const done = selectedCampaign.campaign.tasks_completed;
+              const avgContacts = done > 0 ? (selectedCampaign.campaign.contacts_imported_total / done).toFixed(1) : '—';
+              return (
+                <div className="bg-surface2 border border-border rounded-lg p-3 space-y-1">
+                  <h3 className="text-xs font-medium text-muted uppercase mb-2">En cours</h3>
+                  {current ? (
+                    <p className="text-white text-sm font-medium">
+                      {running && <span className="w-2 h-2 inline-block bg-blue-400 rounded-full animate-pulse mr-2" />}
+                      {current.country} — {current.contact_type}
+                      {current.status === 'completed' && current.contacts_imported > 0 && (
+                        <span className="ml-2 text-green-400 text-xs">+{current.contacts_imported}</span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-muted text-sm">—</p>
+                  )}
+                  <p className="text-xs text-muted">Moy. {avgContacts} contacts/tâche</p>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* Tasks table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-muted text-left text-xs uppercase border-b border-border">
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Pays</th>
-                  <th className="px-3 py-2">Langue</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2 text-right">Tentative</th>
-                  <th className="px-3 py-2 text-right">Trouvés</th>
-                  <th className="px-3 py-2 text-right">Importés</th>
-                  <th className="px-3 py-2">Erreur</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedCampaign.campaign.tasks.map(t => (
-                  <tr key={t.id} className="border-b border-border/50 hover:bg-white/5">
-                    <td className="px-3 py-2 text-white">{t.contact_type}</td>
-                    <td className="px-3 py-2 text-white">{t.country}</td>
-                    <td className="px-3 py-2 text-muted">{t.language}</td>
-                    <td className="px-3 py-2">
-                      <span className={`px-1.5 py-0.5 text-xs rounded ${STATUS_COLORS[t.status]}`}>{t.status}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right text-muted">{t.attempt}</td>
-                    <td className="px-3 py-2 text-right text-white">{t.contacts_found}</td>
-                    <td className="px-3 py-2 text-right text-green-400">{t.contacts_imported}</td>
-                    <td className="px-3 py-2 text-red-400 text-xs max-w-xs truncate">{t.error_message || ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* Country grid */}
+          {selectedCampaign.country_counts && Object.keys(selectedCampaign.country_counts).length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-muted mb-2">Avancement par pays</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedCampaign.campaign.countries?.map(country => {
+                  const counts = selectedCampaign.country_counts[country] || {};
+                  const done = counts['completed'] || 0;
+                  const failed = counts['failed'] || 0;
+                  const pending = counts['pending'] || 0;
+                  const total = done + failed + pending + (counts['running'] || 0) + (counts['skipped'] || 0);
+                  const isRunning = (counts['running'] || 0) > 0;
+                  const allDone = total > 0 && pending === 0 && !isRunning;
+                  const hasFailures = failed > 0;
+                  return (
+                    <div
+                      key={country}
+                      title={`${country}: ${done} OK, ${failed} échecs, ${pending} en attente`}
+                      className={`px-2 py-0.5 rounded text-[11px] border font-mono transition-colors ${
+                        isRunning
+                          ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                          : allDone && !hasFailures
+                          ? 'bg-green-500/20 border-green-500/30 text-green-400'
+                          : allDone && hasFailures
+                          ? 'bg-amber/20 border-amber/30 text-amber'
+                          : hasFailures
+                          ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                          : total === 0
+                          ? 'bg-surface2 border-border/30 text-muted/40'
+                          : 'bg-surface2 border-border/50 text-muted'
+                      }`}
+                    >
+                      {country}
+                      {done > 0 && <span className="ml-1 text-green-400">·{done}</span>}
+                      {failed > 0 && <span className="ml-1 text-red-400">·{failed}✗</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex gap-4 text-xs text-muted">
+                <span><span className="text-blue-400">■</span> En cours</span>
+                <span><span className="text-green-400">■</span> Terminé</span>
+                <span><span className="text-amber">■</span> Terminé avec erreurs</span>
+                <span><span className="text-muted/50">■</span> En attente</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tasks table — only completed/failed rows, collapsible */}
+          {(() => {
+            const doneTasks = selectedCampaign.campaign.tasks.filter(t => t.status !== 'pending');
+            if (doneTasks.length === 0) return null;
+            return (
+              <div className="overflow-x-auto">
+                <h3 className="text-sm font-medium text-muted mb-2">Tâches traitées ({doneTasks.length})</h3>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-muted text-left text-xs uppercase border-b border-border">
+                      <th className="px-3 py-2">Pays</th>
+                      <th className="px-3 py-2">Status</th>
+                      <th className="px-3 py-2 text-right">Trouvés</th>
+                      <th className="px-3 py-2 text-right">Importés</th>
+                      <th className="px-3 py-2">Erreur</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doneTasks.map(t => (
+                      <tr key={t.id} className="border-b border-border/50 hover:bg-white/5">
+                        <td className="px-3 py-2 text-white">{t.country}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-1.5 py-0.5 text-xs rounded ${STATUS_COLORS[t.status]}`}>{t.status}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right text-white">{t.contacts_found}</td>
+                        <td className="px-3 py-2 text-right text-green-400">{t.contacts_imported}</td>
+                        <td className="px-3 py-2 text-red-400 text-xs max-w-xs truncate">{t.error_message || ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
