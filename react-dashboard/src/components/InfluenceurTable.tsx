@@ -55,6 +55,7 @@ export default function InfluenceurTable({ influenceurs }: Props) {
               <Th label="Pays" />
               <Th label="Langue" />
               <Th label="Statut" field="status" />
+              <Th label="Site web" />
               <Th label="Email" />
               <Th label="Tél" />
               <Th label="Dernier contact" field="last_contact_at" />
@@ -78,6 +79,15 @@ export default function InfluenceurTable({ influenceurs }: Props) {
                   {inf.language ? <span>{getLanguageLabel(inf.language)}</span> : <span className="text-muted">—</span>}
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={inf.status} /></td>
+                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  {(() => {
+                    const url = inf.website_url || inf.profile_url;
+                    if (!url) return <span className="text-muted/30 text-xs">—</span>;
+                    let hostname = url;
+                    try { hostname = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+                    return <a href={url} target="_blank" rel="noopener noreferrer" className="text-violet-light hover:underline text-xs">{hostname}</a>;
+                  })()}
+                </td>
                 <td className="px-4 py-3 text-sm whitespace-nowrap">
                   {inf.email ? <a href={`mailto:${inf.email}`} className="text-cyan hover:underline text-xs">{inf.email}</a> : <span className="text-red-400/50 text-xs">manquant</span>}
                 </td>

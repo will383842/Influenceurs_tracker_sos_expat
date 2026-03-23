@@ -291,6 +291,7 @@ export default function InfluenceurDetail() {
         {/* Infos détaillées */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-6 border-t border-border text-sm">
           {[
+            { label: 'Site web', value: influenceur.website_url ? (() => { try { return new URL(influenceur.website_url).hostname.replace(/^www\./, ''); } catch { return influenceur.website_url; } })() : null, field: 'website_url', href: influenceur.website_url, external: true },
             { label: 'Email', value: influenceur.email, field: 'email', href: influenceur.email ? `mailto:${influenceur.email}` : null },
             { label: 'Téléphone', value: influenceur.phone, field: 'phone', href: influenceur.phone ? `tel:${influenceur.phone}` : null },
             { label: 'Profil URL', value: influenceur.profile_url, field: 'profile_url', href: influenceur.profile_url, external: true },
