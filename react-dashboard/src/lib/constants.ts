@@ -17,25 +17,36 @@ export interface ContactTypeConfig {
 
 // Default configs for known types (fallback when API not loaded yet)
 export const DEFAULT_CONTACT_TYPES: ContactTypeConfig[] = [
-  { value: 'school',         label: 'Écoles',              icon: '🏫', color: '#10B981', bg: 'bg-emerald-500/20',  text: 'text-emerald-400' },
-  { value: 'chatter',        label: 'Chatters',            icon: '💬', color: '#FF6B6B', bg: 'bg-red-400/20',      text: 'text-red-400' },
-  { value: 'tiktoker',       label: 'TikTokeurs',          icon: '🎵', color: '#FF0050', bg: 'bg-rose-500/20',     text: 'text-rose-400' },
-  { value: 'youtuber',       label: 'YouTubeurs',          icon: '🎬', color: '#FF0000', bg: 'bg-red-600/20',      text: 'text-red-500' },
-  { value: 'instagramer',    label: 'Instagrameurs',       icon: '📸', color: '#E1306C', bg: 'bg-pink-500/20',     text: 'text-pink-400' },
-  { value: 'influenceur',    label: 'Influenceurs',        icon: '✨', color: '#FFD60A', bg: 'bg-yellow-400/20',   text: 'text-yellow-300' },
-  { value: 'blogger',        label: 'Blogueurs',           icon: '📰', color: '#A855F7', bg: 'bg-purple-500/20',   text: 'text-purple-400' },
-  { value: 'backlink',       label: 'Backlinks',           icon: '🔗', color: '#F59E0B', bg: 'bg-amber-500/20',    text: 'text-amber-400' },
-  { value: 'association',    label: 'Associations',        icon: '🤝', color: '#EC4899', bg: 'bg-pink-400/20',     text: 'text-pink-300' },
-  { value: 'travel_agency',  label: 'Agences voyage',      icon: '✈️', color: '#06B6D4', bg: 'bg-cyan-500/20',     text: 'text-cyan-400' },
-  { value: 'real_estate',    label: 'Agents immobiliers',  icon: '🏠', color: '#84CC16', bg: 'bg-lime-500/20',     text: 'text-lime-400' },
-  { value: 'translator',     label: 'Traducteurs',         icon: '🌐', color: '#0EA5E9', bg: 'bg-sky-500/20',      text: 'text-sky-400' },
-  { value: 'insurer',        label: 'Assureurs/B2B',       icon: '🛡️', color: '#3B82F6', bg: 'bg-blue-500/20',     text: 'text-blue-400' },
-  { value: 'enterprise',     label: 'Entreprises',         icon: '🏢', color: '#14B8A6', bg: 'bg-teal-500/20',     text: 'text-teal-400' },
-  { value: 'press',          label: 'Presse',              icon: '📺', color: '#E11D48', bg: 'bg-rose-600/20',     text: 'text-rose-400' },
-  { value: 'partner',        label: 'Partenariats',        icon: '🏛️', color: '#D97706', bg: 'bg-amber-600/20',    text: 'text-amber-500' },
-  { value: 'lawyer',         label: 'Avocats',             icon: '⚖️', color: '#8B5CF6', bg: 'bg-violet-500/20',   text: 'text-violet-400' },
-  { value: 'job_board',      label: 'Sites emploi',        icon: '💼', color: '#78716C', bg: 'bg-stone-500/20',    text: 'text-stone-400' },
-  { value: 'group_admin',    label: 'Group Admins',        icon: '👥', color: '#F472B6', bg: 'bg-pink-400/20',     text: 'text-pink-300' },
+  // Institutionnel
+  { value: 'consulat',               label: 'Consulats & Ambassades',    icon: '🏛️', color: '#6366F1', bg: 'bg-indigo-500/20',  text: 'text-indigo-400' },
+  { value: 'association',            label: 'Associations',              icon: '🤝', color: '#EC4899', bg: 'bg-pink-400/20',     text: 'text-pink-300' },
+  { value: 'ecole',                  label: 'Écoles & Formation',        icon: '🏫', color: '#10B981', bg: 'bg-emerald-500/20',  text: 'text-emerald-400' },
+  { value: 'institut_culturel',      label: 'Instituts culturels',       icon: '🎭', color: '#8B5CF6', bg: 'bg-violet-500/20',   text: 'text-violet-400' },
+  { value: 'chambre_commerce',       label: 'Chambres de commerce',      icon: '🏢', color: '#14B8A6', bg: 'bg-teal-500/20',     text: 'text-teal-400' },
+  // Médias & Influence
+  { value: 'presse',                 label: 'Presse & Médias',           icon: '📺', color: '#E11D48', bg: 'bg-rose-600/20',     text: 'text-rose-400' },
+  { value: 'blog',                   label: 'Blogs & Créateurs',         icon: '📝', color: '#A855F7', bg: 'bg-purple-500/20',   text: 'text-purple-400' },
+  { value: 'podcast_radio',          label: 'Podcasts & Radios',         icon: '🎙️', color: '#F97316', bg: 'bg-orange-500/20',   text: 'text-orange-400' },
+  { value: 'influenceur',            label: 'Influenceurs',              icon: '✨', color: '#FFD60A', bg: 'bg-yellow-400/20',   text: 'text-yellow-300' },
+  // Services B2B
+  { value: 'avocat',                 label: 'Avocats',                   icon: '⚖️', color: '#8B5CF6', bg: 'bg-violet-500/20',   text: 'text-violet-400' },
+  { value: 'immobilier',             label: 'Immobilier & Relocation',   icon: '🏠', color: '#84CC16', bg: 'bg-lime-500/20',     text: 'text-lime-400' },
+  { value: 'assurance',              label: 'Assurances',                icon: '🛡️', color: '#3B82F6', bg: 'bg-blue-500/20',     text: 'text-blue-400' },
+  { value: 'banque_fintech',         label: 'Banques & Fintechs',        icon: '🏦', color: '#0EA5E9', bg: 'bg-sky-500/20',      text: 'text-sky-400' },
+  { value: 'traducteur',             label: 'Traducteurs',               icon: '🌐', color: '#06B6D4', bg: 'bg-cyan-500/20',     text: 'text-cyan-400' },
+  { value: 'agence_voyage',          label: 'Agences de voyage',         icon: '✈️', color: '#06B6D4', bg: 'bg-cyan-500/20',     text: 'text-cyan-400' },
+  { value: 'emploi',                 label: 'Emploi & Remote',           icon: '💼', color: '#78716C', bg: 'bg-stone-500/20',    text: 'text-stone-400' },
+  // Communautés & Lieux
+  { value: 'communaute_expat',       label: 'Communautés expat',         icon: '🌍', color: '#F472B6', bg: 'bg-pink-400/20',     text: 'text-pink-300' },
+  { value: 'groupe_whatsapp_telegram',label: 'Groupes WhatsApp/Telegram', icon: '💬', color: '#22C55E', bg: 'bg-green-500/20',    text: 'text-green-400' },
+  { value: 'coworking_coliving',     label: 'Coworkings & Colivings',    icon: '🏡', color: '#D97706', bg: 'bg-amber-600/20',    text: 'text-amber-500' },
+  { value: 'logement',               label: 'Logement international',    icon: '🔑', color: '#EAB308', bg: 'bg-yellow-500/20',   text: 'text-yellow-400' },
+  { value: 'lieu_communautaire',     label: 'Lieux communautaires',      icon: '☕', color: '#FB923C', bg: 'bg-orange-400/20',   text: 'text-orange-300' },
+  // Digital & Technique
+  { value: 'backlink',               label: 'Backlinks & SEO',           icon: '🔗', color: '#F59E0B', bg: 'bg-amber-500/20',    text: 'text-amber-400' },
+  { value: 'annuaire',               label: 'Annuaires',                 icon: '📚', color: '#A3A3A3', bg: 'bg-neutral-500/20',  text: 'text-neutral-400' },
+  { value: 'plateforme_nomad',       label: 'Plateformes nomad',         icon: '🧭', color: '#2DD4BF', bg: 'bg-teal-400/20',     text: 'text-teal-300' },
+  { value: 'partenaire',             label: 'Partenaires B2B',           icon: '🤝', color: '#D97706', bg: 'bg-amber-600/20',    text: 'text-amber-500' },
 ];
 
 // Mutable list: starts with defaults, merged with API types at runtime
