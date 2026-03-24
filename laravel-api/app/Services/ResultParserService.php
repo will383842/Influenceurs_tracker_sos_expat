@@ -52,6 +52,9 @@ class ResultParserService
         $name = $this->extractField($block, ['NOM', 'Nom', 'nom', 'Name', 'NAME']);
         if (!$name) return null;
 
+        // Filter garbage names (Perplexity meta-text parsed as contact names)
+        if ($this->isGarbageName($name)) return null;
+
         $email = $this->extractField($block, ['EMAIL', 'Email', 'email', 'E-mail', 'e-mail']);
         $phone = $this->extractField($block, ['TEL', 'Tél', 'Tel', 'Téléphone', 'tel', 'téléphone', 'TELEPHONE', 'Phone', 'PHONE']);
         $url = $this->extractUrl($block);
@@ -163,14 +166,20 @@ class ResultParserService
 
     private function extractUrl(string $block): ?string
     {
+        $url = null;
         // Support both plain and Markdown bold: "URL:", "**URL**:", "**URL:**"
         if (preg_match('/\*{0,2}(?:URL|url|Site|site|SITE|Site web|LIEN|Lien)\*{0,2}\s*:?\s*:?\s*(https?:\/\/[^\s*]+)/mi', $block, $match)) {
-            return rtrim(trim($match[1]), '.,;)');
+            $url = rtrim(trim($match[1]), '.,;)');
+        } elseif (preg_match('/(https?:\/\/[^\s]+)/mi', $block, $match)) {
+            $url = rtrim(trim($match[1]), '.,;)');
         }
-        if (preg_match('/(https?:\/\/[^\s]+)/mi', $block, $match)) {
-            return rtrim(trim($match[1]), '.,;)');
-        }
-        return null;
+
+        if (!$url) return null;
+
+        // Remove Perplexity citation markers like [1], [5], [8] from URLs
+        $url = preg_replace('/\[\d+\]$/', '', $url);
+
+        return $url;
     }
 
     private function extractNote(string $block): ?string
@@ -185,7 +194,37 @@ class ResultParserService
         if (!$email) return null;
         $email = trim($email);
         if (preg_match('/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', $email, $match)) {
-            return strtolower($match[1]);
+            $cleaned = strtolower($match[1]);
+
+            // Reject technical/junk emails
+            $blacklistedDomains = [
+                'sentry.io', 'example.com', 'example.org', 'test.com',
+                'domain.com', 'email.com', 'monsite.fr', 'yoursite.com',
+                'wixpress.com', 'wix.com', 'squarespace.com',
+            ];
+            $blacklistedPrefixes = [
+                'noreply', 'no-reply', 'donotreply', 'mailer-daemon',
+                'postmaster', 'webmaster', 'admin@localhost',
+                'signalement', 'dpo@', 'abuse@', 'spam@',
+            ];
+
+            foreach ($blacklistedDomains as $domain) {
+                if (str_contains($cleaned, '@' . $domain) || str_ends_with($cleaned, '.' . $domain)) {
+                    return null;
+                }
+            }
+            foreach ($blacklistedPrefixes as $prefix) {
+                if (str_starts_with($cleaned, $prefix)) {
+                    return null;
+                }
+            }
+
+            // Reject placeholder emails
+            if ($cleaned === 'user@domain.com' || $cleaned === 'email@example.com') {
+                return null;
+            }
+
+            return $cleaned;
         }
         return null;
     }
@@ -203,7 +242,10 @@ class ResultParserService
         if (!$source) return null;
         $source = trim($source);
         if (preg_match('/(https?:\/\/[^\s]+)/', $source, $match)) {
-            return rtrim($match[1], '.,;)');
+            $url = rtrim($match[1], '.,;)');
+            // Remove Perplexity citation markers [1], [5], etc.
+            $url = preg_replace('/\[\d+\]$/', '', $url);
+            return $url;
         }
         return $source;
     }
@@ -223,6 +265,36 @@ class ResultParserService
             str_contains($p, 'podcast') => 'podcast',
             default => 'website',
         };
+    }
+
+    /**
+     * Detect garbage names from Perplexity meta-text parsed as contact names.
+     * E.g. "bre de contacts extraits: 1", "Nombre de contacts identifiés : 0"
+     */
+    private function isGarbageName(string $name): bool
+    {
+        $lower = mb_strtolower($name);
+        $garbagePatterns = [
+            'bre de contacts',
+            'nombre de contacts',
+            'contacts extraits',
+            'contacts exploitables',
+            'contacts identifiés',
+            'contacts trouvés',
+            'aucun contact',
+            'résumé',
+            'note :',
+            'remarque',
+            'total :',
+            'résultats',
+        ];
+        foreach ($garbagePatterns as $pattern) {
+            if (str_contains($lower, $pattern)) return true;
+        }
+        // Reject names shorter than 3 chars or that are just numbers
+        if (mb_strlen(trim($name)) < 3 || preg_match('/^\d+$/', trim($name))) return true;
+
+        return false;
     }
 
     private function parseFollowerCount(?string $text): ?int
