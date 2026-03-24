@@ -172,6 +172,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stats/coverage-matrix', [StatsController::class, 'coverageMatrix'])
         ->middleware('role:admin');
 
+    // Dashboard admin: vue globale + par type
+    Route::get('/stats/admin-dashboard', [StatsController::class, 'adminDashboard'])
+        ->middleware('role:admin');
+
     // ============================================================
     // SETTINGS — Scraper config etc. (admin only)
     // ============================================================

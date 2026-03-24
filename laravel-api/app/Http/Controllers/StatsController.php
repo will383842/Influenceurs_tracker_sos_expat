@@ -369,6 +369,86 @@ class StatsController extends Controller
     }
 
     /**
+     * Admin dashboard: global + per-type detailed stats.
+     */
+    public function adminDashboard()
+    {
+        $types = DB::table('contact_types')->orderBy('sort_order')->get(['value', 'label', 'icon', 'color', 'sort_order']);
+
+        $stats = Influenceur::query()
+            ->select(
+                'contact_type',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) as with_email'),
+                DB::raw('SUM(CASE WHEN phone IS NOT NULL THEN 1 ELSE 0 END) as with_phone'),
+                DB::raw("SUM(CASE WHEN scraped_social::text LIKE '%_contact_form_url%' THEN 1 ELSE 0 END) as with_form"),
+                DB::raw('SUM(CASE WHEN scraped_at IS NOT NULL THEN 1 ELSE 0 END) as scraped'),
+                DB::raw('COUNT(DISTINCT country) as countries')
+            )
+            ->groupBy('contact_type')
+            ->get()
+            ->keyBy('contact_type');
+
+        // Campaigns searched per type
+        $searched = DB::table('auto_campaign_tasks')
+            ->where('status', 'completed')
+            ->select('contact_type', DB::raw('COUNT(DISTINCT country) as countries_searched'))
+            ->groupBy('contact_type')
+            ->pluck('countries_searched', 'contact_type');
+
+        $perType = $types->map(function ($type) use ($stats, $searched) {
+            $s = $stats->get($type->value);
+            $total = $s->total ?? 0;
+            $withEmail = $s->with_email ?? 0;
+            $withForm = $s->with_form ?? 0;
+            $contactable = $withEmail + $withForm;
+            // Contacts without email AND without form
+            $unreachable = $total - $contactable;
+
+            return [
+                'value'              => $type->value,
+                'label'              => $type->label,
+                'icon'               => $type->icon,
+                'color'              => $type->color,
+                'sort_order'         => $type->sort_order,
+                'total'              => (int) $total,
+                'with_email'         => (int) $withEmail,
+                'with_phone'         => (int) ($s->with_phone ?? 0),
+                'with_form'          => (int) $withForm,
+                'contactable'        => (int) $contactable,
+                'unreachable'        => (int) max(0, $unreachable),
+                'scraped'            => (int) ($s->scraped ?? 0),
+                'countries'          => (int) ($s->countries ?? 0),
+                'countries_searched' => (int) ($searched[$type->value] ?? 0),
+                'email_pct'          => $total > 0 ? round($withEmail / $total * 100) : 0,
+                'contactable_pct'    => $total > 0 ? round($contactable / $total * 100) : 0,
+            ];
+        });
+
+        // Global totals
+        $globalTotal = $perType->sum('total');
+        $globalEmails = $perType->sum('with_email');
+        $globalPhones = $perType->sum('with_phone');
+        $globalForms = $perType->sum('with_form');
+        $globalContactable = $perType->sum('contactable');
+        $globalUnreachable = $perType->sum('unreachable');
+
+        return response()->json([
+            'global' => [
+                'total'           => $globalTotal,
+                'with_email'      => $globalEmails,
+                'with_phone'      => $globalPhones,
+                'with_form'       => $globalForms,
+                'contactable'     => $globalContactable,
+                'unreachable'     => $globalUnreachable,
+                'email_pct'       => $globalTotal > 0 ? round($globalEmails / $globalTotal * 100) : 0,
+                'contactable_pct' => $globalTotal > 0 ? round($globalContactable / $globalTotal * 100) : 0,
+            ],
+            'per_type' => $perType->values(),
+        ]);
+    }
+
+    /**
      * Coverage matrix: for each (contact_type, country, language) shows:
      * - searched: bool (has an auto_campaign_task been completed for this combo?)
      * - contacts: int (how many contacts exist)

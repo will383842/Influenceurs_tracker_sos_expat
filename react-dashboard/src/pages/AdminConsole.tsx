@@ -6,6 +6,18 @@ import ContactTypeBadge from '../components/ContactTypeBadge';
 import { CONTINENTS } from '../data/countries';
 import { getLanguageLabel } from '../lib/constants';
 
+interface TypeStat {
+  value: string; label: string; icon: string; color: string; sort_order: number;
+  total: number; with_email: number; with_phone: number; with_form: number;
+  contactable: number; unreachable: number; scraped: number;
+  countries: number; countries_searched: number;
+  email_pct: number; contactable_pct: number;
+}
+interface GlobalStat {
+  total: number; with_email: number; with_phone: number; with_form: number;
+  contactable: number; unreachable: number; email_pct: number; contactable_pct: number;
+}
+
 interface ObjectiveForm {
   contact_type: string;
   continent: string;
@@ -83,6 +95,16 @@ export default function AdminConsole() {
 
   // Summary stats
   const [totalValid, setTotalValid] = useState(0);
+  const [globalStat, setGlobalStat] = useState<GlobalStat | null>(null);
+  const [typeStats, setTypeStats] = useState<TypeStat[]>([]);
+
+  const fetchDashboard = async () => {
+    try {
+      const { data } = await api.get('/stats/admin-dashboard');
+      setGlobalStat(data.global);
+      setTypeStats(data.per_type);
+    } catch { /* ignore */ }
+  };
 
   const fetchResearchers = async () => {
     try {
@@ -98,7 +120,7 @@ export default function AdminConsole() {
     }
   };
 
-  useEffect(() => { fetchResearchers(); }, []);
+  useEffect(() => { fetchResearchers(); fetchDashboard(); }, []);
 
   const handleAddObjective = (researcherId: number) => {
     setEditingUserId(researcherId);
@@ -208,6 +230,115 @@ export default function AdminConsole() {
         <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-sm px-4 py-3 rounded-lg">
           {success}
         </div>
+      )}
+
+      {/* Section 0: Dashboard global */}
+      {globalStat && (
+        <>
+          {/* Global KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {[
+              { label: 'Total contacts', value: globalStat.total, color: 'text-white', icon: '👥' },
+              { label: 'Avec email', value: globalStat.with_email, color: 'text-cyan', icon: '✉️', sub: `${globalStat.email_pct}%` },
+              { label: 'Avec formulaire', value: globalStat.with_form, color: 'text-blue-400', icon: '📝' },
+              { label: 'Avec telephone', value: globalStat.with_phone, color: 'text-emerald-400', icon: '📞' },
+              { label: 'Contactables', value: globalStat.contactable, color: 'text-green-400', icon: '✓', sub: `${globalStat.contactable_pct}%` },
+              { label: 'Sans coordonnees', value: globalStat.unreachable, color: 'text-red-400', icon: '⚠', sub: globalStat.total > 0 ? `${Math.round(globalStat.unreachable / globalStat.total * 100)}%` : '0%' },
+            ].map((kpi, i) => (
+              <div key={i} className="bg-surface border border-border rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm">{kpi.icon}</span>
+                  <span className="text-[10px] text-muted uppercase tracking-wider">{kpi.label}</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-2xl font-bold font-title ${kpi.color}`}>{kpi.value.toLocaleString()}</span>
+                  {kpi.sub && <span className="text-xs text-muted">{kpi.sub}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Per-type table */}
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 className="font-title font-semibold text-white">Stats par type de contact</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['Type', 'Contacts', 'Emails', 'Formulaires', 'Telephones', 'Contactables', 'Sans coordonnees', 'Pays'].map(h => (
+                      <th key={h} className="text-left text-[10px] text-muted font-medium uppercase tracking-wider px-4 py-3 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {typeStats.filter(t => t.total > 0 || t.countries_searched > 0).map(t => {
+                    const contactablePct = t.total > 0 ? t.contactable_pct : 0;
+                    return (
+                      <tr key={t.value} className="border-b border-border/50 hover:bg-surface2 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="flex items-center gap-2">
+                            <span>{t.icon}</span>
+                            <span className="text-white font-medium text-xs">{t.label}</span>
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-white font-bold">{t.total}</td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-cyan">{t.with_email}</span>
+                          {t.total > 0 && <span className="text-[10px] text-muted ml-1">({t.email_pct}%)</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-blue-400">{t.with_form}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-emerald-400">{t.with_phone}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-surface2 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full ${contactablePct >= 80 ? 'bg-emerald-500' : contactablePct >= 50 ? 'bg-amber' : 'bg-red-500'}`}
+                                style={{ width: `${Math.max(contactablePct, 3)}%` }}
+                              />
+                            </div>
+                            <span className={`text-xs font-mono ${contactablePct >= 80 ? 'text-emerald-400' : contactablePct >= 50 ? 'text-amber' : 'text-red-400'}`}>
+                              {t.contactable} ({contactablePct}%)
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {t.unreachable > 0 ? (
+                            <span className="font-mono text-red-400">{t.unreachable}</span>
+                          ) : (
+                            <span className="text-muted/30">0</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted">
+                          {t.countries > 0 && <span className="text-white">{t.countries}</span>}
+                          {t.countries_searched > 0 && <span className="text-muted"> / {t.countries_searched} rech.</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Types with 0 contacts and 0 searched — collapsed */}
+                  {typeStats.filter(t => t.total === 0 && t.countries_searched === 0).length > 0 && (
+                    <tr className="border-b border-border/50">
+                      <td colSpan={8} className="px-4 py-2 text-xs text-muted">
+                        {typeStats.filter(t => t.total === 0 && t.countries_searched === 0).map(t => (
+                          <span key={t.value} className="inline-flex items-center gap-1 mr-3">
+                            {t.icon} {t.label}
+                          </span>
+                        ))}
+                        <span className="text-muted/50 ml-2">— pas encore commences</span>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Section 1: Chercheurs & Objectifs */}
