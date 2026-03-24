@@ -9,7 +9,7 @@ import { countriesData } from '../data/countries-full';
 interface Campaign {
   id: number;
   name: string;
-  status: 'pending' | 'running' | 'paused' | 'completed' | 'cancelled';
+  status: 'pending' | 'queued' | 'running' | 'paused' | 'completed' | 'cancelled';
   contact_types: string[];
   countries: string[];
   languages: string[];
@@ -68,12 +68,23 @@ interface Config {
 // ============================================================
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-white/10 text-muted',
+  queued: 'bg-violet/20 text-violet-light',
   running: 'bg-blue-500/20 text-blue-400',
   paused: 'bg-amber/20 text-amber',
   completed: 'bg-green-500/20 text-green-400',
   cancelled: 'bg-red-500/20 text-red-400',
   failed: 'bg-red-500/20 text-red-400',
   skipped: 'bg-white/10 text-muted',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'En attente',
+  queued: 'En file d\'attente',
+  running: 'En cours',
+  paused: 'En pause',
+  completed: 'Terminée',
+  cancelled: 'Annulée',
+  failed: 'Échouée',
 };
 
 const REGION_LABELS: Record<string, string> = {
@@ -535,7 +546,9 @@ export default function AutoCampaignPage() {
                 disabled={creating || !formName.trim() || formTypes.length === 0 || formCountries.length === 0}
                 className="px-6 py-2.5 bg-violet hover:bg-violet/80 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {creating ? 'Lancement...' : `Lancer la campagne (${taskCombos} tâches)`}
+                {creating ? 'Lancement...' : campaigns.some(c => c.status === 'running')
+                  ? `Programmer (${taskCombos} tâches — file d'attente)`
+                  : `Lancer la campagne (${taskCombos} tâches)`}
               </button>
               <button
                 onClick={() => setShowForm(false)}
@@ -564,8 +577,8 @@ export default function AutoCampaignPage() {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 <h3 className="font-medium text-white">{c.name}</h3>
-                <span className={`px-2 py-0.5 text-xs rounded-full font-mono ${STATUS_COLORS[c.status]}`}>
-                  {c.status}
+                <span className={`px-2 py-0.5 text-xs rounded-full font-mono ${STATUS_COLORS[c.status] || 'bg-white/10 text-muted'}`}>
+                  {STATUS_LABELS[c.status] || c.status}
                 </span>
                 {c.status === 'running' && (
                   <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
@@ -590,7 +603,7 @@ export default function AutoCampaignPage() {
                     Reprendre
                   </button>
                 )}
-                {['running', 'paused'].includes(c.status) && (
+                {['running', 'paused', 'queued'].includes(c.status) && (
                   <button
                     onClick={e => { e.stopPropagation(); handleAction(c.id, 'cancel'); }}
                     disabled={actionLoading === `${c.id}-cancel`}
@@ -622,7 +635,8 @@ export default function AutoCampaignPage() {
                   className={`h-2 rounded-full transition-all ${
                     c.status === 'running' ? 'bg-blue-500' :
                     c.status === 'completed' ? 'bg-green-500' :
-                    c.status === 'paused' ? 'bg-amber' : 'bg-white/20'
+                    c.status === 'paused' ? 'bg-amber' :
+                    c.status === 'queued' ? 'bg-violet/50' : 'bg-white/20'
                   }`}
                   style={{ width: `${c.tasks_total > 0 ? Math.round(((c.tasks_completed + c.tasks_failed + c.tasks_skipped) / c.tasks_total) * 100) : 0}%` }}
                 />

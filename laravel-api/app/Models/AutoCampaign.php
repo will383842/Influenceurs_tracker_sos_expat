@@ -55,7 +55,12 @@ class AutoCampaign extends Model
 
     public function scopeActive($query)
     {
-        return $query->whereIn('status', ['pending', 'running']);
+        return $query->whereIn('status', ['pending', 'running', 'queued']);
+    }
+
+    public function scopeQueued($query)
+    {
+        return $query->where('status', 'queued');
     }
 
     // ============================================================
@@ -125,6 +130,36 @@ class AutoCampaign extends Model
             $this->update([
                 'status'       => 'completed',
                 'completed_at' => now(),
+            ]);
+
+            // Auto-start next queued campaign
+            static::startNextQueued();
+        }
+    }
+
+    /**
+     * Start the next queued campaign (FIFO order).
+     */
+    public static function startNextQueued(): void
+    {
+        // Only start if no campaign is currently running
+        if (static::running()->exists()) {
+            return;
+        }
+
+        $next = static::where('status', 'queued')
+            ->orderBy('id')
+            ->first();
+
+        if ($next) {
+            $next->update([
+                'status'     => 'running',
+                'started_at' => now(),
+            ]);
+
+            \Illuminate\Support\Facades\Log::info('AutoCampaign: auto-started queued campaign', [
+                'campaign_id' => $next->id,
+                'name'        => $next->name,
             ]);
         }
     }

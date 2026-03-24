@@ -91,17 +91,14 @@ class AutoCampaignController extends Controller
             'max_consecutive_failures'      => 'sometimes|integer|min:3|max:20',
         ]);
 
-        // Prevent launching if another campaign is already running
-        if (AutoCampaign::running()->exists()) {
-            return response()->json([
-                'message' => 'Une campagne est déjà en cours. Mettez-la en pause ou attendez qu\'elle se termine.',
-            ], 422);
-        }
+        // If another campaign is running, queue this one instead of blocking
+        $hasRunning = AutoCampaign::running()->exists();
+        $initialStatus = $hasRunning ? 'queued' : 'running';
 
         // Create campaign
         $campaign = AutoCampaign::create([
             'name'                          => $data['name'],
-            'status'                        => 'running',
+            'status'                        => $initialStatus,
             'contact_types'                 => $data['contact_types'],
             'countries'                     => $data['countries'],
             'languages'                     => $data['languages'],
@@ -109,7 +106,7 @@ class AutoCampaignController extends Controller
             'delay_between_retries_seconds' => $data['delay_between_retries_seconds'] ?? 600,
             'max_retries'                   => $data['max_retries'] ?? 3,
             'max_consecutive_failures'      => $data['max_consecutive_failures'] ?? 5,
-            'started_at'                    => now(),
+            'started_at'                    => $hasRunning ? null : now(),
             'created_by'                    => $request->user()->id,
         ]);
 
@@ -270,6 +267,9 @@ class AutoCampaignController extends Controller
             'tasks_skipped' => $skippedCount,
             'completed_at'  => now(),
         ]);
+
+        // Auto-start next queued campaign
+        AutoCampaign::startNextQueued();
 
         return response()->json(['message' => 'Campagne annulée.', 'campaign' => $campaign]);
     }
