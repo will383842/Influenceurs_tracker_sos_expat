@@ -28,7 +28,7 @@ export function useAiResearch() {
     }
   }, []);
 
-  const launch = useCallback(async (contactType: ContactType, country: string, language = 'fr', customPrompt?: string) => {
+  const launch = useCallback(async (contactType: ContactType, country: string, language = 'fr', customPrompt?: string, useClaude = false) => {
     setLaunching(true);
     setError(null);
     try {
@@ -37,6 +37,7 @@ export function useAiResearch() {
         country,
         language,
         custom_prompt: customPrompt || undefined,
+        use_claude: useClaude,
       });
       setSession(data);
 

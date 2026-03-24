@@ -19,31 +19,26 @@ use Illuminate\Support\Facades\Log;
 /**
  * AI Research Pipeline:
  *
- * STEP 1: Perplexity (the EYES) — searches the REAL web
- *   → 2 parallel searches: discovery + deep dive
- *   → Returns real URLs, real emails from actual web pages
- *   → With citations (source URLs)
+ * DEFAULT MODE (fast & cheap):
+ *   Perplexity (structured output) → PHP Parser → Deduplicate → Import
  *
- * STEP 2: Claude (the BRAIN) — analyzes and structures
- *   → Receives raw Perplexity results
- *   → Cleans, structures into NOM/EMAIL/TEL/URL format
- *   → Scores reliability 1-5 for each contact
- *   → Filters irrelevant results
+ * QUALITY MODE (use_claude = true):
+ *   Perplexity → Claude (clean + score) → PHP Parser → Deduplicate → Import
  *
- * STEP 3: Parser — deduplicates against existing database
- *
- * FALLBACK: If Perplexity not configured → Claude alone (with low reliability warning)
+ * FALLBACK (no Perplexity key):
+ *   Claude alone (low reliability)
  */
 class RunAiResearchJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 180; // 3 min (Perplexity + Claude)
+    public int $timeout = 180; // 3 min
     public int $tries = 2;
 
     public function __construct(
         private int $sessionId,
         private ?string $customPrompt = null,
+        private bool $useClaude = false,
     ) {}
 
     public function handle(
@@ -84,19 +79,22 @@ class RunAiResearchJob implements ShouldQueue
             }
 
             $totalTokens = 0;
+            $perplexityTokens = 0;
+            $claudeTokens = 0;
             $rawTexts = [];
 
             // ============================================================
             // STEP 1: Perplexity — Real web search
             // ============================================================
             if ($perplexityService->isConfigured()) {
-                Log::info('AI Research: Using Perplexity + Claude pipeline', ['session' => $session->id]);
+                Log::info('AI Research: Using Perplexity' . ($this->useClaude ? ' + Claude' : ' direct'), ['session' => $session->id]);
 
                 // Two Perplexity searches in parallel
                 $deepPrompt = $prompt . "\n\nCette deuxième recherche doit trouver des résultats COMPLÉMENTAIRES que la première aurait manqués. Cherche dans des sources différentes : annuaires d'expatriés, forums, groupes Facebook, blogs d'expats, pages jaunes locales, Google Maps. Visite les pages Contact de chaque site trouvé pour extraire emails et téléphones.";
 
                 $perplexityResults = $perplexityService->searchParallel($prompt, $deepPrompt, $session->language);
-                $totalTokens += $perplexityResults['tokens'];
+                $perplexityTokens = $perplexityResults['tokens'];
+                $totalTokens += $perplexityTokens;
 
                 // Store raw Perplexity responses
                 $session->update([
@@ -110,10 +108,10 @@ class RunAiResearchJob implements ShouldQueue
                     ($perplexityResults['responses']['deep'] ?? '')
                 );
 
-                // ============================================================
-                // STEP 2: Claude — Analyze and structure Perplexity results
-                // ============================================================
-                if (!empty($combinedPerplexity)) {
+                if ($this->useClaude && !empty($combinedPerplexity)) {
+                    // ============================================================
+                    // QUALITY MODE: Claude analyzes and structures Perplexity results
+                    // ============================================================
                     $claudeResult = $claudeService->analyzeAndStructure(
                         $combinedPerplexity,
                         $contactType,
@@ -123,11 +121,23 @@ class RunAiResearchJob implements ShouldQueue
 
                     if ($claudeResult['success']) {
                         $rawTexts[] = $claudeResult['text'];
-                        $totalTokens += $claudeResult['tokens'];
+                        $claudeTokens = $claudeResult['tokens'];
+                        $totalTokens += $claudeTokens;
                     }
 
                     $session->update([
                         'claude_response' => $claudeResult['text'] ?? '',
+                    ]);
+                } else {
+                    // ============================================================
+                    // DEFAULT MODE: Parse Perplexity output directly
+                    // ============================================================
+                    if (!empty($combinedPerplexity)) {
+                        $rawTexts[] = $combinedPerplexity;
+                    }
+
+                    $session->update([
+                        'claude_response' => '[DIRECT MODE] Perplexity parsed directly, Claude not used.',
                     ]);
                 }
             } else {
@@ -139,7 +149,8 @@ class RunAiResearchJob implements ShouldQueue
                 $claudeResult = $claudeService->searchAlone($prompt);
                 if ($claudeResult['success']) {
                     $rawTexts[] = $claudeResult['text'];
-                    $totalTokens += $claudeResult['tokens'];
+                    $claudeTokens = $claudeResult['tokens'];
+                    $totalTokens += $claudeTokens;
                 }
 
                 $session->update([
@@ -149,7 +160,7 @@ class RunAiResearchJob implements ShouldQueue
             }
 
             // ============================================================
-            // STEP 3: Parse + Deduplicate
+            // STEP 2: Parse + Deduplicate
             // ============================================================
             $parsedContacts = $parserService->parseAndMerge($rawTexts, $contactType, $session->country);
             $deduped = $parserService->checkDuplicates($parsedContacts);
@@ -162,8 +173,7 @@ class RunAiResearchJob implements ShouldQueue
             }
 
             // ============================================================
-            // STEP 4: AUTO-IMPORT all new contacts into influenceurs table
-            // Checks: name+country duplicate, email duplicate, URL duplicate
+            // STEP 3: AUTO-IMPORT all new contacts into influenceurs table
             // ============================================================
             $imported = 0;
             $skippedDuplicates = 0;
@@ -198,7 +208,6 @@ class RunAiResearchJob implements ShouldQueue
                     }
 
                     // For non-social contact types, the URL is a website, not a social profile
-                    // Store it in BOTH profile_url (for duplicate detection) and website_url (for scraper)
                     $websiteUrl = null;
                     $nonSocialTypes = Influenceur::NON_SOCIAL_TYPES;
                     $effectiveType = $contact['contact_type'] ?? $contactType;
@@ -245,12 +254,12 @@ class RunAiResearchJob implements ShouldQueue
                 'contacts_imported'   => $imported,
                 'contacts_duplicates' => count($deduped['duplicates']),
                 'tokens_used'         => $totalTokens,
-                'cost_cents'          => $this->estimateCost($totalTokens, $perplexityService->isConfigured()),
+                'cost_cents'          => $this->estimateCost($perplexityTokens, $claudeTokens, $perplexityService->isConfigured()),
             ]);
 
             Log::info('AI Research completed + auto-imported', [
                 'session_id'   => $session->id,
-                'pipeline'     => $perplexityService->isConfigured() ? 'perplexity+claude' : 'claude-only',
+                'pipeline'     => $this->useClaude ? 'perplexity+claude' : ($perplexityService->isConfigured() ? 'perplexity-direct' : 'claude-only'),
                 'found'        => count($parsedContacts),
                 'new'          => count($deduped['new']),
                 'imported'     => $imported,
@@ -270,13 +279,21 @@ class RunAiResearchJob implements ShouldQueue
 
     /**
      * Estimate API cost in cents.
-     * Perplexity sonar: ~$1/1000 requests ($0.001 each)
-     * Claude Sonnet: ~$3/M input + $15/M output
+     *
+     * Perplexity sonar: ~$1/M input + $1/M output + $5/1000 searches
+     *   → ~$0.005 per search + tokens ≈ $0.012 for 2 parallel searches
+     * Claude Sonnet: ~$3/M input + $15/M output → blended ~$9/M
      */
-    private function estimateCost(int $tokens, bool $usedPerplexity): int
+    private function estimateCost(int $perplexityTokens, int $claudeTokens, bool $usedPerplexity): int
     {
-        $claudeCost = (int) round($tokens * 0.009); // ~$9/M tokens
-        $perplexityCost = $usedPerplexity ? 2 : 0;   // ~$0.02 for 2 requests
-        return $claudeCost + $perplexityCost;
+        // Perplexity: ~$1/M tokens = 0.1 cents/1K tokens + $0.005 per search
+        $perplexityCost = $usedPerplexity
+            ? (int) round($perplexityTokens * 0.0001) + 1  // tokens + ~$0.01 for 2 searches
+            : 0;
+
+        // Claude: ~$9/M tokens = 0.9 cents/1K tokens
+        $claudeCost = (int) round($claudeTokens * 0.0009);
+
+        return $perplexityCost + $claudeCost;
     }
 }

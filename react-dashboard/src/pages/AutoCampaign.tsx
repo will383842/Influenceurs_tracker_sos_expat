@@ -375,7 +375,7 @@ export default function AutoCampaignPage() {
 
   const taskCombos = formTypes.length * formCountries.length * formLanguages.length;
   const estimatedDuration = Math.ceil((taskCombos * formDelay) / 3600);
-  const estimatedCost = (taskCombos * 0.035).toFixed(2); // ~$0.035 per task (Perplexity + Claude)
+  const estimatedCost = (taskCombos * 0.012).toFixed(2); // ~$0.012 per task (Perplexity direct, no Claude)
 
   if (loading) {
     return (

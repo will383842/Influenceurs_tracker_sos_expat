@@ -61,6 +61,7 @@ class AiResearchController extends Controller
             'country'       => 'required|string|max:100',
             'language'      => 'sometimes|string|max:10',
             'custom_prompt' => 'nullable|string|max:5000',
+            'use_claude'    => 'sometimes|boolean',
         ]);
 
         $session = AiResearchSession::create([
@@ -71,7 +72,7 @@ class AiResearchController extends Controller
             'status'       => 'pending',
         ]);
 
-        RunAiResearchJob::dispatch($session->id, $data['custom_prompt'] ?? null);
+        RunAiResearchJob::dispatch($session->id, $data['custom_prompt'] ?? null, $data['use_claude'] ?? false);
 
         ActivityLog::create([
             'user_id'      => $request->user()->id,

@@ -17,6 +17,7 @@ export default function AiResearch() {
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
   const [excludedCount, setExcludedCount] = useState(0);
+  const [useClaude, setUseClaude] = useState(false);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
@@ -42,7 +43,7 @@ export default function AiResearch() {
     setSelected(new Set());
     setError(null);
     // Send the (potentially modified) prompt
-    await launch(contactType, country, language, promptVisible ? promptText : undefined);
+    await launch(contactType, country, language, promptVisible ? promptText : undefined, useClaude);
     setPromptVisible(false);
   };
 
@@ -83,7 +84,7 @@ export default function AiResearch() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-title text-2xl font-bold text-white">🤖 Recherche IA</h2>
-          <p className="text-muted text-sm mt-1">Trouvez de nouveaux contacts avec 3 recherches Claude parallèles</p>
+          <p className="text-muted text-sm mt-1">Trouvez de nouveaux contacts via Perplexity (recherche web)</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setTab('search')} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === 'search' ? 'bg-violet/20 text-violet-light' : 'text-muted hover:text-white'}`}>
@@ -133,8 +134,13 @@ export default function AiResearch() {
                 </select>
               </div>
 
-              {/* Buttons */}
-              <div className="flex items-end gap-2">
+              {/* Mode + Buttons */}
+              <div className="flex flex-col items-end gap-2">
+                <label className="flex items-center gap-2 cursor-pointer" title="Utilise Claude pour nettoyer les résultats (~3x plus cher mais meilleure structuration)">
+                  <input type="checkbox" checked={useClaude} onChange={e => setUseClaude(e.target.checked)}
+                    className="rounded border-gray-600 bg-bg text-violet focus:ring-violet" />
+                  <span className="text-xs text-muted">Mode qualité (Claude)</span>
+                </label>
                 {!promptVisible ? (
                   <button onClick={handlePreviewPrompt} disabled={promptLoading || launching || isRunning}
                     className="w-full bg-surface2 hover:bg-surface border border-border hover:border-violet/30 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
@@ -208,17 +214,17 @@ export default function AiResearch() {
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 border-2 border-violet border-t-transparent rounded-full animate-spin" />
                   <div>
-                    <p className="text-sm font-medium text-white">3 recherches IA en parallèle...</p>
+                    <p className="text-sm font-medium text-white">Recherche web en cours...</p>
                     <p className="text-xs text-muted mt-0.5">
-                      {ct.icon} {ct.label} en {country} • Analyse et déduplication automatique
+                      {ct.icon} {ct.label} en {country} • {useClaude ? 'Perplexity + Claude' : 'Perplexity direct'}
                     </p>
                   </div>
                 </div>
                 <div className="mt-3 flex gap-4 text-xs text-muted">
                   <span>✅ Prompt généré</span>
-                  <span className="text-violet-light">⏳ Perplexity — recherche web réelle...</span>
-                  <span className="text-muted">⏳ Claude — analyse et structuration...</span>
-                  <span className="text-muted">⏳ Déduplication...</span>
+                  <span className="text-violet-light">⏳ Perplexity — 2 recherches web parallèles...</span>
+                  {useClaude && <span className="text-muted">⏳ Claude — nettoyage et structuration...</span>}
+                  <span className="text-muted">⏳ Parsing + déduplication...</span>
                 </div>
               </div>
             )}

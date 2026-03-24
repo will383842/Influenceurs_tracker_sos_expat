@@ -34,11 +34,21 @@ class PerplexitySearchService
             return ['success' => false, 'text' => '', 'citations' => [], 'error' => 'API key not configured'];
         }
 
-        // System prompt: ENCOURAGE results, don't block them
-        $systemPrompt = "Tu es un assistant de recherche web. Ton rôle est de trouver un MAXIMUM de contacts pertinents. "
-            . "Pour chaque contact trouvé, donne : NOM, EMAIL (si trouvé sur le web, sinon écris 'non trouvé'), TEL (si trouvé, sinon 'non trouvé'), URL (lien vers le site/profil), SOURCE (page web source). "
-            . "IMPORTANT : donne TOUS les résultats que tu trouves, même si l'email ou le téléphone manque. Un contact avec juste un nom et une URL est utile. "
-            . "Ne filtre PAS les résultats — c'est l'utilisateur qui décidera lesquels sont pertinents.";
+        // System prompt: structured output for direct PHP parsing
+        $systemPrompt = "Tu es un assistant de recherche web. Ton rôle est de trouver un MAXIMUM de contacts pertinents.\n\n"
+            . "Pour CHAQUE contact trouvé, utilise EXACTEMENT ce format (un bloc par contact, séparé par une ligne vide) :\n\n"
+            . "NOM: [nom exact]\n"
+            . "EMAIL: [email exact OU \"NON TROUVÉ\"]\n"
+            . "TEL: [téléphone exact OU \"NON TROUVÉ\"]\n"
+            . "URL: [URL exacte du site/profil]\n"
+            . "PLATEFORME: [youtube/instagram/tiktok/linkedin/website/blog/facebook/x]\n"
+            . "ABONNES: [nombre si mentionné OU \"INCONNU\"]\n"
+            . "SOURCE: [URL de la page web où tu as trouvé ce contact]\n\n"
+            . "RÈGLES :\n"
+            . "- Donne TOUS les résultats, même si l'email ou le téléphone manque\n"
+            . "- Ne filtre PAS les résultats — l'utilisateur décidera\n"
+            . "- Si l'email n'est pas sur la page, écris \"NON TROUVÉ\" (n'invente jamais)\n"
+            . "- Respecte STRICTEMENT le format ci-dessus, sans texte superflu entre les blocs";
 
         try {
             $response = Http::withHeaders([
@@ -94,9 +104,16 @@ class PerplexitySearchService
             return ['responses' => ['discovery' => '', 'deep' => ''], 'citations' => [], 'tokens' => 0];
         }
 
-        $system = "Tu es un assistant de recherche web. Trouve un MAXIMUM de contacts. "
-            . "Pour chaque : NOM, EMAIL (ou 'non trouvé'), TEL (ou 'non trouvé'), URL, SOURCE. "
-            . "Donne TOUS les résultats, même partiels. Ne filtre rien.";
+        $system = "Tu es un assistant de recherche web. Trouve un MAXIMUM de contacts.\n\n"
+            . "Pour CHAQUE contact, utilise EXACTEMENT ce format (un bloc par contact, séparé par une ligne vide) :\n\n"
+            . "NOM: [nom exact]\n"
+            . "EMAIL: [email exact OU \"NON TROUVÉ\"]\n"
+            . "TEL: [téléphone exact OU \"NON TROUVÉ\"]\n"
+            . "URL: [URL exacte du site/profil]\n"
+            . "PLATEFORME: [youtube/instagram/tiktok/linkedin/website/blog/facebook/x]\n"
+            . "ABONNES: [nombre si mentionné OU \"INCONNU\"]\n"
+            . "SOURCE: [URL source]\n\n"
+            . "Donne TOUS les résultats, même partiels. Ne filtre rien. Respecte STRICTEMENT le format.";
 
         try {
             $responses = Http::pool(fn ($pool) => [

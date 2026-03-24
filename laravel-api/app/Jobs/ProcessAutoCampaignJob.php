@@ -24,21 +24,15 @@ use Illuminate\Support\Facades\Log;
 /**
  * Orchestrator job: runs every minute via scheduler.
  *
- * Picks one task from the active campaign, executes AI research,
- * records results, and manages retries + circuit breaker.
- *
- * Rate limiting strategy:
- * - 1 AI research per N seconds (configurable, default 5 min)
- * - Exponential backoff on retries (10min, 20min, 40min)
- * - Circuit breaker: auto-pause after N consecutive failures
- * - DuckDuckGo: only used during scraping phase (separate queue)
+ * DEFAULT: Perplexity direct (no Claude) — fast & cheap.
+ * Auto-campaigns never use Claude (cost optimization).
  */
 class ProcessAutoCampaignJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 240; // 4 min (Perplexity + Claude + parsing)
-    public int $tries = 1;     // Don't retry the orchestrator itself
+    public int $timeout = 240; // 4 min
+    public int $tries = 1;
 
     public function handle(
         AiPromptService $promptService,
@@ -49,7 +43,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
         // Find the active running campaign
         $campaign = AutoCampaign::running()->first();
         if (!$campaign) {
-            return; // Nothing to do
+            return;
         }
 
         // Check rate limit
@@ -70,10 +64,8 @@ class ProcessAutoCampaignJob implements ShouldQueue
             ->first();
 
         if (!$task) {
-            // No more tasks to process — check if campaign is done
             $campaign->checkCompletion();
 
-            // Log completion
             if ($campaign->status === 'completed') {
                 $this->logCampaignComplete($campaign);
             }
@@ -113,7 +105,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
                 $result['cost_cents']
             );
 
-            // Alert if nothing found (task is now completed, won't be retried)
+            // Alert if nothing found
             if ($result['contacts_found'] === 0) {
                 $this->logAlert($campaign, $task, 'no_results',
                     "Aucun contact trouvé pour {$task->contact_type} / {$task->country} (tentative {$task->attempt})"
@@ -136,14 +128,12 @@ class ProcessAutoCampaignJob implements ShouldQueue
                 'error'   => mb_substr($e->getMessage(), 0, 500),
             ]);
 
-            // Alert if circuit breaker triggered
             if ($campaign->status === 'paused') {
                 $this->logAlert($campaign, $task, 'circuit_breaker',
                     "Campagne en pause automatique après {$campaign->consecutive_failures} échecs consécutifs. Dernière erreur: " . mb_substr($e->getMessage(), 0, 200)
                 );
             }
 
-            // Alert if max retries exhausted
             if (!$task->canRetry($campaign->max_retries)) {
                 $this->logAlert($campaign, $task, 'max_retries',
                     "Échec définitif pour {$task->contact_type} / {$task->country} après {$task->attempt} tentatives: " . mb_substr($e->getMessage(), 0, 200)
@@ -151,7 +141,6 @@ class ProcessAutoCampaignJob implements ShouldQueue
             }
         }
 
-        // Check if all tasks are done
         $campaign->checkCompletion();
         if ($campaign->status === 'completed') {
             $this->logCampaignComplete($campaign);
@@ -160,7 +149,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
 
     /**
      * Execute the full AI research pipeline for one task.
-     * Mirrors RunAiResearchJob logic but synchronously (within this job).
+     * DEFAULT: Perplexity direct → PHP parser (no Claude).
      */
     private function executeResearch(
         AutoCampaignTask $task,
@@ -170,12 +159,10 @@ class ProcessAutoCampaignJob implements ShouldQueue
         ClaudeSearchService $claudeService,
         ResultParserService $parserService,
     ): array {
-        $contactType = $task->contact_type; // Always a string from auto_campaign_tasks
+        $contactType = $task->contact_type;
         $country = $task->country;
         $language = $task->language;
 
-        // Create an AI research session for tracking
-        // Use enum for AiResearchSession which casts contact_type to ContactType enum
         $session = AiResearchSession::create([
             'user_id'      => $campaign->created_by,
             'contact_type' => \App\Enums\ContactType::tryFrom($contactType)?->value ?? $contactType,
@@ -198,43 +185,37 @@ class ProcessAutoCampaignJob implements ShouldQueue
         $prompt = $promptService->buildPrompt($contactType, $country, $language, $existingDomains);
 
         $totalTokens = 0;
+        $perplexityTokens = 0;
         $rawTexts = [];
 
         // ============================================================
-        // STEP 1: Perplexity — Real web search
+        // Perplexity — Real web search (direct mode, no Claude)
         // ============================================================
         if ($perplexityService->isConfigured()) {
             $deepPrompt = $prompt . "\n\nCette deuxième recherche doit trouver des résultats COMPLÉMENTAIRES que la première aurait manqués. Cherche dans des sources différentes : annuaires d'expatriés, forums, groupes Facebook, blogs d'expats, pages jaunes locales, Google Maps. Visite les pages Contact de chaque site trouvé pour extraire emails et téléphones.";
 
             $perplexityResults = $perplexityService->searchParallel($prompt, $deepPrompt, $language);
-            $totalTokens += $perplexityResults['tokens'];
+            $perplexityTokens = $perplexityResults['tokens'];
+            $totalTokens += $perplexityTokens;
 
             $session->update([
                 'perplexity_response' => $perplexityResults['responses']['discovery'] ?? '',
                 'tavily_response'     => $perplexityResults['responses']['deep'] ?? '',
             ]);
 
+            // Parse Perplexity output directly (no Claude)
             $combinedPerplexity = trim(
                 ($perplexityResults['responses']['discovery'] ?? '') . "\n\n---\n\n" .
                 ($perplexityResults['responses']['deep'] ?? '')
             );
 
-            // ============================================================
-            // STEP 2: Claude — Analyze and structure
-            // ============================================================
             if (!empty($combinedPerplexity)) {
-                $claudeResult = $claudeService->analyzeAndStructure(
-                    $combinedPerplexity, $contactType, $country,
-                    $perplexityResults['citations'] ?? []
-                );
-
-                if ($claudeResult['success']) {
-                    $rawTexts[] = $claudeResult['text'];
-                    $totalTokens += $claudeResult['tokens'];
-                }
-
-                $session->update(['claude_response' => $claudeResult['text'] ?? '']);
+                $rawTexts[] = $combinedPerplexity;
             }
+
+            $session->update([
+                'claude_response' => '[AUTO-CAMPAIGN] Direct Perplexity parsing, Claude not used.',
+            ]);
         } else {
             // Fallback: Claude alone
             $claudeResult = $claudeService->searchAlone($prompt);
@@ -250,7 +231,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
         }
 
         // ============================================================
-        // STEP 3: Parse + Deduplicate
+        // Parse + Deduplicate
         // ============================================================
         $parsedContacts = $parserService->parseAndMerge($rawTexts, $contactType, $country);
         $deduped = $parserService->checkDuplicates($parsedContacts);
@@ -263,11 +244,10 @@ class ProcessAutoCampaignJob implements ShouldQueue
         }
 
         // ============================================================
-        // STEP 4: Auto-import
+        // Auto-import
         // ============================================================
         $imported = 0;
         $nonSocialTypes = Influenceur::NON_SOCIAL_TYPES;
-
         $directoriesFound = 0;
 
         foreach ($deduped['new'] as $contact) {
@@ -300,7 +280,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
                             'dir_id' => $dir->id,
                         ]);
                     }
-                    continue; // Don't import as contact
+                    continue;
                 }
 
                 // Duplicate checks
@@ -342,7 +322,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
                     'created_by'         => $campaign->created_by,
                 ]);
 
-                // Auto-dispatch scraping to fill emails, phones, addresses, etc.
+                // Auto-dispatch scraping
                 if (!empty($websiteUrl) || !empty($contact['profile_url'])) {
                     ScrapeContactJob::dispatch($influenceur->id);
                 }
@@ -354,7 +334,7 @@ class ProcessAutoCampaignJob implements ShouldQueue
         }
 
         // Finalize session
-        $costCents = $this->estimateCost($totalTokens, $perplexityService->isConfigured());
+        $costCents = $this->estimateCost($perplexityTokens, $perplexityService->isConfigured());
         $session->update([
             'status'              => 'completed',
             'completed_at'        => now(),
@@ -374,9 +354,6 @@ class ProcessAutoCampaignJob implements ShouldQueue
         ];
     }
 
-    /**
-     * Log an alert to the activity log.
-     */
     private function logAlert(AutoCampaign $campaign, AutoCampaignTask $task, string $type, string $message): void
     {
         ActivityLog::create([
@@ -395,9 +372,6 @@ class ProcessAutoCampaignJob implements ShouldQueue
         ]);
     }
 
-    /**
-     * Log campaign completion.
-     */
     private function logCampaignComplete(AutoCampaign $campaign): void
     {
         ActivityLog::create([
@@ -426,10 +400,15 @@ class ProcessAutoCampaignJob implements ShouldQueue
         ]);
     }
 
-    private function estimateCost(int $tokens, bool $usedPerplexity): int
+    /**
+     * Estimate API cost in cents (Perplexity only, no Claude).
+     * Perplexity sonar: ~$1/M tokens + $5/1000 searches
+     */
+    private function estimateCost(int $perplexityTokens, bool $usedPerplexity): int
     {
-        $claudeCost = (int) round($tokens * 0.009);
-        $perplexityCost = $usedPerplexity ? 2 : 0;
-        return $claudeCost + $perplexityCost;
+        if (!$usedPerplexity) return 0;
+
+        // ~$1/M tokens = 0.1 cents/1K tokens + ~$0.01 for 2 parallel searches
+        return (int) round($perplexityTokens * 0.0001) + 1;
     }
 }
