@@ -359,6 +359,20 @@ export default function AutoCampaignPage() {
     }
   };
 
+  const handleDelete = async (campaignId: number, name: string) => {
+    if (!confirm(`Supprimer la campagne "${name}" et toutes ses tâches ?`)) return;
+    setActionLoading(`${campaignId}-delete`);
+    try {
+      await api.delete(`/auto-campaigns/${campaignId}`);
+      if (selectedCampaign?.campaign?.id === campaignId) setSelectedCampaign(null);
+      loadData();
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || 'Erreur lors de la suppression');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleSelectCampaign = async (id: number) => {
     try {
       const res = await api.get(`/auto-campaigns/${id}`);
@@ -619,6 +633,16 @@ export default function AutoCampaignPage() {
                     className="px-2.5 py-1 text-xs bg-violet/20 text-violet-light rounded hover:bg-violet/30 transition-colors"
                   >
                     Relancer {c.tasks_failed} échecs
+                  </button>
+                )}
+                {!['running'].includes(c.status) && (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDelete(c.id, c.name); }}
+                    disabled={actionLoading === `${c.id}-delete`}
+                    className="px-2.5 py-1 text-xs text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                    title="Supprimer cette campagne"
+                  >
+                    Supprimer
                   </button>
                 )}
               </div>

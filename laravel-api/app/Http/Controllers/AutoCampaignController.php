@@ -302,4 +302,23 @@ class AutoCampaignController extends Controller
             'retried_count' => $failedCount,
         ]);
     }
+
+    /**
+     * Delete a campaign and all its tasks.
+     * Only allowed for completed, cancelled, or queued campaigns.
+     */
+    public function destroy(AutoCampaign $campaign)
+    {
+        if ($campaign->status === 'running') {
+            return response()->json([
+                'message' => 'Impossible de supprimer une campagne en cours. Annulez-la d\'abord.',
+            ], 422);
+        }
+
+        $name = $campaign->name;
+        $campaign->tasks()->delete();
+        $campaign->delete();
+
+        return response()->json(['message' => "Campagne \"{$name}\" supprimée."]);
+    }
 }
