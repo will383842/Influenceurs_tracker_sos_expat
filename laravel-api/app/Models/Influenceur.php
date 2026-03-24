@@ -17,9 +17,15 @@ class Influenceur extends Model
      * Used to decide whether to store profile_url as website_url for scraping.
      */
     public const NON_SOCIAL_TYPES = [
-        'school', 'association', 'enterprise', 'insurer', 'press',
-        'travel_agency', 'real_estate', 'translator', 'lawyer', 'partner',
-        'job_board', 'backlink', 'consulat', 'erasmus',
+        // New types
+        'consulat', 'association', 'ecole', 'institut_culturel', 'chambre_commerce',
+        'presse', 'blog', 'podcast_radio',
+        'avocat', 'immobilier', 'assurance', 'banque_fintech', 'traducteur', 'agence_voyage', 'emploi',
+        'communaute_expat', 'coworking_coliving', 'logement', 'lieu_communautaire',
+        'backlink', 'annuaire', 'plateforme_nomad', 'partenaire',
+        // Legacy (for existing data)
+        'school', 'press', 'blogger', 'consulats', 'enterprise', 'insurer',
+        'travel_agency', 'real_estate', 'translator', 'lawyer', 'partner', 'job_board', 'erasmus',
     ];
 
     protected $fillable = [
