@@ -57,6 +57,11 @@ export default function ProspectionHub() {
 
   const cards = [
     {
+      to: '/prospection/campaign', icon: '🚀', title: 'Lancer une campagne',
+      description: 'Choisir un segment, ecrire un email modele, l\'IA l\'adapte pour chaque contact',
+      badge: null,
+    },
+    {
       to: '/prospection/overview', icon: '📊', title: 'Vue d\'ensemble',
       description: 'KPIs, funnel de conversion, stats par step et par type, alertes',
       badge: stats && stats.alerts_count > 0 ? { text: `${stats.alerts_count} alerte${stats.alerts_count > 1 ? 's' : ''}`, color: 'bg-red-500/20 text-red-400' } : null,
@@ -141,8 +146,8 @@ export default function ProspectionHub() {
       <div className="bg-surface border border-border rounded-xl p-5">
         <h3 className="text-white font-title font-semibold mb-3">Actions rapides</h3>
         <div className="flex flex-wrap gap-3">
-          <Link to="/prospection/emails" className="px-4 py-2 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors font-medium">
-            Generer des emails
+          <Link to="/prospection/campaign" className="px-4 py-2 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors font-medium">
+            Lancer une campagne
           </Link>
           {stats && stats.pending_review > 0 && (
             <Link to="/prospection/emails" className="px-4 py-2 bg-amber/20 text-amber text-sm rounded-lg hover:bg-amber/30 transition-colors">

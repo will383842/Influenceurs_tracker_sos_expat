@@ -66,6 +66,7 @@ export default function Layout() {
   const getGroupsForPath = (path: string) => ({
     contacts: path.startsWith('/influenceurs') || path === '/a-relancer',
     acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/directories' || path === '/admin/avancement',
+    content: path.startsWith('/content'),
     prospection: path.startsWith('/prospection') || path === '/outreach',
     parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/scraper') || path === '/equipe' || path === '/journal',
   });
@@ -79,6 +80,7 @@ export default function Layout() {
     setOpenGroups(prev => ({
       contacts: prev.contacts || needed.contacts,
       acquisition: prev.acquisition || needed.acquisition,
+      content: prev.content || needed.content,
       prospection: prev.prospection || needed.prospection,
       parametres: prev.parametres || needed.parametres,
     }));
@@ -250,6 +252,9 @@ export default function Layout() {
                   <NavLink to="/prospection" end className={subNavClass} onClick={handleNavClick}>
                     Hub
                   </NavLink>
+                  <NavLink to="/prospection/campaign" className={subNavClass} onClick={handleNavClick}>
+                    Lancer campagne
+                  </NavLink>
                   <NavLink to="/prospection/emails" className={subNavClass} onClick={handleNavClick}>
                     Emails
                   </NavLink>
@@ -265,7 +270,24 @@ export default function Layout() {
                 </NavGroup>
               )}
 
-              {/* 5. Qualite - admin only */}
+              {/* 5. Content (group) - admin only */}
+              {isAdmin && (
+                <NavGroup
+                  label="Content"
+                  icon="📄"
+                  isOpen={openGroups.content}
+                  onToggle={() => toggleGroup('content')}
+                >
+                  <NavLink to="/content" end className={subNavClass} onClick={handleNavClick}>
+                    Hub Content
+                  </NavLink>
+                  <NavLink to="/content/links" className={subNavClass} onClick={handleNavClick}>
+                    Liens Externes
+                  </NavLink>
+                </NavGroup>
+              )}
+
+              {/* 6. Qualite - admin only */}
               {isAdmin && (
                 <NavLink to="/admin/qualite" className={navClass} onClick={handleNavClick}>
                   <span>✅</span> Qualite

@@ -19,12 +19,18 @@ import Journal from './pages/Journal';
 import Directories from './pages/Directories';
 import CoverageMatrix from './pages/CoverageMatrix';
 import QualityDashboard from './pages/QualityDashboard';
+import ContentHub from './pages/content/ContentHub';
+import ContentLinks from './pages/content/ContentLinks';
+import ContentSourcePage from './pages/content/ContentSource';
+import ContentCountryPage from './pages/content/ContentCountry';
+import ContentArticlePage from './pages/content/ContentArticle';
 import ProspectionHub from './pages/prospection/ProspectionHub';
 import ProspectionOverview from './pages/prospection/ProspectionOverview';
 import ProspectionEmails from './pages/prospection/ProspectionEmails';
 import ProspectionSequences from './pages/prospection/ProspectionSequences';
 import ProspectionContacts from './pages/prospection/ProspectionContacts';
 import ProspectionConfig from './pages/prospection/ProspectionConfig';
+import ProspectionCampaignWizard from './pages/prospection/ProspectionCampaignWizard';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -84,6 +90,14 @@ export default function App() {
             <Route path="prospection/sequences" element={<AdminRoute><ProspectionSequences /></AdminRoute>} />
             <Route path="prospection/contacts" element={<AdminRoute><ProspectionContacts /></AdminRoute>} />
             <Route path="prospection/config" element={<AdminRoute><ProspectionConfig /></AdminRoute>} />
+            <Route path="prospection/campaign" element={<AdminRoute><ProspectionCampaignWizard /></AdminRoute>} />
+
+            {/* Content Engine */}
+            <Route path="content" element={<AdminRoute><ContentHub /></AdminRoute>} />
+            <Route path="content/links" element={<AdminRoute><ContentLinks /></AdminRoute>} />
+            <Route path="content/articles/:id" element={<AdminRoute><ContentArticlePage /></AdminRoute>} />
+            <Route path="content/:sourceSlug" element={<AdminRoute><ContentSourcePage /></AdminRoute>} />
+            <Route path="content/:sourceSlug/:countrySlug" element={<AdminRoute><ContentCountryPage /></AdminRoute>} />
 
             {/* Tools */}
             <Route path="content-engine" element={<ContentEngine />} />
