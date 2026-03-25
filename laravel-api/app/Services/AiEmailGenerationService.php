@@ -13,17 +13,14 @@ class AiEmailGenerationService
     private string $apiKey;
     private string $model;
 
-    // 3 sending domains in rotation
-    private const SENDING_DOMAINS = [
-        'williams@provider-expat.com',
-        'williams@hub-travelers.com',
-        'williams@spaceship.com',
-    ];
+    // 3 sending domains in rotation — configurable via env
+    private array $sendingDomains;
 
     public function __construct()
     {
         $this->apiKey = config('services.anthropic.api_key', '');
         $this->model = config('services.anthropic.model', 'claude-haiku-4-5-20251001');
+        $this->sendingDomains = array_filter(explode(',', config('outreach.sending_emails', 'williams@provider-expat.com,williams@hub-travelers.com,williams@spaceship.com')));
     }
 
     /**
@@ -47,7 +44,7 @@ class AiEmailGenerationService
         if ($existing) return $existing;
 
         // Pick sending domain (round-robin based on influenceur ID)
-        $fromEmail = self::SENDING_DOMAINS[$inf->id % count(self::SENDING_DOMAINS)];
+        $fromEmail = $this->sendingDomains[$inf->id % count($this->sendingDomains)];
 
         // Get contact type label
         $typeLabel = \App\Models\ContactTypeModel::where('value', $inf->contact_type)->value('label') ?? $inf->contact_type;
@@ -146,54 +143,151 @@ class AiEmailGenerationService
     private function buildSystemPrompt(): string
     {
         return <<<'PROMPT'
-Tu es un expert en cold emailing B2B, spécialisé dans le secteur des expatriés.
-Tu rédiges des emails de prospection pour SOS-Expat, un service qui connecte
-les expatriés avec un avocat francophone par téléphone en 5 minutes, dans 197 pays.
+Tu es le meilleur copywriter cold email au monde. Chaque email que tu écris est une œuvre unique — JAMAIS de template, JAMAIS de phrases génériques, JAMAIS le même email deux fois.
 
-CONTEXTE SOS-EXPAT:
-- Service: mise en relation téléphonique avec avocat francophone, <5min
-- Couverture: 197 pays
-- Programmes partenaires: commission 10€/appel généré par vos membres/visiteurs
-- Site: www.sos-expat.com
-- Fondateur: Williams
+TU ÉCRIS POUR : SOS-Expat (www.sos-expat.com)
+- Un expatrié peut appeler un avocat francophone en <5 minutes, dans 197 pays
+- Programme partenaire : le contact gagne 10€ par appel généré via son lien
+- 0 risque pour le partenaire : gratuit, aucun engagement, lien unique
+- Fondateur : Williams
 
-RÈGLES D'ÉCRITURE:
-1. Ton: Professionnel mais chaleureux, jamais agressif ni "vendeur"
-2. Longueur: 4-6 phrases max pour le body (court et impactant)
-3. Personnalisation: Utilise le nom du contact, son type d'activité, son pays
-4. Pas de: exclamation excessive, emojis, promesses exagérées, "urgent", "offre limitée"
-5. CTA: Une seule question claire à la fin (pas de lien, pas de bouton)
-6. Signature: Toujours terminer par "Williams\nFondateur, SOS-Expat\nwww.sos-expat.com"
-7. Langue: Français par défaut, anglais si la langue du contact est "en"
-8. Objet: Court (< 50 caractères), intrigant, pas commercial
+TON APPROCHE SECRÈTE (ne jamais révéler ces techniques, juste les appliquer) :
+1. ACCROCHE — La première phrase doit être si précise que le contact pense "il a étudié mon site". Cite un détail réel de leur organisation, leur dernière actualité, ou un problème spécifique à leur pays/secteur.
+2. VALEUR POUR EUX — Ne parle JAMAIS de ce que SOS-Expat veut. Parle UNIQUEMENT de ce que LE CONTACT gagne. Utilise le mot "vous/vos" 3x plus que "nous/notre".
+3. PREUVE SOCIALE CONTEXTUELLE — Glisse une phrase du type "Nous accompagnons déjà [nombre] expatriés en [pays/région]" ou une statistique pertinente.
+4. CTA IRRÉSISTIBLE — Pose UNE question qui demande si peu d'effort qu'il est presque impoli de ne pas répondre. Jamais "Êtes-vous intéressé ?" (trop vague). Plutôt "Voulez-vous que je vous envoie votre lien partenaire ?" (action concrète).
 
-RÉPONSE EN JSON STRICT (rien d'autre):
-{"subject": "...", "body": "...", "body_html": "<p>...</p>"}
+ANTI-PATTERNS (si tu écris ça, l'email finit en spam) :
+- JAMAIS : "J'espère que vous allez bien", "Je me permets de", "Suite à nos recherches"
+- JAMAIS : points d'exclamation excessifs, emojis, MAJUSCULES pour souligner
+- JAMAIS : "offre limitée", "urgent", "opportunité unique", "révolutionnaire"
+- JAMAIS : plus de 6 phrases dans le body
+- JAMAIS commencer par "Bonjour [nom]," suivi de "Je suis Williams de SOS-Expat" (cliché cold email)
+
+FORMAT DE L'OBJET :
+- Maximum 40 caractères
+- Intrigue sans clickbait
+- Comme un SMS d'un ami, pas une newsletter
+- Exemples de bon style : "Une idée pour vos membres", "Question rapide", "[Pays] + expatriés"
+
+LANGUE : Français par défaut. Anglais si la langue du contact est "en".
+
+SIGNATURE (toujours, jamais modifier) :
+Williams
+Fondateur, SOS-Expat
+www.sos-expat.com
+
+RÉPONSE EN JSON STRICT — rien d'autre, pas de texte avant/après :
+{"subject": "...", "body": "texte brut avec \n pour les sauts de ligne", "body_html": "<p>paragraphes HTML</p>"}
 PROMPT;
     }
 
     private function buildUserPrompt(Influenceur $inf, int $step, string $typeLabel): string
     {
-        $stepDesc = match ($step) {
-            1 => "Premier contact. Présente SOS-Expat et la proposition de valeur spécifique à ce type de contact. Explique pourquoi un partenariat serait bénéfique pour EUX (pas pour nous).",
-            2 => "Relance douce (J+3). Court. Apporte UNE information nouvelle ou un chiffre concret. Ne répète pas le premier email.",
-            3 => "Relance (J+7). Très court. Question directe oui/non. Mentionne que c'est ta dernière relance.",
-            4 => "Dernier message (J+14). 2-3 phrases max. Dit que tu ne relanceras plus. Laisse la porte ouverte.",
+        // Build rich context about the contact
+        $context = $this->buildContactContext($inf, $typeLabel);
+
+        $stepInstruction = match ($step) {
+            1 => <<<STEP
+PREMIER CONTACT — L'email le plus important.
+- Première phrase : accroche ultra-personnalisée mentionnant LEUR organisation par nom + un détail spécifique (pays, activité, site web)
+- Deuxième phrase : le problème que leurs membres/visiteurs/élèves rencontrent (besoin juridique à l'étranger)
+- Troisième phrase : comment SOS-Expat résout ce problème (appel avocat <5min)
+- Quatrième phrase : ce qu'ILS gagnent concrètement (commission, valeur ajoutée pour leurs membres, contenu exclusif)
+- Cinquième phrase : CTA = UNE question simple qui appelle un "oui" facile
+STEP,
+            2 => <<<STEP
+RELANCE J+3 — Tu n'as pas eu de réponse. Cet email doit être DIFFÉRENT du premier.
+- NE répète PAS le pitch du premier email
+- Apporte UN élément nouveau : une statistique, un témoignage, un cas d'usage concret en {$inf->country}
+- Maximum 3-4 phrases
+- CTA différent du premier : propose quelque chose de concret ("Je peux vous montrer en 2 minutes comment ça marche ?" ou "Voulez-vous voir le tableau de bord partenaire ?")
+STEP,
+            3 => <<<STEP
+RELANCE J+7 — Dernière vraie relance. Sois direct.
+- Maximum 3 phrases
+- Première phrase : rappelle très brièvement qui tu es (1 phrase, pas plus)
+- Deuxième phrase : question binaire oui/non ("Est-ce que ça vous intéresse, oui ou non ?")
+- Troisième phrase : "Si non, pas de souci, je ne vous relancerai plus."
+- Ton : respectueux mais direct, comme un ami qui demande une faveur
+STEP,
+            4 => <<<STEP
+DERNIER MESSAGE J+14 — Le plus court de tous.
+- 2 phrases maximum
+- "Je ne vous relancerai plus" (explicite)
+- Laisse la porte ouverte : "Si un jour le sujet revient, vous savez où me trouver"
+- Pas de pitch, pas d'explication, juste de l'élégance
+STEP,
             default => "Premier contact.",
         };
 
         return <<<PROMPT
-Génère l'email pour ce contact:
+CONTACT :
+{$context}
 
-NOM: {$inf->name}
-TYPE: {$inf->contact_type} ({$typeLabel})
-PAYS: {$inf->country}
-LANGUE: {$inf->language}
-ORGANISATION: {$inf->company}
-SITE WEB: {$inf->website_url}
+STEP {$step}/4 :
+{$stepInstruction}
 
-STEP {$step}/4: {$stepDesc}
+RAPPEL : Cet email doit être UNIQUE. Si tu as déjà écrit pour un contact similaire, trouve un angle COMPLÈTEMENT différent. Varie tes accroches, tes tournures, tes CTA. Aucun email ne doit ressembler à un autre.
 PROMPT;
+    }
+
+    /**
+     * Build rich context about the contact for better personalization.
+     */
+    private function buildContactContext(Influenceur $inf, string $typeLabel): string
+    {
+        $lines = [];
+        $lines[] = "Nom : {$inf->name}";
+        $lines[] = "Type : {$typeLabel}";
+        if ($inf->country) $lines[] = "Pays : {$inf->country}";
+        if ($inf->language) $lines[] = "Langue : " . ($inf->language === 'fr' ? 'Français' : ($inf->language === 'en' ? 'Anglais' : strtoupper($inf->language)));
+        if ($inf->company) $lines[] = "Organisation : {$inf->company}";
+        if ($inf->website_url) $lines[] = "Site web : {$inf->website_url}";
+        if ($inf->email) $lines[] = "Email : {$inf->email}";
+
+        // Add type-specific value proposition
+        $valueProp = $this->getValueProposition($inf->contact_type);
+        if ($valueProp) $lines[] = "\nPROPOSITION DE VALEUR POUR CE TYPE :\n{$valueProp}";
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Value proposition adapted per contact type.
+     * This is what makes each type's email fundamentally different.
+     */
+    private function getValueProposition(string $type): ?string
+    {
+        return match ($type) {
+            'association' => "Les membres de cette association vivent à l'étranger et ont régulièrement besoin de conseils juridiques (visa, fiscalité, droit du travail local). SOS-Expat leur offre un accès immédiat à un avocat francophone. L'association peut intégrer un lien sur son site et gagner 10€/appel. Angle : \"Offrez un vrai service juridique à vos membres, sans rien changer à votre fonctionnement.\"",
+
+            'ecole' => "Les parents d'élèves expatriés ont des questions juridiques fréquentes (garde d'enfants, droit de la famille, contrats de travail). L'école peut proposer SOS-Expat dans sa newsletter ou sur son intranet. Angle : \"Un service concret pour vos familles, qui renforce votre image d'école connectée.\"",
+
+            'consulat' => "Les consulats reçoivent des demandes juridiques qu'ils ne peuvent pas traiter. SOS-Expat est un relais naturel : un lien sur le site du consulat vers un avocat francophone en 5 minutes. Angle : \"Orientez vos ressortissants vers un service juridique immédiat, sans surcharger vos équipes.\"",
+
+            'presse' => "Ce média couvre l'actualité des expatriés. SOS-Expat peut être un sujet d'article (startup française, 197 pays), un annonceur, ou un partenaire éditorial. Angle : \"Une info utile pour vos lecteurs + un partenariat éditorial ?\"",
+
+            'blog' => "Ce blogueur écrit sur l'expatriation. SOS-Expat peut sponsoriser un article, fournir un témoignage avocat, ou proposer un widget utile pour ses lecteurs. Angle : \"Du contenu exclusif pour votre audience + revenus passifs via votre lien partenaire.\"",
+
+            'podcast_radio' => "Ce podcast/radio touche des expatriés. SOS-Expat peut être invité, sponsor d'un épisode, ou partenaire récurrent. Angle : \"Un sujet d'émission original + partenariat ?\"",
+
+            'influenceur' => "Cet influenceur a une audience d'expatriés ou voyageurs. Programme ambassadeur : lien unique, 10€/appel, tableau de bord temps réel. Angle : \"Monétisez votre audience avec un service que vos abonnés utiliseront vraiment.\"",
+
+            'avocat' => "Ce cabinet peut rejoindre le réseau de prestataires SOS-Expat et recevoir des appels de clients expatriés. Angle : \"Recevez des clients qualifiés, francophones, depuis 197 pays, sans prospection.\"",
+
+            'immobilier' => "Les expatriés qui déménagent ont des questions juridiques. L'agence peut recommander SOS-Expat à ses clients. Angle : \"Complétez votre offre relocation avec un accès avocat immédiat pour vos clients.\"",
+
+            'chambre_commerce' => "La CCI/chambre de commerce accompagne des entreprises à l'international. SOS-Expat complète leurs services. Angle : \"Un service juridique instantané pour vos entreprises membres.\"",
+
+            'communaute_expat' => "Cette communauté rassemble des expatriés qui ont régulièrement des questions juridiques. Angle : \"Offrez à votre communauté un accès direct à un avocat francophone — gratuit pour vous, utile pour eux.\"",
+
+            'coworking_coliving' => "Les coworkings/colivings accueillent des nomads et expats qui ont besoin de conseils (visa, fiscalité). Angle : \"Un QR code dans votre espace → vos membres accèdent à un avocat en 5 min.\"",
+
+            'plateforme_nomad' => "Cette plateforme cible des digital nomads. SOS-Expat est LE service complémentaire (visa, fiscalité, droit local). Angle : \"Intégrez le service juridique que vos utilisateurs cherchent déjà.\"",
+
+            default => null,
+        };
     }
 
     private function parseResponse(string $text): ?array

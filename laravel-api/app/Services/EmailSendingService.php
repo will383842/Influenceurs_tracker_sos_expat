@@ -12,17 +12,19 @@ use Illuminate\Support\Facades\Log;
  */
 class EmailSendingService
 {
-    // PMTA connection (from email_sos-expat_transactionnel config)
-    private const PMTA_HOST = '46.62.168.55';
-    private const PMTA_PORT = 2525;
-    private const PMTA_USER = 'admin@ulixai-expat.com';
-    private const PMTA_PASS = 'WJullin1974/*%$';
-
-    // Tracking base URL (public endpoint on influenceurs tracker)
+    // PMTA connection — configurable via env
+    private string $pmtaHost;
+    private int $pmtaPort;
+    private string $pmtaUser;
+    private string $pmtaPass;
     private string $trackingBaseUrl;
 
     public function __construct()
     {
+        $this->pmtaHost = config('outreach.pmta_host', '127.0.0.1');
+        $this->pmtaPort = (int) config('outreach.pmta_port', 2525);
+        $this->pmtaUser = config('outreach.pmta_user', '');
+        $this->pmtaPass = config('outreach.pmta_pass', '');
         $this->trackingBaseUrl = rtrim(config('app.url', 'https://influenceurs.life-expat.com'), '/');
     }
 
@@ -144,7 +146,7 @@ class EmailSendingService
      */
     private function sendViaSMTP(string $from, string $to, string $message): bool
     {
-        $socket = @fsockopen(self::PMTA_HOST, self::PMTA_PORT, $errno, $errstr, 15);
+        $socket = @fsockopen($this->pmtaHost, $this->pmtaPort, $errno, $errstr, 15);
         if (!$socket) {
             throw new \RuntimeException("PMTA connection failed: {$errstr} ({$errno})");
         }
@@ -157,8 +159,8 @@ class EmailSendingService
 
             // AUTH LOGIN
             $this->sendCommand($socket, "AUTH LOGIN");
-            $this->sendCommand($socket, base64_encode(self::PMTA_USER));
-            $this->sendCommand($socket, base64_encode(self::PMTA_PASS));
+            $this->sendCommand($socket, base64_encode($this->pmtaUser));
+            $this->sendCommand($socket, base64_encode($this->pmtaPass));
 
             $this->sendCommand($socket, "MAIL FROM:<{$from}>");
             $this->sendCommand($socket, "RCPT TO:<{$to}>");
