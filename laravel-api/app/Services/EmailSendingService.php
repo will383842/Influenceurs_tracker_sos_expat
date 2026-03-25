@@ -157,10 +157,12 @@ class EmailSendingService
             $this->readResponse($socket); // Banner
             $this->sendCommand($socket, "EHLO outreach.sos-expat.com");
 
-            // AUTH LOGIN
-            $this->sendCommand($socket, "AUTH LOGIN");
-            $this->sendCommand($socket, base64_encode($this->pmtaUser));
-            $this->sendCommand($socket, base64_encode($this->pmtaPass));
+            // AUTH (only if credentials configured)
+            if ($this->pmtaUser && $this->pmtaPass) {
+                $this->sendCommand($socket, "AUTH LOGIN");
+                $this->sendCommand($socket, base64_encode($this->pmtaUser));
+                $this->sendCommand($socket, base64_encode($this->pmtaPass));
+            }
 
             $this->sendCommand($socket, "MAIL FROM:<{$from}>");
             $this->sendCommand($socket, "RCPT TO:<{$to}>");
