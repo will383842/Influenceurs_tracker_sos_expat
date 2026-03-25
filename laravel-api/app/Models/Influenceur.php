@@ -90,6 +90,16 @@ class Influenceur extends Model
         return $this->hasMany(ActivityLog::class);
     }
 
+    public function outreachEmails()
+    {
+        return $this->hasMany(OutreachEmail::class);
+    }
+
+    public function outreachSequence()
+    {
+        return $this->hasOne(OutreachSequence::class);
+    }
+
     /**
      * Scope: influenceurs that count as "valid" for objective progress.
      * Requires: profile_url, name, profile_url_domain, and at least email or phone.

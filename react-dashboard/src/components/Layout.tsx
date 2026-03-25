@@ -146,6 +146,9 @@ export default function Layout() {
                   <NavLink to="/admin/qualite" className={navClass} onClick={handleNavClick}>
                     <span>✅</span> Qualite
                   </NavLink>
+                  <NavLink to="/admin/prospection" className={navClass} onClick={handleNavClick}>
+                    <span>✉️</span> Prospection
+                  </NavLink>
                   <NavLink to="/equipe" className={navClass} onClick={handleNavClick}>
                     <span>⚙️</span> Équipe
                   </NavLink>

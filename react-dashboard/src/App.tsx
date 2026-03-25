@@ -21,6 +21,7 @@ import Journal from './pages/Journal';
 import Directories from './pages/Directories';
 import CoverageMatrix from './pages/CoverageMatrix';
 import QualityDashboard from './pages/QualityDashboard';
+import Prospection from './pages/Prospection';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="admin/campaigns" element={<AdminRoute><AutoCampaign /></AdminRoute>} />
             <Route path="admin/avancement" element={<AdminRoute><CoverageMatrix /></AdminRoute>} />
             <Route path="admin/qualite" element={<AdminRoute><QualityDashboard /></AdminRoute>} />
+            <Route path="admin/prospection" element={<AdminRoute><Prospection /></AdminRoute>} />
             <Route path="equipe" element={<AdminRoute><Equipe /></AdminRoute>} />
           </Route>
         </Routes>

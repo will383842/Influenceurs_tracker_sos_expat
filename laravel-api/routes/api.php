@@ -19,6 +19,12 @@ use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Route;
 
+// Tracking & Unsubscribe (public, no auth)
+Route::get('/track/open/{trackingId}', [\App\Http\Controllers\OutreachController::class, 'trackOpen']);
+Route::get('/track/click/{trackingId}', [\App\Http\Controllers\OutreachController::class, 'trackClick']);
+Route::get('/unsubscribe/{token}', [\App\Http\Controllers\OutreachController::class, 'unsubscribePage']);
+Route::post('/unsubscribe/{token}', [\App\Http\Controllers\OutreachController::class, 'unsubscribeConfirm']);
+
 // Health check (public)
 Route::get('/health', function () {
     try {
@@ -167,6 +173,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // Progress par pays / type / langue (admin uniquement)
     Route::get('/stats/progress', [StatsController::class, 'progress'])
         ->middleware('role:admin');
+
+    // Outreach / Prospection (admin)
+    Route::prefix('outreach')->middleware('role:admin')->group(function () {
+        Route::get('/config', [\App\Http\Controllers\OutreachController::class, 'configs']);
+        Route::put('/config/{contactType}', [\App\Http\Controllers\OutreachController::class, 'updateConfig']);
+        Route::post('/generate', [\App\Http\Controllers\OutreachController::class, 'generate']);
+        Route::post('/generate/{influenceur}', [\App\Http\Controllers\OutreachController::class, 'generateOne']);
+        Route::get('/review-queue', [\App\Http\Controllers\OutreachController::class, 'reviewQueue']);
+        Route::post('/review/{outreachEmail}/approve', [\App\Http\Controllers\OutreachController::class, 'approve']);
+        Route::post('/review/{outreachEmail}/reject', [\App\Http\Controllers\OutreachController::class, 'reject']);
+        Route::post('/review/{outreachEmail}/edit', [\App\Http\Controllers\OutreachController::class, 'edit']);
+        Route::post('/review/approve-batch', [\App\Http\Controllers\OutreachController::class, 'approveBatch']);
+        Route::get('/stats', [\App\Http\Controllers\OutreachController::class, 'stats']);
+    });
 
     // Quality verification (admin)
     Route::prefix('quality')->middleware('role:admin')->group(function () {
