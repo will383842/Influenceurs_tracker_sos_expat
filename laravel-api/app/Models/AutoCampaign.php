@@ -16,7 +16,7 @@ class AutoCampaign extends Model
         'contacts_found_total', 'contacts_imported_total', 'total_cost_cents',
         'consecutive_failures', 'max_consecutive_failures',
         'started_at', 'completed_at', 'last_task_at',
-        'created_by',
+        'created_by', 'queue_position',
     ];
 
     protected $casts = [
@@ -148,7 +148,7 @@ class AutoCampaign extends Model
         }
 
         $next = static::where('status', 'queued')
-            ->orderBy('created_at')
+            ->orderBy('queue_position')
             ->orderBy('id')
             ->first();
 

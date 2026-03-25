@@ -44,7 +44,9 @@ class AutoCampaignController extends Controller
      */
     public function index(Request $request)
     {
-        $campaigns = AutoCampaign::orderByDesc('created_at')
+        $campaigns = AutoCampaign::orderByRaw("CASE status WHEN 'running' THEN 0 WHEN 'paused' THEN 1 WHEN 'queued' THEN 2 ELSE 3 END")
+            ->orderBy('queue_position')
+            ->orderByDesc('id')
             ->withCount(['tasks as tasks_pending_count' => fn($q) => $q->where('status', 'pending')])
             ->paginate(20);
 
@@ -94,11 +96,15 @@ class AutoCampaignController extends Controller
         // If another campaign is running, queue this one instead of blocking
         $hasRunning = AutoCampaign::running()->exists();
         $initialStatus = $hasRunning ? 'queued' : 'running';
+        $queuePosition = $hasRunning
+            ? (AutoCampaign::where('status', 'queued')->max('queue_position') ?? 0) + 1
+            : 0;
 
         // Create campaign
         $campaign = AutoCampaign::create([
             'name'                          => $data['name'],
             'status'                        => $initialStatus,
+            'queue_position'                => $queuePosition,
             'contact_types'                 => $data['contact_types'],
             'countries'                     => $data['countries'],
             'languages'                     => $data['languages'],
@@ -324,7 +330,6 @@ class AutoCampaignController extends Controller
 
     /**
      * Reorder queued campaigns. Receives an array of campaign IDs in desired order.
-     * Swaps the IDs so that startNextQueued() picks them in the right order.
      */
     public function reorder(Request $request)
     {
@@ -333,15 +338,10 @@ class AutoCampaignController extends Controller
             'order.*' => 'integer|exists:auto_campaigns,id',
         ]);
 
-        // We use a `queue_position` approach: just update created_at to force ordering
-        // Since startNextQueued() uses orderBy('id'), we need a different approach.
-        // Solution: swap the actual row IDs is too dangerous. Instead, add a queue_priority field.
-        // Simpler: just re-assign created_at timestamps in order.
-        $now = now();
-        foreach ($data['order'] as $index => $campaignId) {
+        foreach ($data['order'] as $position => $campaignId) {
             AutoCampaign::where('id', $campaignId)
                 ->where('status', 'queued')
-                ->update(['created_at' => $now->copy()->addSeconds($index)]);
+                ->update(['queue_position' => $position + 1]);
         }
 
         return response()->json(['message' => 'Ordre mis à jour.']);
