@@ -597,7 +597,11 @@ export default function AutoCampaignPage() {
         {campaigns.length === 0 && !showForm && (
           <p className="text-muted text-center py-8">Aucune campagne. Créez-en une pour commencer.</p>
         )}
-        {campaigns.map(c => (
+        {campaigns.map((c, _ci) => {
+          const queuedList = campaigns.filter(x => x.status === 'queued');
+          const queueIndex = queuedList.findIndex(x => x.id === c.id);
+          const queueLabel = c.status === 'running' ? 'NOW' : c.status === 'queued' ? `#${queueIndex + 1}` : null;
+          return (
           <div
             key={c.id}
             onClick={() => handleSelectCampaign(c.id)}
@@ -607,6 +611,13 @@ export default function AutoCampaignPage() {
           >
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3">
+                {queueLabel && (
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    c.status === 'running' ? 'bg-blue-500/20 text-blue-400' : 'bg-violet/20 text-violet-light'
+                  }`}>
+                    {queueLabel}
+                  </span>
+                )}
                 <h3 className="font-medium text-white">{c.name}</h3>
                 <span className={`px-2 py-0.5 text-xs rounded-full font-mono ${STATUS_COLORS[c.status] || 'bg-white/10 text-muted'}`}>
                   {STATUS_LABELS[c.status] || c.status}
@@ -714,7 +725,8 @@ export default function AutoCampaignPage() {
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Campaign detail */}
