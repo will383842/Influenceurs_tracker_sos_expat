@@ -63,7 +63,8 @@ class ProcessSequencesJob implements ShouldQueue
             $email = $emailService->generate($inf, $nextStep);
             if ($email) {
                 // Calculate next send time
-                $nextDelay = $config->getStepDelay($nextStep + 1);
+                // Delay before the NEXT step after the one we just generated
+                $nextDelay = $nextStep < $config->max_steps ? $config->getStepDelay($nextStep + 1) : 0;
                 $seq->update([
                     'current_step' => $nextStep,
                     'next_send_at' => $nextStep < $config->max_steps ? now()->addDays($nextDelay) : null,

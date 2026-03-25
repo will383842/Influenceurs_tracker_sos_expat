@@ -86,9 +86,9 @@ class OutreachController extends Controller
 
     public function generateOne(Request $request, Influenceur $influenceur)
     {
-        $step = $request->query('step', 1);
+        $step = min(4, max(1, (int) $request->query('step', 1)));
         $service = app(AiEmailGenerationService::class);
-        $email = $service->generate($influenceur, (int) $step);
+        $email = $service->generate($influenceur, $step);
 
         if (!$email) {
             return response()->json(['message' => 'Impossible de générer l\'email.'], 422);

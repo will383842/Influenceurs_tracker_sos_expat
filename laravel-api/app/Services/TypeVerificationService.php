@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Influenceur;
 use App\Models\TypeVerificationFlag;
+use App\Services\BlockedDomainService;
 use Illuminate\Support\Facades\Log;
 
 class TypeVerificationService

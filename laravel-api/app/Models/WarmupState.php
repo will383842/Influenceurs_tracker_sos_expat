@@ -62,17 +62,26 @@ class WarmupState extends Model
      */
     public function resetDailyIfNeeded(): void
     {
-        if ($this->last_reset_date && $this->last_reset_date->isToday()) {
+        if ($this->last_reset_date && $this->last_reset_date->toDateString() === today()->toDateString()) {
             return; // Already reset today
         }
 
-        // New day: reset counter and advance warm-up
-        $this->increment('day_count');
-        $this->update([
-            'emails_sent_today'   => 0,
-            'last_reset_date'     => today(),
-            'current_daily_limit' => $this->calculateLimit(),
-        ]);
+        // Atomic daily reset to prevent race conditions
+        $affected = static::where('id', $this->id)
+            ->where(function ($q) {
+                $q->whereNull('last_reset_date')
+                  ->orWhere('last_reset_date', '<', today());
+            })
+            ->update([
+                'day_count'           => \Illuminate\Support\Facades\DB::raw('day_count + 1'),
+                'emails_sent_today'   => 0,
+                'last_reset_date'     => today(),
+                'current_daily_limit' => $this->calculateLimit(),
+            ]);
+
+        if ($affected > 0) {
+            $this->refresh(); // Reload from DB
+        }
     }
 
     /**

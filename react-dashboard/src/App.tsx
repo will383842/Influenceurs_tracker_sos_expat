@@ -25,6 +25,7 @@ import ProspectionHub from './pages/prospection/ProspectionHub';
 import ProspectionOverview from './pages/prospection/ProspectionOverview';
 import ProspectionEmails from './pages/prospection/ProspectionEmails';
 import ProspectionSequences from './pages/prospection/ProspectionSequences';
+import ProspectionContacts from './pages/prospection/ProspectionContacts';
 import ProspectionConfig from './pages/prospection/ProspectionConfig';
 import Layout from './components/Layout';
 
@@ -104,6 +105,7 @@ export default function App() {
             <Route path="prospection/overview" element={<AdminRoute><ProspectionOverview /></AdminRoute>} />
             <Route path="prospection/emails" element={<AdminRoute><ProspectionEmails /></AdminRoute>} />
             <Route path="prospection/sequences" element={<AdminRoute><ProspectionSequences /></AdminRoute>} />
+            <Route path="prospection/contacts" element={<AdminRoute><ProspectionContacts /></AdminRoute>} />
             <Route path="prospection/config" element={<AdminRoute><ProspectionConfig /></AdminRoute>} />
             <Route path="equipe" element={<AdminRoute><Equipe /></AdminRoute>} />
           </Route>
