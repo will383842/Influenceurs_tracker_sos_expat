@@ -70,8 +70,8 @@ class ContentScraperService
         libxml_clear_errors();
         $xpath = new \DOMXPath($dom);
 
-        // Extract country links from main page
-        $this->extractCountryLinksFromPage($xpath, $source->base_url, $countries);
+        // Extract country links from main page (static + JSON)
+        $this->extractCountryLinksFromPage($xpath, $source->base_url, $countries, $html);
 
         // Discover continent page URLs (e.g. /fr/guide/europe/, /fr/guide/afrique/)
         $allLinks = $xpath->query('//a[contains(@href, "/fr/guide/")]');
@@ -116,7 +116,7 @@ class ContentScraperService
             libxml_clear_errors();
             $cXpath = new \DOMXPath($cDom);
 
-            $this->extractCountryLinksFromPage($cXpath, $continentUrl, $countries);
+            $this->extractCountryLinksFromPage($cXpath, $continentUrl, $countries, $cHtml);
             unset($cXpath, $cDom);
         }
 
@@ -140,16 +140,16 @@ class ContentScraperService
 
     /**
      * Extract country links from a parsed HTML page (main guide or continent page).
+     * Uses both static <a> links AND embedded JSON (baseLevel.filter) for JS-rendered pages.
      */
-    private function extractCountryLinksFromPage(\DOMXPath $xpath, string $baseUrl, array &$countries): void
+    private function extractCountryLinksFromPage(\DOMXPath $xpath, string $baseUrl, array &$countries, ?string $rawHtml = null): void
     {
+        // Strategy 1: Static <a> links
         $links = $xpath->query('//a[contains(@href, "/fr/guide/")]');
-
         foreach ($links as $link) {
             $href = $link->getAttribute('href');
             $text = trim($link->textContent);
 
-            // Match country URLs: /fr/guide/{continent}/{country}/
             if (preg_match('#/fr/guide/([^/]+)/([^/]+)/?$#', $href, $m)) {
                 $continent = $this->normalizeContinent($m[1]);
                 $countrySlug = $m[2];
@@ -160,6 +160,42 @@ class ContentScraperService
                     'name'      => $text ?: ucfirst(str_replace('-', ' ', $countrySlug)),
                     'slug'      => $countrySlug,
                     'continent' => $continent,
+                    'guide_url' => $fullUrl,
+                ];
+            }
+        }
+
+        // Strategy 2: Extract from embedded JSON (expat.com uses baseLevel.filter with country options)
+        if ($rawHtml) {
+            $this->extractCountriesFromEmbeddedJson($rawHtml, $baseUrl, $countries);
+        }
+    }
+
+    /**
+     * Extract countries from embedded JavaScript JSON data.
+     * Expat.com stores country lists in baseLevel.filter.fields[].options[] as {id: "URL", text: "Name"}
+     */
+    private function extractCountriesFromEmbeddedJson(string $html, string $baseUrl, array &$countries): void
+    {
+        // Find all script content and look for country URL patterns with names
+        // Pattern: {"id":"/fr/guide/continent/country/","text":"Country Name"}
+        if (preg_match_all('/"id"\s*:\s*"(\/fr\/guide\/([^"]+?)\/([^"]+?)\/?)"\s*,\s*"text"\s*:\s*"([^"]+)"/', $html, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $path = $m[1];        // /fr/guide/europe/france/
+                $continent = $m[2];   // europe
+                $countrySlug = $m[3]; // france
+                $countryName = $m[4]; // France
+
+                // Skip continent-only URLs (e.g. /fr/guide/europe/)
+                if (empty($countrySlug) || $countrySlug === $continent) continue;
+                // Skip city URLs (3+ segments after /guide/)
+                if (substr_count(trim($path, '/'), '/') > 3) continue;
+
+                $fullUrl = $this->resolveUrl($path, $baseUrl);
+                $countries[] = [
+                    'name'      => html_entity_decode($countryName, ENT_QUOTES, 'UTF-8'),
+                    'slug'      => $countrySlug,
+                    'continent' => $this->normalizeContinent($continent),
                     'guide_url' => $fullUrl,
                 ];
             }
