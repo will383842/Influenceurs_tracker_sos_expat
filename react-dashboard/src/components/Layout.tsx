@@ -67,8 +67,11 @@ export default function Layout() {
     contacts: path.startsWith('/influenceurs') || path === '/a-relancer',
     acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/directories' || path === '/admin/avancement',
     content: path.startsWith('/content'),
+    contentEngine: path === '/content/overview' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns'),
+    seo: path.startsWith('/seo'),
+    publication: path === '/publishing' || path === '/media' || path === '/costs',
     prospection: path.startsWith('/prospection') || path === '/outreach',
-    parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/scraper') || path === '/equipe' || path === '/journal',
+    parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/scraper') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
   });
 
   // Track which nav groups are expanded
@@ -81,6 +84,9 @@ export default function Layout() {
       contacts: prev.contacts || needed.contacts,
       acquisition: prev.acquisition || needed.acquisition,
       content: prev.content || needed.content,
+      contentEngine: prev.contentEngine || needed.contentEngine,
+      seo: prev.seo || needed.seo,
+      publication: prev.publication || needed.publication,
       prospection: prev.prospection || needed.prospection,
       parametres: prev.parametres || needed.parametres,
     }));
@@ -287,11 +293,74 @@ export default function Layout() {
                   <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
                     Annuaire
                   </NavLink>
+                  <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
+                    Fiches Pays
+                  </NavLink>
                   <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
                     Liens Affilies
                   </NavLink>
                   <NavLink to="/content/links" className={subNavClass} onClick={handleNavClick}>
                     Tous les liens
+                  </NavLink>
+                </NavGroup>
+              )}
+
+              {/* Content Engine v2 - admin only */}
+              {isAdmin && (
+                <NavGroup
+                  label="Contenu"
+                  icon="✍️"
+                  isOpen={openGroups.contentEngine}
+                  onToggle={() => toggleGroup('contentEngine')}
+                >
+                  <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
+                    Vue d'ensemble
+                  </NavLink>
+                  <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
+                    Articles
+                  </NavLink>
+                  <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
+                    Comparatifs
+                  </NavLink>
+                  <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
+                    Campagnes
+                  </NavLink>
+                </NavGroup>
+              )}
+
+              {/* SEO - admin only */}
+              {isAdmin && (
+                <NavGroup
+                  label="SEO"
+                  icon="🔍"
+                  isOpen={openGroups.seo}
+                  onToggle={() => toggleGroup('seo')}
+                >
+                  <NavLink to="/seo" end className={subNavClass} onClick={handleNavClick}>
+                    Dashboard SEO
+                  </NavLink>
+                  <NavLink to="/seo/internal-links" className={subNavClass} onClick={handleNavClick}>
+                    Maillage interne
+                  </NavLink>
+                </NavGroup>
+              )}
+
+              {/* Publication - admin only */}
+              {isAdmin && (
+                <NavGroup
+                  label="Publication"
+                  icon="📤"
+                  isOpen={openGroups.publication}
+                  onToggle={() => toggleGroup('publication')}
+                >
+                  <NavLink to="/publishing" className={subNavClass} onClick={handleNavClick}>
+                    Publication
+                  </NavLink>
+                  <NavLink to="/media" className={subNavClass} onClick={handleNavClick}>
+                    Medias
+                  </NavLink>
+                  <NavLink to="/costs" className={subNavClass} onClick={handleNavClick}>
+                    Couts IA
                   </NavLink>
                 </NavGroup>
               )}
@@ -319,6 +388,12 @@ export default function Layout() {
                   </NavLink>
                   <NavLink to="/admin/scraper" className={subNavClass} onClick={handleNavClick}>
                     Scraper
+                  </NavLink>
+                  <NavLink to="/admin/prompt-templates" className={subNavClass} onClick={handleNavClick}>
+                    Prompts Content
+                  </NavLink>
+                  <NavLink to="/admin/presets" className={subNavClass} onClick={handleNavClick}>
+                    Presets generation
                   </NavLink>
                   <NavLink to="/equipe" className={subNavClass} onClick={handleNavClick}>
                     Equipe & Objectifs

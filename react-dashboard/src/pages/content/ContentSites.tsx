@@ -77,6 +77,24 @@ export default function ContentSites() {
     }
   };
 
+  const handleScrapeMagazine = async (slug: string) => {
+    try {
+      await api.post(`/content/sources/${slug}/scrape-magazine`);
+      setError(null);
+    } catch {
+      setError('Erreur lancement magazine');
+    }
+  };
+
+  const handleScrapeServices = async (slug: string) => {
+    try {
+      await api.post(`/content/sources/${slug}/scrape-services`);
+      setError(null);
+    } catch {
+      setError('Erreur lancement services');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" role="status">
@@ -190,6 +208,14 @@ export default function ContentSites() {
                 <button onClick={() => handleScrape(src.slug)} disabled={src.status === 'scraping'}
                   className="px-3 py-1.5 bg-violet/20 text-violet-light rounded-lg text-xs font-medium hover:bg-violet/30 disabled:opacity-50 transition-colors">
                   {src.status === 'scraping' ? 'Guides en cours...' : 'Scraper les guides'}
+                </button>
+                <button onClick={() => handleScrapeMagazine(src.slug)}
+                  className="px-3 py-1.5 bg-amber/20 text-amber rounded-lg text-xs font-medium hover:bg-amber/30 transition-colors">
+                  Scraper le magazine
+                </button>
+                <button onClick={() => handleScrapeServices(src.slug)}
+                  className="px-3 py-1.5 bg-green-900/30 text-green-400 rounded-lg text-xs font-medium hover:bg-green-900/40 transition-colors">
+                  Scraper les services
                 </button>
                 <button onClick={() => handleScrapeBusinesses(src.slug)}
                   className="px-3 py-1.5 bg-cyan/20 text-cyan rounded-lg text-xs font-medium hover:bg-cyan/30 transition-colors">

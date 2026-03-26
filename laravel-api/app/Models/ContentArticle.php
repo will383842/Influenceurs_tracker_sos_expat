@@ -8,7 +8,7 @@ class ContentArticle extends Model
 {
     protected $fillable = [
         'source_id', 'country_id', 'title', 'slug', 'url', 'url_hash',
-        'category', 'content_text', 'content_html',
+        'category', 'section', 'content_text', 'content_html',
         'word_count', 'language',
         'external_links', 'ads_and_sponsors', 'images',
         'meta_title', 'meta_description',

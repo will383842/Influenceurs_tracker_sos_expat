@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ScrapeContentMagazineJob;
 use App\Jobs\ScrapeContentSourceJob;
 use App\Models\ContentArticle;
+use App\Models\ContentBusiness;
 use App\Models\ContentCountry;
 use App\Models\ContentExternalLink;
 use App\Models\ContentSource;
@@ -252,6 +254,112 @@ class ContentEngineController extends Controller
             ->get();
 
         return response()->json($results);
+    }
+
+    public function scrapeMagazine(string $slug): JsonResponse
+    {
+        $source = ContentSource::where('slug', $slug)->firstOrFail();
+        ScrapeContentMagazineJob::dispatch($source->id, 'magazine');
+        return response()->json(['message' => 'Magazine scraping started']);
+    }
+
+    public function scrapeServices(string $slug): JsonResponse
+    {
+        $source = ContentSource::where('slug', $slug)->firstOrFail();
+        ScrapeContentMagazineJob::dispatch($source->id, 'services');
+        return response()->json(['message' => 'Services scraping started']);
+    }
+
+    /**
+     * Country profiles: aggregated data per country (articles, links, businesses).
+     */
+    public function countryProfiles(): JsonResponse
+    {
+        $countries = ContentCountry::selectRaw("
+            content_countries.*,
+            (SELECT COUNT(*) FROM content_articles WHERE content_articles.country_id = content_countries.id) as total_articles,
+            (SELECT SUM(word_count) FROM content_articles WHERE content_articles.country_id = content_countries.id) as total_words,
+            (SELECT COUNT(*) FROM content_external_links WHERE content_external_links.country_id = content_countries.id) as total_links
+        ")
+        ->orderBy('continent')
+        ->orderBy('name')
+        ->get();
+
+        // Get business counts per country
+        $businessCounts = ContentBusiness::selectRaw('country_slug, COUNT(*) as count')
+            ->groupBy('country_slug')
+            ->pluck('count', 'country_slug');
+
+        $result = $countries->map(function ($c) use ($businessCounts) {
+            return [
+                'id'              => $c->id,
+                'name'            => $c->name,
+                'slug'            => $c->slug,
+                'continent'       => $c->continent,
+                'guide_url'       => $c->guide_url,
+                'total_articles'  => (int) $c->total_articles,
+                'total_words'     => (int) ($c->total_words ?? 0),
+                'total_links'     => (int) $c->total_links,
+                'total_businesses' => (int) ($businessCounts[$c->slug] ?? 0),
+                'scraped_at'      => $c->scraped_at,
+            ];
+        });
+
+        // Group by continent
+        $grouped = $result->groupBy('continent');
+
+        return response()->json([
+            'countries' => $result,
+            'by_continent' => $grouped,
+            'totals' => [
+                'countries'  => $result->count(),
+                'articles'   => $result->sum('total_articles'),
+                'words'      => $result->sum('total_words'),
+                'links'      => $result->sum('total_links'),
+                'businesses' => $result->sum('total_businesses'),
+            ],
+        ]);
+    }
+
+    /**
+     * Single country profile with detailed data.
+     */
+    public function countryProfile(string $countrySlug): JsonResponse
+    {
+        $country = ContentCountry::where('slug', $countrySlug)->firstOrFail();
+
+        $articles = ContentArticle::where('country_id', $country->id)
+            ->select('id', 'title', 'slug', 'url', 'category', 'section', 'word_count', 'is_guide', 'meta_description', 'scraped_at')
+            ->orderByDesc('is_guide')
+            ->orderBy('category')
+            ->get();
+
+        $links = ContentExternalLink::where('country_id', $country->id)
+            ->select('id', 'url', 'domain', 'anchor_text', 'link_type', 'is_affiliate', 'occurrences')
+            ->orderByDesc('occurrences')
+            ->limit(50)
+            ->get();
+
+        $businesses = ContentBusiness::where('country_slug', $country->slug)
+            ->select('id', 'name', 'contact_email', 'contact_phone', 'website', 'city', 'category', 'subcategory', 'is_premium')
+            ->orderByDesc('recommendations')
+            ->limit(50)
+            ->get();
+
+        $categories = ContentArticle::where('country_id', $country->id)
+            ->whereNotNull('category')
+            ->selectRaw('category, COUNT(*) as count')
+            ->groupBy('category')
+            ->orderByDesc('count')
+            ->get();
+
+        return response()->json([
+            'country'    => $country,
+            'articles'   => $articles,
+            'links'      => $links,
+            'businesses' => $businesses,
+            'categories' => $categories,
+        ]);
     }
 
     public function exportLinks(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse

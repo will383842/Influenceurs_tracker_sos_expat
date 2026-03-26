@@ -303,6 +303,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/external-links', [ContentEngineController::class, 'externalLinks']);
         Route::get('/external-links/export', [ContentEngineController::class, 'exportLinks']);
         Route::get('/affiliate-domains', [ContentEngineController::class, 'affiliateDomains']);
+        Route::post('/sources/{slug}/scrape-magazine', [ContentEngineController::class, 'scrapeMagazine']);
+        Route::post('/sources/{slug}/scrape-services', [ContentEngineController::class, 'scrapeServices']);
+        Route::get('/country-profiles', [ContentEngineController::class, 'countryProfiles']);
+        Route::get('/country-profiles/{countrySlug}', [ContentEngineController::class, 'countryProfile']);
         Route::get('/stats', [ContentEngineController::class, 'stats']);
     });
 

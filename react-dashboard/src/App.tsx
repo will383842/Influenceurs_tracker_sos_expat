@@ -27,6 +27,8 @@ import ContentArticlePage from './pages/content/ContentArticle';
 import BusinessDirectory from './pages/content/BusinessDirectory';
 import ContentSites from './pages/content/ContentSites';
 import AffiliateLinks from './pages/content/AffiliateLinks';
+import CountryProfiles from './pages/content/CountryProfiles';
+import CountryProfileDetail from './pages/content/CountryProfileDetail';
 import ProspectionHub from './pages/prospection/ProspectionHub';
 import ProspectionOverview from './pages/prospection/ProspectionOverview';
 import ProspectionEmails from './pages/prospection/ProspectionEmails';
@@ -35,6 +37,24 @@ import ProspectionContacts from './pages/prospection/ProspectionContacts';
 import ProspectionConfig from './pages/prospection/ProspectionConfig';
 import ProspectionCampaignWizard from './pages/prospection/ProspectionCampaignWizard';
 import Layout from './components/Layout';
+
+// Content Engine pages (lazy loaded)
+const ContentOverview = React.lazy(() => import('./pages/content/ContentOverview'));
+const ArticlesList = React.lazy(() => import('./pages/content/ArticlesList'));
+const ArticleCreate = React.lazy(() => import('./pages/content/ArticleCreate'));
+const ArticleDetail = React.lazy(() => import('./pages/content/ArticleDetail'));
+const ComparativesList = React.lazy(() => import('./pages/content/ComparativesList'));
+const ComparativeCreate = React.lazy(() => import('./pages/content/ComparativeCreate'));
+const CampaignsList = React.lazy(() => import('./pages/content/CampaignsList'));
+const CampaignCreate = React.lazy(() => import('./pages/content/CampaignCreate'));
+const CampaignDetail = React.lazy(() => import('./pages/content/CampaignDetail'));
+const SeoDashboard = React.lazy(() => import('./pages/content/SeoDashboard'));
+const SeoInternalLinks = React.lazy(() => import('./pages/content/SeoInternalLinks'));
+const PublishingDashboard = React.lazy(() => import('./pages/content/PublishingDashboard'));
+const CostsDashboard = React.lazy(() => import('./pages/content/CostsDashboard'));
+const MediaLibrary = React.lazy(() => import('./pages/content/MediaLibrary'));
+const PromptTemplates = React.lazy(() => import('./pages/content/PromptTemplates'));
+const GenerationPresets = React.lazy(() => import('./pages/content/GenerationPresets'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = React.useContext(AuthContext);
@@ -101,9 +121,30 @@ export default function App() {
             <Route path="content/links" element={<AdminRoute><ContentLinks /></AdminRoute>} />
             <Route path="content/businesses" element={<AdminRoute><BusinessDirectory /></AdminRoute>} />
             <Route path="content/affiliates" element={<AdminRoute><AffiliateLinks /></AdminRoute>} />
-            <Route path="content/articles/:id" element={<AdminRoute><ContentArticlePage /></AdminRoute>} />
+            <Route path="content/countries" element={<AdminRoute><CountryProfiles /></AdminRoute>} />
+            <Route path="content/country/:countrySlug" element={<AdminRoute><CountryProfileDetail /></AdminRoute>} />
+
+            {/* Content Engine v2 (lazy loaded) */}
+            <Route path="content/overview" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ContentOverview /></React.Suspense></AdminRoute>} />
+            <Route path="content/articles" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticlesList /></React.Suspense></AdminRoute>} />
+            <Route path="content/articles/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticleCreate /></React.Suspense></AdminRoute>} />
+            <Route path="content/articles/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticleDetail /></React.Suspense></AdminRoute>} />
+            <Route path="content/comparatives" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ComparativesList /></React.Suspense></AdminRoute>} />
+            <Route path="content/comparatives/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ComparativeCreate /></React.Suspense></AdminRoute>} />
+            <Route path="content/campaigns" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignsList /></React.Suspense></AdminRoute>} />
+            <Route path="content/campaigns/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignCreate /></React.Suspense></AdminRoute>} />
+            <Route path="content/campaigns/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignDetail /></React.Suspense></AdminRoute>} />
+
+            {/* Content v1 catch-all routes (must come after specific content/* routes) */}
             <Route path="content/:sourceSlug" element={<AdminRoute><ContentSourcePage /></AdminRoute>} />
             <Route path="content/:sourceSlug/:countrySlug" element={<AdminRoute><ContentCountryPage /></AdminRoute>} />
+            <Route path="seo" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><SeoDashboard /></React.Suspense></AdminRoute>} />
+            <Route path="seo/internal-links" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><SeoInternalLinks /></React.Suspense></AdminRoute>} />
+            <Route path="publishing" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><PublishingDashboard /></React.Suspense></AdminRoute>} />
+            <Route path="costs" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CostsDashboard /></React.Suspense></AdminRoute>} />
+            <Route path="media" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><MediaLibrary /></React.Suspense></AdminRoute>} />
+            <Route path="admin/prompt-templates" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><PromptTemplates /></React.Suspense></AdminRoute>} />
+            <Route path="admin/presets" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><GenerationPresets /></React.Suspense></AdminRoute>} />
 
             {/* Tools */}
             <Route path="content-engine" element={<ContentEngine />} />
