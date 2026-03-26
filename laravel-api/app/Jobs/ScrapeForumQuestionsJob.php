@@ -89,7 +89,10 @@ class ScrapeForumQuestionsJob implements ShouldQueue
                         : $forum['url'] . $page . '/');
 
                 $pageHtml = $this->fetchPage($pageUrl);
-                if (!$pageHtml) break;
+                if (!$pageHtml) {
+                    Log::debug('ScrapeForumQuestionsJob: fetch failed', ['url' => $pageUrl]);
+                    break;
+                }
 
                 $topics = $this->extractTopics($pageHtml);
                 if (empty($topics)) break;
@@ -215,6 +218,11 @@ class ScrapeForumQuestionsJob implements ShouldQueue
         $topics = [];
 
         // Extract from var topics = [...] JSON
+        // Debug: log if var topics exists at all
+        if (str_contains($html, 'var topics')) {
+            Log::debug('ScrapeForumQuestionsJob: found var topics in HTML', ['length' => strlen($html)]);
+        }
+
         if (preg_match('/var\s+topics\s*=\s*(\[[\s\S]*?\])\s*;/', $html, $m)) {
             $json = preg_replace('/,\s*([\}\]])/', '$1', $m[1]); // Clean trailing commas
             $data = @json_decode($json, true);
