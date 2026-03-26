@@ -5,6 +5,7 @@ use App\Http\Controllers\AutoCampaignController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AiPromptController;
+use App\Http\Controllers\ContentEngineController;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ContactTypeController;
@@ -274,6 +275,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/contact-types', [ContactTypeController::class, 'store']);
         Route::put('/contact-types/{contactType}', [ContactTypeController::class, 'update']);
         Route::delete('/contact-types/{contactType}', [ContactTypeController::class, 'destroy']);
+    });
+
+    // ============================================================
+    // CONTENT ENGINE (Scraper + Content Sources)
+    // ============================================================
+    Route::prefix('content')->middleware('role:admin')->group(function () {
+        Route::get('/sources', [ContentEngineController::class, 'sources']);
+        Route::post('/sources', [ContentEngineController::class, 'createSource']);
+        Route::get('/sources/{slug}', [ContentEngineController::class, 'showSource']);
+        Route::post('/sources/{slug}/scrape', [ContentEngineController::class, 'scrapeSource']);
+        Route::post('/sources/{slug}/pause', [ContentEngineController::class, 'pauseSource']);
+        Route::get('/sources/{slug}/countries', [ContentEngineController::class, 'countries']);
+        Route::get('/sources/{slug}/countries/{countrySlug}', [ContentEngineController::class, 'countryArticles']);
+        Route::get('/articles/{id}', [ContentEngineController::class, 'showArticle']);
+        Route::get('/external-links', [ContentEngineController::class, 'externalLinks']);
+        Route::get('/external-links/export', [ContentEngineController::class, 'exportLinks']);
+        Route::get('/stats', [ContentEngineController::class, 'stats']);
     });
 
     // ============================================================

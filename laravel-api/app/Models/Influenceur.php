@@ -37,6 +37,7 @@ class Influenceur extends Model
         'assigned_to', 'reminder_days', 'reminder_active', 'last_contact_at',
         'partnership_date', 'notes', 'tags', 'score', 'source', 'created_by',
         'scraped_at', 'scraper_status', 'scraped_emails', 'scraped_phones', 'scraped_social', 'scraped_addresses',
+        'email_verified_status', 'email_verified_at', 'quality_score',
     ];
 
     protected $casts = [
