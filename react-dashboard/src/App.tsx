@@ -24,6 +24,7 @@ import ContentLinks from './pages/content/ContentLinks';
 import ContentSourcePage from './pages/content/ContentSource';
 import ContentCountryPage from './pages/content/ContentCountry';
 import ContentArticlePage from './pages/content/ContentArticle';
+import BusinessDirectory from './pages/content/BusinessDirectory';
 import ProspectionHub from './pages/prospection/ProspectionHub';
 import ProspectionOverview from './pages/prospection/ProspectionOverview';
 import ProspectionEmails from './pages/prospection/ProspectionEmails';
@@ -95,6 +96,7 @@ export default function App() {
             {/* Content Engine */}
             <Route path="content" element={<AdminRoute><ContentHub /></AdminRoute>} />
             <Route path="content/links" element={<AdminRoute><ContentLinks /></AdminRoute>} />
+            <Route path="content/businesses" element={<AdminRoute><BusinessDirectory /></AdminRoute>} />
             <Route path="content/articles/:id" element={<AdminRoute><ContentArticlePage /></AdminRoute>} />
             <Route path="content/:sourceSlug" element={<AdminRoute><ContentSourcePage /></AdminRoute>} />
             <Route path="content/:sourceSlug/:countrySlug" element={<AdminRoute><ContentCountryPage /></AdminRoute>} />

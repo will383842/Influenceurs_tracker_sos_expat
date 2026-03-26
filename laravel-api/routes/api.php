@@ -5,6 +5,7 @@ use App\Http\Controllers\AutoCampaignController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AiPromptController;
+use App\Http\Controllers\BusinessDirectoryController;
 use App\Http\Controllers\ContentEngineController;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\SettingsController;
@@ -292,6 +293,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/external-links', [ContentEngineController::class, 'externalLinks']);
         Route::get('/external-links/export', [ContentEngineController::class, 'exportLinks']);
         Route::get('/stats', [ContentEngineController::class, 'stats']);
+    });
+
+    // ============================================================
+    // BUSINESS DIRECTORY (Annuaire entreprises)
+    // ============================================================
+    Route::prefix('businesses')->middleware('role:admin')->group(function () {
+        Route::get('/', [BusinessDirectoryController::class, 'index']);
+        Route::get('/stats', [BusinessDirectoryController::class, 'stats']);
+        Route::get('/countries', [BusinessDirectoryController::class, 'countries']);
+        Route::get('/categories', [BusinessDirectoryController::class, 'categories']);
+        Route::get('/export', [BusinessDirectoryController::class, 'export']);
+        Route::get('/{id}', [BusinessDirectoryController::class, 'show']);
+        Route::post('/scrape/{sourceSlug}', [BusinessDirectoryController::class, 'scrape']);
     });
 
     // ============================================================
