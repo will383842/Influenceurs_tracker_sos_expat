@@ -270,6 +270,20 @@ class ContentEngineController extends Controller
         return response()->json(['message' => 'Services scraping started']);
     }
 
+    public function scrapeThematic(string $slug): JsonResponse
+    {
+        $source = ContentSource::where('slug', $slug)->firstOrFail();
+        ScrapeContentMagazineJob::dispatch($source->id, 'thematic');
+        return response()->json(['message' => 'Thematic guides scraping started']);
+    }
+
+    public function scrapeCities(string $slug): JsonResponse
+    {
+        $source = ContentSource::where('slug', $slug)->firstOrFail();
+        ScrapeContentMagazineJob::dispatch($source->id, 'cities');
+        return response()->json(['message' => 'Cities/missing articles scraping started']);
+    }
+
     /**
      * Country profiles: aggregated data per country (articles, links, businesses).
      */

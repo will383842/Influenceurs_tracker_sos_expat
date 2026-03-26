@@ -19,12 +19,12 @@ class ScrapeContentMagazineJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 7200; // 2h — magazine can have many articles
+    public int $timeout = 14400; // 4h — can have 1000+ articles
     public int $tries = 1;
 
     public function __construct(
         private int $sourceId,
-        private string $section, // 'magazine' or 'services'
+        private string $section, // 'magazine', 'services', 'thematic', 'cities'
     ) {
         $this->onQueue('content-scraper');
     }
@@ -33,8 +33,8 @@ class ScrapeContentMagazineJob implements ShouldQueue
     {
         return [
             (new WithoutOverlapping('scrape-mag-' . $this->sourceId . '-' . $this->section))
-                ->releaseAfter(7200)
-                ->expireAfter(7200),
+                ->releaseAfter(14400)
+                ->expireAfter(14400),
         ];
     }
 
@@ -43,26 +43,13 @@ class ScrapeContentMagazineJob implements ShouldQueue
         $source = ContentSource::find($this->sourceId);
         if (!$source) return;
 
-        $baseUrl = rtrim($source->base_url, '/');
-        $siteBase = preg_replace('#/fr/guide/?$#', '', $baseUrl);
-
-        $sectionUrl = match ($this->section) {
-            'magazine' => $siteBase . '/fr/expat-mag/',
-            'services' => $siteBase . '/fr/services/',
-            default    => null,
-        };
-
-        if (!$sectionUrl) return;
-
         Log::info('ScrapeContentMagazineJob: starting', [
             'source'  => $source->slug,
             'section' => $this->section,
-            'url'     => $sectionUrl,
         ]);
 
         // Pre-load existing URLs
         $existingUrls = ContentArticle::where('source_id', $source->id)
-            ->where('section', $this->section)
             ->pluck('url')
             ->flip()
             ->toArray();
@@ -72,244 +59,248 @@ class ScrapeContentMagazineJob implements ShouldQueue
             ->flip()
             ->toArray();
 
+        // Discover article URLs based on section type
+        $articleUrls = match ($this->section) {
+            'magazine'  => $this->discoverFromSitemaps($source, 'news'),
+            'thematic'  => $this->discoverThematicGuides($source),
+            'cities'    => $this->discoverFromSitemaps($source, 'guide'),
+            default     => [],
+        };
+
+        Log::info('ScrapeContentMagazineJob: discovered URLs', [
+            'section' => $this->section,
+            'total'   => count($articleUrls),
+            'new'     => count(array_filter($articleUrls, fn($a) => !isset($existingUrls[$a['url']]))),
+        ]);
+
         $scrapedCount = 0;
+        $skippedCount = 0;
         $consecutiveFailures = 0;
 
-        try {
-            // Discover article URLs — scrape paginated listing pages
-            $articleUrls = $this->discoverArticleUrls($sectionUrl, $siteBase, $scraper);
+        foreach ($articleUrls as $articleData) {
+            if (isset($existingUrls[$articleData['url']])) {
+                $skippedCount++;
+                continue;
+            }
 
-            Log::info('ScrapeContentMagazineJob: discovered articles', [
-                'section' => $this->section,
-                'count'   => count($articleUrls),
-            ]);
-
-            foreach ($articleUrls as $articleData) {
-                if (isset($existingUrls[$articleData['url']])) {
-                    $scrapedCount++;
+            try {
+                $scraper->rateLimitSleep();
+                $content = $scraper->scrapeArticle($articleData['url']);
+                if (!$content || $content['word_count'] < 30) {
+                    $consecutiveFailures++;
+                    if ($consecutiveFailures >= 20) {
+                        Log::warning('ScrapeContentMagazineJob: stopping after 20 consecutive failures');
+                        break;
+                    }
                     continue;
                 }
 
-                try {
-                    $scraper->rateLimitSleep();
-                    $content = $scraper->scrapeArticle($articleData['url']);
-                    if (!$content) {
-                        $consecutiveFailures++;
-                        if ($consecutiveFailures >= 15) break;
-                        continue;
-                    }
+                $urlHash = hash('sha256', $articleData['url']);
 
-                    $urlHash = hash('sha256', $articleData['url']);
+                $article = ContentArticle::create([
+                    'source_id'        => $source->id,
+                    'country_id'       => null,
+                    'title'            => $content['title'] ?: $articleData['title'] ?? '',
+                    'slug'             => $content['slug'] ?: substr($urlHash, 0, 12),
+                    'url'              => $articleData['url'],
+                    'url_hash'         => $urlHash,
+                    'category'         => $articleData['category'] ?? null,
+                    'section'          => $this->section === 'cities' ? 'guide' : $this->section,
+                    'content_text'     => $content['content_text'],
+                    'content_html'     => $content['content_html'],
+                    'word_count'       => $content['word_count'],
+                    'language'         => $content['language'],
+                    'external_links'   => $content['external_links'],
+                    'ads_and_sponsors' => $content['ads_and_sponsors'],
+                    'images'           => $content['images'],
+                    'meta_title'       => $content['meta_title'],
+                    'meta_description' => $content['meta_description'],
+                    'is_guide'         => $this->section !== 'magazine',
+                    'scraped_at'       => now(),
+                ]);
 
-                    $article = ContentArticle::create([
-                        'source_id'        => $source->id,
-                        'country_id'       => null,
-                        'title'            => $content['title'] ?: $articleData['title'] ?? '',
-                        'slug'             => $content['slug'] ?: substr($urlHash, 0, 12),
-                        'url'              => $articleData['url'],
-                        'url_hash'         => $urlHash,
-                        'category'         => $articleData['category'] ?? null,
-                        'section'          => $this->section,
-                        'content_text'     => $content['content_text'],
-                        'content_html'     => $content['content_html'],
-                        'word_count'       => $content['word_count'],
-                        'language'         => $content['language'],
-                        'external_links'   => $content['external_links'],
-                        'ads_and_sponsors' => $content['ads_and_sponsors'],
-                        'images'           => $content['images'],
-                        'meta_title'       => $content['meta_title'],
-                        'meta_description' => $content['meta_description'],
-                        'is_guide'         => false,
-                        'scraped_at'       => now(),
-                    ]);
+                $existingUrls[$articleData['url']] = true;
 
-                    $existingUrls[$articleData['url']] = true;
-
-                    // Save external links
-                    foreach ($content['external_links'] as $link) {
-                        $linkHash = hash('sha256', $link['url']);
-                        if (!isset($existingLinkHashes[$linkHash])) {
-                            ContentExternalLink::create([
-                                'source_id'    => $source->id,
-                                'article_id'   => $article->id,
-                                'url'          => $link['url'],
-                                'url_hash'     => $linkHash,
-                                'original_url' => $link['original_url'],
-                                'domain'       => $link['domain'],
-                                'anchor_text'  => $link['anchor_text'],
-                                'context'      => $link['context'],
-                                'country_id'   => null,
-                                'link_type'    => $link['link_type'],
-                                'is_affiliate' => $link['is_affiliate'],
-                                'language'     => $content['language'] ?? 'fr',
-                            ]);
-                            $existingLinkHashes[$linkHash] = true;
-                        }
-                    }
-
-                    $scrapedCount++;
-                    $consecutiveFailures = 0;
-
-                    if ($scrapedCount % 20 === 0) {
-                        gc_collect_cycles();
-                        Log::info('ScrapeContentMagazineJob: progress', [
-                            'section' => $this->section,
-                            'scraped' => $scrapedCount,
+                foreach ($content['external_links'] as $link) {
+                    $linkHash = hash('sha256', $link['url']);
+                    if (!isset($existingLinkHashes[$linkHash])) {
+                        ContentExternalLink::create([
+                            'source_id'    => $source->id,
+                            'article_id'   => $article->id,
+                            'url'          => $link['url'],
+                            'url_hash'     => $linkHash,
+                            'original_url' => $link['original_url'],
+                            'domain'       => $link['domain'],
+                            'anchor_text'  => $link['anchor_text'],
+                            'context'      => $link['context'],
+                            'country_id'   => null,
+                            'link_type'    => $link['link_type'],
+                            'is_affiliate' => $link['is_affiliate'],
+                            'language'     => $content['language'] ?? 'fr',
                         ]);
+                        $existingLinkHashes[$linkHash] = true;
                     }
-
-                } catch (\Throwable $e) {
-                    $consecutiveFailures++;
-                    Log::warning('ScrapeContentMagazineJob: article failed', [
-                        'url'   => $articleData['url'],
-                        'error' => $e->getMessage(),
-                    ]);
-                    if ($consecutiveFailures >= 15) break;
                 }
+
+                $scrapedCount++;
+                $consecutiveFailures = 0;
+
+                if ($scrapedCount % 50 === 0) {
+                    gc_collect_cycles();
+                    Log::info('ScrapeContentMagazineJob: progress', [
+                        'section' => $this->section,
+                        'scraped' => $scrapedCount,
+                        'skipped' => $skippedCount,
+                    ]);
+                }
+
+            } catch (\Throwable $e) {
+                $consecutiveFailures++;
+                Log::warning('ScrapeContentMagazineJob: article failed', [
+                    'url'   => $articleData['url'],
+                    'error' => $e->getMessage(),
+                ]);
+                if ($consecutiveFailures >= 20) break;
             }
-
-            // Update source stats
-            $source->update([
-                'total_articles' => $source->articles()->count(),
-                'total_links'    => $source->externalLinks()->count(),
-            ]);
-
-            Log::info('ScrapeContentMagazineJob: completed', [
-                'section' => $this->section,
-                'scraped' => $scrapedCount,
-            ]);
-
-        } catch (\Throwable $e) {
-            Log::error('ScrapeContentMagazineJob: failed', [
-                'section' => $this->section,
-                'error'   => $e->getMessage(),
-            ]);
         }
+
+        $source->update([
+            'total_articles' => $source->articles()->count(),
+            'total_links'    => $source->externalLinks()->count(),
+        ]);
+
+        Log::info('ScrapeContentMagazineJob: completed', [
+            'section' => $this->section,
+            'scraped' => $scrapedCount,
+            'skipped' => $skippedCount,
+        ]);
     }
 
     /**
-     * Discover article URLs from the magazine/services index pages.
+     * Discover article URLs from XML sitemaps.
+     * For 'news': parses fr-news-*.xml sitemaps (magazine articles)
+     * For 'guide': parses fr-guide-*.xml sitemaps (city/country articles not yet scraped)
      */
-    private function discoverArticleUrls(string $sectionUrl, string $siteBase, ContentScraperService $scraper): array
+    private function discoverFromSitemaps(ContentSource $source, string $type): array
     {
         $articles = [];
-        $seen = [];
+        $siteBase = 'https://www.expat.com';
 
-        // Scrape up to 20 pages of listings
-        for ($page = 1; $page <= 20; $page++) {
-            $url = $page === 1 ? $sectionUrl : $sectionUrl . '?page=' . $page;
-            $scraper->rateLimitSleep();
+        $regions = ['world', 'africa', 'asia', 'central-america', 'europe', 'middle-east', 'north-america', 'oceania', 'south-america'];
 
-            $html = $this->fetchPage($url);
-            if (!$html) break;
+        foreach ($regions as $region) {
+            $sitemapUrl = "{$siteBase}/fr/fr-{$type}-{$region}-1.xml";
+            $xml = $this->fetchSitemap($sitemapUrl);
+            if (!$xml) continue;
 
-            $dom = new \DOMDocument();
-            libxml_use_internal_errors(true);
-            $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-            libxml_clear_errors();
-            $xpath = new \DOMXPath($dom);
+            foreach ($xml as $url) {
+                $loc = (string) $url->loc;
+                if (empty($loc)) continue;
 
-            $foundOnPage = 0;
-
-            // Find article links — magazine uses /fr/expat-mag/{id}-{slug}.html
-            // Services uses /fr/services/{category}/{slug}/ or similar
-            $links = $xpath->query('//a[@href]');
-            foreach ($links as $link) {
-                $href = $link->getAttribute('href');
-                $text = trim($link->textContent);
-
-                $fullUrl = $this->resolveUrl($href, $siteBase);
-
-                // Match magazine articles: /fr/expat-mag/{something}.html or /fr/expat-mag/{category}/{slug}
-                if ($this->section === 'magazine' && preg_match('#/fr/expat-mag/[^?]+#', $href)) {
-                    // Skip category index pages, only take articles
-                    if (str_ends_with($href, '.html') || preg_match('#/fr/expat-mag/[^/]+/[^/]+#', $href)) {
-                        if (!isset($seen[$fullUrl]) && $text && strlen($text) > 10) {
-                            $seen[$fullUrl] = true;
-                            $articles[] = [
-                                'url'      => $fullUrl,
-                                'title'    => $text,
-                                'category' => $this->extractCategoryFromUrl($href),
-                            ];
-                            $foundOnPage++;
-                        }
-                    }
+                // For news: only take /fr/expat-mag/ article URLs (not category indexes)
+                if ($type === 'news') {
+                    if (!str_contains($loc, '/fr/expat-mag/')) continue;
+                    // Skip category index pages (e.g. /fr/expat-mag/3-vie-quotidienne/)
+                    if (preg_match('#/fr/expat-mag/\d+-[^/]+/$#', $loc)) continue;
+                    // Skip the main index
+                    if ($loc === $siteBase . '/fr/expat-mag/') continue;
                 }
 
-                // Match services pages
-                if ($this->section === 'services' && preg_match('#/fr/services/[^?]+#', $href)) {
-                    if (!isset($seen[$fullUrl]) && $text && strlen($text) > 5) {
-                        $seen[$fullUrl] = true;
-                        $articles[] = [
-                            'url'      => $fullUrl,
-                            'title'    => $text,
-                            'category' => $this->extractCategoryFromUrl($href),
-                        ];
-                        $foundOnPage++;
-                    }
+                // For guide: only take .html articles (individual pages)
+                if ($type === 'guide') {
+                    if (!str_ends_with($loc, '.html')) continue;
+                    if (!str_contains($loc, '/fr/guide/')) continue;
                 }
+
+                $articles[] = [
+                    'url'      => $loc,
+                    'title'    => '',
+                    'category' => $this->extractCategoryFromUrl($loc),
+                ];
             }
-
-            unset($xpath, $dom);
-
-            // Also extract from embedded JSON if available
-            $unescaped = str_replace('\\/', '/', $html);
-            $pattern = $this->section === 'magazine'
-                ? '#"url"\s*:\s*"https?://[^"]*?/fr/expat-mag/[^"]+\.html"#'
-                : '#"url"\s*:\s*"https?://[^"]*?/fr/services/[^"]+"#';
-
-            if (preg_match_all($pattern, $unescaped, $jsonUrls)) {
-                foreach ($jsonUrls[0] as $match) {
-                    if (preg_match('#"(https?://[^"]+)"#', $match, $urlMatch)) {
-                        $articleUrl = $urlMatch[1];
-                        if (!isset($seen[$articleUrl])) {
-                            $seen[$articleUrl] = true;
-                            $articles[] = [
-                                'url'      => $articleUrl,
-                                'title'    => '',
-                                'category' => null,
-                            ];
-                            $foundOnPage++;
-                        }
-                    }
-                }
-            }
-
-            // Stop pagination if no new articles found
-            if ($foundOnPage === 0) break;
         }
 
         return $articles;
     }
 
-    private function extractCategoryFromUrl(string $url): ?string
+    /**
+     * Discover thematic guide articles (transversal, not per-country).
+     * e.g. /fr/guide/e-2-travailler-a-l-etranger.html
+     */
+    private function discoverThematicGuides(ContentSource $source): array
     {
-        // /fr/expat-mag/7840-interview-expat.html → null
-        // /fr/expat-mag/destination/article.html → destination
-        // /fr/services/assurance/ → assurance
-        if (preg_match('#/fr/(?:expat-mag|services)/([a-z-]+)/#', $url, $m)) {
-            return ucfirst(str_replace('-', ' ', $m[1]));
+        $articles = [];
+        $siteBase = 'https://www.expat.com';
+
+        // Known thematic guide index pages
+        $thematicPages = [
+            $siteBase . '/fr/guide/e-2-travailler-a-l-etranger.html',
+            $siteBase . '/fr/guide/e-5-retraite-a-l-etranger.html',
+            $siteBase . '/fr/guide/e-8-programme-vacances-travail.html',
+        ];
+
+        // First add the index pages themselves
+        foreach ($thematicPages as $pageUrl) {
+            $articles[] = ['url' => $pageUrl, 'title' => '', 'category' => 'thematique'];
         }
-        return null;
+
+        // Also get from the world sitemap
+        $sitemapUrl = "{$siteBase}/fr/fr-guide-world-1.xml";
+        $xml = $this->fetchSitemap($sitemapUrl);
+        if ($xml) {
+            foreach ($xml as $url) {
+                $loc = (string) $url->loc;
+                if (empty($loc)) continue;
+                // Thematic articles: /fr/guide/e-{id}-{slug}.html
+                if (preg_match('#/fr/guide/e-\d+-#', $loc)) {
+                    $articles[] = [
+                        'url'      => $loc,
+                        'title'    => '',
+                        'category' => 'thematique',
+                    ];
+                }
+            }
+        }
+
+        return $articles;
     }
 
-    private function fetchPage(string $url): ?string
+    private function fetchSitemap(string $url): ?\SimpleXMLElement
     {
         try {
             $response = Http::timeout(30)
-                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; SOSExpatBot/1.0; +https://sos-expat.com)'])
+                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; SOSExpatBot/1.0)'])
                 ->get($url);
-            return $response->successful() ? $response->body() : null;
+
+            if (!$response->successful()) return null;
+
+            $xml = @simplexml_load_string($response->body());
+            if (!$xml) return null;
+
+            // Register namespace for xpath
+            $xml->registerXPathNamespace('sm', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+
+            return $xml;
         } catch (\Throwable $e) {
+            Log::warning('ScrapeContentMagazineJob: sitemap fetch failed', ['url' => $url, 'error' => $e->getMessage()]);
             return null;
         }
     }
 
-    private function resolveUrl(string $href, string $siteBase): string
+    private function extractCategoryFromUrl(string $url): ?string
     {
-        if (str_starts_with($href, 'http')) return $href;
-        if (str_starts_with($href, '//')) return 'https:' . $href;
-        return $siteBase . $href;
+        // /fr/expat-mag/8-formalites/ → Formalites
+        if (preg_match('#/fr/expat-mag/\d+-([a-z-]+)/#', $url, $m)) {
+            return ucfirst(str_replace('-', ' ', $m[1]));
+        }
+        // /fr/expat-mag/afrique/senegal/... → Afrique
+        if (preg_match('#/fr/expat-mag/([a-z-]+)/#', $url, $m)) {
+            return ucfirst(str_replace('-', ' ', $m[1]));
+        }
+        if (str_contains($url, '/e-2-')) return 'Travailler a l\'etranger';
+        if (str_contains($url, '/e-5-')) return 'Retraite a l\'etranger';
+        if (str_contains($url, '/e-8-')) return 'Programme Vacances-Travail';
+        return null;
     }
 
     public function failed(\Throwable $e): void

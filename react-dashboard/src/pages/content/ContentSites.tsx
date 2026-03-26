@@ -89,9 +89,24 @@ export default function ContentSites() {
   const handleScrapeServices = async (slug: string) => {
     try {
       await api.post(`/content/sources/${slug}/scrape-services`);
-      setError(null);
     } catch {
       setError('Erreur lancement services');
+    }
+  };
+
+  const handleScrapeThematic = async (slug: string) => {
+    try {
+      await api.post(`/content/sources/${slug}/scrape-thematic`);
+    } catch {
+      setError('Erreur lancement thematiques');
+    }
+  };
+
+  const handleScrapeCities = async (slug: string) => {
+    try {
+      await api.post(`/content/sources/${slug}/scrape-cities`);
+    } catch {
+      setError('Erreur lancement villes');
     }
   };
 
@@ -216,6 +231,14 @@ export default function ContentSites() {
                 <button onClick={() => handleScrapeServices(src.slug)}
                   className="px-3 py-1.5 bg-green-900/30 text-green-400 rounded-lg text-xs font-medium hover:bg-green-900/40 transition-colors">
                   Scraper les services
+                </button>
+                <button onClick={() => handleScrapeThematic(src.slug)}
+                  className="px-3 py-1.5 bg-pink-900/30 text-pink-400 rounded-lg text-xs font-medium hover:bg-pink-900/40 transition-colors">
+                  Guides thematiques
+                </button>
+                <button onClick={() => handleScrapeCities(src.slug)}
+                  className="px-3 py-1.5 bg-blue-900/30 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-900/40 transition-colors">
+                  Articles manquants
                 </button>
                 <button onClick={() => handleScrapeBusinesses(src.slug)}
                   className="px-3 py-1.5 bg-cyan/20 text-cyan rounded-lg text-xs font-medium hover:bg-cyan/30 transition-colors">
