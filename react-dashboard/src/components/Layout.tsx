@@ -67,7 +67,7 @@ export default function Layout() {
     contacts: path.startsWith('/influenceurs') || path === '/a-relancer',
     acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/directories' || path === '/admin/avancement',
     content: path.startsWith('/content'),
-    contentEngine: path === '/content/overview' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press'),
+    contentEngine: path === '/content/overview' || path === '/content/scheduler' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press'),
     seo: path.startsWith('/seo'),
     publication: path === '/publishing' || path === '/media' || path === '/costs',
     translations: path === '/translations',
@@ -323,6 +323,9 @@ export default function Layout() {
                 >
                   <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
                     Vue d'ensemble
+                  </NavLink>
+                  <NavLink to="/content/scheduler" className={subNavClass} onClick={handleNavClick}>
+                    Planification
                   </NavLink>
                   <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
                     Articles

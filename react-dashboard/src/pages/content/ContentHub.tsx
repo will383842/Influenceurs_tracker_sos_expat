@@ -107,12 +107,17 @@ export default function ContentHub() {
           <h1 className="font-title text-2xl font-bold text-white">Content Engine</h1>
           <p className="text-muted text-sm mt-1">Scraping de sites pour alimenter la generation d'articles</p>
         </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="px-4 py-2 bg-violet hover:bg-violet/80 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          + Ajouter une source
-        </button>
+        <div className="flex gap-2">
+          <Link to="/content/data-cleanup" className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors">
+            Data Cleanup
+          </Link>
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="px-4 py-2 bg-violet hover:bg-violet/80 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            + Ajouter une source
+          </button>
+        </div>
       </div>
 
       {error && (

@@ -65,6 +65,7 @@ const QaList = React.lazy(() => import('./pages/content/QaList'));
 const QaDetail = React.lazy(() => import('./pages/content/QaDetail'));
 const KeywordTracker = React.lazy(() => import('./pages/content/KeywordTracker'));
 const TranslationsDashboard = React.lazy(() => import('./pages/content/TranslationsDashboard'));
+const DailyScheduler = React.lazy(() => import('./pages/content/DailyScheduler'));
 const QuestionClustersList = React.lazy(() => import('./pages/content/QuestionClustersList'));
 const QuestionClusterDetail = React.lazy(() => import('./pages/content/QuestionClusterDetail'));
 const LandingsList = React.lazy(() => import('./pages/content/LandingsList'));
@@ -73,6 +74,7 @@ const LandingDetail = React.lazy(() => import('./pages/content/LandingDetail'));
 const PressList = React.lazy(() => import('./pages/content/PressList'));
 const PressDetail = React.lazy(() => import('./pages/content/PressDetail'));
 const DossierDetail = React.lazy(() => import('./pages/content/DossierDetail'));
+const DataCleanupDashboard = React.lazy(() => import('./pages/content/DataCleanupDashboard'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = React.useContext(AuthContext);
@@ -142,11 +144,13 @@ export default function App() {
             <Route path="content/contacts" element={<AdminRoute><ContentContacts /></AdminRoute>} />
             <Route path="content/questions" element={<AdminRoute><ContentQuestions /></AdminRoute>} />
             <Route path="content/affiliates" element={<AdminRoute><AffiliateLinks /></AdminRoute>} />
+            <Route path="content/data-cleanup" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><DataCleanupDashboard /></React.Suspense></AdminRoute>} />
             <Route path="content/countries" element={<AdminRoute><CountryProfiles /></AdminRoute>} />
             <Route path="content/country/:countrySlug" element={<AdminRoute><CountryProfileDetail /></AdminRoute>} />
 
             {/* Content Engine v2 (lazy loaded) */}
             <Route path="content/overview" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ContentOverview /></React.Suspense></AdminRoute>} />
+            <Route path="content/scheduler" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><DailyScheduler /></React.Suspense></AdminRoute>} />
             <Route path="content/articles" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticlesList /></React.Suspense></AdminRoute>} />
             <Route path="content/articles/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticleCreate /></React.Suspense></AdminRoute>} />
             <Route path="content/articles/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticleDetail /></React.Suspense></AdminRoute>} />

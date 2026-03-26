@@ -4,6 +4,7 @@ use App\Jobs\CheckRemindersJob;
 use App\Jobs\ProcessAutoCampaignJob;
 use App\Jobs\ProcessEmailQueueJob;
 use App\Jobs\ProcessSequencesJob;
+use App\Jobs\RunDailyContentJob;
 use App\Jobs\RunQualityVerificationJob;
 use App\Jobs\RunScraperBatchJob;
 use Illuminate\Support\Facades\Schedule;
@@ -28,3 +29,6 @@ Schedule::job(new ProcessEmailQueueJob)->everyFiveMinutes()->withoutOverlapping(
 
 // Outreach: advance sequences (generate next step) every 15 minutes
 Schedule::job(new ProcessSequencesJob)->everyFifteenMinutes()->withoutOverlapping();
+
+// Run daily content generation at 6:00 AM
+Schedule::job(new RunDailyContentJob)->dailyAt('06:00')->withoutOverlapping(14400);

@@ -497,3 +497,38 @@ export const skipQuestionCluster = (id: number) =>
 
 export const deleteQuestionCluster = (id: number) =>
   api.delete(`/content-gen/question-clusters/${id}`);
+
+// ============================================================
+// AUTO PIPELINE
+// ============================================================
+
+export const runAutoPipeline = (options?: { country?: string; category?: string; max_articles?: number; min_quality_score?: number; include_qa?: boolean; articles_from_questions?: boolean }) =>
+  api.post('/content-gen/generation/auto-pipeline', options);
+
+export const fetchPipelineStatus = () =>
+  api.get('/content-gen/generation/pipeline-status');
+
+// ============================================================
+// DAILY SCHEDULE
+// ============================================================
+
+import type {
+  DailyContentSchedule,
+  DailyContentLog,
+  ScheduleStatus,
+} from '../types/content';
+
+export const fetchDailySchedule = () =>
+  api.get<ScheduleStatus>('/content-gen/schedule');
+
+export const updateDailySchedule = (data: Partial<DailyContentSchedule>) =>
+  api.put('/content-gen/schedule', data);
+
+export const fetchScheduleHistory = () =>
+  api.get<DailyContentLog[]>('/content-gen/schedule/history');
+
+export const runScheduleNow = () =>
+  api.post('/content-gen/schedule/run-now');
+
+export const addCustomTitles = (titles: string[]) =>
+  api.post('/content-gen/schedule/custom-titles', { titles });

@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchGenerationStats, fetchCostOverview, fetchArticles } from '../../api/contentApi';
-import type { GenerationStats, CostOverview, GeneratedArticle, ContentStatus } from '../../types/content';
+import { fetchGenerationStats, fetchCostOverview, fetchArticles, runAutoPipeline, fetchPipelineStatus } from '../../api/contentApi';
+import type { GenerationStats, CostOverview, GeneratedArticle, ContentStatus, PipelineStatus } from '../../types/content';
+import { toast } from '../../components/Toast';
+import { inputClass, errMsg } from './helpers';
 
 // ── Constants ───────────────────────────────────────────────
 const STATUS_COLORS: Record<ContentStatus, string> = {
@@ -51,6 +53,19 @@ export default function ContentOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pipeline state
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus | null>(null);
+  const [pipelineLoading, setPipelineLoading] = useState(false);
+  const [showPipelineOptions, setShowPipelineOptions] = useState(false);
+  const [pipelineOptions, setPipelineOptions] = useState({
+    max_articles: 50,
+    min_quality_score: 85,
+    include_qa: true,
+    articles_from_questions: true,
+    country: '',
+    category: '',
+  });
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -73,6 +88,39 @@ export default function ContentOverview() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Fetch pipeline status on mount + every 30s
+  useEffect(() => {
+    const loadPipeline = async () => {
+      try {
+        const res = await fetchPipelineStatus();
+        setPipelineStatus(res.data as unknown as PipelineStatus);
+      } catch { /* silent */ }
+    };
+    loadPipeline();
+    const interval = setInterval(loadPipeline, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleLaunchPipeline = async () => {
+    setPipelineLoading(true);
+    try {
+      const opts: Record<string, unknown> = {
+        max_articles: pipelineOptions.max_articles,
+        min_quality_score: pipelineOptions.min_quality_score,
+        include_qa: pipelineOptions.include_qa,
+        articles_from_questions: pipelineOptions.articles_from_questions,
+      };
+      if (pipelineOptions.country) opts.country = pipelineOptions.country;
+      if (pipelineOptions.category) opts.category = pipelineOptions.category;
+      await runAutoPipeline(opts);
+      toast('success', 'Pipeline automatique lance ! Les articles seront generes progressivement.');
+    } catch (e) {
+      toast('error', errMsg(e));
+    } finally {
+      setPipelineLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -130,6 +178,121 @@ export default function ContentOverview() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <h2 className="font-title text-2xl font-bold text-white">Content Engine — Vue d'ensemble</h2>
+
+      {/* ── AUTO PIPELINE PANEL ── */}
+      <div className="bg-gradient-to-r from-violet/10 to-blue-500/10 border border-violet/30 rounded-xl p-6 mb-8">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              ⚡ Pipeline Automatique
+            </h2>
+            <p className="text-muted mt-1">
+              Genere automatiquement des articles a partir de tout le contenu scrappe.
+              Clustering, recherche, generation, anti-plagiat, SEO — tout est automatique.
+            </p>
+          </div>
+          {pipelineStatus && pipelineStatus.currently_generating > 0 && (
+            <span className="px-3 py-1 rounded-full bg-amber/20 text-amber text-sm animate-pulse">
+              {pipelineStatus.currently_generating} en cours...
+            </span>
+          )}
+        </div>
+
+        {/* Pipeline Stats */}
+        {pipelineStatus && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 mt-4">
+            <div className="bg-surface rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-white">{pipelineStatus.unprocessed_articles.toLocaleString()}</div>
+              <div className="text-xs text-muted">Articles a traiter</div>
+            </div>
+            <div className="bg-surface rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-white">{pipelineStatus.unprocessed_questions.toLocaleString()}</div>
+              <div className="text-xs text-muted">Questions forum</div>
+            </div>
+            <div className="bg-surface rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-white">{pipelineStatus.pending_clusters + pipelineStatus.pending_question_clusters}</div>
+              <div className="text-xs text-muted">Clusters en attente</div>
+            </div>
+            <div className="bg-surface rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-emerald-400">{pipelineStatus.total_generated}</div>
+              <div className="text-xs text-muted">Articles generes</div>
+            </div>
+            <div className="bg-surface rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-violet">{pipelineStatus.generated_today}</div>
+              <div className="text-xs text-muted">Generes aujourd'hui</div>
+            </div>
+          </div>
+        )}
+
+        {/* Options toggle */}
+        <div className="mt-4 flex items-center gap-4">
+          <button
+            onClick={handleLaunchPipeline}
+            disabled={pipelineLoading || !pipelineStatus?.pipeline_ready}
+            className="px-6 py-3 rounded-lg bg-violet hover:bg-violet/80 text-white font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {pipelineLoading ? 'Lancement...' : '⚡ Lancer le pipeline automatique'}
+          </button>
+          <button
+            onClick={() => setShowPipelineOptions(!showPipelineOptions)}
+            className="text-sm text-muted hover:text-white transition"
+          >
+            {showPipelineOptions ? 'Masquer les options' : 'Options avancees'}
+          </button>
+        </div>
+
+        {/* Advanced options (collapsible) */}
+        {showPipelineOptions && (
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 bg-surface rounded-lg">
+            <div>
+              <label className="block text-xs text-muted mb-1">Max articles</label>
+              <input type="number" min={1} max={500} value={pipelineOptions.max_articles}
+                onChange={e => setPipelineOptions(p => ({...p, max_articles: +e.target.value}))}
+                className={inputClass + ' w-full'} />
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Score qualite minimum</label>
+              <input type="number" min={50} max={100} value={pipelineOptions.min_quality_score}
+                onChange={e => setPipelineOptions(p => ({...p, min_quality_score: +e.target.value}))}
+                className={inputClass + ' w-full'} />
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Pays (optionnel)</label>
+              <input type="text" value={pipelineOptions.country} placeholder="Ex: allemagne"
+                onChange={e => setPipelineOptions(p => ({...p, country: e.target.value}))}
+                className={inputClass + ' w-full'} />
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Categorie (optionnel)</label>
+              <select value={pipelineOptions.category}
+                onChange={e => setPipelineOptions(p => ({...p, category: e.target.value}))}
+                className={inputClass + ' w-full'}>
+                <option value="">Toutes</option>
+                <option value="visa">Visa</option>
+                <option value="logement">Logement</option>
+                <option value="sante">Sante</option>
+                <option value="emploi">Emploi</option>
+                <option value="education">Education</option>
+                <option value="banque">Banque</option>
+                <option value="transport">Transport</option>
+                <option value="culture">Culture</option>
+                <option value="demarches">Demarches</option>
+                <option value="telecom">Telecom</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="include_qa" checked={pipelineOptions.include_qa}
+                onChange={e => setPipelineOptions(p => ({...p, include_qa: e.target.checked}))} />
+              <label htmlFor="include_qa" className="text-sm text-muted">Generer les Q&A</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="from_questions" checked={pipelineOptions.articles_from_questions}
+                onChange={e => setPipelineOptions(p => ({...p, articles_from_questions: e.target.checked}))} />
+              <label htmlFor="from_questions" className="text-sm text-muted">Articles depuis questions</label>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

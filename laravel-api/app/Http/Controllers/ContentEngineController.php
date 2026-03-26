@@ -217,6 +217,90 @@ class ContentEngineController extends Controller
                     ->whereNotNull('category')->groupBy('category')->orderByDesc('count')->get(),
                 'link_types'      => ContentExternalLink::selectRaw('link_type, COUNT(*) as count')
                     ->groupBy('link_type')->orderByDesc('count')->get(),
+                'articles_by_status' => ContentArticle::selectRaw('processing_status, COUNT(*) as count')
+                    ->groupBy('processing_status')->orderByDesc('count')->get(),
+                'questions_by_status' => \DB::table('content_questions')
+                    ->selectRaw('article_status, COUNT(*) as count, SUM(views) as total_views')
+                    ->groupBy('article_status')->get(),
+                'total_opportunities' => \DB::table('content_opportunities')->count(),
+                'total_questions'     => \DB::table('content_questions')->count(),
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    /**
+     * Data cleanup dashboard: processing stats, opportunities, monetizable themes.
+     */
+    public function dataCleanupStats(): JsonResponse
+    {
+        $data = Cache::remember('data-cleanup-stats', 300, function () {
+            $articlesByStatus = ContentArticle::selectRaw('processing_status, COUNT(*) as count, ROUND(AVG(word_count)) as avg_words')
+                ->groupBy('processing_status')->get()->keyBy('processing_status');
+
+            $articlesBySource = ContentArticle::selectRaw('
+                    content_sources.name as source_name,
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE processing_status = \'processed\') as processed,
+                    COUNT(*) FILTER (WHERE processing_status = \'duplicate\') as duplicates,
+                    COUNT(*) FILTER (WHERE processing_status = \'low_quality\') as low_quality,
+                    COUNT(*) FILTER (WHERE country_id IS NOT NULL) as with_country,
+                    COUNT(*) FILTER (WHERE country_id IS NULL) as without_country
+                ')
+                ->join('content_sources', 'content_articles.source_id', '=', 'content_sources.id')
+                ->groupBy('content_sources.name')
+                ->orderByDesc('total')
+                ->get();
+
+            $questionStats = \DB::table('content_questions')
+                ->selectRaw('article_status, COUNT(*) as count, SUM(views) as total_views, SUM(replies) as total_replies')
+                ->groupBy('article_status')->get();
+
+            $topOpportunities = \DB::table('content_opportunities')
+                ->select('question_title', 'country', 'theme', 'views', 'replies', 'priority_score')
+                ->where('status', 'opportunity')
+                ->orderByDesc('priority_score')
+                ->limit(100)
+                ->get();
+
+            $opportunitiesByTheme = \DB::table('content_opportunities')
+                ->selectRaw('theme, COUNT(*) as count, SUM(views) as total_views')
+                ->where('status', 'opportunity')
+                ->groupBy('theme')
+                ->orderByDesc('total_views')
+                ->get();
+
+            $opportunitiesByCountry = \DB::table('content_opportunities')
+                ->selectRaw('country, COUNT(*) as count, SUM(views) as total_views')
+                ->where('status', 'opportunity')
+                ->whereNotNull('country')
+                ->groupBy('country')
+                ->orderByDesc('total_views')
+                ->limit(30)
+                ->get();
+
+            $monetizableThemes = \DB::table('monetizable_themes')
+                ->select('country', 'theme', 'nb_existing_articles', 'qa_total_views', 'monetization_score')
+                ->orderByDesc('monetization_score')
+                ->limit(50)
+                ->get();
+
+            $affiliatePrograms = ContentExternalLink::selectRaw('domain, COUNT(*) as nb_links, COUNT(DISTINCT article_id) as nb_articles')
+                ->where('is_affiliate', true)
+                ->groupBy('domain')
+                ->orderByDesc('nb_links')
+                ->get();
+
+            return [
+                'articles_by_status'       => $articlesByStatus,
+                'articles_by_source'       => $articlesBySource,
+                'question_stats'           => $questionStats,
+                'top_opportunities'        => $topOpportunities,
+                'opportunities_by_theme'   => $opportunitiesByTheme,
+                'opportunities_by_country' => $opportunitiesByCountry,
+                'monetizable_themes'       => $monetizableThemes,
+                'affiliate_programs'       => $affiliatePrograms,
             ];
         });
 
@@ -303,54 +387,65 @@ class ContentEngineController extends Controller
     }
 
     /**
-     * Country profiles: aggregated data per country (articles, links, businesses).
+     * Country profiles: unified data per country from materialized view + businesses.
      */
     public function countryProfiles(): JsonResponse
     {
-        $countries = ContentCountry::selectRaw("
-            content_countries.*,
-            (SELECT COUNT(*) FROM content_articles WHERE content_articles.country_id = content_countries.id) as total_articles,
-            (SELECT SUM(word_count) FROM content_articles WHERE content_articles.country_id = content_countries.id) as total_words,
-            (SELECT COUNT(*) FROM content_external_links WHERE content_external_links.country_id = content_countries.id) as total_links
-        ")
-        ->orderBy('continent')
-        ->orderBy('name')
-        ->get();
+        $data = Cache::remember('country-profiles', 300, function () {
+            // Use the materialized view for fast aggregated data
+            $profiles = \DB::table('country_profiles')
+                ->orderByDesc('priority_score')
+                ->get();
 
-        // Get business counts per country
-        $businessCounts = ContentBusiness::selectRaw('country_slug, COUNT(*) as count')
-            ->groupBy('country_slug')
-            ->pluck('count', 'country_slug');
+            // Get business counts per country
+            $businessCounts = ContentBusiness::selectRaw('country_slug, COUNT(*) as count')
+                ->groupBy('country_slug')
+                ->pluck('count', 'country_slug');
 
-        $result = $countries->map(function ($c) use ($businessCounts) {
+            $result = $profiles->map(function ($c) use ($businessCounts) {
+                return [
+                    'id'                => $c->country_id,
+                    'name'              => $c->country_name,
+                    'slug'              => $c->country_slug,
+                    'continent'         => $c->continent,
+                    'total_articles'    => (int) $c->total_articles,
+                    'nb_sources'        => (int) $c->nb_sources,
+                    'sources'           => $c->sources,
+                    'total_words'       => (int) ($c->total_words ?? 0),
+                    'total_businesses'  => (int) ($businessCounts[$c->country_slug] ?? 0),
+                    'total_questions'   => (int) $c->total_questions,
+                    'total_qa_views'    => (int) $c->total_qa_views,
+                    'priority_score'    => (int) $c->priority_score,
+                    'thematic_coverage' => (int) $c->thematic_coverage,
+                    'visa'              => (int) $c->visa_articles,
+                    'emploi'            => (int) $c->emploi_articles,
+                    'logement'          => (int) $c->logement_articles,
+                    'sante'             => (int) $c->sante_articles,
+                    'banque'            => (int) $c->banque_articles,
+                    'education'         => (int) $c->education_articles,
+                    'transport'         => (int) $c->transport_articles,
+                    'telecom'           => (int) $c->telecom_articles,
+                    'culture'           => (int) $c->culture_articles,
+                    'demarches'         => (int) $c->demarches_articles,
+                ];
+            });
+
+            $grouped = $result->groupBy('continent');
+
             return [
-                'id'              => $c->id,
-                'name'            => $c->name,
-                'slug'            => $c->slug,
-                'continent'       => $c->continent,
-                'guide_url'       => $c->guide_url,
-                'total_articles'  => (int) $c->total_articles,
-                'total_words'     => (int) ($c->total_words ?? 0),
-                'total_links'     => (int) $c->total_links,
-                'total_businesses' => (int) ($businessCounts[$c->slug] ?? 0),
-                'scraped_at'      => $c->scraped_at,
+                'countries'    => $result,
+                'by_continent' => $grouped,
+                'totals'       => [
+                    'countries'  => $result->count(),
+                    'articles'   => $result->sum('total_articles'),
+                    'words'      => $result->sum('total_words'),
+                    'questions'  => $result->sum('total_questions'),
+                    'businesses' => $result->sum('total_businesses'),
+                ],
             ];
         });
 
-        // Group by continent
-        $grouped = $result->groupBy('continent');
-
-        return response()->json([
-            'countries' => $result,
-            'by_continent' => $grouped,
-            'totals' => [
-                'countries'  => $result->count(),
-                'articles'   => $result->sum('total_articles'),
-                'words'      => $result->sum('total_words'),
-                'links'      => $result->sum('total_links'),
-                'businesses' => $result->sum('total_businesses'),
-            ],
-        ]);
+        return response()->json($data);
     }
 
     /**

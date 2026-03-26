@@ -788,3 +788,65 @@ export interface QuestionClusterStats {
   by_category: { category: string; count: number }[];
   top_popular: QuestionCluster[];
 }
+
+// ============================================================
+// PIPELINE STATUS
+// ============================================================
+
+export interface PipelineStatus {
+  unprocessed_articles: number;
+  unprocessed_questions: number;
+  pending_clusters: number;
+  pending_question_clusters: number;
+  currently_generating: number;
+  generated_today: number;
+  total_generated: number;
+  avg_quality_score: number;
+  avg_seo_score: number;
+  pipeline_ready: boolean;
+}
+
+// ============================================================
+// DAILY CONTENT SCHEDULER
+// ============================================================
+
+export interface DailyContentSchedule {
+  id: number;
+  name: string;
+  is_active: boolean;
+  pillar_articles_per_day: number;
+  normal_articles_per_day: number;
+  qa_per_day: number;
+  comparatives_per_day: number;
+  custom_titles: string[] | null;
+  publish_per_day: number;
+  publish_start_hour: number;
+  publish_end_hour: number;
+  publish_irregular: boolean;
+  target_country: string | null;
+  target_category: string | null;
+  min_quality_score: number;
+  created_at: string;
+}
+
+export interface DailyContentLog {
+  id: number;
+  schedule_id: number;
+  date: string;
+  pillar_generated: number;
+  normal_generated: number;
+  qa_generated: number;
+  comparatives_generated: number;
+  custom_generated: number;
+  published: number;
+  total_cost_cents: number;
+  errors: string[] | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface ScheduleStatus {
+  schedule: DailyContentSchedule;
+  today: DailyContentLog | null;
+  is_running: boolean;
+}

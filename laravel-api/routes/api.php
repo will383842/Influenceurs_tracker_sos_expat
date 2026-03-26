@@ -37,6 +37,7 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TopicClusterController;
 use App\Http\Controllers\ContentQualityController;
 use App\Http\Controllers\QuestionClusterController;
+use App\Http\Controllers\DailyScheduleController;
 use App\Http\Controllers\TranslationBatchController;
 use Illuminate\Support\Facades\Route;
 
@@ -320,6 +321,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/country-profiles', [ContentEngineController::class, 'countryProfiles']);
         Route::get('/country-profiles/{countrySlug}', [ContentEngineController::class, 'countryProfile']);
         Route::get('/stats', [ContentEngineController::class, 'stats']);
+        Route::get('/data-cleanup', [ContentEngineController::class, 'dataCleanupStats']);
     });
 
     // ============================================================
@@ -446,6 +448,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/generation/prompts/{prompt}', [GenerationController::class, 'promptUpdate']);
         Route::delete('/generation/prompts/{prompt}', [GenerationController::class, 'promptDelete']);
         Route::post('/generation/prompts/test', [GenerationController::class, 'testPrompt']);
+        Route::post('/generation/auto-pipeline', [GenerationController::class, 'runAutoPipeline']);
+        Route::get('/generation/pipeline-status', [GenerationController::class, 'pipelineStatus']);
 
         // SEO
         Route::get('/seo/dashboard', [SeoController::class, 'dashboard']);
@@ -535,5 +539,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/question-clusters/{cluster}/generate-both', [QuestionClusterController::class, 'generateBoth']);
         Route::post('/question-clusters/{cluster}/skip', [QuestionClusterController::class, 'skip']);
         Route::delete('/question-clusters/{cluster}', [QuestionClusterController::class, 'destroy']);
+
+        // Daily Content Schedule
+        Route::get('/schedule', [DailyScheduleController::class, 'getSchedule']);
+        Route::put('/schedule', [DailyScheduleController::class, 'updateSchedule']);
+        Route::get('/schedule/history', [DailyScheduleController::class, 'getHistory']);
+        Route::post('/schedule/run-now', [DailyScheduleController::class, 'runNow']);
+        Route::post('/schedule/custom-titles', [DailyScheduleController::class, 'addCustomTitles']);
     });
 });

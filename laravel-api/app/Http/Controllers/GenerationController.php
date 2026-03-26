@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\RunFullAutoPipelineJob;
+use App\Models\ContentArticle;
+use App\Models\ContentQuestion;
 use App\Models\GeneratedArticle;
 use App\Models\GenerationLog;
 use App\Models\GenerationPreset;
 use App\Models\PromptTemplate;
+use App\Models\QuestionCluster;
+use App\Models\TopicCluster;
 use App\Services\AI\OpenAiService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -296,5 +301,54 @@ class GenerationController extends Controller
                 'error'   => $e->getMessage(),
             ], 500);
         }
+    }
+
+    // ============================================================
+    // Auto Pipeline
+    // ============================================================
+
+    public function runAutoPipeline(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'country' => 'nullable|string|max:100',
+            'category' => 'nullable|string|max:50',
+            'max_articles' => 'nullable|integer|min:1|max:500',
+            'min_quality_score' => 'nullable|integer|min:50|max:100',
+            'include_qa' => 'nullable|boolean',
+            'articles_from_questions' => 'nullable|boolean',
+        ]);
+
+        RunFullAutoPipelineJob::dispatch($validated);
+
+        return response()->json([
+            'message' => 'Pipeline automatique lancé',
+            'options' => $validated,
+        ], 202);
+    }
+
+    public function pipelineStatus(): JsonResponse
+    {
+        $unprocessedArticles = ContentArticle::whereIn('processing_status', ['unprocessed', null])->count();
+        $unprocessedQuestions = ContentQuestion::where('article_status', 'new')->count();
+        $pendingClusters = TopicCluster::whereIn('status', ['pending', 'ready'])->count();
+        $pendingQClusters = QuestionCluster::whereIn('status', ['pending', 'ready'])->count();
+        $generatingCount = GeneratedArticle::where('status', 'generating')->count();
+        $generatedToday = GeneratedArticle::whereDate('created_at', today())->count();
+        $totalGenerated = GeneratedArticle::whereNull('parent_article_id')->count();
+        $avgQuality = GeneratedArticle::whereNull('parent_article_id')->avg('quality_score') ?? 0;
+        $avgSeo = GeneratedArticle::whereNull('parent_article_id')->avg('seo_score') ?? 0;
+
+        return response()->json([
+            'unprocessed_articles' => $unprocessedArticles,
+            'unprocessed_questions' => $unprocessedQuestions,
+            'pending_clusters' => $pendingClusters,
+            'pending_question_clusters' => $pendingQClusters,
+            'currently_generating' => $generatingCount,
+            'generated_today' => $generatedToday,
+            'total_generated' => $totalGenerated,
+            'avg_quality_score' => round($avgQuality, 1),
+            'avg_seo_score' => round($avgSeo, 1),
+            'pipeline_ready' => $unprocessedArticles > 0 || $unprocessedQuestions > 0,
+        ]);
     }
 }
