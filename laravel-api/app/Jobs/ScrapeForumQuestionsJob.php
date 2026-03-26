@@ -169,8 +169,9 @@ class ScrapeForumQuestionsJob implements ShouldQueue
                 if (isset($seen[$slug])) continue;
                 $seen[$slug] = true;
 
+                $forumUrl = $langPrefix . '/forum/' . $m[1] . '/' . $m[2] . '/';
                 $forums[] = [
-                    'url'          => self::BASE_URL . $langPrefix . '/forum/' . $m[1] . '/' . $m[2] . '/',
+                    'url'          => self::BASE_URL . $forumUrl,
                     'country'      => html_entity_decode($m[3], ENT_QUOTES, 'UTF-8'),
                     'country_slug' => $m[2],
                     'continent'    => $this->normalizeContinent($m[1]),
@@ -199,8 +200,9 @@ class ScrapeForumQuestionsJob implements ShouldQueue
                     if (isset($seen[$slug])) continue;
                     $seen[$slug] = true;
 
+                    $resolvedUrl = str_starts_with($href, 'http') ? $href : self::BASE_URL . $href;
                     $forums[] = [
-                        'url'          => self::BASE_URL . $href,
+                        'url'          => $resolvedUrl,
                         'country'      => $text ?: ucfirst(str_replace('-', ' ', $slug)),
                         'country_slug' => $slug,
                         'continent'    => $this->normalizeContinent($m[1]),
