@@ -67,9 +67,10 @@ export default function Layout() {
     contacts: path.startsWith('/influenceurs') || path === '/a-relancer',
     acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/directories' || path === '/admin/avancement',
     content: path.startsWith('/content'),
-    contentEngine: path === '/content/overview' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns'),
+    contentEngine: path === '/content/overview' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press'),
     seo: path.startsWith('/seo'),
     publication: path === '/publishing' || path === '/media' || path === '/costs',
+    translations: path === '/translations',
     prospection: path.startsWith('/prospection') || path === '/outreach',
     parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/scraper') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
   });
@@ -87,6 +88,7 @@ export default function Layout() {
       contentEngine: prev.contentEngine || needed.contentEngine,
       seo: prev.seo || needed.seo,
       publication: prev.publication || needed.publication,
+      translations: prev.translations || needed.translations,
       prospection: prev.prospection || needed.prospection,
       parametres: prev.parametres || needed.parametres,
     }));
@@ -331,6 +333,21 @@ export default function Layout() {
                   <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
                     Campagnes
                   </NavLink>
+                  <NavLink to="/content/clusters" className={subNavClass} onClick={handleNavClick}>
+                    Clusters
+                  </NavLink>
+                  <NavLink to="/content/qa" className={subNavClass} onClick={handleNavClick}>
+                    Q&A
+                  </NavLink>
+                  <NavLink to="/content/question-clusters" className={subNavClass} onClick={handleNavClick}>
+                    Questions Forum
+                  </NavLink>
+                  <NavLink to="/content/landings" className={subNavClass} onClick={handleNavClick}>
+                    Landings
+                  </NavLink>
+                  <NavLink to="/content/press" className={subNavClass} onClick={handleNavClick}>
+                    Presse
+                  </NavLink>
                 </NavGroup>
               )}
 
@@ -347,6 +364,9 @@ export default function Layout() {
                   </NavLink>
                   <NavLink to="/seo/internal-links" className={subNavClass} onClick={handleNavClick}>
                     Maillage interne
+                  </NavLink>
+                  <NavLink to="/seo/keywords" className={subNavClass} onClick={handleNavClick}>
+                    Mots-cles
                   </NavLink>
                 </NavGroup>
               )}
@@ -367,6 +387,20 @@ export default function Layout() {
                   </NavLink>
                   <NavLink to="/costs" className={subNavClass} onClick={handleNavClick}>
                     Couts IA
+                  </NavLink>
+                </NavGroup>
+              )}
+
+              {/* Traductions - admin only */}
+              {isAdmin && (
+                <NavGroup
+                  label="Traductions"
+                  icon="🌐"
+                  isOpen={openGroups.translations}
+                  onToggle={() => toggleGroup('translations')}
+                >
+                  <NavLink to="/translations" className={subNavClass} onClick={handleNavClick}>
+                    Traductions
                   </NavLink>
                 </NavGroup>
               )}

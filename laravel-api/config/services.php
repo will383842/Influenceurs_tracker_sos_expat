@@ -45,4 +45,43 @@ return [
         'model'   => env('PERPLEXITY_MODEL', 'sonar'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY', ''),
+        'model' => env('OPENAI_MODEL', 'gpt-4o'),
+        'translation_model' => env('OPENAI_TRANSLATION_MODEL', 'gpt-4o-mini'),
+        'timeout' => (int) env('OPENAI_TIMEOUT', 180),
+    ],
+
+    'dalle' => [
+        'model' => env('DALLE_MODEL', 'dall-e-3'),
+        'timeout' => (int) env('DALLE_TIMEOUT', 180),
+    ],
+
+    'unsplash' => [
+        'access_key' => env('UNSPLASH_ACCESS_KEY', ''),
+    ],
+
+    'ai' => [
+        'daily_budget' => (int) env('AI_DAILY_BUDGET', 5000),
+        'monthly_budget' => (int) env('AI_MONTHLY_BUDGET', 100000),
+        'alert_email' => env('AI_ALERT_EMAIL', ''),
+        'block_on_exceeded' => (bool) env('AI_BLOCK_ON_EXCEEDED', false),
+    ],
+
+    'indexnow' => [
+        'enabled' => (bool) env('INDEXNOW_ENABLED', false),
+        'key' => env('INDEXNOW_KEY', ''),
+        'delay' => (int) env('INDEXNOW_DELAY', 60),
+    ],
+
+    'site' => [
+        'url' => env('SITE_URL', 'https://sos-expat.com'),
+        'name' => env('SITE_NAME', 'SOS-Expat'),
+    ],
+
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID', ''),
+        'service_account_key' => env('FIREBASE_SERVICE_ACCOUNT_KEY', ''),
+    ],
+
 ];

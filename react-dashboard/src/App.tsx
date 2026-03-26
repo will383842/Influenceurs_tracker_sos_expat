@@ -39,6 +39,7 @@ import ProspectionContacts from './pages/prospection/ProspectionContacts';
 import ProspectionConfig from './pages/prospection/ProspectionConfig';
 import ProspectionCampaignWizard from './pages/prospection/ProspectionCampaignWizard';
 import Layout from './components/Layout';
+import { ToastContainer } from './components/Toast';
 
 // Content Engine pages (lazy loaded)
 const ContentOverview = React.lazy(() => import('./pages/content/ContentOverview'));
@@ -58,6 +59,20 @@ const CostsDashboard = React.lazy(() => import('./pages/content/CostsDashboard')
 const MediaLibrary = React.lazy(() => import('./pages/content/MediaLibrary'));
 const PromptTemplates = React.lazy(() => import('./pages/content/PromptTemplates'));
 const GenerationPresets = React.lazy(() => import('./pages/content/GenerationPresets'));
+const ClustersList = React.lazy(() => import('./pages/content/ClustersList'));
+const ClusterDetail = React.lazy(() => import('./pages/content/ClusterDetail'));
+const QaList = React.lazy(() => import('./pages/content/QaList'));
+const QaDetail = React.lazy(() => import('./pages/content/QaDetail'));
+const KeywordTracker = React.lazy(() => import('./pages/content/KeywordTracker'));
+const TranslationsDashboard = React.lazy(() => import('./pages/content/TranslationsDashboard'));
+const QuestionClustersList = React.lazy(() => import('./pages/content/QuestionClustersList'));
+const QuestionClusterDetail = React.lazy(() => import('./pages/content/QuestionClusterDetail'));
+const LandingsList = React.lazy(() => import('./pages/content/LandingsList'));
+const LandingCreate = React.lazy(() => import('./pages/content/LandingCreate'));
+const LandingDetail = React.lazy(() => import('./pages/content/LandingDetail'));
+const PressList = React.lazy(() => import('./pages/content/PressList'));
+const PressDetail = React.lazy(() => import('./pages/content/PressDetail'));
+const DossierDetail = React.lazy(() => import('./pages/content/DossierDetail'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = React.useContext(AuthContext);
@@ -93,6 +108,7 @@ export default function App() {
   return (
     <AuthContext.Provider value={auth}>
       <BrowserRouter>
+        <ToastContainer />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
@@ -140,6 +156,22 @@ export default function App() {
             <Route path="content/campaigns" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignsList /></React.Suspense></AdminRoute>} />
             <Route path="content/campaigns/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignCreate /></React.Suspense></AdminRoute>} />
             <Route path="content/campaigns/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignDetail /></React.Suspense></AdminRoute>} />
+
+            {/* Content Pipeline: Clusters, Q&A, Keywords, Translations */}
+            <Route path="content/clusters" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ClustersList /></React.Suspense></AdminRoute>} />
+            <Route path="content/clusters/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ClusterDetail /></React.Suspense></AdminRoute>} />
+            <Route path="content/qa" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><QaList /></React.Suspense></AdminRoute>} />
+            <Route path="content/qa/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><QaDetail /></React.Suspense></AdminRoute>} />
+            <Route path="content/question-clusters" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><QuestionClustersList /></React.Suspense></AdminRoute>} />
+            <Route path="content/question-clusters/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><QuestionClusterDetail /></React.Suspense></AdminRoute>} />
+            <Route path="content/landings" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><LandingsList /></React.Suspense></AdminRoute>} />
+            <Route path="content/landings/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><LandingCreate /></React.Suspense></AdminRoute>} />
+            <Route path="content/landings/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><LandingDetail /></React.Suspense></AdminRoute>} />
+            <Route path="content/press" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><PressList /></React.Suspense></AdminRoute>} />
+            <Route path="content/press/releases/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><PressDetail /></React.Suspense></AdminRoute>} />
+            <Route path="content/press/dossiers/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><DossierDetail /></React.Suspense></AdminRoute>} />
+            <Route path="seo/keywords" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><KeywordTracker /></React.Suspense></AdminRoute>} />
+            <Route path="translations" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><TranslationsDashboard /></React.Suspense></AdminRoute>} />
 
             {/* Content v1 catch-all routes (must come after specific content/* routes) */}
             <Route path="content/:sourceSlug" element={<AdminRoute><ContentSourcePage /></AdminRoute>} />

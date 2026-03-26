@@ -16,13 +16,14 @@ class LandingPage extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'parent_id', 'title', 'slug', 'content_html', 'excerpt',
+        'uuid',
+        'parent_id', 'title', 'slug',
         'meta_title', 'meta_description',
-        'keyword_primary', 'language', 'country', 'page_type', 'tone',
+        'language', 'country',
         'sections', 'json_ld', 'hreflang_map',
         'seo_score', 'generation_cost_cents',
-        'ai_model', 'status',
-        'published_at', 'published_url', 'canonical_url',
+        'status',
+        'published_at',
         'created_by',
     ];
 
@@ -69,7 +70,7 @@ class LandingPage extends Model
         return $this->belongsTo(LandingPage::class, 'parent_id');
     }
 
-    public function createdBy(): BelongsTo
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
@@ -87,6 +88,31 @@ class LandingPage extends Model
     public function publicationQueue(): MorphMany
     {
         return $this->morphMany(PublicationQueueItem::class, 'publishable');
+    }
+
+    public function apiCosts(): MorphMany
+    {
+        return $this->morphMany(ApiCost::class, 'costable');
+    }
+
+    public function internalLinksOut(): MorphMany
+    {
+        return $this->morphMany(InternalLink::class, 'source');
+    }
+
+    public function internalLinksIn(): MorphMany
+    {
+        return $this->morphMany(InternalLink::class, 'target');
+    }
+
+    public function externalLinks(): MorphMany
+    {
+        return $this->morphMany(ExternalLinkRegistry::class, 'article');
+    }
+
+    public function affiliateLinks(): MorphMany
+    {
+        return $this->morphMany(AffiliateLink::class, 'article');
     }
 
     // ============================================================

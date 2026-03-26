@@ -168,6 +168,48 @@ services:
     networks:
       - internal
 
+  content-worker:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    container_name: inf-content-worker
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "redis", "--queue=content", "--sleep=3", "--tries=2", "--timeout=600", "--memory=512"]
+    mem_limit: 512m
+    memswap_limit: 512m
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./.env.production:/var/www/html/.env:ro
+      - app_storage:/var/www/html/storage
+    networks:
+      - internal
+
+  publication-worker:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    container_name: inf-publication-worker
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "redis", "--queue=publication", "--sleep=5", "--tries=5", "--timeout=120", "--memory=256"]
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./.env.production:/var/www/html/.env:ro
+      - app_storage:/var/www/html/storage
+    networks:
+      - internal
+
   nginx-api:
     image: nginx:alpine
     container_name: inf-nginx-api

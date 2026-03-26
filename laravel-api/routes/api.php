@@ -15,10 +15,13 @@ use App\Http\Controllers\CostController;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\GeneratedArticleController;
 use App\Http\Controllers\GenerationController;
+use App\Http\Controllers\KeywordTrackingController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PressController;
 use App\Http\Controllers\PublishingController;
+use App\Http\Controllers\QaEntryController;
+use App\Http\Controllers\SeoChecklistController;
 use App\Http\Controllers\SeoController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ContactTypeController;
@@ -31,6 +34,10 @@ use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TopicClusterController;
+use App\Http\Controllers\ContentQualityController;
+use App\Http\Controllers\QuestionClusterController;
+use App\Http\Controllers\TranslationBatchController;
 use Illuminate\Support\Facades\Route;
 
 // Tracking & Unsubscribe (public, no auth)
@@ -468,5 +475,65 @@ Route::middleware('auth:sanctum')->group(function () {
         // Media
         Route::get('/media/unsplash', [MediaController::class, 'searchUnsplash']);
         Route::post('/media/generate-image', [MediaController::class, 'generateImage']);
+
+        // Topic Clusters
+        Route::get('/clusters', [TopicClusterController::class, 'index']);
+        Route::get('/clusters/{cluster}', [TopicClusterController::class, 'show']);
+        Route::post('/clusters/auto-cluster', [TopicClusterController::class, 'autoCluster']);
+        Route::post('/clusters/{cluster}/brief', [TopicClusterController::class, 'generateBrief']);
+        Route::post('/clusters/{cluster}/generate', [TopicClusterController::class, 'generateArticle']);
+        Route::post('/clusters/{cluster}/generate-qa', [TopicClusterController::class, 'generateQa']);
+        Route::delete('/clusters/{cluster}', [TopicClusterController::class, 'destroy']);
+
+        // Q&A
+        Route::get('/qa', [QaEntryController::class, 'index']);
+        Route::post('/qa', [QaEntryController::class, 'store']);
+        Route::get('/qa/{qa}', [QaEntryController::class, 'show']);
+        Route::put('/qa/{qa}', [QaEntryController::class, 'update']);
+        Route::delete('/qa/{qa}', [QaEntryController::class, 'destroy']);
+        Route::post('/qa/{qa}/publish', [QaEntryController::class, 'publish']);
+        Route::post('/qa/generate-from-article', [QaEntryController::class, 'generateFromArticle']);
+        Route::post('/qa/generate-from-paa', [QaEntryController::class, 'generateFromPaa']);
+        Route::post('/qa/bulk-publish', [QaEntryController::class, 'bulkPublish']);
+
+        // Keywords
+        Route::get('/keywords', [KeywordTrackingController::class, 'index']);
+        Route::get('/keywords/gaps', [KeywordTrackingController::class, 'gaps']);
+        Route::get('/keywords/cannibalization', [KeywordTrackingController::class, 'cannibalization']);
+        Route::get('/keywords/article/{article}', [KeywordTrackingController::class, 'articleKeywords']);
+
+        // Translation Batches
+        Route::get('/translations', [TranslationBatchController::class, 'index']);
+        Route::get('/translations/overview', [TranslationBatchController::class, 'overview']);
+        Route::post('/translations/start', [TranslationBatchController::class, 'start']);
+        Route::get('/translations/{batch}', [TranslationBatchController::class, 'show']);
+        Route::post('/translations/{batch}/pause', [TranslationBatchController::class, 'pause']);
+        Route::post('/translations/{batch}/resume', [TranslationBatchController::class, 'resume']);
+        Route::post('/translations/{batch}/cancel', [TranslationBatchController::class, 'cancel']);
+
+        // SEO Checklist
+        Route::get('/seo/checklist/{article}', [SeoChecklistController::class, 'show']);
+        Route::post('/seo/checklist/{article}/evaluate', [SeoChecklistController::class, 'evaluate']);
+        Route::get('/seo/checklist/{article}/failed', [SeoChecklistController::class, 'failedChecks']);
+
+        // Quality Analysis
+        Route::get('/quality/{article}/readability', [ContentQualityController::class, 'readability']);
+        Route::get('/quality/{article}/tone', [ContentQualityController::class, 'tone']);
+        Route::get('/quality/{article}/brand', [ContentQualityController::class, 'brand']);
+        Route::get('/quality/{article}/plagiarism', [ContentQualityController::class, 'plagiarism']);
+        Route::get('/quality/{article}/fact-check', [ContentQualityController::class, 'factCheck']);
+        Route::post('/quality/{article}/improve', [ContentQualityController::class, 'improve']);
+        Route::get('/quality/{article}/full-audit', [ContentQualityController::class, 'fullAudit']);
+
+        // Question Clusters
+        Route::get('/question-clusters', [QuestionClusterController::class, 'index']);
+        Route::get('/question-clusters/stats', [QuestionClusterController::class, 'stats']);
+        Route::post('/question-clusters/auto-cluster', [QuestionClusterController::class, 'autoCluster']);
+        Route::get('/question-clusters/{cluster}', [QuestionClusterController::class, 'show']);
+        Route::post('/question-clusters/{cluster}/generate-qa', [QuestionClusterController::class, 'generateQa']);
+        Route::post('/question-clusters/{cluster}/generate-article', [QuestionClusterController::class, 'generateArticle']);
+        Route::post('/question-clusters/{cluster}/generate-both', [QuestionClusterController::class, 'generateBoth']);
+        Route::post('/question-clusters/{cluster}/skip', [QuestionClusterController::class, 'skip']);
+        Route::delete('/question-clusters/{cluster}', [QuestionClusterController::class, 'destroy']);
     });
 });

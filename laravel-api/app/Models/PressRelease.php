@@ -16,13 +16,14 @@ class PressRelease extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'uuid',
         'parent_id', 'title', 'slug', 'content_html', 'excerpt',
         'meta_title', 'meta_description',
-        'keyword_primary', 'language', 'country', 'tone',
+        'language',
         'json_ld', 'hreflang_map',
-        'seo_score', 'quality_score', 'generation_cost_cents',
-        'ai_model', 'status',
-        'published_at', 'published_url', 'canonical_url',
+        'seo_score', 'generation_cost_cents',
+        'status',
+        'published_at',
         'created_by',
     ];
 
@@ -30,7 +31,6 @@ class PressRelease extends Model
         'json_ld'               => 'array',
         'hreflang_map'          => 'array',
         'seo_score'             => 'integer',
-        'quality_score'         => 'integer',
         'generation_cost_cents' => 'integer',
         'published_at'          => 'datetime',
     ];
@@ -64,7 +64,7 @@ class PressRelease extends Model
         return $this->belongsTo(PressRelease::class, 'parent_id');
     }
 
-    public function createdBy(): BelongsTo
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
@@ -82,6 +82,31 @@ class PressRelease extends Model
     public function publicationQueue(): MorphMany
     {
         return $this->morphMany(PublicationQueueItem::class, 'publishable');
+    }
+
+    public function apiCosts(): MorphMany
+    {
+        return $this->morphMany(ApiCost::class, 'costable');
+    }
+
+    public function internalLinksOut(): MorphMany
+    {
+        return $this->morphMany(InternalLink::class, 'source');
+    }
+
+    public function internalLinksIn(): MorphMany
+    {
+        return $this->morphMany(InternalLink::class, 'target');
+    }
+
+    public function externalLinks(): MorphMany
+    {
+        return $this->morphMany(ExternalLinkRegistry::class, 'article');
+    }
+
+    public function affiliateLinks(): MorphMany
+    {
+        return $this->morphMany(AffiliateLink::class, 'article');
     }
 
     // ============================================================

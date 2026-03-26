@@ -1,0 +1,440 @@
+<?php
+
+namespace App\Services\Content;
+
+use App\Models\ContentQuestion;
+use App\Models\QaEntry;
+use App\Models\QuestionCluster;
+use App\Services\AI\OpenAiService;
+use App\Services\PerplexitySearchService;
+use App\Services\Seo\SlugService;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
+/**
+ * Generates Q&A pages from forum questions (scraped content_questions).
+ * Uses Perplexity for research + GPT-4o for answer generation.
+ */
+class QaFromQuestionsService
+{
+    public function __construct(
+        private OpenAiService $openAi,
+        private PerplexitySearchService $perplexity,
+        private SlugService $slugService,
+    ) {}
+
+    /**
+     * Generate Q&A entries from a question cluster.
+     */
+    public function generateFromCluster(QuestionCluster $cluster, int $maxQa = 10): Collection
+    {
+        try {
+            $cluster->update(['status' => 'generating_qa']);
+
+            // Sort cluster questions by popularity_score desc
+            $questions = $cluster->questions()
+                ->get()
+                ->sortByDesc(fn ($q) => ($q->views ?? 0) + ($q->replies ?? 0) * 10)
+                ->take($maxQa);
+
+            if ($questions->isEmpty()) {
+                Log::info('QaFromQuestions: no questions in cluster', ['cluster_id' => $cluster->id]);
+                return collect();
+            }
+
+            Log::info('QaFromQuestions: generating from cluster', [
+                'cluster_id' => $cluster->id,
+                'questions_count' => $questions->count(),
+            ]);
+
+            $createdEntries = collect();
+            $dedup = app(DeduplicationService::class);
+
+            foreach ($questions as $question) {
+                $existingQa = $dedup->findDuplicateQa($question->title, $cluster->language);
+                if ($existingQa) {
+                    Log::info('QaFromQuestionsService: duplicate Q&A skipped', ['question' => $question->title]);
+                    $question->update(['qa_entry_id' => $existingQa->id, 'article_status' => 'published']);
+                    continue;
+                }
+
+                $entry = $this->generateSingleFromQuestion(
+                    question: $question,
+                    country: $cluster->country ?? '',
+                    category: $cluster->category ?? 'general',
+                    language: $cluster->language ?? 'fr',
+                    parentArticleId: $cluster->generated_article_id,
+                    clusterId: $cluster->id,
+                );
+
+                if ($entry) {
+                    // Update content_question
+                    $question->update([
+                        'qa_entry_id' => $entry->id,
+                        'article_status' => 'writing',
+                    ]);
+
+                    $createdEntries->push($entry);
+                }
+            }
+
+            // Update cluster
+            $cluster->update([
+                'generated_qa_count' => $createdEntries->count(),
+                'status' => $cluster->generated_article_id ? 'completed' : 'ready',
+            ]);
+
+            Log::info('QaFromQuestions: cluster generation complete', [
+                'cluster_id' => $cluster->id,
+                'entries_created' => $createdEntries->count(),
+            ]);
+
+            return $createdEntries;
+        } catch (\Throwable $e) {
+            Log::error('QaFromQuestions: cluster generation failed', [
+                'cluster_id' => $cluster->id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $cluster->update(['status' => 'pending']);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Generate a single Q&A entry from a content question.
+     */
+    public function generateSingle(ContentQuestion $question): QaEntry
+    {
+        $entry = $this->generateSingleFromQuestion(
+            question: $question,
+            country: $question->country ?? '',
+            category: null,
+            language: $question->language ?? 'fr',
+            parentArticleId: null,
+            clusterId: $question->cluster_id,
+        );
+
+        if ($entry) {
+            $question->update([
+                'qa_entry_id' => $entry->id,
+                'article_status' => 'writing',
+            ]);
+        }
+
+        return $entry;
+    }
+
+    /**
+     * Generate a single Q&A entry with research + AI answer.
+     */
+    private function generateSingleFromQuestion(
+        ContentQuestion $question,
+        string $country,
+        ?string $category,
+        string $language,
+        ?int $parentArticleId,
+        ?int $clusterId,
+    ): ?QaEntry {
+        try {
+            $title = $question->title ?? '';
+
+            // 1. Research via Perplexity
+            $researchContext = '';
+            if ($this->perplexity->isConfigured()) {
+                $researchQuery = "Recherche les informations les plus récentes et fiables pour répondre à cette question d'expatrié: '{$title}' pour le pays '{$country}'. Donne des faits précis, chiffres à jour, sources officielles.";
+
+                $result = $this->perplexity->search($researchQuery, $language);
+
+                if ($result['success'] && !empty($result['text'])) {
+                    $researchContext = $result['text'];
+                }
+            }
+
+            // 2. Generate answer via GPT-4o
+            $answerData = $this->generateAnswer($title, $country, $language, $researchContext);
+
+            if (empty($answerData['answer_short']) && empty($answerData['answer_detailed_html'])) {
+                Log::warning('QaFromQuestions: empty answer generated', [
+                    'question_id' => $question->id,
+                    'title' => $title,
+                ]);
+                return null;
+            }
+
+            // 3. Generate meta tags
+            $year = date('Y');
+            $metaResult = $this->openAi->complete(
+                "Generate SEO meta tags for a Q&A page. Language: {$language}. "
+                . "Return JSON: {meta_title: string (max 60 chars, include keyword + {$year}), meta_description: string (140-160 chars)}",
+                "Question: {$title}\nAnswer summary: {$answerData['answer_short']}",
+                [
+                    'model' => 'gpt-4o-mini',
+                    'temperature' => 0.4,
+                    'max_tokens' => 300,
+                    'json_mode' => true,
+                ]
+            );
+
+            $metaTitle = mb_substr($title, 0, 60);
+            $metaDescription = mb_substr($answerData['answer_short'] ?? '', 0, 160);
+
+            if ($metaResult['success']) {
+                $parsedMeta = json_decode($metaResult['content'], true);
+                $metaTitle = mb_substr($parsedMeta['meta_title'] ?? $title, 0, 60);
+                $metaDescription = mb_substr($parsedMeta['meta_description'] ?? $answerData['answer_short'], 0, 160);
+            }
+
+            // 4. Generate slug
+            $slug = $this->slugService->generateSlug($title, $language);
+            $slug = $this->slugService->ensureUnique($slug, $language, 'qa_entries');
+
+            // 5. Generate JSON-LD (relatedIds computed after, so generate after step 6)
+
+            // 6. Find related Q&A (same country + category, exclude similar questions)
+            $relatedIds = QaEntry::where('country', $country)
+                ->where('category', $category ?? 'general')
+                ->where('language', $language)
+                ->where('status', '!=', 'draft')
+                ->where('question', 'not ilike', '%' . Str::slug(mb_substr($title, 0, 50)) . '%')
+                ->limit(5)
+                ->pluck('id')
+                ->toArray();
+
+            // Generate JSON-LD (after relatedIds are computed)
+            $sources = $answerData['sources'] ?? [];
+            $jsonLd = $this->generateJsonLd($title, $answerData, $country, $language, $slug, $relatedIds, $sources);
+
+            // 7. Create QaEntry
+            $entry = QaEntry::create([
+                'uuid' => (string) Str::uuid(),
+                'parent_article_id' => $parentArticleId,
+                'cluster_id' => $clusterId,
+                'question' => $title,
+                'answer_short' => mb_substr($answerData['answer_short'] ?? '', 0, 500),
+                'answer_detailed_html' => $answerData['answer_detailed_html'] ?? '',
+                'language' => $language,
+                'country' => $country,
+                'category' => $category ?? 'general',
+                'slug' => $slug,
+                'meta_title' => $metaTitle,
+                'meta_description' => $metaDescription,
+                'json_ld' => $jsonLd,
+                'keywords_primary' => mb_substr($title, 0, 100),
+                'seo_score' => 0,
+                'word_count' => $answerData['word_count'] ?? 0,
+                'source_type' => 'scraped',
+                'status' => 'draft',
+                'related_qa_ids' => $relatedIds,
+                'sources' => $sources,
+            ]);
+
+            return $entry;
+        } catch (\Throwable $e) {
+            Log::error('QaFromQuestions: single Q&A generation failed', [
+                'question_id' => $question->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Generate answer using GPT-4o with research context.
+     *
+     * @return array{answer_short: string, answer_detailed_html: string, word_count: int, sources: array}
+     */
+    private function generateAnswer(string $question, string $country, string $language, string $researchContext = ''): array
+    {
+        $year = date('Y');
+        $countryContext = !empty($country) ? " pour les expatriés en {$country}" : '';
+        $contextBlock = !empty($researchContext)
+            ? "\n\nDonnées de recherche récentes:\n" . mb_substr($researchContext, 0, 3000)
+            : '';
+
+        $systemPrompt = "Tu es un expert en expatriation avec 15 ans d'expérience. Tu réponds aux questions des expatriés avec précision, en citant des sources officielles. Tes réponses sont complètes, à jour ({$year}), et pratiques.\n\n"
+            . "REGLE ABSOLUE pour la réponse courte:\n"
+            . "- EXACTEMENT 40-60 mots\n"
+            . "- Commence par une reformulation du sujet: '{question} est/coûte/nécessite...'\n"
+            . "- Contient les chiffres clés\n"
+            . "- Format featured snippet Google (Position 0)\n\n"
+            . "REGLE pour la réponse détaillée:\n"
+            . "- 800-2000 mots en HTML\n"
+            . "- Structure: H2 pour chaque aspect, H3 pour les détails\n"
+            . "- Au moins 1 tableau <table> si des données comparables existent\n"
+            . "- Au moins 1 liste <ol> si un processus/étapes existe\n"
+            . "- Cite les sources officielles (.gov, consulats)\n"
+            . "- Signaux E-E-A-T: date, sources vérifiées\n"
+            . "- Mentionne l'année {$year}\n"
+            . "- Pas de <h1>, <html>, <head>, <body>\n\n"
+            . "Retourne en JSON: {answer_short: string, answer_detailed_html: string, sources: [string]}";
+
+        $result = $this->openAi->complete(
+            $systemPrompt,
+            "Question{$countryContext}: {$question}{$contextBlock}",
+            [
+                'model' => 'gpt-4o',
+                'temperature' => 0.6,
+                'max_tokens' => 4000,
+                'json_mode' => true,
+            ]
+        );
+
+        if ($result['success']) {
+            $parsed = json_decode($result['content'], true);
+
+            $answerShort = $parsed['answer_short'] ?? '';
+            $answerHtml = $parsed['answer_detailed_html'] ?? '';
+            $sources = $parsed['sources'] ?? [];
+            $wordCount = str_word_count(strip_tags($answerHtml));
+
+            // Validate answer_short word count (target: 40-60 words)
+            $answerShortWordCount = str_word_count($answerShort);
+
+            if ($answerShortWordCount > 70) {
+                $words = explode(' ', $answerShort);
+                $answerShort = implode(' ', array_slice($words, 0, 60));
+                $lastDot = strrpos($answerShort, '.');
+                if ($lastDot !== false && $lastDot > strlen($answerShort) * 0.6) {
+                    $answerShort = substr($answerShort, 0, $lastDot + 1);
+                }
+            } elseif ($answerShortWordCount < 30) {
+                $retryResult = $this->openAi->complete(
+                    "Génère une réponse de EXACTEMENT 40-60 mots. La réponse DOIT commencer par une reformulation du sujet. "
+                    . "Exemple: Q: \"Quel est le coût de la vie en France ?\" R: \"Le coût de la vie en France est en moyenne de 1 500€ par mois pour...\"",
+                    "Question: {$question}\nPays: {$country}\nRéponse actuelle trop courte: {$answerShort}\n\nRégénère en 40-60 mots:",
+                    ['temperature' => 0.5, 'max_tokens' => 150]
+                );
+                if ($retryResult['success']) {
+                    $answerShort = trim($retryResult['content']);
+                }
+            }
+
+            return [
+                'answer_short' => $answerShort,
+                'answer_detailed_html' => $answerHtml,
+                'word_count' => $wordCount,
+                'sources' => $sources,
+            ];
+        }
+
+        return ['answer_short' => '', 'answer_detailed_html' => '', 'word_count' => 0, 'sources' => []];
+    }
+
+    /**
+     * Generate JSON-LD (QAPage + BreadcrumbList + Speakable) for a Q&A entry.
+     */
+    private function generateJsonLd(
+        string $question,
+        array $answerData,
+        string $country,
+        string $language,
+        string $slug,
+        array $relatedQaIds = [],
+        array $sources = [],
+    ): array {
+        $countrySlug = Str::slug($country ?: 'general');
+        $url = "/{$language}/qa/{$countrySlug}/{$slug}";
+
+        $schema = [
+            [
+                '@context' => 'https://schema.org',
+                '@type' => 'QAPage',
+                'mainEntity' => [
+                    '@type' => 'Question',
+                    'name' => $question,
+                    'text' => $question,
+                    'answerCount' => 1,
+                    'author' => [
+                        '@type' => 'Organization',
+                        'name' => config('services.site.name', 'SOS-Expat'),
+                    ],
+                    'dateCreated' => now()->toIso8601String(),
+                    'acceptedAnswer' => [
+                        '@type' => 'Answer',
+                        'text' => strip_tags($answerData['answer_detailed_html'] ?? $answerData['answer_short'] ?? ''),
+                        'dateCreated' => now()->toIso8601String(),
+                        'dateModified' => now()->toIso8601String(),
+                        'author' => [
+                            '@type' => 'Organization',
+                            'name' => config('services.site.name', 'SOS-Expat'),
+                            'url' => config('services.site.url', 'https://sos-expat.com'),
+                        ],
+                        'upvoteCount' => 1,
+                    ],
+                ],
+            ],
+            [
+                '@context' => 'https://schema.org',
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => [
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 1,
+                        'name' => 'Home',
+                        'item' => "/{$language}",
+                    ],
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 2,
+                        'name' => 'Q&A',
+                        'item' => "/{$language}/qa",
+                    ],
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 3,
+                        'name' => $country ?: 'General',
+                        'item' => "/{$language}/qa/{$countrySlug}",
+                    ],
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 4,
+                        'name' => mb_substr($question, 0, 50),
+                        'item' => $url,
+                    ],
+                ],
+            ],
+            [
+                '@context' => 'https://schema.org',
+                '@type' => 'WebPage',
+                'speakable' => [
+                    '@type' => 'SpeakableSpecification',
+                    'cssSelector' => ['.qa-answer-short', '.qa-question'],
+                ],
+            ],
+        ];
+
+        // If related Q&A exist, add FAQPage schema
+        if (!empty($relatedQaIds)) {
+            $relatedQas = \App\Models\QaEntry::whereIn('id', $relatedQaIds)
+                ->select('question', 'answer_short')
+                ->get();
+
+            if ($relatedQas->isNotEmpty()) {
+                $schema[] = [
+                    '@context' => 'https://schema.org',
+                    '@type' => 'FAQPage',
+                    'mainEntity' => $relatedQas->map(fn ($qa) => [
+                        '@type' => 'Question',
+                        'name' => $qa->question,
+                        'acceptedAnswer' => [
+                            '@type' => 'Answer',
+                            'text' => $qa->answer_short,
+                        ],
+                    ])->values()->toArray(),
+                ];
+            }
+        }
+
+        // Add isBasedOn for sources
+        if (!empty($sources)) {
+            $schema['isBasedOn'] = array_map(fn ($url) => ['@type' => 'WebPage', 'url' => $url], array_slice($sources, 0, 5));
+        }
+
+        return $schema;
+    }
+}

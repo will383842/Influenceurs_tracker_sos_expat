@@ -9,6 +9,9 @@ import {
   deleteQuestionCluster,
 } from '../../api/contentApi';
 import type { QuestionCluster, QuestionClusterStatus, QuestionClusterItemWithQuestion } from '../../types/content';
+import { toast } from '../../components/Toast';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { errMsg } from './helpers';
 
 // ── Constants ───────────────────────────────────────────────
 const QC_STATUS_COLORS: Record<QuestionClusterStatus, string> = {
@@ -49,6 +52,7 @@ export default function QuestionClusterDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; action: () => void } | null>(null);
 
   const loadCluster = useCallback(async () => {
     if (!id) return;
@@ -67,29 +71,41 @@ export default function QuestionClusterDetail() {
 
   useEffect(() => { loadCluster(); }, [loadCluster]);
 
-  const handleAction = async (action: string) => {
+  const execAction = async (action: string) => {
     if (!cluster) return;
     setActionLoading(action);
     try {
       if (action === 'qa') {
         await generateQaFromQuestionCluster(cluster.id);
+        toast('success', 'Generation Q&A lancee.');
       } else if (action === 'article') {
         await generateArticleFromQuestionCluster(cluster.id);
+        toast('success', 'Generation article lancee.');
       } else if (action === 'both') {
         await generateBothFromQuestionCluster(cluster.id);
+        toast('success', 'Generation Q&A + article lancee.');
       } else if (action === 'skip') {
         await skipQuestionCluster(cluster.id);
+        toast('success', 'Cluster ignore.');
       } else if (action === 'delete') {
-        if (!window.confirm('Supprimer ce cluster ?')) { setActionLoading(null); return; }
         await deleteQuestionCluster(cluster.id);
+        toast('success', 'Cluster supprime.');
         navigate('/content/question-clusters');
         return;
       }
       loadCluster();
-    } catch {
-      // silently handled
+    } catch (err) {
+      toast('error', errMsg(err));
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleAction = (action: string) => {
+    if (action === 'delete') {
+      setConfirmAction({ title: 'Supprimer ce cluster', message: 'Cette action est irreversible.', action: () => execAction(action) });
+    } else {
+      execAction(action);
     }
   };
 
@@ -378,6 +394,16 @@ export default function QuestionClusterDetail() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title ?? ''}
+        message={confirmAction?.message ?? ''}
+        variant="danger"
+        confirmLabel="Supprimer"
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

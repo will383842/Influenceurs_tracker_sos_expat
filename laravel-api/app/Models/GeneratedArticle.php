@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -17,18 +18,21 @@ class GeneratedArticle extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'uuid',
         'source_article_id', 'generation_preset_id', 'parent_article_id', 'pillar_article_id',
-        'title', 'slug', 'content_html', 'excerpt',
+        'title', 'slug', 'content_html', 'content_text', 'excerpt',
         'meta_title', 'meta_description',
-        'keyword_primary', 'keywords_secondary', 'keyword_density',
-        'language', 'country', 'content_type', 'tone', 'style',
+        'keywords_primary', 'keywords_secondary', 'keyword_density',
+        'featured_image_url', 'featured_image_alt', 'featured_image_attribution',
+        'language', 'country', 'content_type',
         'json_ld', 'hreflang_map',
         'seo_score', 'quality_score', 'readability_score',
         'word_count', 'reading_time_minutes',
         'generation_cost_cents', 'generation_tokens_input', 'generation_tokens_output',
-        'ai_model', 'status',
+        'generation_duration_seconds', 'generation_model',
+        'status',
         'published_at', 'scheduled_at',
-        'published_url', 'canonical_url',
+        'canonical_url',
         'created_by',
     ];
 
@@ -45,8 +49,9 @@ class GeneratedArticle extends Model
         'generation_tokens_output'  => 'integer',
         'published_at'              => 'datetime',
         'scheduled_at'              => 'datetime',
-        'word_count'                => 'integer',
-        'reading_time_minutes'      => 'integer',
+        'word_count'                    => 'integer',
+        'reading_time_minutes'          => 'integer',
+        'generation_duration_seconds'   => 'integer',
     ];
 
     // ============================================================
@@ -118,7 +123,7 @@ class GeneratedArticle extends Model
         return $this->belongsTo(GenerationPreset::class, 'generation_preset_id');
     }
 
-    public function createdBy(): BelongsTo
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
@@ -166,6 +171,28 @@ class GeneratedArticle extends Model
     public function apiCosts(): MorphMany
     {
         return $this->morphMany(ApiCost::class, 'costable');
+    }
+
+    public function topicCluster(): HasOne
+    {
+        return $this->hasOne(TopicCluster::class, 'generated_article_id');
+    }
+
+    public function qaEntries(): HasMany
+    {
+        return $this->hasMany(QaEntry::class, 'parent_article_id');
+    }
+
+    public function keywords(): BelongsToMany
+    {
+        return $this->belongsToMany(KeywordTracking::class, 'article_keywords', 'article_id', 'keyword_id')
+            ->withPivot('usage_type', 'density_percent', 'occurrences', 'position_context')
+            ->withTimestamps();
+    }
+
+    public function seoChecklist(): HasOne
+    {
+        return $this->hasOne(SeoChecklist::class, 'article_id');
     }
 
     // ============================================================

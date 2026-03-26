@@ -22,5 +22,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call(ContactTypeSeeder::class);
         $this->call(EmailTemplateSeeder::class);
+        $this->call(PromptTemplateSeeder::class);
+        $this->call(GenerationPresetSeeder::class);
+        $this->call(PublishingEndpointSeeder::class);
     }
 }

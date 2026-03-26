@@ -19,7 +19,7 @@ interface DirectoryEntry {
   metadata: Record<string, any> | null;
   notes: string | null;
   created_by: number | null;
-  created_by_user?: { id: number; name: string } | null;
+  creator?: { id: number; name: string } | null;
   created_at: string;
 }
 

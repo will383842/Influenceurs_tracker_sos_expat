@@ -11,6 +11,9 @@ import {
   deleteQuestionCluster,
 } from '../../api/contentApi';
 import type { QuestionCluster, QuestionClusterStats, QuestionClusterStatus, PaginatedResponse } from '../../types/content';
+import { toast } from '../../components/Toast';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { errMsg } from './helpers';
 
 // ── Constants ───────────────────────────────────────────────
 const QC_STATUS_COLORS: Record<QuestionClusterStatus, string> = {
@@ -73,6 +76,7 @@ export default function QuestionClustersList() {
   const [autoCountrySlug, setAutoCountrySlug] = useState('');
   const [autoCategory, setAutoCategory] = useState('');
   const [autoLoading, setAutoLoading] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; action: () => void } | null>(null);
 
   const loadStats = useCallback(async () => {
     try {
@@ -113,11 +117,12 @@ export default function QuestionClustersList() {
       if (autoCountrySlug) data.country_slug = autoCountrySlug;
       if (autoCategory) data.category = autoCategory;
       await autoClusterQuestions(data);
+      toast('success', 'Auto-clustering lance.');
       setShowAutoCluster(false);
       loadStats();
       loadClusters(1);
-    } catch {
-      // silently handled
+    } catch (err) {
+      toast('error', errMsg(err));
     } finally {
       setAutoLoading(false);
     }
@@ -127,9 +132,10 @@ export default function QuestionClustersList() {
     setActionLoading(id);
     try {
       await generateQaFromQuestionCluster(id);
+      toast('success', 'Generation Q&A lancee.');
       loadClusters(pagination.current_page);
-    } catch {
-      // silently handled
+    } catch (err) {
+      toast('error', errMsg(err));
     } finally {
       setActionLoading(null);
     }
@@ -139,9 +145,10 @@ export default function QuestionClustersList() {
     setActionLoading(id);
     try {
       await generateArticleFromQuestionCluster(id);
+      toast('success', 'Generation article lancee.');
       loadClusters(pagination.current_page);
-    } catch {
-      // silently handled
+    } catch (err) {
+      toast('error', errMsg(err));
     } finally {
       setActionLoading(null);
     }
@@ -151,9 +158,10 @@ export default function QuestionClustersList() {
     setActionLoading(id);
     try {
       await generateBothFromQuestionCluster(id);
+      toast('success', 'Generation Q&A + article lancee.');
       loadClusters(pagination.current_page);
-    } catch {
-      // silently handled
+    } catch (err) {
+      toast('error', errMsg(err));
     } finally {
       setActionLoading(null);
     }
@@ -163,23 +171,30 @@ export default function QuestionClustersList() {
     setActionLoading(id);
     try {
       await skipQuestionCluster(id);
+      toast('success', 'Cluster ignore.');
       loadClusters(pagination.current_page);
-    } catch {
-      // silently handled
+    } catch (err) {
+      toast('error', errMsg(err));
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Supprimer ce cluster ?')) return;
-    try {
-      await deleteQuestionCluster(id);
-      loadStats();
-      loadClusters(pagination.current_page);
-    } catch {
-      // silently handled
-    }
+  const handleDelete = (id: number) => {
+    setConfirmAction({
+      title: 'Supprimer ce cluster',
+      message: 'Cette action est irreversible.',
+      action: async () => {
+        try {
+          await deleteQuestionCluster(id);
+          toast('success', 'Cluster supprime.');
+          loadStats();
+          loadClusters(pagination.current_page);
+        } catch (err) {
+          toast('error', errMsg(err));
+        }
+      },
+    });
   };
 
   // Compute stat cards
@@ -427,6 +442,16 @@ export default function QuestionClustersList() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title ?? ''}
+        message={confirmAction?.message ?? ''}
+        variant="danger"
+        confirmLabel="Supprimer"
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

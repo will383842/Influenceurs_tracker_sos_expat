@@ -36,7 +36,7 @@ class ContentGenerationCampaign extends Model
         return $this->hasMany(ContentCampaignItem::class, 'campaign_id')->orderBy('sort_order');
     }
 
-    public function createdBy(): BelongsTo
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }

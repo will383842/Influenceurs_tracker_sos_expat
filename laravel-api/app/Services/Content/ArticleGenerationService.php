@@ -1,0 +1,974 @@
+<?php
+
+namespace App\Services\Content;
+
+use App\Models\AffiliateLink;
+use App\Models\ContentCampaignItem;
+use App\Models\ContentGenerationCampaign;
+use App\Models\ExternalLinkRegistry;
+use App\Models\GeneratedArticle;
+use App\Models\GeneratedArticleFaq;
+use App\Models\GeneratedArticleSource;
+use App\Models\GenerationLog;
+use App\Models\PromptTemplate;
+use App\Models\ResearchBrief;
+use App\Models\TopicCluster;
+use App\Services\AI\OpenAiService;
+use App\Services\AI\UnsplashService;
+use App\Services\PerplexitySearchService;
+use App\Services\Seo\HreflangService;
+use App\Services\Seo\InternalLinkingService;
+use App\Services\Seo\JsonLdService;
+use App\Services\Seo\SeoAnalysisService;
+use App\Services\Seo\SlugService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
+/**
+ * Article generation orchestrator — 15-phase pipeline.
+ * Coordinates AI, SEO, and content services to produce full articles.
+ */
+class ArticleGenerationService
+{
+    public function __construct(
+        private OpenAiService $openAi,
+        private UnsplashService $unsplash,
+        private PerplexitySearchService $perplexity,
+        private SeoAnalysisService $seoAnalysis,
+        private HreflangService $hreflang,
+        private JsonLdService $jsonLd,
+        private SlugService $slugService,
+        private InternalLinkingService $internalLinking,
+    ) {}
+
+    /**
+     * Generate a full article through the 15-phase pipeline.
+     */
+    public function generate(array $params): GeneratedArticle
+    {
+        $startTime = microtime(true);
+
+        // Dedup check
+        $dedup = app(DeduplicationService::class);
+        $existingArticle = $dedup->findDuplicateArticle(
+            $params['topic'] ?? $params['title'] ?? '',
+            $params['country'] ?? '',
+            $params['language'] ?? 'fr'
+        );
+        if ($existingArticle && empty($params['force_generate'])) {
+            Log::warning('ArticleGenerationService: duplicate detected, skipping', [
+                'topic' => $params['topic'] ?? '',
+                'existing_id' => $existingArticle->id,
+            ]);
+            return $existingArticle;
+        }
+
+        // 1. Use pre-created article if article_id provided, otherwise create new
+        if (!empty($params['article_id'])) {
+            $article = GeneratedArticle::findOrFail($params['article_id']);
+            $article->update(['status' => 'generating']);
+        } else {
+            $article = GeneratedArticle::create([
+                'uuid' => (string) Str::uuid(),
+                'title' => $params['topic'] ?? 'Untitled',
+                'language' => $params['language'] ?? 'fr',
+                'country' => $params['country'] ?? null,
+                'content_type' => $params['content_type'] ?? 'article',
+                'keywords_primary' => $params['keywords'][0] ?? '',
+                'keywords_secondary' => array_slice($params['keywords'] ?? [], 1),
+                'status' => 'generating',
+                'generation_preset_id' => $params['preset_id'] ?? null,
+                'created_by' => $params['created_by'] ?? null,
+            ]);
+        }
+
+        Log::info('Article generation started', [
+            'article_id' => $article->id,
+            'topic' => $params['topic'] ?? '',
+            'language' => $params['language'] ?? 'fr',
+        ]);
+
+        try {
+            // Phase 1: Validate
+            $phaseStart = microtime(true);
+            $validated = $this->phase01_validate($params);
+            $this->logPhase($article, 'validate', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 2: Research (use cluster data if available, otherwise fresh research)
+            $phaseStart = microtime(true);
+            if (!empty($params['cluster_id'])) {
+                $research = $this->phase02_researchFromCluster((int) $params['cluster_id']);
+            } else {
+                $research = $this->phase02_research(
+                    $params['topic'],
+                    $params['language'] ?? 'fr',
+                    $params['country'] ?? null
+                );
+            }
+            $this->logPhase($article, 'research', 'success', 'Found ' . count($research['facts']) . ' facts', 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 3: Generate title
+            $phaseStart = microtime(true);
+            $title = $this->phase03_generateTitle(
+                $params['topic'],
+                $research['facts'],
+                $params['language'] ?? 'fr',
+                $params['keywords'] ?? []
+            );
+            $article->update(['title' => $title]);
+            $this->logPhase($article, 'title', 'success', $title, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 4: Generate excerpt
+            $phaseStart = microtime(true);
+            $excerpt = $this->phase04_generateExcerpt(
+                $title,
+                $research['facts'],
+                $params['language'] ?? 'fr'
+            );
+            $article->update(['excerpt' => $excerpt]);
+            $this->logPhase($article, 'excerpt', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 5: Generate content (the big one)
+            $phaseStart = microtime(true);
+            $contentHtml = $this->phase05_generateContent($title, $excerpt, $research['facts'], $params);
+            $article->update([
+                'content_html' => $contentHtml,
+                'word_count' => $this->seoAnalysis->countWords($contentHtml),
+                'reading_time_minutes' => max(1, (int) ceil($this->seoAnalysis->countWords($contentHtml) / 250)),
+            ]);
+            $this->logPhase($article, 'content', 'success', 'Generated ' . $article->word_count . ' words', 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 5b: Featured snippet definition paragraph
+            $this->phase05b_featuredSnippet($article, $params['keywords'][0] ?? $params['topic'], $params['language'] ?? 'fr');
+
+            // Phase 6: Generate FAQ
+            if ($params['generate_faq'] ?? true) {
+                $phaseStart = microtime(true);
+                $faqs = $this->phase06_generateFaq(
+                    $title,
+                    $contentHtml,
+                    $params['language'] ?? 'fr',
+                    $params['faq_count'] ?? 8
+                );
+                if (!empty($faqs)) {
+                    foreach ($faqs as $index => $faq) {
+                        GeneratedArticleFaq::create([
+                            'article_id' => $article->id,
+                            'question' => $faq['question'] ?? '',
+                            'answer' => $faq['answer'] ?? '',
+                            'sort_order' => $index,
+                        ]);
+                    }
+                }
+                $this->logPhase($article, 'faq', 'success', count($faqs) . ' FAQs generated', 0, 0, $this->elapsed($phaseStart));
+            }
+
+            // Phase 7: Generate meta tags
+            $phaseStart = microtime(true);
+            $meta = $this->phase07_generateMeta(
+                $title,
+                $excerpt,
+                $params['keywords'][0] ?? '',
+                $params['language'] ?? 'fr'
+            );
+            $article->update([
+                'meta_title' => $meta['meta_title'],
+                'meta_description' => $meta['meta_description'],
+            ]);
+            $this->logPhase($article, 'meta', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 8: Generate JSON-LD
+            $phaseStart = microtime(true);
+            $jsonLdData = $this->phase08_generateJsonLd($article->fresh());
+            $article->update(['json_ld' => $jsonLdData]);
+            $this->logPhase($article, 'jsonld', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 9: Add internal links
+            if ($params['auto_internal_links'] ?? true) {
+                $phaseStart = microtime(true);
+                $contentHtml = $this->phase09_addInternalLinks($article->fresh());
+                $article->update(['content_html' => $contentHtml]);
+                $this->logPhase($article, 'internal_links', 'success', null, 0, 0, $this->elapsed($phaseStart));
+            }
+
+            // Phase 10: Add external links
+            $phaseStart = microtime(true);
+            $contentHtml = $this->phase10_addExternalLinks($article->fresh(), $research['sources']);
+            $article->update(['content_html' => $contentHtml]);
+            $this->logPhase($article, 'external_links', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 11: Add affiliate links
+            if ($params['auto_affiliate_links'] ?? true) {
+                $phaseStart = microtime(true);
+                $contentHtml = $this->phase11_addAffiliateLinks($article->fresh());
+                $article->update(['content_html' => $contentHtml]);
+                $this->logPhase($article, 'affiliate_links', 'success', null, 0, 0, $this->elapsed($phaseStart));
+            }
+
+            // Phase 12: Add images
+            $phaseStart = microtime(true);
+            $this->phase12_addImages($article->fresh(), $params['image_source'] ?? 'unsplash');
+            $this->logPhase($article, 'images', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 13: Generate slugs
+            $phaseStart = microtime(true);
+            $this->phase13_generateSlugs($article->fresh());
+            $this->logPhase($article, 'slugs', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Phase 14: Calculate quality
+            $phaseStart = microtime(true);
+            $this->phase14_calculateQuality($article->fresh());
+            $this->logPhase($article, 'quality', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
+            // Plagiarism check
+            $dedup = app(DeduplicationService::class);
+            $plagiarismResult = $dedup->checkContentOriginality($article);
+            if (!$plagiarismResult['is_original']) {
+                Log::warning('ArticleGenerationService: high similarity detected', [
+                    'article_id' => $article->id,
+                    'similarity' => $plagiarismResult['similarity_percent'],
+                    'matches' => collect($plagiarismResult['matches'])->pluck('article_title')->toArray(),
+                ]);
+                // Don't block, just log + lower quality score
+                $article->update([
+                    'quality_score' => max(0, ($article->quality_score ?? 0) - 15),
+                ]);
+            }
+
+            // Phase 15: Translations are now handled via TranslationBatchService (manual)
+            // Kept as no-op for backward compatibility — use /translations/start API instead.
+
+            // Mark as review or draft
+            $article->update(['status' => 'review']);
+
+            // Update cluster if generated from one
+            if (!empty($params['cluster_id'])) {
+                TopicCluster::where('id', $params['cluster_id'])->update([
+                    'generated_article_id' => $article->id,
+                    'status' => 'generated',
+                ]);
+            }
+
+            // Link back to campaign item if this was generated from a campaign
+            if (!empty($params['campaign_item_id'])) {
+                ContentCampaignItem::where('id', $params['campaign_item_id'])->update([
+                    'itemable_type' => GeneratedArticle::class,
+                    'itemable_id' => $article->id,
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+                // Update campaign counters
+                ContentGenerationCampaign::where('id', $params['campaign_id'] ?? 0)->increment('completed_items');
+            }
+
+            $totalDuration = (int) ((microtime(true) - $startTime) * 1000);
+            Log::info('Article generation complete', [
+                'article_id' => $article->id,
+                'title' => $article->title,
+                'duration_ms' => $totalDuration,
+                'word_count' => $article->word_count,
+            ]);
+
+            return $article->fresh();
+        } catch (\Throwable $e) {
+            Log::error('Article generation failed', [
+                'article_id' => $article->id,
+                'phase' => 'unknown',
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Save partial content as draft
+            $article->update(['status' => 'draft']);
+
+            $this->logPhase($article, 'pipeline', 'error', $e->getMessage());
+
+            return $article->fresh();
+        }
+    }
+
+    // ============================================================
+    // Pipeline Phases
+    // ============================================================
+
+    private function phase01_validate(array $params): array
+    {
+        $errors = [];
+
+        if (empty($params['topic'])) {
+            $errors[] = 'Topic is required';
+        }
+
+        if (empty($params['language'])) {
+            $errors[] = 'Language is required';
+        }
+
+        if (!$this->openAi->isConfigured()) {
+            $errors[] = 'OpenAI API key not configured';
+        }
+
+        if (!empty($errors)) {
+            throw new \InvalidArgumentException('Validation failed: ' . implode(', ', $errors));
+        }
+
+        return $params;
+    }
+
+    private function phase02_research(string $topic, string $language, ?string $country): array
+    {
+        $facts = [];
+        $sources = [];
+
+        if (!$this->perplexity->isConfigured()) {
+            Log::warning('Perplexity not configured — skipping research phase');
+            return ['facts' => [], 'sources' => []];
+        }
+
+        $countryContext = $country ? " en {$country}" : '';
+        $query = "Tu es un chercheur web. Recherche des informations factuelles, récentes et fiables sur le sujet suivant{$countryContext}: \"{$topic}\". "
+            . "Retourne: les faits clés, les statistiques, les sources fiables, les points importants à couvrir.";
+
+        $result = $this->perplexity->search($query, $language);
+
+        if ($result['success'] && !empty($result['text'])) {
+            // Parse facts from response
+            $lines = explode("\n", $result['text']);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (!empty($line) && mb_strlen($line) > 20) {
+                    $facts[] = $line;
+                }
+            }
+
+            // Extract citations as sources
+            foreach ($result['citations'] ?? [] as $citation) {
+                $sources[] = [
+                    'url' => $citation,
+                    'domain' => parse_url($citation, PHP_URL_HOST) ?? '',
+                ];
+            }
+        }
+
+        // Save sources to database
+        if (!empty($sources)) {
+            // We'll save them after the article is created — handled in generate()
+        }
+
+        return ['facts' => $facts, 'sources' => $sources];
+    }
+
+    /**
+     * Phase 2 alternative: load research data from an existing cluster + research brief.
+     */
+    private function phase02_researchFromCluster(int $clusterId): array
+    {
+        $cluster = TopicCluster::with(['researchBrief', 'clusterArticles'])->find($clusterId);
+
+        if (!$cluster || !$cluster->researchBrief) {
+            Log::warning('Cluster or brief not found, falling back to fresh research', ['cluster_id' => $clusterId]);
+            return ['facts' => [], 'sources' => []];
+        }
+
+        $brief = $cluster->researchBrief;
+        $facts = [];
+        $sources = [];
+
+        // Collect extracted facts from the brief
+        foreach ($brief->extracted_facts ?? [] as $factSet) {
+            foreach ($factSet['key_facts'] ?? [] as $fact) {
+                $facts[] = $fact;
+            }
+            foreach ($factSet['statistics'] ?? [] as $stat) {
+                $facts[] = $stat;
+            }
+            foreach ($factSet['procedures'] ?? [] as $proc) {
+                $facts[] = $proc;
+            }
+        }
+
+        // Add recent data from Perplexity research
+        foreach ($brief->recent_data ?? [] as $item) {
+            if (is_array($item)) {
+                $facts[] = $item['fact'] ?? json_encode($item);
+                if (!empty($item['source'])) {
+                    $sources[] = ['url' => $item['source'], 'domain' => parse_url($item['source'], PHP_URL_HOST) ?? ''];
+                }
+            } else {
+                $facts[] = (string) $item;
+            }
+        }
+
+        // Add gap-related context
+        foreach ($brief->identified_gaps ?? [] as $gap) {
+            if (is_array($gap)) {
+                $facts[] = 'Gap to cover: ' . ($gap['topic'] ?? $gap['description'] ?? json_encode($gap));
+            }
+        }
+
+        Log::info('Research from cluster loaded', [
+            'cluster_id' => $clusterId,
+            'facts_count' => count($facts),
+            'sources_count' => count($sources),
+        ]);
+
+        return ['facts' => $facts, 'sources' => $sources];
+    }
+
+    private function phase03_generateTitle(string $topic, array $facts, string $language, array $keywords): string
+    {
+        $primaryKeyword = $keywords[0] ?? $topic;
+        $factsContext = !empty($facts) ? "\n\nFaits de recherche:\n" . implode("\n", array_slice($facts, 0, 5)) : '';
+
+        $template = $this->getPromptTemplate('article', 'title');
+
+        $systemPrompt = $template
+            ? $this->replaceVariables($template->system_message, ['language' => $language, 'year' => date('Y')])
+            : "Tu es un expert SEO. Génère un titre d'article optimisé pour le référencement. "
+              . "Le titre doit: faire moins de 60 caractères, contenir le mot-clé principal au début, "
+              . "être accrocheur et donner envie de cliquer. Langue: {$language}. "
+              . "Retourne UNIQUEMENT le titre, sans guillemets ni explication.";
+
+        $userPrompt = "Sujet: {$topic}\nMot-clé principal: {$primaryKeyword}{$factsContext}";
+
+        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            'temperature' => 0.8,
+            'max_tokens' => 100,
+        ]);
+
+        if ($result['success']) {
+            $title = trim($result['content'], " \t\n\r\0\x0B\"'");
+            return mb_substr($title, 0, 80); // Safety cap
+        }
+
+        // Fallback: use topic as title
+        return mb_substr($topic, 0, 60);
+    }
+
+    private function phase04_generateExcerpt(string $title, array $facts, string $language): string
+    {
+        $factsContext = !empty($facts) ? "\nFaits: " . implode('. ', array_slice($facts, 0, 3)) : '';
+
+        $systemPrompt = "Tu es un rédacteur web expert. Génère une introduction de 2-3 phrases pour un article. "
+            . "L'introduction doit accrocher le lecteur, contenir le sujet principal, et donner envie de lire la suite. "
+            . "Langue: {$language}. Retourne UNIQUEMENT le texte de l'introduction.";
+
+        $result = $this->openAi->complete($systemPrompt, "Titre: {$title}{$factsContext}", [
+            'temperature' => 0.7,
+            'max_tokens' => 300,
+        ]);
+
+        if ($result['success']) {
+            return trim($result['content']);
+        }
+
+        return '';
+    }
+
+    private function phase05_generateContent(string $title, string $excerpt, array $facts, array $params): string
+    {
+        $language = $params['language'] ?? 'fr';
+        $tone = $params['tone'] ?? 'professional';
+        $length = $params['length'] ?? 'long';
+        $keywords = $params['keywords'] ?? [];
+        $instructions = $params['instructions'] ?? '';
+        $contentType = $params['content_type'] ?? 'article';
+
+        $targetWords = match ($length) {
+            'short' => '800-1200',
+            'medium' => '1200-1800',
+            'long' => '1800-2800',
+            'extra_long' => '2800-4000',
+            default => '1800-2800',
+        };
+
+        $keywordsStr = !empty($keywords) ? implode(', ', $keywords) : '';
+        $factsStr = !empty($facts) ? implode("\n- ", array_slice($facts, 0, 15)) : '';
+
+        $template = $this->getPromptTemplate($contentType, 'content');
+
+        $systemPrompt = $template
+            ? $this->replaceVariables($template->system_message, [
+                'language' => $language,
+                'tone' => $tone,
+                'target_words' => $targetWords,
+                'year' => date('Y'),
+            ])
+            : "Tu es un rédacteur web professionnel et expert SEO. Rédige un article complet en HTML. "
+              . "Langue: {$language}. Ton: {$tone}. Longueur cible: {$targetWords} mots.\n\n"
+              . "RÈGLES DE STRUCTURE HTML:\n"
+              . "- Utilise des balises HTML: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <blockquote>\n"
+              . "- 6-8 sections avec <h2> (pas de <h1>, il sera le titre de la page)\n"
+              . "- Chaque section: 2-3 paragraphes minimum\n"
+              . "- Utilise <strong> pour les termes importants et mots-clés\n"
+              . "- Inclus au moins 2 listes (<ul> ou <ol>)\n"
+              . "- Le premier paragraphe doit contenir le mot-clé principal\n"
+              . "- Pas de balises <html>, <head>, <body> — seulement le contenu de l'article\n"
+              . "- Pas de commentaires HTML ni de métadonnées\n\n"
+              . "RÈGLES SEO:\n"
+              . "- Densité du mot-clé principal: 1-2%\n"
+              . "- Mots-clés secondaires répartis naturellement\n"
+              . "- Phrases variées: courtes et longues alternées\n"
+              . "- Paragraphes de 3-5 lignes maximum\n\n"
+              . "IMPORTANT: Mentionne l'année " . date('Y') . " dans le premier paragraphe et dans les données chiffrées. Utilise des formulations 'En " . date('Y') . ",...'";
+
+        $userPrompt = "Titre: {$title}\n\n"
+            . "Introduction (déjà rédigée, à intégrer):\n{$excerpt}\n\n"
+            . (!empty($keywordsStr) ? "Mots-clés à intégrer: {$keywordsStr}\n\n" : '')
+            . (!empty($factsStr) ? "Faits de recherche à utiliser:\n- {$factsStr}\n\n" : '')
+            . (!empty($instructions) ? "Instructions supplémentaires: {$instructions}\n\n" : '')
+            . "Année courante: " . date('Y') . ". Mentionne cette année dans le premier paragraphe et les données chiffrées.\n\n"
+            . "Rédige l'article complet en HTML.";
+
+        $maxTokens = match ($length) {
+            'short' => 3000,
+            'medium' => 4500,
+            'long' => 6500,
+            'extra_long' => 8000,
+            default => 6500,
+        };
+
+        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            'temperature' => 0.7,
+            'max_tokens' => $maxTokens,
+            'costable_type' => GeneratedArticle::class,
+            'costable_id' => null, // Will be set after creation
+        ]);
+
+        if ($result['success']) {
+            return trim($result['content']);
+        }
+
+        throw new \RuntimeException('Content generation failed: ' . ($result['error'] ?? 'Unknown error'));
+    }
+
+    private function phase05b_featuredSnippet(GeneratedArticle $article, string $primaryKeyword, string $language): string
+    {
+        $startTime = microtime(true);
+
+        $template = $this->getPromptTemplate('article', 'featured_snippet');
+
+        $systemPrompt = $template
+            ? $this->replaceVariables($template->system_message, ['topic' => $article->title, 'keyword' => $primaryKeyword, 'language' => $language])
+            : "Tu es un expert SEO. Génère un paragraphe de définition de EXACTEMENT 40-60 mots qui répond directement à la question implicite du titre. Ce paragraphe doit commencer par une reformulation du sujet (ex: 'Le visa pour l'Allemagne est...'). Il sera utilisé comme featured snippet Google (Position 0). Langue: {$language}.";
+
+        $userPrompt = $template
+            ? $this->replaceVariables($template->user_message_template, [
+                'title' => $article->title,
+                'primary_keyword' => $primaryKeyword,
+                'keyword' => $primaryKeyword,
+                'context' => mb_substr(strip_tags($article->content_html ?? ''), 0, 500),
+                'language' => $language,
+                'year' => date('Y'),
+            ])
+            : "Titre de l'article: \"{$article->title}\"\nMot-clé principal: \"{$primaryKeyword}\"\nAnnée: " . date('Y') . "\n\nGénère UNIQUEMENT le paragraphe de définition (40-60 mots, pas de HTML, juste le texte).";
+
+        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            'temperature' => 0.5,
+            'max_tokens' => 200,
+        ]);
+
+        $durationMs = (int) ((microtime(true) - $startTime) * 1000);
+
+        if ($result['success'] && !empty($result['content'])) {
+            $snippet = trim($result['content']);
+            // Wrap in paragraph with bold for emphasis
+            $snippetHtml = '<p class="featured-snippet"><strong>' . e($snippet) . '</strong></p>';
+
+            // Insert after first <h2>
+            $html = $article->content_html;
+            $pos = strpos($html, '</h2>');
+            if ($pos !== false) {
+                $html = substr($html, 0, $pos + 5) . "\n" . $snippetHtml . "\n" . substr($html, $pos + 5);
+            } else {
+                // No H2 found, insert at beginning
+                $html = $snippetHtml . "\n" . $html;
+            }
+
+            $article->update(['content_html' => $html]);
+
+            $this->logPhase($article, 'featured_snippet', 'completed', 'Definition paragraph added',
+                $result['tokens_input'] + $result['tokens_output'], 0, $durationMs);
+        } else {
+            $this->logPhase($article, 'featured_snippet', 'failed', $result['error'] ?? 'Empty response', 0, 0, $durationMs);
+        }
+
+        return $article->content_html;
+    }
+
+    private function phase06_generateFaq(string $title, string $contentHtml, string $language, int $count = 8): array
+    {
+        $contentText = $this->seoAnalysis->extractTextFromHtml($contentHtml);
+        $contentExcerpt = mb_substr($contentText, 0, 2000);
+
+        $systemPrompt = "Tu es un expert SEO spécialisé en FAQ Schema. Génère exactement {$count} questions fréquemment posées "
+            . "sur le sujet de l'article, avec des réponses détaillées (3-5 phrases chacune). "
+            . "Langue: {$language}.\n\n"
+            . "Retourne en JSON: [{\"question\": \"...\", \"answer\": \"...\"}]\n"
+            . "Les questions doivent être celles que les utilisateurs taperaient réellement dans Google.";
+
+        $result = $this->openAi->complete($systemPrompt, "Titre: {$title}\n\nContenu (extrait):\n{$contentExcerpt}", [
+            'temperature' => 0.6,
+            'max_tokens' => 3000,
+            'json_mode' => true,
+        ]);
+
+        $faqs = [];
+
+        if ($result['success']) {
+            $parsed = json_decode($result['content'], true);
+
+            // Handle different JSON structures
+            $items = $parsed['faqs'] ?? $parsed['questions'] ?? $parsed ?? [];
+            if (isset($items[0])) {
+                $faqs = $items;
+            }
+        }
+
+        return $faqs;
+    }
+
+    private function phase07_generateMeta(string $title, string $excerpt, string $primaryKeyword, string $language): array
+    {
+        $systemPrompt = "Tu es un expert SEO. Génère une balise meta title et une meta description optimisées. "
+            . "Langue: {$language}.\n\n"
+            . "Retourne en JSON: {\"meta_title\": \"...\", \"meta_description\": \"...\"}\n\n"
+            . "Règles:\n"
+            . "- meta_title: max 60 caractères, contient le mot-clé principal, accrocheur\n"
+            . "- meta_description: 140-160 caractères, contient le mot-clé, inclut un appel à l'action\n"
+            . "- Inclure l'année " . date('Y') . " dans le title tag si pertinent (ex: 'Guide Visa Allemagne " . date('Y') . "')";
+
+        $result = $this->openAi->complete($systemPrompt,
+            "Titre: {$title}\nExcerpt: {$excerpt}\nMot-clé: {$primaryKeyword}", [
+                'temperature' => 0.5,
+                'max_tokens' => 300,
+                'json_mode' => true,
+            ]);
+
+        if ($result['success']) {
+            $parsed = json_decode($result['content'], true);
+            return [
+                'meta_title' => mb_substr($parsed['meta_title'] ?? $title, 0, 60),
+                'meta_description' => mb_substr($parsed['meta_description'] ?? $excerpt, 0, 160),
+            ];
+        }
+
+        return [
+            'meta_title' => mb_substr($title, 0, 60),
+            'meta_description' => mb_substr($excerpt, 0, 160),
+        ];
+    }
+
+    private function phase08_generateJsonLd(GeneratedArticle $article): array
+    {
+        return $this->jsonLd->generateFullSchema($article);
+    }
+
+    private function phase09_addInternalLinks(GeneratedArticle $article): string
+    {
+        $suggestions = $this->internalLinking->suggestLinks($article);
+
+        if (empty($suggestions)) {
+            return $article->content_html ?? '';
+        }
+
+        return $this->internalLinking->injectLinks($article, $suggestions);
+    }
+
+    private function phase10_addExternalLinks(GeneratedArticle $article, array $sources): string
+    {
+        $html = $article->content_html ?? '';
+
+        if (empty($sources)) {
+            return $html;
+        }
+
+        // Take up to 4 authoritative sources
+        $selectedSources = array_slice($sources, 0, 4);
+        $linksHtml = '';
+
+        foreach ($selectedSources as $source) {
+            $domain = $source['domain'] ?? parse_url($source['url'] ?? '', PHP_URL_HOST) ?? '';
+            $url = $source['url'] ?? '';
+
+            if (empty($url)) {
+                continue;
+            }
+
+            // Save source record
+            GeneratedArticleSource::create([
+                'article_id' => $article->id,
+                'url' => $url,
+                'title' => $source['title'] ?? $domain,
+                'domain' => $domain,
+                'trust_score' => $source['trust_score'] ?? 50,
+            ]);
+
+            // Save external link registry
+            ExternalLinkRegistry::create([
+                'article_type' => GeneratedArticle::class,
+                'article_id' => $article->id,
+                'url' => $url,
+                'domain' => $domain,
+                'anchor_text' => $domain,
+                'trust_score' => $source['trust_score'] ?? 50,
+                'is_nofollow' => false,
+            ]);
+
+            $linksHtml .= '<li><a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">'
+                . htmlspecialchars($domain) . '</a></li>';
+        }
+
+        if (!empty($linksHtml)) {
+            // Append sources section at the end
+            $sourcesSection = "\n<h2>Sources</h2>\n<ul>\n{$linksHtml}\n</ul>";
+            $html .= $sourcesSection;
+        }
+
+        return $html;
+    }
+
+    private function phase11_addAffiliateLinks(GeneratedArticle $article): string
+    {
+        $html = $article->content_html ?? '';
+
+        // SOS-Expat service keywords to match
+        $affiliateTargets = [
+            [
+                'keywords' => ['consultation juridique', 'legal consultation', 'avocat', 'lawyer', 'juridique'],
+                'url' => 'https://www.sos-expat.com/consultation',
+                'anchor' => 'consultation juridique SOS-Expat',
+                'program' => 'sos-expat',
+            ],
+            [
+                'keywords' => ['assistance expatrié', 'expat assistance', 'aide expatriation', 'expat help'],
+                'url' => 'https://www.sos-expat.com',
+                'anchor' => 'SOS-Expat assistance',
+                'program' => 'sos-expat',
+            ],
+            [
+                'keywords' => ['prestataire', 'provider', 'expert', 'spécialiste'],
+                'url' => 'https://www.sos-expat.com/providers',
+                'anchor' => 'trouver un expert SOS-Expat',
+                'program' => 'sos-expat',
+            ],
+        ];
+
+        $contentLower = mb_strtolower($html);
+        $addedCount = 0;
+
+        foreach ($affiliateTargets as $target) {
+            if ($addedCount >= 2) {
+                break; // Max 2 affiliate links per article
+            }
+
+            foreach ($target['keywords'] as $keyword) {
+                if (mb_strpos($contentLower, $keyword) !== false) {
+                    // Found relevant keyword — add affiliate link at end of a related paragraph
+                    $escapedKeyword = preg_quote($keyword, '/');
+                    $pattern = '/(<p[^>]*>[^<]*' . $escapedKeyword . '[^<]*<\/p>)/iu';
+
+                    if (preg_match($pattern, $html, $match)) {
+                        $link = ' <a href="' . htmlspecialchars($target['url']) . '" target="_blank" rel="sponsored">'
+                            . htmlspecialchars($target['anchor']) . '</a>';
+
+                        // Insert before closing </p>
+                        $replacement = str_replace('</p>', $link . '</p>', $match[0]);
+                        $html = str_replace($match[0], $replacement, $html);
+
+                        AffiliateLink::create([
+                            'article_type' => GeneratedArticle::class,
+                            'article_id' => $article->id,
+                            'url' => $target['url'],
+                            'anchor_text' => $target['anchor'],
+                            'program' => $target['program'],
+                            'position' => $addedCount + 1,
+                        ]);
+
+                        $addedCount++;
+                        break; // Move to next target
+                    }
+                }
+            }
+        }
+
+        return $html;
+    }
+
+    private function phase12_addImages(GeneratedArticle $article, string $imageSource): void
+    {
+        $keywords = $article->keywords_primary ?? $article->title;
+
+        if ($imageSource === 'dalle' && $this->openAi->isConfigured()) {
+            $prompt = "Professional blog article header image about: {$keywords}. "
+                . "Clean, modern, editorial style. No text overlay.";
+
+            $result = $this->openAi->generateImage($prompt, [
+                'costable_type' => GeneratedArticle::class,
+                'costable_id' => $article->id,
+            ]);
+
+            if ($result['success']) {
+                $article->images()->create([
+                    'url' => $result['url'],
+                    'alt_text' => $article->title,
+                    'source' => 'dall-e-3',
+                    'attribution' => 'Generated by DALL-E 3',
+                    'sort_order' => 0,
+                ]);
+                return;
+            }
+
+            // Fallback to Unsplash if DALL-E fails
+            Log::warning('DALL-E failed, falling back to Unsplash', ['article_id' => $article->id]);
+        }
+
+        // Unsplash search
+        if ($this->unsplash->isConfigured()) {
+            $result = $this->unsplash->search($keywords, 3);
+
+            if ($result['success'] && !empty($result['images'])) {
+                foreach ($result['images'] as $index => $image) {
+                    $article->images()->create([
+                        'url' => $image['url'],
+                        'alt_text' => $image['alt_text'],
+                        'source' => 'unsplash',
+                        'attribution' => $image['attribution'],
+                        'width' => $image['width'],
+                        'height' => $image['height'],
+                        'sort_order' => $index,
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function phase13_generateSlugs(GeneratedArticle $article): void
+    {
+        $slug = $this->slugService->generateSlug($article->title, $article->language);
+        $slug = $this->slugService->ensureUnique($slug, $article->language, 'generated_articles', $article->id);
+
+        $article->update(['slug' => $slug]);
+    }
+
+    private function phase14_calculateQuality(GeneratedArticle $article): void
+    {
+        // Run SEO analysis
+        $seoResult = $this->seoAnalysis->analyze($article);
+
+        // Calculate readability
+        $text = $this->seoAnalysis->extractTextFromHtml($article->content_html ?? '');
+        $readabilityScore = $this->seoAnalysis->calculateReadability($text);
+
+        // Calculate quality score (weighted average)
+        $seoWeight = 0.40;
+        $readabilityWeight = 0.25;
+        $lengthWeight = 0.20;
+        $faqWeight = 0.15;
+
+        $seoNormalized = min(100, $seoResult->overall_score);
+        $readabilityNormalized = $readabilityScore;
+
+        // Length score: 100 if 1500-3000 words, scaled otherwise
+        $wordCount = $article->word_count ?? 0;
+        $lengthNormalized = 0;
+        if ($wordCount >= 1500 && $wordCount <= 3000) {
+            $lengthNormalized = 100;
+        } elseif ($wordCount >= 1000) {
+            $lengthNormalized = 70;
+        } elseif ($wordCount >= 500) {
+            $lengthNormalized = 40;
+        }
+
+        // FAQ completeness: 100 if has 6+ FAQs
+        $faqCount = $article->faqs()->count();
+        $faqNormalized = min(100, ($faqCount / 6) * 100);
+
+        $qualityScore = (int) round(
+            ($seoNormalized * $seoWeight)
+            + ($readabilityNormalized * $readabilityWeight)
+            + ($lengthNormalized * $lengthWeight)
+            + ($faqNormalized * $faqWeight)
+        );
+
+        $article->update([
+            'quality_score' => $qualityScore,
+            'readability_score' => $readabilityScore,
+        ]);
+    }
+
+    private function phase15_dispatchTranslations(GeneratedArticle $article, array $languages): void
+    {
+        foreach ($languages as $targetLang) {
+            if ($targetLang === $article->language) {
+                continue; // Skip same language
+            }
+
+            // Dispatch translation job (async)
+            try {
+                \App\Jobs\GenerateTranslationJob::dispatch($article->id, $targetLang);
+
+                Log::info('Translation job dispatched', [
+                    'article_id' => $article->id,
+                    'target_language' => $targetLang,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Translation dispatch failed', [
+                    'article_id' => $article->id,
+                    'target_language' => $targetLang,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Sync hreflang after dispatching translations
+        $this->hreflang->syncAllTranslations($article);
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+
+    private function logPhase(GeneratedArticle $article, string $phase, string $status, ?string $message = null, int $tokens = 0, int $costCents = 0, int $durationMs = 0): void
+    {
+        try {
+            GenerationLog::create([
+                'loggable_type' => GeneratedArticle::class,
+                'loggable_id' => $article->id,
+                'phase' => $phase,
+                'status' => $status,
+                'message' => $message,
+                'tokens_used' => $tokens,
+                'cost_cents' => $costCents,
+                'duration_ms' => $durationMs,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to log generation phase', [
+                'phase' => $phase,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function getPromptTemplate(string $contentType, string $phase): ?PromptTemplate
+    {
+        try {
+            return PromptTemplate::forPhase($contentType, $phase)->first();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function replaceVariables(string $template, array $vars): string
+    {
+        foreach ($vars as $key => $value) {
+            $template = str_replace('{{' . $key . '}}', (string) $value, $template);
+        }
+
+        return $template;
+    }
+
+    private function elapsed(float $start): int
+    {
+        return (int) ((microtime(true) - $start) * 1000);
+    }
+}
