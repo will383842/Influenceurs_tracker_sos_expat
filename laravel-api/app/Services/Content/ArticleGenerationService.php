@@ -417,31 +417,73 @@ class ArticleGenerationService
     private function phase03_generateTitle(string $topic, array $facts, string $language, array $keywords): string
     {
         $primaryKeyword = $keywords[0] ?? $topic;
+        $year = date('Y');
         $factsContext = !empty($facts) ? "\n\nFaits de recherche:\n" . implode("\n", array_slice($facts, 0, 5)) : '';
 
         $template = $this->getPromptTemplate('article', 'title');
 
         $systemPrompt = $template
-            ? $this->replaceVariables($template->system_message, ['language' => $language, 'year' => date('Y')])
-            : "Tu es un expert SEO. Génère un titre d'article optimisé pour le référencement. "
-              . "Le titre doit: faire moins de 60 caractères, contenir le mot-clé principal au début, "
-              . "être accrocheur et donner envie de cliquer. Langue: {$language}. "
-              . "Retourne UNIQUEMENT le titre, sans guillemets ni explication.";
+            ? $this->replaceVariables($template->system_message, ['language' => $language, 'year' => $year])
+            : "Tu es un expert SEO senior spécialisé dans les titres à fort CTR. "
+              . "Génère un titre d'article PARFAIT pour Google et les moteurs de recherche.\n\n"
+              . "RÈGLES STRICTES pour le titre :\n"
+              . "1. LONGUEUR : entre 50 et 60 caractères EXACTEMENT (Google tronque au-delà de 60)\n"
+              . "2. MOT-CLÉ PRINCIPAL : \"{$primaryKeyword}\" doit apparaître dans les 3 PREMIERS MOTS du titre\n"
+              . "3. ANNÉE : inclure \"{$year}\" dans le titre (signal de fraîcheur critique)\n"
+              . "4. FORMAT PROUVÉ (choisir un de ces formats haute performance) :\n"
+              . "   - \"{Mot-clé} : Guide Complet {$year}\"\n"
+              . "   - \"{Mot-clé} - {Chiffre} Étapes Essentielles ({$year})\"\n"
+              . "   - \"{Mot-clé} : Tout Savoir en {$year}\"\n"
+              . "   - \"{Mot-clé} {$year} : Conseils, Démarches et Astuces\"\n"
+              . "   - \"Top {Chiffre} : {Mot-clé} en {$year}\"\n"
+              . "5. POWER WORDS : utiliser un de ces mots qui augmentent le CTR : "
+              . "Guide, Complet, Pratique, Essentiel, À Jour, Officiel, Ultime, Simple, Rapide\n"
+              . "6. PAS de : clickbait, point d'exclamation, majuscules excessives, \"meilleur\" sans justification\n"
+              . "7. UNIQUE : le titre ne doit pas être générique, il doit être spécifique au sujet\n\n"
+              . "Langue: {$language}. Retourne UNIQUEMENT le titre, sans guillemets ni explication.";
 
-        $userPrompt = "Sujet: {$topic}\nMot-clé principal: {$primaryKeyword}{$factsContext}";
+        $userPrompt = "Sujet: {$topic}\nMot-clé principal: {$primaryKeyword}\nAnnée: {$year}{$factsContext}";
 
         $result = $this->openAi->complete($systemPrompt, $userPrompt, [
-            'temperature' => 0.8,
+            'temperature' => 0.6, // Plus bas que 0.8 pour un titre SEO précis
             'max_tokens' => 100,
         ]);
 
         if ($result['success']) {
             $title = trim($result['content'], " \t\n\r\0\x0B\"'");
-            return mb_substr($title, 0, 80); // Safety cap
+
+            // Validation: si le titre est trop long, on tronque intelligemment
+            if (mb_strlen($title) > 60) {
+                // Chercher le dernier espace avant 60 chars
+                $truncated = mb_substr($title, 0, 60);
+                $lastSpace = mb_strrpos($truncated, ' ');
+                if ($lastSpace && $lastSpace > 40) {
+                    $title = mb_substr($truncated, 0, $lastSpace);
+                } else {
+                    $title = $truncated;
+                }
+            }
+
+            // Validation: vérifier que le mot-clé principal est présent
+            if (!empty($primaryKeyword) && mb_stripos($title, mb_substr($primaryKeyword, 0, 15)) === false) {
+                Log::warning('ArticleGeneration: title missing keyword, regenerating', [
+                    'title' => $title, 'keyword' => $primaryKeyword,
+                ]);
+                // Forcer le mot-clé dans le titre
+                $title = ucfirst($primaryKeyword) . ' : ' . $title;
+                if (mb_strlen($title) > 60) {
+                    $truncated = mb_substr($title, 0, 60);
+                    $lastSpace = mb_strrpos($truncated, ' ');
+                    $title = $lastSpace && $lastSpace > 40 ? mb_substr($truncated, 0, $lastSpace) : $truncated;
+                }
+            }
+
+            return $title;
         }
 
-        // Fallback: use topic as title
-        return mb_substr($topic, 0, 60);
+        // Fallback: titre structuré basique avec mot-clé + année
+        $fallback = ucfirst($primaryKeyword) . ' : Guide Complet ' . $year;
+        return mb_substr($fallback, 0, 60);
     }
 
     private function phase04_generateExcerpt(string $title, array $facts, string $language): string
@@ -629,13 +671,25 @@ class ArticleGenerationService
 
     private function phase07_generateMeta(string $title, string $excerpt, string $primaryKeyword, string $language): array
     {
-        $systemPrompt = "Tu es un expert SEO. Génère une balise meta title et une meta description optimisées. "
+        $year = date('Y');
+        $systemPrompt = "Tu es un expert SEO senior. Génère un meta title ET une meta description parfaitement optimisés pour Google.\n"
             . "Langue: {$language}.\n\n"
             . "Retourne en JSON: {\"meta_title\": \"...\", \"meta_description\": \"...\"}\n\n"
-            . "Règles:\n"
-            . "- meta_title: max 60 caractères, contient le mot-clé principal, accrocheur\n"
-            . "- meta_description: 140-160 caractères, contient le mot-clé, inclut un appel à l'action\n"
-            . "- Inclure l'année " . date('Y') . " dans le title tag si pertinent (ex: 'Guide Visa Allemagne " . date('Y') . "')";
+            . "RÈGLES META TITLE (balise <title>) :\n"
+            . "- EXACTEMENT 50-60 caractères (Google tronque au-delà)\n"
+            . "- Le mot-clé principal \"{$primaryKeyword}\" DOIT apparaître dans les 3 premiers mots\n"
+            . "- Inclure l'année {$year} (signal de fraîcheur)\n"
+            . "- Ajouter le séparateur ' | SOS-Expat' à la fin si la place le permet\n"
+            . "- Le meta_title PEUT être différent du H1 (plus concis, plus SEO)\n"
+            . "- Power words qui augmentent le CTR : Guide, Complet, Pratique, Conseils, À Jour\n"
+            . "- Format idéal : \"{Mot-clé} : {Bénéfice} {$year} | SOS-Expat\"\n\n"
+            . "RÈGLES META DESCRIPTION :\n"
+            . "- EXACTEMENT 140-155 caractères (Google tronque à ~155)\n"
+            . "- Contient le mot-clé principal naturellement\n"
+            . "- Commence par un verbe d'action (Découvrez, Apprenez, Trouvez, Consultez)\n"
+            . "- Finit par un CTA (Guide complet, Conseils pratiques, Tout savoir)\n"
+            . "- Mentionne un bénéfice concret pour l'utilisateur\n"
+            . "- Pas de caractères spéciaux inutiles, pas de caps lock";
 
         $result = $this->openAi->complete($systemPrompt,
             "Titre: {$title}\nExcerpt: {$excerpt}\nMot-clé: {$primaryKeyword}", [
@@ -646,15 +700,42 @@ class ArticleGenerationService
 
         if ($result['success']) {
             $parsed = json_decode($result['content'], true);
+            $metaTitle = $parsed['meta_title'] ?? $title;
+            $metaDesc = $parsed['meta_description'] ?? $excerpt;
+
+            // Validation meta_title : tronquer intelligemment à 60 chars
+            if (mb_strlen($metaTitle) > 60) {
+                $truncated = mb_substr($metaTitle, 0, 60);
+                $lastSpace = mb_strrpos($truncated, ' ');
+                $metaTitle = ($lastSpace && $lastSpace > 40) ? mb_substr($truncated, 0, $lastSpace) : $truncated;
+            }
+
+            // Validation : mot-clé doit être présent dans meta_title
+            if (!empty($primaryKeyword) && mb_stripos($metaTitle, mb_substr($primaryKeyword, 0, 15)) === false) {
+                $metaTitle = ucfirst($primaryKeyword) . ' | ' . $metaTitle;
+                if (mb_strlen($metaTitle) > 60) {
+                    $metaTitle = mb_substr($metaTitle, 0, 57) . '...';
+                }
+            }
+
+            // Validation meta_description : tronquer à 155 chars
+            if (mb_strlen($metaDesc) > 155) {
+                $truncated = mb_substr($metaDesc, 0, 155);
+                $lastDot = mb_strrpos($truncated, '.');
+                $metaDesc = ($lastDot && $lastDot > 100) ? mb_substr($truncated, 0, $lastDot + 1) : $truncated;
+            }
+
             return [
-                'meta_title' => mb_substr($parsed['meta_title'] ?? $title, 0, 60),
-                'meta_description' => mb_substr($parsed['meta_description'] ?? $excerpt, 0, 160),
+                'meta_title' => $metaTitle,
+                'meta_description' => $metaDesc,
             ];
         }
 
+        // Fallback structuré
+        $year = date('Y');
         return [
-            'meta_title' => mb_substr($title, 0, 60),
-            'meta_description' => mb_substr($excerpt, 0, 160),
+            'meta_title' => mb_substr(ucfirst($primaryKeyword) . ' : Guide Complet ' . $year . ' | SOS-Expat', 0, 60),
+            'meta_description' => mb_substr('Découvrez notre guide complet sur ' . $primaryKeyword . '. Conseils pratiques, démarches et informations à jour en ' . $year . '.', 0, 155),
         ];
     }
 
