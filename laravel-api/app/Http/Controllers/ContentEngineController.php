@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ScrapeFemmexpatJob;
+use App\Jobs\ScrapeFrancaisEtrangerJob;
 use App\Jobs\ScrapeContentMagazineJob;
 use App\Jobs\ScrapeContentSourceJob;
 use App\Models\ContentArticle;
@@ -289,7 +290,14 @@ class ContentEngineController extends Controller
     {
         $source = ContentSource::where('slug', $slug)->firstOrFail();
         $source->update(['status' => 'scraping']);
-        ScrapeFemmexpatJob::dispatch($source->id);
+
+        // Dispatch the right scraper based on the source
+        match ($source->slug) {
+            'femmexpat'              => ScrapeFemmexpatJob::dispatch($source->id),
+            'francais-a-l-etranger' => ScrapeFrancaisEtrangerJob::dispatch($source->id),
+            default                 => ScrapeFemmexpatJob::dispatch($source->id), // Generic WordPress scraper
+        };
+
         return response()->json(['message' => 'Full site scraping started', 'source' => $source->fresh()]);
     }
 
