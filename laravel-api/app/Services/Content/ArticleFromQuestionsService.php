@@ -211,11 +211,11 @@ class ArticleFromQuestionsService
                 'status' => $cluster->generated_qa_count > 0 ? 'completed' : 'ready',
             ]);
 
-            // Update all content_questions in the cluster
+            // Lock all questions in this cluster as 'used'
             foreach ($questions as $question) {
                 $question->update([
                     'generated_article_id' => $article->id,
-                    'article_status' => 'generated',
+                    'article_status' => 'used',
                 ]);
             }
 

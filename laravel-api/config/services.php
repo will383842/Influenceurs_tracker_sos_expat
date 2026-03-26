@@ -84,4 +84,10 @@ return [
         'service_account_key' => env('FIREBASE_SERVICE_ACCOUNT_KEY', ''),
     ],
 
+    'blog' => [
+        'url' => env('BLOG_API_URL', ''),
+        'api_key' => env('BLOG_API_KEY', ''),
+        'site_url' => env('BLOG_SITE_URL', 'https://blog.sos-expat.com'),
+    ],
+
 ];

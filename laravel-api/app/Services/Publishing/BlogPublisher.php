@@ -27,11 +27,11 @@ class BlogPublisher
         }
 
         $config   = $endpoint->config ?? [];
-        $blogUrl  = $config['blog_api_url'] ?? '';
-        $apiToken = $config['blog_api_token'] ?? '';
+        $blogUrl  = $config['blog_api_url'] ?? $config['url'] ?? config('services.blog.url', '');
+        $apiToken = $config['blog_api_token'] ?? $config['api_key'] ?? config('services.blog.api_key', '');
 
-        if (empty($blogUrl) || empty($apiToken)) {
-            throw new \RuntimeException('Blog API URL and token are required in endpoint config');
+        if (empty($blogUrl)) {
+            throw new \RuntimeException('Blog API URL is required — set BLOG_API_URL in .env or blog_api_url in endpoint config');
         }
 
         // Resolve the parent article (if this is a translation child, go up)
@@ -226,6 +226,7 @@ class BlogPublisher
         $country = $countryDefaults[$lang] ?? 'fr';
         $slug    = $article->slug;
 
-        return "https://sos-expat.com/{$lang}-{$country}/articles/{$slug}";
+        $siteUrl = config('services.blog.site_url', 'https://blog.sos-expat.com');
+        return rtrim($siteUrl, '/') . "/{$lang}-{$country}/articles/{$slug}";
     }
 }

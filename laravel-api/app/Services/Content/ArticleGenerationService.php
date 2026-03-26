@@ -48,6 +48,10 @@ class ArticleGenerationService
     {
         $startTime = microtime(true);
 
+        // Load content-type-specific AI configuration
+        $contentType = $params['content_type'] ?? 'article';
+        $typeConfig = ContentTypeConfig::get($contentType);
+
         // Dedup check
         $dedup = app(DeduplicationService::class);
         $existingArticle = $dedup->findDuplicateArticle(
@@ -113,7 +117,8 @@ class ArticleGenerationService
                 $params['topic'],
                 $research['facts'],
                 $params['language'] ?? 'fr',
-                $params['keywords'] ?? []
+                $params['keywords'] ?? [],
+                $typeConfig
             );
             $article->update(['title' => $title]);
             $this->logPhase($article, 'title', 'success', $title, 0, 0, $this->elapsed($phaseStart));
@@ -130,7 +135,7 @@ class ArticleGenerationService
 
             // Phase 5: Generate content (the big one)
             $phaseStart = microtime(true);
-            $contentHtml = $this->phase05_generateContent($title, $excerpt, $research['facts'], $params);
+            $contentHtml = $this->phase05_generateContent($title, $excerpt, $research['facts'], $params, $typeConfig);
             $article->update([
                 'content_html' => $contentHtml,
                 'word_count' => $this->seoAnalysis->countWords($contentHtml),
@@ -142,13 +147,14 @@ class ArticleGenerationService
             $this->phase05b_featuredSnippet($article, $params['keywords'][0] ?? $params['topic'], $params['language'] ?? 'fr');
 
             // Phase 6: Generate FAQ
-            if ($params['generate_faq'] ?? true) {
+            $effectiveFaqCount = $params['faq_count'] ?? $typeConfig['faq_count'];
+            if (($params['generate_faq'] ?? true) && $effectiveFaqCount > 0) {
                 $phaseStart = microtime(true);
                 $faqs = $this->phase06_generateFaq(
                     $title,
                     $contentHtml,
                     $params['language'] ?? 'fr',
-                    $params['faq_count'] ?? 8
+                    $effectiveFaqCount
                 );
                 if (!empty($faqs)) {
                     foreach ($faqs as $index => $faq) {
@@ -247,6 +253,15 @@ class ArticleGenerationService
                     'generated_article_id' => $article->id,
                     'status' => 'generated',
                 ]);
+
+                // Lock all source content_articles used by this cluster
+                $clusterArticleIds = \App\Models\TopicClusterArticle::where('cluster_id', $params['cluster_id'])
+                    ->pluck('source_article_id');
+
+                if ($clusterArticleIds->isNotEmpty()) {
+                    \App\Models\ContentArticle::whereIn('id', $clusterArticleIds)
+                        ->update(['processing_status' => 'used', 'processed_at' => now()]);
+                }
             }
 
             // Link back to campaign item if this was generated from a campaign
@@ -414,7 +429,7 @@ class ArticleGenerationService
         return ['facts' => $facts, 'sources' => $sources];
     }
 
-    private function phase03_generateTitle(string $topic, array $facts, string $language, array $keywords): string
+    private function phase03_generateTitle(string $topic, array $facts, string $language, array $keywords, array $typeConfig = []): string
     {
         $primaryKeyword = $keywords[0] ?? $topic;
         $year = date('Y');
@@ -445,8 +460,9 @@ class ArticleGenerationService
         $userPrompt = "Sujet: {$topic}\nMot-clé principal: {$primaryKeyword}\nAnnée: {$year}{$factsContext}";
 
         $result = $this->openAi->complete($systemPrompt, $userPrompt, [
-            'temperature' => 0.6, // Plus bas que 0.8 pour un titre SEO précis
-            'max_tokens' => 100,
+            'model' => $typeConfig['model'] ?? null,
+            'temperature' => $typeConfig['temperature'] ?? 0.6,
+            'max_tokens' => $typeConfig['max_tokens_title'] ?? 100,
         ]);
 
         if ($result['success']) {
@@ -506,16 +522,16 @@ class ArticleGenerationService
         return '';
     }
 
-    private function phase05_generateContent(string $title, string $excerpt, array $facts, array $params): string
+    private function phase05_generateContent(string $title, string $excerpt, array $facts, array $params, array $typeConfig = []): string
     {
         $language = $params['language'] ?? 'fr';
         $tone = $params['tone'] ?? 'professional';
-        $length = $params['length'] ?? 'long';
         $keywords = $params['keywords'] ?? [];
         $instructions = $params['instructions'] ?? '';
         $contentType = $params['content_type'] ?? 'article';
 
-        $targetWords = match ($length) {
+        // Use typeConfig for target words range (overrides legacy 'length' param)
+        $targetWords = $typeConfig['target_words_range'] ?? match ($params['length'] ?? $typeConfig['length'] ?? 'long') {
             'short' => '800-1200',
             'medium' => '1200-1800',
             'long' => '1800-2800',
@@ -561,7 +577,13 @@ class ArticleGenerationService
             . "Année courante: " . date('Y') . ". Mentionne cette année dans le premier paragraphe et les données chiffrées.\n\n"
             . "Rédige l'article complet en HTML.";
 
-        $maxTokens = match ($length) {
+        // Append content-type-specific instructions
+        $promptSuffix = $typeConfig['prompt_suffix'] ?? '';
+        if (!empty($promptSuffix)) {
+            $userPrompt .= "\n\nINSTRUCTIONS SUPPLEMENTAIRES DU TYPE DE CONTENU:\n" . $promptSuffix;
+        }
+
+        $maxTokens = $typeConfig['max_tokens_content'] ?? match ($params['length'] ?? $typeConfig['length'] ?? 'long') {
             'short' => 3000,
             'medium' => 4500,
             'long' => 6500,
@@ -570,7 +592,8 @@ class ArticleGenerationService
         };
 
         $result = $this->openAi->complete($systemPrompt, $userPrompt, [
-            'temperature' => 0.7,
+            'model' => $typeConfig['model'] ?? null,
+            'temperature' => $typeConfig['temperature'] ?? 0.7,
             'max_tokens' => $maxTokens,
             'costable_type' => GeneratedArticle::class,
             'costable_id' => null, // Will be set after creation
