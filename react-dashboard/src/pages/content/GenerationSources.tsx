@@ -27,6 +27,17 @@ interface CategoryData {
   themes: ThemeItem[];
 }
 
+interface ItemDetail {
+  item: SourceItem;
+  source: {
+    id: number; title: string; url?: string; content_text?: string; word_count?: number;
+    category?: string; section?: string; meta_title?: string; meta_description?: string;
+    source_name?: string; source_url?: string; scraped_at?: string;
+    country?: string; city?: string; replies?: number; views?: number;
+    last_post_date?: string; last_post_author?: string; article_status?: string;
+  } | null;
+}
+
 interface OverallStats {
   overall: { total: number; cleaned: number; raw: number; ready: number; used: number; countries: number; themes: number };
   by_status: { processing_status: string; count: number }[];
@@ -64,6 +75,8 @@ export default function GenerationSources() {
   const [loading, setLoading] = useState(true);
   const [catLoading, setCatLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ItemDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Filters
   const [filterCleaned, setFilterCleaned] = useState<string>('');
@@ -107,6 +120,16 @@ export default function GenerationSources() {
   const handlePageChange = (p: number) => {
     setPage(p);
     if (selectedCat) loadCategory(selectedCat, p);
+  };
+
+  const openDetail = async (item: SourceItem) => {
+    setDetailLoading(true);
+    setDetail(null);
+    try {
+      const res = await api.get(`/generation-sources/items/${item.id}`);
+      setDetail(res.data);
+    } catch { setDetail({ item, source: null }); }
+    setDetailLoading(false);
   };
 
   if (loading) return <div className="p-8 text-gray-400 animate-pulse">Chargement des sources...</div>;
@@ -228,8 +251,10 @@ export default function GenerationSources() {
                   {catData.items.data.map((item, i) => (
                     <tr key={item.id} className="border-b border-gray-700/30 hover:bg-gray-700/20">
                       <td className="py-1.5 px-2 text-gray-500 text-xs">{(page - 1) * 50 + i + 1}</td>
-                      <td className="py-1.5 px-2 text-white max-w-sm truncate" title={item.title}>
-                        {item.title}
+                      <td className="py-1.5 px-2 max-w-sm truncate">
+                        <button onClick={() => openDetail(item)} className="text-white hover:text-blue-400 text-left transition-colors" title={item.title}>
+                          {item.title}
+                        </button>
                         {item.source_type === 'template' && item.data_json && (
                           <span className="ml-1 text-xs text-amber-400">[{(item.data_json as {variables?: string[]}).variables?.join(', ')}]</span>
                         )}
@@ -263,6 +288,99 @@ export default function GenerationSources() {
               <button disabled={page >= catData.items.last_page} onClick={() => handlePageChange(page + 1)} className="px-3 py-1 bg-gray-700 rounded text-sm disabled:opacity-30">Suiv.</button>
             </div>
           )}
+        </div>
+      )}
+      {/* Detail Panel (slide-over) */}
+      {(detail || detailLoading) && (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setDetail(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative w-full max-w-2xl bg-gray-900 border-l border-gray-700 overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-gray-900 border-b border-gray-700 p-4 flex justify-between items-center z-10">
+              <h3 className="font-bold text-white text-lg truncate pr-4">{detail?.item?.title || 'Chargement...'}</h3>
+              <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-white text-xl px-2">✕</button>
+            </div>
+
+            {detailLoading ? (
+              <div className="p-8 text-gray-400 animate-pulse">Chargement du contenu...</div>
+            ) : detail && (
+              <div className="p-4 space-y-4">
+                {/* Meta info */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-gray-500">Type:</span> <span className="text-white">{detail.item.source_type}</span></div>
+                  <div><span className="text-gray-500">Pays:</span> <span className="text-white">{detail.item.country || '-'}</span></div>
+                  <div><span className="text-gray-500">Theme:</span> <span className="text-white">{THEME_LABELS[detail.item.theme || ''] || detail.item.theme || '-'}</span></div>
+                  <div><span className="text-gray-500">Sous-cat:</span> <span className="text-white">{detail.item.sub_category || '-'}</span></div>
+                  <div><span className="text-gray-500">Score:</span> <span className="text-emerald-400 font-bold">{detail.item.quality_score}/100</span></div>
+                  <div><span className="text-gray-500">Statut:</span> <span className={`px-1.5 py-0.5 rounded text-xs ${STATUS_COLORS[detail.item.processing_status] || ''}`}>{detail.item.is_cleaned ? '✓ Nettoye' : '○ Brut'} · {detail.item.processing_status}</span></div>
+                  {detail.item.word_count > 0 && <div><span className="text-gray-500">Mots:</span> <span className="text-white">{fmt(detail.item.word_count)}</span></div>}
+                  {detail.item.used_count > 0 && <div><span className="text-gray-500">Utilise:</span> <span className="text-purple-400">{detail.item.used_count} fois</span></div>}
+                </div>
+
+                {/* Source data */}
+                {detail.source && (
+                  <div className="space-y-3">
+                    <hr className="border-gray-700" />
+
+                    {/* Article source */}
+                    {detail.source.url && (
+                      <div>
+                        <span className="text-gray-500 text-xs">URL source:</span>
+                        <a href={detail.source.url} target="_blank" rel="noopener noreferrer" className="block text-blue-400 text-sm hover:underline truncate mt-0.5">
+                          {detail.source.url}
+                        </a>
+                      </div>
+                    )}
+
+                    {detail.source.source_name && (
+                      <div className="text-sm">
+                        <span className="text-gray-500">Source:</span> <span className="text-amber-400">{detail.source.source_name}</span>
+                        {detail.source.scraped_at && <span className="text-gray-600 ml-2">· scrappe le {detail.source.scraped_at}</span>}
+                      </div>
+                    )}
+
+                    {/* Q&A specific */}
+                    {detail.source.views !== undefined && (
+                      <div className="flex gap-4 text-sm">
+                        <span className="text-gray-500">Vues: <span className="text-blue-400 font-bold">{fmt(detail.source.views || 0)}</span></span>
+                        <span className="text-gray-500">Reponses: <span className="text-white">{fmt(detail.source.replies || 0)}</span></span>
+                        {detail.source.city && <span className="text-gray-500">Ville: <span className="text-white">{detail.source.city}</span></span>}
+                      </div>
+                    )}
+
+                    {detail.source.meta_description && (
+                      <div>
+                        <span className="text-gray-500 text-xs">Meta description:</span>
+                        <p className="text-gray-300 text-sm mt-0.5">{detail.source.meta_description}</p>
+                      </div>
+                    )}
+
+                    {/* Full content */}
+                    {detail.source.content_text && (
+                      <div>
+                        <span className="text-gray-500 text-xs">Contenu ({fmt(detail.source.word_count || 0)} mots):</span>
+                        <div className="mt-1 bg-gray-800 rounded-lg p-3 max-h-[400px] overflow-y-auto">
+                          <pre className="text-gray-300 text-sm whitespace-pre-wrap font-sans leading-relaxed">{detail.source.content_text}</pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {!detail.source.content_text && detail.source.url && (
+                      <div className="text-gray-500 text-sm italic">Pas de contenu texte stocke. <a href={detail.source.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Voir sur le site source →</a></div>
+                    )}
+                  </div>
+                )}
+
+                {/* Template data */}
+                {detail.item.source_type === 'template' && detail.item.data_json && (
+                  <div>
+                    <hr className="border-gray-700" />
+                    <span className="text-gray-500 text-xs">Template data:</span>
+                    <pre className="text-gray-300 text-sm bg-gray-800 rounded p-2 mt-1">{JSON.stringify(detail.item.data_json, null, 2)}</pre>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

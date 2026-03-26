@@ -36,6 +36,36 @@ class GenerationSourceController extends Controller
     }
 
     /**
+     * Single item detail with full content from source table.
+     */
+    public function itemDetail(int $id): JsonResponse
+    {
+        $item = DB::table('generation_source_items')->where('id', $id)->first();
+        if (!$item) return response()->json(['error' => 'Not found'], 404);
+
+        $sourceData = null;
+        if ($item->source_id) {
+            if ($item->source_type === 'article') {
+                $sourceData = DB::table('content_articles as ca')
+                    ->leftJoin('content_sources as cs', 'ca.source_id', '=', 'cs.id')
+                    ->where('ca.id', $item->source_id)
+                    ->select('ca.id', 'ca.title', 'ca.url', 'ca.content_text', 'ca.word_count', 'ca.category', 'ca.section', 'ca.language', 'ca.meta_title', 'ca.meta_description', 'ca.scraped_at', 'cs.name as source_name', 'cs.base_url as source_url')
+                    ->first();
+            } elseif ($item->source_type === 'question') {
+                $sourceData = DB::table('content_questions')
+                    ->where('id', $item->source_id)
+                    ->select('id', 'title', 'url', 'country', 'city', 'replies', 'views', 'is_sticky', 'is_closed', 'last_post_date', 'last_post_author', 'language', 'article_status')
+                    ->first();
+            }
+        }
+
+        return response()->json([
+            'item'   => $item,
+            'source' => $sourceData,
+        ]);
+    }
+
+    /**
      * Items in a category, with filters for sub_category, country, theme, status.
      */
     public function categoryItems(string $categorySlug, Request $request): JsonResponse
