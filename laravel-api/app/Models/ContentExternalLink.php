@@ -9,7 +9,7 @@ class ContentExternalLink extends Model
     protected $fillable = [
         'source_id', 'article_id', 'url', 'url_hash', 'original_url',
         'domain', 'anchor_text', 'context', 'country_id',
-        'link_type', 'is_affiliate', 'occurrences',
+        'link_type', 'is_affiliate', 'occurrences', 'language',
     ];
 
     protected $casts = [

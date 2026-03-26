@@ -143,6 +143,7 @@ class ScrapeContentCountryJob implements ShouldQueue
                                 'country_id'   => $country->id,
                                 'link_type'    => $link['link_type'],
                                 'is_affiliate' => $link['is_affiliate'],
+                                'language'     => $articleContent['language'] ?? 'fr',
                             ]);
                             $existingLinkHashes[$linkHash] = true;
                         }

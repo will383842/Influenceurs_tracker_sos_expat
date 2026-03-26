@@ -11,6 +11,7 @@ interface ExternalLink {
   link_type: string;
   is_affiliate: boolean;
   occurrences: number;
+  language: string;
   source?: { id: number; name: string; slug: string };
   country?: { id: number; name: string; slug: string } | null;
 }
@@ -222,6 +223,7 @@ export default function ContentLinks() {
                 <th className="px-4 py-3 font-medium">Source</th>
                 <th className="px-4 py-3 font-medium">Pays</th>
                 <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Langue</th>
                 <th className="px-4 py-3 font-medium text-center">Aff.</th>
                 <th className="px-4 py-3 font-medium text-right">Occ.</th>
               </tr>
@@ -229,7 +231,7 @@ export default function ContentLinks() {
             <tbody>
               {links.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-muted">Aucun lien trouve</td>
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted">Aucun lien trouve</td>
                 </tr>
               ) : (
                 links.map((link) => (
@@ -250,6 +252,7 @@ export default function ContentLinks() {
                     <td className="px-4 py-2 text-muted">{link.source?.name || '-'}</td>
                     <td className="px-4 py-2 text-muted">{link.country?.name || '-'}</td>
                     <td className="px-4 py-2">{typeBadge(link.link_type)}</td>
+                    <td className="px-4 py-2 text-muted text-xs uppercase">{link.language}</td>
                     <td className="px-4 py-2 text-center">
                       {link.is_affiliate && <span className="text-amber text-xs font-bold">AFF</span>}
                     </td>
