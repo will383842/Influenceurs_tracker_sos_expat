@@ -1,0 +1,223 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
+
+class GeneratedArticle extends Model
+{
+    use SoftDeletes;
+
+    protected $fillable = [
+        'source_article_id', 'generation_preset_id', 'parent_article_id', 'pillar_article_id',
+        'title', 'slug', 'content_html', 'excerpt',
+        'meta_title', 'meta_description',
+        'keyword_primary', 'keywords_secondary', 'keyword_density',
+        'language', 'country', 'content_type', 'tone', 'style',
+        'json_ld', 'hreflang_map',
+        'seo_score', 'quality_score', 'readability_score',
+        'word_count', 'reading_time_minutes',
+        'generation_cost_cents', 'generation_tokens_input', 'generation_tokens_output',
+        'ai_model', 'status',
+        'published_at', 'scheduled_at',
+        'published_url', 'canonical_url',
+        'created_by',
+    ];
+
+    protected $casts = [
+        'json_ld'                   => 'array',
+        'hreflang_map'              => 'array',
+        'keywords_secondary'        => 'array',
+        'keyword_density'           => 'array',
+        'seo_score'                 => 'integer',
+        'quality_score'             => 'integer',
+        'readability_score'         => 'decimal:2',
+        'generation_cost_cents'     => 'integer',
+        'generation_tokens_input'   => 'integer',
+        'generation_tokens_output'  => 'integer',
+        'published_at'              => 'datetime',
+        'scheduled_at'              => 'datetime',
+        'word_count'                => 'integer',
+        'reading_time_minutes'      => 'integer',
+    ];
+
+    // ============================================================
+    // Boot
+    // ============================================================
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (self $model) {
+            if (empty($model->uuid)) {
+                $model->uuid = (string) Str::uuid();
+            }
+        });
+    }
+
+    // ============================================================
+    // Relationships
+    // ============================================================
+
+    public function faqs(): HasMany
+    {
+        return $this->hasMany(GeneratedArticleFaq::class, 'article_id')->orderBy('sort_order');
+    }
+
+    public function sources(): HasMany
+    {
+        return $this->hasMany(GeneratedArticleSource::class, 'article_id');
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(GeneratedArticleVersion::class, 'article_id')->orderByDesc('version_number');
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(GeneratedArticleImage::class, 'article_id')->orderBy('sort_order');
+    }
+
+    public function translations(): HasMany
+    {
+        return $this->hasMany(GeneratedArticle::class, 'parent_article_id');
+    }
+
+    public function parentArticle(): BelongsTo
+    {
+        return $this->belongsTo(GeneratedArticle::class, 'parent_article_id');
+    }
+
+    public function pillarArticle(): BelongsTo
+    {
+        return $this->belongsTo(GeneratedArticle::class, 'pillar_article_id');
+    }
+
+    public function clusterArticles(): HasMany
+    {
+        return $this->hasMany(GeneratedArticle::class, 'pillar_article_id');
+    }
+
+    public function sourceArticle(): BelongsTo
+    {
+        return $this->belongsTo(ContentArticle::class, 'source_article_id');
+    }
+
+    public function preset(): BelongsTo
+    {
+        return $this->belongsTo(GenerationPreset::class, 'generation_preset_id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function generationLogs(): MorphMany
+    {
+        return $this->morphMany(GenerationLog::class, 'loggable');
+    }
+
+    public function seoAnalysis(): MorphOne
+    {
+        return $this->morphOne(SeoAnalysis::class, 'analyzable')->latestOfMany();
+    }
+
+    public function internalLinksOut(): MorphMany
+    {
+        return $this->morphMany(InternalLink::class, 'source');
+    }
+
+    public function internalLinksIn(): MorphMany
+    {
+        return $this->morphMany(InternalLink::class, 'target');
+    }
+
+    public function externalLinks(): MorphMany
+    {
+        return $this->morphMany(ExternalLinkRegistry::class, 'article');
+    }
+
+    public function affiliateLinks(): MorphMany
+    {
+        return $this->morphMany(AffiliateLink::class, 'article');
+    }
+
+    public function publicationQueue(): MorphMany
+    {
+        return $this->morphMany(PublicationQueueItem::class, 'publishable');
+    }
+
+    public function goldenExample(): HasOne
+    {
+        return $this->hasOne(GoldenExample::class, 'article_id');
+    }
+
+    public function apiCosts(): MorphMany
+    {
+        return $this->morphMany(ApiCost::class, 'costable');
+    }
+
+    // ============================================================
+    // Scopes
+    // ============================================================
+
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->where('status', 'published')->whereNotNull('published_at');
+    }
+
+    public function scopeDraft(Builder $query): Builder
+    {
+        return $query->where('status', 'draft');
+    }
+
+    public function scopeLanguage(Builder $query, string $lang): Builder
+    {
+        return $query->where('language', $lang);
+    }
+
+    public function scopeCountry(Builder $query, string $country): Builder
+    {
+        return $query->where('country', $country);
+    }
+
+    public function scopeOriginals(Builder $query): Builder
+    {
+        return $query->whereNull('parent_article_id');
+    }
+
+    public function scopePillars(Builder $query): Builder
+    {
+        return $query->whereNull('pillar_article_id')->whereHas('clusterArticles');
+    }
+
+    // ============================================================
+    // Accessors
+    // ============================================================
+
+    public function getEstimatedCostAttribute(): float
+    {
+        return $this->generation_cost_cents / 100;
+    }
+
+    public function getIsPublishedAttribute(): bool
+    {
+        return $this->status === 'published' && $this->published_at !== null;
+    }
+
+    public function getUrlAttribute(): string
+    {
+        return "/{$this->language}/blog/{$this->slug}";
+    }
+}

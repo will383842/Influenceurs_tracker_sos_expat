@@ -12,7 +12,7 @@ class BusinessDirectoryController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = ContentBusiness::query();
+        $query = ContentBusiness::with('source:id,name,slug');
 
         // Filters
         if ($request->filled('source')) {

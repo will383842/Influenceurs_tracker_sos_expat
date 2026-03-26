@@ -292,13 +292,17 @@ export default function Layout() {
                       </span>
                     </NavLink>
                   ))}
-                  <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
-                    Annuaire Entreprises
-                  </NavLink>
                   <NavLink to="/content/links" className={subNavClass} onClick={handleNavClick}>
                     Tous les liens
                   </NavLink>
                 </NavGroup>
+              )}
+
+              {/* 5b. Annuaire - admin only */}
+              {isAdmin && (
+                <NavLink to="/content/businesses" className={navClass} onClick={handleNavClick}>
+                  <span>🏢</span> Annuaire
+                </NavLink>
               )}
 
               {/* 6. Qualite - admin only */}
