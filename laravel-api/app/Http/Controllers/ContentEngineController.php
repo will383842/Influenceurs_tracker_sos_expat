@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ScrapeFemmexpatJob;
 use App\Jobs\ScrapeContentMagazineJob;
 use App\Jobs\ScrapeContentSourceJob;
 use App\Models\ContentArticle;
@@ -282,6 +283,14 @@ class ContentEngineController extends Controller
         $source = ContentSource::where('slug', $slug)->firstOrFail();
         ScrapeContentMagazineJob::dispatch($source->id, 'cities');
         return response()->json(['message' => 'Cities/missing articles scraping started']);
+    }
+
+    public function scrapeFull(string $slug): JsonResponse
+    {
+        $source = ContentSource::where('slug', $slug)->firstOrFail();
+        $source->update(['status' => 'scraping']);
+        ScrapeFemmexpatJob::dispatch($source->id);
+        return response()->json(['message' => 'Full site scraping started', 'source' => $source->fresh()]);
     }
 
     /**

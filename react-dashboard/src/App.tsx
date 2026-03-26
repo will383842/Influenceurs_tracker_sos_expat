@@ -29,6 +29,7 @@ import ContentSites from './pages/content/ContentSites';
 import AffiliateLinks from './pages/content/AffiliateLinks';
 import CountryProfiles from './pages/content/CountryProfiles';
 import CountryProfileDetail from './pages/content/CountryProfileDetail';
+import ContentContacts from './pages/content/ContentContacts';
 import ProspectionHub from './pages/prospection/ProspectionHub';
 import ProspectionOverview from './pages/prospection/ProspectionOverview';
 import ProspectionEmails from './pages/prospection/ProspectionEmails';
@@ -45,6 +46,7 @@ const ArticleCreate = React.lazy(() => import('./pages/content/ArticleCreate'));
 const ArticleDetail = React.lazy(() => import('./pages/content/ArticleDetail'));
 const ComparativesList = React.lazy(() => import('./pages/content/ComparativesList'));
 const ComparativeCreate = React.lazy(() => import('./pages/content/ComparativeCreate'));
+const ComparativeDetail = React.lazy(() => import('./pages/content/ComparativeDetail'));
 const CampaignsList = React.lazy(() => import('./pages/content/CampaignsList'));
 const CampaignCreate = React.lazy(() => import('./pages/content/CampaignCreate'));
 const CampaignDetail = React.lazy(() => import('./pages/content/CampaignDetail'));
@@ -120,6 +122,7 @@ export default function App() {
             <Route path="content/sites" element={<AdminRoute><ContentSites /></AdminRoute>} />
             <Route path="content/links" element={<AdminRoute><ContentLinks /></AdminRoute>} />
             <Route path="content/businesses" element={<AdminRoute><BusinessDirectory /></AdminRoute>} />
+            <Route path="content/contacts" element={<AdminRoute><ContentContacts /></AdminRoute>} />
             <Route path="content/affiliates" element={<AdminRoute><AffiliateLinks /></AdminRoute>} />
             <Route path="content/countries" element={<AdminRoute><CountryProfiles /></AdminRoute>} />
             <Route path="content/country/:countrySlug" element={<AdminRoute><CountryProfileDetail /></AdminRoute>} />
@@ -131,6 +134,7 @@ export default function App() {
             <Route path="content/articles/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticleDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/comparatives" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ComparativesList /></React.Suspense></AdminRoute>} />
             <Route path="content/comparatives/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ComparativeCreate /></React.Suspense></AdminRoute>} />
+            <Route path="content/comparatives/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ComparativeDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/campaigns" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignsList /></React.Suspense></AdminRoute>} />
             <Route path="content/campaigns/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignCreate /></React.Suspense></AdminRoute>} />
             <Route path="content/campaigns/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CampaignDetail /></React.Suspense></AdminRoute>} />

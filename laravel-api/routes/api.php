@@ -8,6 +8,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AiPromptController;
 use App\Http\Controllers\BusinessDirectoryController;
 use App\Http\Controllers\ContentCampaignController;
+use App\Http\Controllers\ContentContactController;
 use App\Http\Controllers\ContentEngineController;
 use App\Http\Controllers\CostController;
 use App\Http\Controllers\DirectoryController;
@@ -307,6 +308,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/sources/{slug}/scrape-services', [ContentEngineController::class, 'scrapeServices']);
         Route::post('/sources/{slug}/scrape-thematic', [ContentEngineController::class, 'scrapeThematic']);
         Route::post('/sources/{slug}/scrape-cities', [ContentEngineController::class, 'scrapeCities']);
+        Route::post('/sources/{slug}/scrape-full', [ContentEngineController::class, 'scrapeFull']);
         Route::get('/country-profiles', [ContentEngineController::class, 'countryProfiles']);
         Route::get('/country-profiles/{countrySlug}', [ContentEngineController::class, 'countryProfile']);
         Route::get('/stats', [ContentEngineController::class, 'stats']);
@@ -324,6 +326,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', [BusinessDirectoryController::class, 'show']);
         Route::post('/scrape/{sourceSlug}', [BusinessDirectoryController::class, 'scrape']);
         Route::post('/scrape-details/{sourceSlug}', [BusinessDirectoryController::class, 'scrapeDetails']);
+    });
+
+    // ============================================================
+    // CONTACTS (scraped people & partners)
+    // ============================================================
+    Route::prefix('contacts')->middleware('role:admin')->group(function () {
+        Route::get('/', [ContentContactController::class, 'index']);
+        Route::get('/stats', [ContentContactController::class, 'stats']);
+        Route::get('/export', [ContentContactController::class, 'export']);
     });
 
     // ============================================================

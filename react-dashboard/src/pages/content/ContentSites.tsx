@@ -110,6 +110,15 @@ export default function ContentSites() {
     }
   };
 
+  const handleScrapeFull = async (slug: string) => {
+    try {
+      await api.post(`/content/sources/${slug}/scrape-full`);
+      fetchSources();
+    } catch {
+      setError('Erreur lancement scraping complet');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" role="status">
@@ -243,6 +252,10 @@ export default function ContentSites() {
                 <button onClick={() => handleScrapeBusinesses(src.slug)}
                   className="px-3 py-1.5 bg-cyan/20 text-cyan rounded-lg text-xs font-medium hover:bg-cyan/30 transition-colors">
                   Scraper l'annuaire
+                </button>
+                <button onClick={() => handleScrapeFull(src.slug)} disabled={src.status === 'scraping'}
+                  className="px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs font-medium hover:bg-white/20 disabled:opacity-50 transition-colors">
+                  Scraper tout (WordPress)
                 </button>
               </div>
             </div>
