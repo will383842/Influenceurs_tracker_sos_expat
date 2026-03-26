@@ -173,32 +173,38 @@ class ContentScraperService
 
     /**
      * Extract countries from embedded JavaScript JSON data.
-     * Expat.com stores country lists in baseLevel.filter.fields[].options[] as {id: "URL", text: "Name"}
+     * Expat.com format: {"id":"https:\/\/www.expat.com\/fr\/guide\/afrique\/senegal\/","text":"Sénégal","children":[...]}
+     * The JSON uses escaped slashes (\/) and absolute URLs.
      */
     private function extractCountriesFromEmbeddedJson(string $html, string $baseUrl, array &$countries): void
     {
-        // Find all script content and look for country URL patterns with names
-        // Pattern: {"id":"/fr/guide/continent/country/","text":"Country Name"}
-        if (preg_match_all('/"id"\s*:\s*"(\/fr\/guide\/([^"]+?)\/([^"]+?)\/?)"\s*,\s*"text"\s*:\s*"([^"]+)"/', $html, $matches, PREG_SET_ORDER)) {
+        // First unescape JSON slashes so we can parse clean URLs
+        // Look for the filter data block containing country options
+        $unescaped = str_replace('\\/', '/', $html);
+
+        // Match: "id":"https://www.expat.com/fr/guide/{continent}/{country}/","text":"{Name}"
+        // We must NOT match city URLs (3 segments: continent/country/city)
+        $pattern = '/"id"\s*:\s*"https?:\/\/[^"]*\/fr\/guide\/([a-z-]+)\/([a-z-]+)\/"\s*,\s*"text"\s*:\s*"([^"]+)"/';
+
+        if (preg_match_all($pattern, $unescaped, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $m) {
-                $path = $m[1];        // /fr/guide/europe/france/
-                $continent = $m[2];   // europe
-                $countrySlug = $m[3]; // france
-                $countryName = $m[4]; // France
+                $continentSlug = $m[1]; // afrique
+                $countrySlug = $m[2];   // senegal
+                $countryName = $m[3];   // Sénégal
 
-                // Skip continent-only URLs (e.g. /fr/guide/europe/)
-                if (empty($countrySlug) || $countrySlug === $continent) continue;
-                // Skip city URLs (3+ segments after /guide/)
-                if (substr_count(trim($path, '/'), '/') > 3) continue;
+                // Skip if continent and country are the same (malformed)
+                if ($countrySlug === $continentSlug) continue;
 
-                $fullUrl = $this->resolveUrl($path, $baseUrl);
+                $fullUrl = 'https://www.expat.com/fr/guide/' . $continentSlug . '/' . $countrySlug . '/';
                 $countries[] = [
                     'name'      => html_entity_decode($countryName, ENT_QUOTES, 'UTF-8'),
                     'slug'      => $countrySlug,
-                    'continent' => $this->normalizeContinent($continent),
+                    'continent' => $this->normalizeContinent($continentSlug),
                     'guide_url' => $fullUrl,
                 ];
             }
+
+            Log::info('ContentScraper: extracted countries from JSON', ['count' => count($matches)]);
         }
     }
 
