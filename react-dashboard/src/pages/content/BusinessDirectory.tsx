@@ -17,6 +17,7 @@ interface Business {
   is_premium: boolean;
   recommendations: number;
   description: string | null;
+  language: string;
   source?: { id: number; name: string; slug: string };
 }
 
@@ -243,13 +244,14 @@ export default function BusinessDirectory() {
                     <th className="px-4 py-3 font-medium">Telephone</th>
                     <th className="px-4 py-3 font-medium">Pays / Ville</th>
                     <th className="px-4 py-3 font-medium">Categorie</th>
+                    <th className="px-4 py-3 font-medium">Langue</th>
                     <th className="px-4 py-3 font-medium">Source</th>
                     <th className="px-4 py-3 font-medium text-center">Reco.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {businesses.length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-muted">Aucune entreprise trouvee</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-muted">Aucune entreprise trouvee</td></tr>
                   ) : businesses.map((b) => (
                     <tr key={b.id} className="border-b border-border/50 hover:bg-surface2 transition-colors">
                       <td className="px-4 py-2">
@@ -283,6 +285,7 @@ export default function BusinessDirectory() {
                         <span className="text-xs text-gray-400">{b.category}</span>
                         {b.subcategory && <span className="text-xs text-muted block">{b.subcategory}</span>}
                       </td>
+                      <td className="px-4 py-2 text-muted text-xs uppercase">{b.language || 'fr'}</td>
                       <td className="px-4 py-2 text-muted text-xs">{b.source?.name || '-'}</td>
                       <td className="px-4 py-2 text-center text-white text-xs">{b.recommendations || '-'}</td>
                     </tr>
