@@ -73,9 +73,11 @@ class ArticleGenerationService
             $article = GeneratedArticle::findOrFail($params['article_id']);
             $article->update(['status' => 'generating']);
         } else {
+            $uuid = (string) Str::uuid();
             $article = GeneratedArticle::create([
-                'uuid' => (string) Str::uuid(),
+                'uuid' => $uuid,
                 'title' => $params['topic'] ?? 'Untitled',
+                'slug' => Str::slug($params['topic'] ?? 'untitled') . '-' . substr($uuid, 0, 8),
                 'language' => $params['language'] ?? 'fr',
                 'country' => $params['country'] ?? null,
                 'content_type' => $params['content_type'] ?? 'article',
