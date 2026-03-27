@@ -105,6 +105,14 @@ class BlogPublisher
             'countries'          => $allCountries->unique()->values()->toArray(),
         ];
 
+        // ── Extract and send table of contents ────────────────────
+        if ($parentArticle->content_html) {
+            $toc = app(\App\Services\Seo\JsonLdService::class)->extractTableOfContents($parentArticle->content_html);
+            if (!empty($toc)) {
+                $payload['table_of_contents'] = $toc;
+            }
+        }
+
         // ── Send to blog API ─────────────────────────────────────
         Log::info('BlogPublisher: sending article to blog', [
             'uuid'         => $parentArticle->uuid,

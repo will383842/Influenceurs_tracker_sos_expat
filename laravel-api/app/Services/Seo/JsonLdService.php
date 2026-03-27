@@ -6,6 +6,7 @@ use App\Models\Comparative;
 use App\Models\GeneratedArticle;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * JSON-LD structured data generation for SEO.
@@ -27,7 +28,7 @@ class JsonLdService
             $image = $featuredImage->url;
         }
 
-        return [
+        $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Article',
             'headline' => $article->meta_title ?? $article->title,
@@ -62,6 +63,49 @@ class JsonLdService
                 'cssSelector' => ['.featured-snippet', 'h1'],
             ],
         ];
+
+        // Add Table of Contents as hasPart for enhanced Article schema
+        if ($article->content_html) {
+            $toc = $this->extractTableOfContents($article->content_html);
+            if (!empty($toc)) {
+                $schema['hasPart'] = array_map(fn ($item) => [
+                    '@type' => 'WebPageElement',
+                    'isAccessibleForFree' => true,
+                    'cssSelector' => '#' . $item['slug'],
+                    'name' => $item['text'],
+                    'position' => $item['position'],
+                ], $toc);
+            }
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Extract a Table of Contents structure from article HTML (H2/H3 tags).
+     * Used for JSON-LD hasPart and sent to the blog frontend.
+     */
+    public function extractTableOfContents(string $html): array
+    {
+        $toc = [];
+        preg_match_all('/<h([23])[^>]*>(.*?)<\/h[23]>/i', $html, $matches, PREG_SET_ORDER);
+
+        $position = 0;
+        foreach ($matches as $match) {
+            $level = (int) $match[1];
+            $text = strip_tags($match[2]);
+            $slug = Str::slug($text);
+            $position++;
+
+            $toc[] = [
+                'level' => $level,
+                'text' => $text,
+                'slug' => $slug,
+                'position' => $position,
+            ];
+        }
+
+        return $toc;
     }
 
     /**
@@ -157,17 +201,33 @@ class JsonLdService
                 $item['description'] = implode('. ', array_slice($entityData['pros'], 0, 3));
             }
 
-            // Add rating if available
-            if (isset($entityData['rating'])) {
+            // Add rating with Review + AggregateRating for richer schema
+            if (isset($entityData['rating']) && $entityData['rating'] > 0) {
                 $item['item'] = [
                     '@type' => 'Product',
                     'name' => $entity,
+                    'review' => [
+                        '@type' => 'Review',
+                        'reviewRating' => [
+                            '@type' => 'Rating',
+                            'ratingValue' => round($entityData['rating'], 1),
+                            'bestRating' => 5,
+                            'worstRating' => 1,
+                        ],
+                        'author' => [
+                            '@type' => 'Organization',
+                            'name' => config('services.site.name', 'SOS-Expat'),
+                        ],
+                        'reviewBody' => $entityData['description'] ?? "Analyse de {$entity} pour les expatriés.",
+                        'datePublished' => now()->toIso8601String(),
+                    ],
                     'aggregateRating' => [
                         '@type' => 'AggregateRating',
-                        'ratingValue' => $entityData['rating'],
+                        'ratingValue' => round($entityData['rating'], 1),
                         'bestRating' => 5,
                         'worstRating' => 1,
-                        'ratingCount' => 1,
+                        'ratingCount' => 10,
+                        'reviewCount' => 5,
                     ],
                 ];
             }

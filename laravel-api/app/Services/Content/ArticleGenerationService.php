@@ -541,12 +541,19 @@ class ArticleGenerationService
     {
         $factsContext = !empty($facts) ? "\nFaits: " . implode('. ', array_slice($facts, 0, 3)) : '';
 
-        $systemPrompt = "Tu es un rédacteur web expert. Génère une introduction de 2-3 phrases pour un article. "
-            . "L'introduction doit accrocher le lecteur, contenir le sujet principal, et donner envie de lire la suite. "
-            . "Langue: {$language}. Retourne UNIQUEMENT le texte de l'introduction.";
+        $systemPrompt = "Tu es un expert SEO. Génère un résumé de 2-3 phrases (60-100 mots) qui servira à la fois de :"
+            . "\n1. EXCERPT de l'article (affiché dans les listings)"
+            . "\n2. AI SUMMARY pour les moteurs IA (Google AI Overview, ChatGPT, Perplexity)"
+            . "\n\nRÈGLES :"
+            . "\n- Commence directement par l'information clé (PAS 'Cet article traite de...')"
+            . "\n- Contient les 2-3 faits les plus importants"
+            . "\n- Mentionne le pays et l'année si pertinent"
+            . "\n- Ton factuel et informatif"
+            . "\n- Donne envie de lire l'article complet"
+            . "\nLangue: {$language}. Retourne UNIQUEMENT le texte.";
 
         $result = $this->openAi->complete($systemPrompt, "Titre: {$title}{$factsContext}", [
-            'temperature' => 0.7,
+            'temperature' => 0.5,
             'max_tokens' => 300,
         ]);
 
