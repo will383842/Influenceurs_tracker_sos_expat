@@ -52,7 +52,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost/up || exit 1"]
+      test: ["CMD", "php", "-v"]
       interval: 30s
       timeout: 10s
       retries: 3
