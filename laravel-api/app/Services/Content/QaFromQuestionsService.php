@@ -269,6 +269,25 @@ class QaFromQuestionsService
                 ]);
             }
 
+            // 8b. Auto-enhance if seo_score is below threshold
+            $typeConfig = ContentTypeConfig::get('qa');
+            if (($entry->seo_score ?? 0) < 80) {
+                // Regenerate answer_short if it doesn't start with a reformulation of the question
+                $questionStart = mb_substr($entry->question, 0, 30);
+                $answerStart = mb_substr($entry->answer_short ?? '', 0, 50);
+                if (mb_stripos($answerStart, mb_substr($questionStart, 0, 15)) === false) {
+                    // The answer doesn't reformulate the question — regenerate
+                    $retryResult = $this->openAi->complete(
+                        "Reformule cette réponse pour qu'elle commence par une reprise du sujet de la question. EXACTEMENT 40-60 mots.",
+                        "Question: {$entry->question}\nRéponse actuelle: {$entry->answer_short}\n\nNouvelle réponse (40-60 mots, commence par le sujet):",
+                        ['temperature' => 0.4, 'max_tokens' => 150, 'model' => $typeConfig['model'] ?? 'gpt-4o']
+                    );
+                    if ($retryResult['success'] && !empty($retryResult['content'])) {
+                        $entry->update(['answer_short' => trim($retryResult['content'])]);
+                    }
+                }
+            }
+
             // 9. Simple plagiarism check against existing Q&A
             try {
                 $answerText = strip_tags($entry->answer_detailed_html ?? '');
@@ -415,7 +434,7 @@ class QaFromQuestionsService
             . "- Contient les chiffres clés\n"
             . "- Format featured snippet Google (Position 0)\n\n"
             . "REGLE pour la réponse détaillée:\n"
-            . "- 800-2000 mots en HTML\n"
+            . "- 1000-2000 mots en HTML\n"
             . "- Structure: H2 pour chaque aspect, H3 pour les détails\n"
             . "- Au moins 1 tableau <table> si des données comparables existent\n"
             . "- Au moins 1 liste <ol> si un processus/étapes existe\n"
@@ -423,6 +442,11 @@ class QaFromQuestionsService
             . "- Signaux E-E-A-T: date, sources vérifiées\n"
             . "- Mentionne l'année {$year}\n"
             . "- Pas de <h1>, <html>, <head>, <body>\n\n"
+            . "PLACEMENT OBLIGATOIRE DU SUJET PRINCIPAL DE LA QUESTION :\n"
+            . "- Dans la réponse courte (reformulation obligatoire)\n"
+            . "- Dans au moins 1 titre H2 de la réponse détaillée\n"
+            . "- En gras (<strong>) au moins 1 fois\n"
+            . "- Dans la conclusion\n\n"
             . "Retourne en JSON: {answer_short: string, answer_detailed_html: string, sources: [string]}";
 
         $typeConfig = ContentTypeConfig::get('qa');

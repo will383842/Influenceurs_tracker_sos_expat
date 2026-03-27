@@ -162,6 +162,10 @@ class ComparativeGenerationService
                 '@graph' => [
                     $compSchema,
                     $breadcrumb,
+                    [
+                        '@type' => 'SpeakableSpecification',
+                        'cssSelector' => ['.featured-snippet', 'h1'],
+                    ],
                 ],
             ];
             $comparative->update(['json_ld' => $jsonLdData]);
@@ -212,6 +216,14 @@ class ComparativeGenerationService
                     'comparative_id' => $comparative->id,
                     'error' => $e->getMessage(),
                 ]);
+            }
+
+            // Auto-improve if quality score is low
+            $qualityScore = $comparative->quality_score ?? 0;
+            if ($qualityScore < ($typeConfig['quality_threshold'] ?? 85)) {
+                // For comparatives, run SEO analysis to recalculate score
+                $seoResult = $this->seoAnalysis->analyze($comparative->fresh());
+                $comparative->update(['quality_score' => $seoResult->overall_score ?? $qualityScore]);
             }
 
             // Phase 8: Enrichment — FAQ, images, internal links, external links, affiliate links
@@ -366,7 +378,14 @@ class ComparativeGenerationService
             . "- Verdict final avec recommandation\n\n"
             . "Utilise des balises HTML: <h2>, <h3>, <p>, <strong>, <em>. Pas de <h1>.\n\n"
             . "Les entités comparées doivent apparaître dans les H2. Exemple : \"Avantages de {entity1}\" au lieu de \"Avantages de la première option\".\n"
-            . "Intègre naturellement les noms des entités comparées avec une densité de 1-2% chacun dans le texte.";
+            . "Intègre naturellement les noms des entités comparées avec une densité de 1-2% chacun dans le texte.\n\n"
+            . "PLACEMENT OBLIGATOIRE DES NOMS D'ENTITÉS :\n"
+            . "- Dans le premier paragraphe\n"
+            . "- Dans au moins 2 titres H2\n"
+            . "- En gras (<strong>) au moins 1 fois dans le corps du texte\n"
+            . "- Dans la conclusion/verdict\n"
+            . "- Densité totale : 1-2% chacun (ni trop, ni trop peu)\n"
+            . "Les noms doivent apparaître NATURELLEMENT — jamais forcés ou répétitifs.";
 
         // Access LSI keywords from comparative (stored during research phase)
         $lsiKeywords = $comparative->keywords_secondary ?? [];

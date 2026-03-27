@@ -606,7 +606,14 @@ class ArticleGenerationService
               . "- Le mot-clé principal DOIT apparaître dans au moins 2 titres H2 sur les 6-8\n"
               . "- Variantes acceptées : synonymes, forme plurielle, reformulation naturelle\n"
               . "- Exemples : si le mot-clé est \"visa Allemagne\", un H2 peut être \"Quel visa choisir pour l'Allemagne ?\" ou \"Les types de visa en Allemagne\"\n\n"
-              . "IMPORTANT: Mentionne l'année " . date('Y') . " dans le premier paragraphe et dans les données chiffrées. Utilise des formulations 'En " . date('Y') . ",...'";
+              . "IMPORTANT: Mentionne l'année " . date('Y') . " dans le premier paragraphe et dans les données chiffrées. Utilise des formulations 'En " . date('Y') . ",...'\n\n"
+              . "PLACEMENT OBLIGATOIRE DU MOT-CLÉ PRINCIPAL :\n"
+              . "- Dans le premier paragraphe (déjà demandé)\n"
+              . "- Dans au moins 2 titres H2\n"
+              . "- En gras (<strong>) au moins 1 fois dans le corps du texte\n"
+              . "- Dans la conclusion\n"
+              . "- Densité totale : 1-2% (ni trop, ni trop peu)\n"
+              . "Le mot-clé doit apparaître NATURELLEMENT — jamais forcé ou répétitif.";
 
         $userPrompt = "Titre: {$title}\n\n"
             . "Introduction (déjà rédigée, à intégrer):\n{$excerpt}\n\n"

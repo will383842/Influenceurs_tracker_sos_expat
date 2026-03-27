@@ -138,6 +138,13 @@ class ArticleFromQuestionsService
                 . "- Pas de <h1>, <html>, <head>, <body>\n\n"
                 . "Les H2-questions doivent être les VRAIES questions que les expatriés posent (données ci-dessous).\n"
                 . "Le mot-clé principal doit apparaître dans au moins 2 des H2-questions.\n\n"
+                . "PLACEMENT OBLIGATOIRE DU MOT-CLÉ PRINCIPAL :\n"
+                . "- Dans le premier paragraphe (déjà demandé)\n"
+                . "- Dans au moins 2 titres H2\n"
+                . "- En gras (<strong>) au moins 1 fois dans le corps du texte\n"
+                . "- Dans la conclusion\n"
+                . "- Densité totale : 1-2% (ni trop, ni trop peu)\n"
+                . "Le mot-clé doit apparaître NATURELLEMENT — jamais forcé ou répétitif.\n\n"
                 . "Retourne en JSON:\n"
                 . "{\n"
                 . "  title: string (H1 SEO, max 70 chars),\n"
@@ -435,6 +442,10 @@ class ArticleFromQuestionsService
                     '@id' => $url,
                 ],
                 'wordCount' => $article->word_count,
+                'speakable' => [
+                    '@type' => 'SpeakableSpecification',
+                    'cssSelector' => ['.featured-snippet', 'h1'],
+                ],
             ],
             [
                 '@context' => 'https://schema.org',

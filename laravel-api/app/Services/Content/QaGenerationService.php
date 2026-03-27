@@ -276,6 +276,25 @@ class QaGenerationService
                 ]);
             }
 
+            // Auto-enhance if seo_score is below threshold
+            $typeConfig = ContentTypeConfig::get('qa');
+            if (($entry->seo_score ?? 0) < 80) {
+                // Regenerate answer_short if it doesn't start with a reformulation of the question
+                $questionStart = mb_substr($entry->question, 0, 30);
+                $answerStart = mb_substr($entry->answer_short ?? '', 0, 50);
+                if (mb_stripos($answerStart, mb_substr($questionStart, 0, 15)) === false) {
+                    // The answer doesn't reformulate the question — regenerate
+                    $retryResult = $this->openAi->complete(
+                        "Reformule cette réponse pour qu'elle commence par une reprise du sujet de la question. EXACTEMENT 40-60 mots.",
+                        "Question: {$entry->question}\nRéponse actuelle: {$entry->answer_short}\n\nNouvelle réponse (40-60 mots, commence par le sujet):",
+                        ['temperature' => 0.4, 'max_tokens' => 150, 'model' => $typeConfig['model'] ?? 'gpt-4o']
+                    );
+                    if ($retryResult['success'] && !empty($retryResult['content'])) {
+                        $entry->update(['answer_short' => trim($retryResult['content'])]);
+                    }
+                }
+            }
+
             // Simple plagiarism check against existing Q&A
             try {
                 $answerText = strip_tags($entry->answer_detailed_html ?? '');
@@ -421,11 +440,16 @@ class QaGenerationService
         $systemPrompt = "Tu es un expert en expatriation. Réponds à cette question{$countryContext}.\n\n"
             . "INSTRUCTIONS:\n"
             . "1. answer_short: réponse directe de 40-60 mots (format featured snippet Google). La réponse DOIT commencer par une reformulation du sujet (ex: Q: 'Quel est le coût de la vie en France ?' R: 'Le coût de la vie en France est en moyenne de...')\n"
-            . "2. answer_detailed_html: réponse détaillée de 800-2000 mots en HTML\n"
+            . "2. answer_detailed_html: réponse détaillée de 1000-2000 mots en HTML\n"
             . "   - Utilise <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>\n"
             . "   - Inclus des sources officielles et des données chiffrées\n"
             . "   - Donne des conseils pratiques et concrets\n"
             . "   - Pas de <h1>, <html>, <head>, <body>\n\n"
+            . "PLACEMENT OBLIGATOIRE DU SUJET PRINCIPAL DE LA QUESTION :\n"
+            . "- Dans la réponse courte (reformulation obligatoire)\n"
+            . "- Dans au moins 1 titre H2 de la réponse détaillée\n"
+            . "- En gras (<strong>) au moins 1 fois\n"
+            . "- Dans la conclusion\n\n"
             . "Retourne en JSON: {answer_short: string, answer_detailed_html: string}";
 
         $typeConfig = ContentTypeConfig::get('qa');
