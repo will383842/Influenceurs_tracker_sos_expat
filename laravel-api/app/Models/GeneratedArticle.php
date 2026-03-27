@@ -24,6 +24,7 @@ class GeneratedArticle extends Model
         'meta_title', 'meta_description', 'og_title', 'og_description', 'ai_summary',
         'keywords_primary', 'keywords_secondary', 'keyword_density',
         'featured_image_url', 'featured_image_alt', 'featured_image_attribution',
+        'featured_image_srcset', 'photographer_name', 'photographer_url',
         'language', 'country', 'content_type',
         'json_ld', 'hreflang_map',
         'seo_score', 'quality_score', 'readability_score',

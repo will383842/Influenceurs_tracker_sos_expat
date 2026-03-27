@@ -46,14 +46,27 @@ class UnsplashService
                 $images = [];
 
                 foreach ($results as $photo) {
+                    $rawUrl = $photo['urls']['raw'] ?? $photo['urls']['regular'] ?? '';
+                    $photographerName = $photo['user']['name'] ?? 'Unknown';
+                    $photographerUrl = $photo['user']['links']['html'] ?? 'https://unsplash.com';
+
                     $images[] = [
-                        'url' => $photo['urls']['regular'] ?? '',
-                        'thumb_url' => $photo['urls']['thumb'] ?? '',
+                        'url' => $rawUrl ? $rawUrl . '&w=1200&q=80&auto=format' : '',
+                        'thumb_url' => $rawUrl ? $rawUrl . '&w=400&q=75&auto=format' : ($photo['urls']['thumb'] ?? ''),
                         'alt_text' => $photo['description'] ?? $photo['alt_description'] ?? $query,
-                        'attribution' => 'Photo by ' . ($photo['user']['name'] ?? 'Unknown') . ' on Unsplash',
+                        'attribution' => "Photo by {$photographerName} on Unsplash",
+                        'photographer_name' => $photographerName,
+                        'photographer_url' => $photographerUrl . '?utm_source=sos-expat&utm_medium=referral',
+                        'unsplash_url' => ($photo['links']['html'] ?? 'https://unsplash.com') . '?utm_source=sos-expat&utm_medium=referral',
+                        'raw_url' => $rawUrl,
                         'width' => $photo['width'] ?? 0,
                         'height' => $photo['height'] ?? 0,
                         'download_url' => $photo['links']['download_location'] ?? '',
+                        'srcset' => $rawUrl ? implode(', ', [
+                            $rawUrl . '&w=640&q=80&auto=format 640w',
+                            $rawUrl . '&w=960&q=80&auto=format 960w',
+                            $rawUrl . '&w=1200&q=80&auto=format 1200w',
+                        ]) : '',
                     ];
 
                     // Trigger download tracking (Unsplash API requirement)
@@ -127,14 +140,27 @@ class UnsplashService
 
                 Log::info('Unsplash random OK', ['query' => $query]);
 
+                $rawUrl = $photo['urls']['raw'] ?? $photo['urls']['regular'] ?? '';
+                $photographerName = $photo['user']['name'] ?? 'Unknown';
+                $photographerUrl = $photo['user']['links']['html'] ?? 'https://unsplash.com';
+
                 return [
-                    'url' => $photo['urls']['regular'] ?? '',
-                    'thumb_url' => $photo['urls']['thumb'] ?? '',
+                    'url' => $rawUrl ? $rawUrl . '&w=1200&q=80&auto=format' : '',
+                    'thumb_url' => $rawUrl ? $rawUrl . '&w=400&q=75&auto=format' : ($photo['urls']['thumb'] ?? ''),
                     'alt_text' => $photo['description'] ?? $photo['alt_description'] ?? $query,
-                    'attribution' => 'Photo by ' . ($photo['user']['name'] ?? 'Unknown') . ' on Unsplash',
+                    'attribution' => "Photo by {$photographerName} on Unsplash",
+                    'photographer_name' => $photographerName,
+                    'photographer_url' => $photographerUrl . '?utm_source=sos-expat&utm_medium=referral',
+                    'unsplash_url' => ($photo['links']['html'] ?? 'https://unsplash.com') . '?utm_source=sos-expat&utm_medium=referral',
+                    'raw_url' => $rawUrl,
                     'width' => $photo['width'] ?? 0,
                     'height' => $photo['height'] ?? 0,
                     'download_url' => $downloadLocation ?? '',
+                    'srcset' => $rawUrl ? implode(', ', [
+                        $rawUrl . '&w=640&q=80&auto=format 640w',
+                        $rawUrl . '&w=960&q=80&auto=format 960w',
+                        $rawUrl . '&w=1200&q=80&auto=format 1200w',
+                    ]) : '',
                 ];
             }
 

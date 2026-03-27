@@ -1115,11 +1115,16 @@ class ArticleGenerationService
                     }
                 }
 
-                // Set first image as featured
+                // Set first image as featured with Unsplash attribution data
                 if ($firstImageUrl) {
+                    $firstImage = $result['images'][0];
                     $article->update([
                         'featured_image_url' => $firstImageUrl,
                         'featured_image_alt' => $firstImageAlt,
+                        'featured_image_attribution' => $firstImage['attribution'] ?? null,
+                        'featured_image_srcset' => $firstImage['srcset'] ?? null,
+                        'photographer_name' => $firstImage['photographer_name'] ?? null,
+                        'photographer_url' => $firstImage['photographer_url'] ?? null,
                     ]);
                 }
             }
