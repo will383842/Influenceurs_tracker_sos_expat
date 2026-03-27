@@ -532,3 +532,35 @@ export const runScheduleNow = () =>
 
 export const addCustomTitles = (titles: string[]) =>
   api.post('/content-gen/schedule/custom-titles', { titles });
+
+// ============================================================
+// QUALITY & PLAGIARISM
+// ============================================================
+
+import type { PlagiarismResult, QualityAuditResult } from '../types/content';
+
+export const checkArticlePlagiarism = (articleId: number) =>
+  api.post<PlagiarismResult>(`/content-gen/quality/${articleId}/plagiarism`);
+
+export const fetchArticleReadability = (articleId: number) =>
+  api.get(`/content-gen/quality/${articleId}/readability`);
+
+export const fetchArticleTone = (articleId: number) =>
+  api.get(`/content-gen/quality/${articleId}/tone`);
+
+export const fetchArticleBrandCheck = (articleId: number) =>
+  api.get(`/content-gen/quality/${articleId}/brand`);
+
+export const fetchArticleFactCheck = (articleId: number) =>
+  api.get(`/content-gen/quality/${articleId}/fact-check`);
+
+export const fetchArticleFullAudit = (articleId: number) =>
+  api.get<QualityAuditResult>(`/content-gen/quality/${articleId}/full-audit`);
+
+export const improveArticleQuality = (articleId: number) =>
+  api.post(`/content-gen/quality/${articleId}/improve`);
+
+export const fetchFlaggedArticles = (params?: { status?: string; min_similarity?: number }) =>
+  api.get<PaginatedResponse<GeneratedArticle>>('/content-gen/articles', {
+    params: { ...params, sort_by: 'quality_score', sort_dir: 'asc' },
+  });

@@ -11,6 +11,7 @@ import {
   evaluateSeoChecklist,
   fetchSeoChecklist,
 } from '../../api/contentApi';
+import ArticleQualityPanel from '../../components/content/ArticleQualityPanel';
 import type {
   GeneratedArticle,
   ArticleFaq,
@@ -868,6 +869,17 @@ export default function ArticleDetail() {
               </div>
             </div>
           )}
+
+          {/* Quality & Plagiarism */}
+          <div className="bg-surface border border-border rounded-xl p-5">
+            <h4 className="font-title font-semibold text-white mb-3">Qualite & Plagiat</h4>
+            <ArticleQualityPanel
+              articleId={article.id}
+              qualityScore={article.quality_score}
+              seoScore={article.seo_score}
+              readabilityScore={article.readability_score}
+            />
+          </div>
 
           {/* Versions */}
           <div className="bg-surface border border-border rounded-xl p-5">

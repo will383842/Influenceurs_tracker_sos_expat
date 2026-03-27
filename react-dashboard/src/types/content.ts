@@ -850,3 +850,48 @@ export interface ScheduleStatus {
   today: DailyContentLog | null;
   is_running: boolean;
 }
+
+// ============================================================
+// QUALITY & PLAGIARISM
+// ============================================================
+
+export interface PlagiarismMatch {
+  article_id: number;
+  article_title: string;
+  similarity: number;
+  matching_phrases: string[];
+}
+
+export interface PlagiarismResult {
+  is_original: boolean;
+  similarity_percent: number;
+  status: 'original' | 'similar' | 'plagiarized';
+  matches: PlagiarismMatch[];
+  total_shingles: number;
+  unique_shingles: number;
+}
+
+export interface QualityAuditResult {
+  overall_score: number;
+  plagiarism: PlagiarismResult;
+  readability: {
+    flesch_score: number;
+    grade_level: string;
+    avg_sentence_length: number;
+    complex_word_percentage: number;
+  };
+  tone: {
+    formality: number;
+    objectivity: number;
+    detected_tone: string;
+  };
+  brand: {
+    compliant: boolean;
+    score: number;
+    issues: string[];
+  };
+  seo: {
+    score: number;
+    issues: string[];
+  };
+}

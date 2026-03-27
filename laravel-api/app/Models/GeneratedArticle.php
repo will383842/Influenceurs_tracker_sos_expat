@@ -21,7 +21,7 @@ class GeneratedArticle extends Model
         'uuid',
         'source_article_id', 'generation_preset_id', 'parent_article_id', 'pillar_article_id',
         'title', 'slug', 'content_html', 'content_text', 'excerpt',
-        'meta_title', 'meta_description',
+        'meta_title', 'meta_description', 'og_title', 'og_description', 'ai_summary',
         'keywords_primary', 'keywords_secondary', 'keyword_density',
         'featured_image_url', 'featured_image_alt', 'featured_image_attribution',
         'language', 'country', 'content_type',

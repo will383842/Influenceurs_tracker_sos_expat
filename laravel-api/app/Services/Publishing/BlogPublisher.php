@@ -84,6 +84,17 @@ class BlogPublisher
             default                    => $parentArticle->content_type ?? 'article',
         };
 
+        // ── Build sources array ──────────────────────────────────
+        $sources = [];
+        if ($parentArticle->relationLoaded('sources') && $parentArticle->sources->isNotEmpty()) {
+            $sources = $parentArticle->sources->map(fn ($s) => [
+                'url'         => $s->url,
+                'title'       => $s->title ?? null,
+                'domain'      => $s->domain ?? parse_url($s->url, PHP_URL_HOST),
+                'trust_score' => $s->trust_score ?? null,
+            ])->toArray();
+        }
+
         // ── Build payload ────────────────────────────────────────
         $payload = [
             'idempotency_key'    => $parentArticle->uuid ?? ($parentArticle->id . '_' . now()->timestamp),
@@ -101,6 +112,7 @@ class BlogPublisher
             'readability_score'  => $parentArticle->readability_score,
             'translations'       => $translations,
             'faqs'               => $faqs,
+            'sources'            => $sources,
             'images'             => $allImages->unique('url')->values()->toArray(),
             'tags'               => $allTags->unique()->values()->toArray(),
             'countries'          => $allCountries->unique()->values()->toArray(),
@@ -173,10 +185,10 @@ class BlogPublisher
             'excerpt'          => $article->excerpt,
             'meta_title'       => $article->meta_title,
             'meta_description' => $article->meta_description,
-            'og_title'         => $article->meta_title,
-            'og_description'   => $article->meta_description,
+            'og_title'         => $article->og_title ?? $article->meta_title,
+            'og_description'   => $article->og_description ?? $article->meta_description,
             'og_image_url'     => $article->featured_image_url,
-            'ai_summary'       => $article->excerpt,
+            'ai_summary'       => $article->ai_summary ?? $article->excerpt,
         ];
 
         // FAQs for this language

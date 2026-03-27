@@ -194,6 +194,24 @@ class ArticleGenerationService
             ]);
             $this->logPhase($article, 'meta', 'success', null, 0, 0, $this->elapsed($phaseStart));
 
+            // Phase 7b: Generate OG meta + AI summary (AEO)
+            $phaseStart = microtime(true);
+            $aeoMeta = $this->phase07b_generateAeoMeta(
+                $title,
+                $meta['meta_title'],
+                $meta['meta_description'],
+                $excerpt,
+                $article->content_text ?? strip_tags($article->content_html ?? ''),
+                $params['keywords'][0] ?? '',
+                $params['language'] ?? 'fr'
+            );
+            $article->update([
+                'og_title'       => $aeoMeta['og_title'],
+                'og_description' => $aeoMeta['og_description'],
+                'ai_summary'     => $aeoMeta['ai_summary'],
+            ]);
+            $this->logPhase($article, 'aeo_meta', 'success', null, 0, 0, $this->elapsed($phaseStart));
+
             // Phase 8: Generate JSON-LD
             $phaseStart = microtime(true);
             $jsonLdData = $this->phase08_generateJsonLd($article->fresh());
@@ -825,6 +843,67 @@ class ArticleGenerationService
         return [
             'meta_title' => mb_substr(ucfirst($primaryKeyword) . ' : Guide Complet ' . $year . ' | SOS-Expat', 0, 60),
             'meta_description' => mb_substr('Découvrez notre guide complet sur ' . $primaryKeyword . '. Conseils pratiques, démarches et informations à jour en ' . $year . '.', 0, 155),
+        ];
+    }
+
+    /**
+     * Phase 7b: Generate OG meta + AI summary for AEO.
+     *
+     * og_title: More engaging than meta_title (≤95 chars), optimized for social sharing
+     * og_description: Call-to-action oriented (≤200 chars), optimized for clicks
+     * ai_summary: Factual 2-3 sentence summary (≤500 chars) for AI engines (ChatGPT, Perplexity)
+     */
+    private function phase07b_generateAeoMeta(
+        string $title,
+        string $metaTitle,
+        string $metaDescription,
+        string $excerpt,
+        string $contentText,
+        string $primaryKeyword,
+        string $language
+    ): array {
+        $contentSnippet = mb_substr($contentText, 0, 800);
+
+        $systemPrompt = "Tu génères 3 éléments différenciés pour un article sur '{$primaryKeyword}' en {$language}.\n\n"
+            . "Retourne en JSON:\n"
+            . "{\n"
+            . "  \"og_title\": \"Titre accrocheur pour réseaux sociaux (≤95 chars, DIFFÉRENT du meta_title)\",\n"
+            . "  \"og_description\": \"Description incitant au partage social avec CTA (≤200 chars)\",\n"
+            . "  \"ai_summary\": \"Résumé factuel 2-3 phrases pour les moteurs IA (≤500 chars, PAS de marketing)\"\n"
+            . "}\n\n"
+            . "IMPORTANT:\n"
+            . "- og_title : plus ÉMOTIONNEL et ENGAGEANT que le meta_title (qui est SEO)\n"
+            . "- og_description : doit donner envie de CLIQUER et PARTAGER\n"
+            . "- ai_summary : STRICTEMENT FACTUEL, commence par les faits, pas par 'Cet article...'";
+
+        $userPrompt = "Meta title actuel: {$metaTitle}\nMeta desc actuelle: {$metaDescription}\nTitre H1: {$title}\nContenu: {$contentSnippet}";
+
+        try {
+            $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+                'temperature' => 0.5,
+                'max_tokens' => 400,
+                'json_mode' => true,
+            ]);
+
+            if ($result['success']) {
+                $parsed = json_decode($result['content'], true);
+                if ($parsed) {
+                    return [
+                        'og_title'       => mb_substr($parsed['og_title'] ?? $metaTitle, 0, 95),
+                        'og_description' => mb_substr($parsed['og_description'] ?? $metaDescription, 0, 200),
+                        'ai_summary'     => mb_substr($parsed['ai_summary'] ?? $excerpt, 0, 500),
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Phase 7b AEO meta fallback', ['error' => $e->getMessage()]);
+        }
+
+        // Fallback: derive from existing meta
+        return [
+            'og_title'       => mb_substr($title, 0, 95),
+            'og_description' => mb_substr($metaDescription, 0, 200),
+            'ai_summary'     => mb_substr($excerpt, 0, 500),
         ];
     }
 
