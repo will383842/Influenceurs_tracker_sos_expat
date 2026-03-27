@@ -3,9 +3,12 @@
 namespace App\Services\Content;
 
 use App\Models\ContentQuestion;
+use App\Models\GeneratedArticle;
 use App\Models\QaEntry;
 use App\Models\QuestionCluster;
 use App\Services\AI\OpenAiService;
+use App\Services\AI\UnsplashService;
+use App\Services\Content\ContentTypeConfig;
 use App\Services\PerplexitySearchService;
 use App\Services\Seo\SeoAnalysisService;
 use App\Services\Seo\SlugService;
@@ -24,6 +27,7 @@ class QaFromQuestionsService
         private PerplexitySearchService $perplexity,
         private SlugService $slugService,
         private SeoAnalysisService $seoAnalysis,
+        private UnsplashService $unsplash,
     ) {}
 
     /**
@@ -276,6 +280,58 @@ class QaFromQuestionsService
                 ]);
             }
 
+            // 10. Add image (Unsplash)
+            try {
+                if ($this->unsplash->isConfigured()) {
+                    $imgResult = $this->unsplash->search($title, 1);
+                    if ($imgResult['success'] && !empty($imgResult['images'])) {
+                        $img = $imgResult['images'][0];
+                        $imgAlt = mb_substr(($entry->keywords_primary ?? '') . ' - ' . $entry->question, 0, 125);
+                        $imgTag = '<figure><img src="' . e($img['url']) . '" alt="' . e($imgAlt) . '" loading="lazy" />';
+                        if (!empty($img['attribution'])) {
+                            $imgTag .= '<figcaption>' . e($img['attribution']) . '</figcaption>';
+                        }
+                        $imgTag .= '</figure>';
+                        $html = $entry->answer_detailed_html ?? '';
+                        $pos = strpos($html, '</h2>');
+                        if ($pos !== false) {
+                            $html = substr($html, 0, $pos + 5) . "\n" . $imgTag . "\n" . substr($html, $pos + 5);
+                        } else {
+                            $html = $imgTag . "\n" . $html;
+                        }
+                        $entry->update(['answer_detailed_html' => $html]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('QaFromQuestions: image addition failed (non-blocking)', [
+                    'qa_entry_id' => $entry->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // 11. Add internal links (related articles)
+            try {
+                $relatedArticles = GeneratedArticle::where('language', $entry->language)
+                    ->where('country', $entry->country)
+                    ->where('status', 'published')
+                    ->whereNull('parent_article_id')
+                    ->limit(3)
+                    ->get();
+                if ($relatedArticles->isNotEmpty()) {
+                    $linksHtml = "\n<h2>Articles connexes</h2>\n<ul>\n";
+                    foreach ($relatedArticles as $ra) {
+                        $linksHtml .= '<li><a href="/' . $ra->language . '/articles/' . $ra->slug . '">' . e($ra->title) . '</a></li>' . "\n";
+                    }
+                    $linksHtml .= "</ul>\n";
+                    $entry->update(['answer_detailed_html' => ($entry->answer_detailed_html ?? '') . $linksHtml]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('QaFromQuestions: internal links failed (non-blocking)', [
+                    'qa_entry_id' => $entry->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             return $entry;
         } catch (\Throwable $e) {
             Log::error('QaFromQuestions: single Q&A generation failed', [
@@ -317,13 +373,14 @@ class QaFromQuestionsService
             . "- Pas de <h1>, <html>, <head>, <body>\n\n"
             . "Retourne en JSON: {answer_short: string, answer_detailed_html: string, sources: [string]}";
 
+        $typeConfig = ContentTypeConfig::get('qa');
         $result = $this->openAi->complete(
             $systemPrompt,
             "Question{$countryContext}: {$question}{$contextBlock}",
             [
-                'model' => 'gpt-4o',
-                'temperature' => 0.6,
-                'max_tokens' => 4000,
+                'model' => $typeConfig['model'],
+                'temperature' => $typeConfig['temperature'],
+                'max_tokens' => $typeConfig['max_tokens_content'] ?? 4000,
                 'json_mode' => true,
             ]
         );
@@ -474,9 +531,9 @@ class QaFromQuestionsService
             }
         }
 
-        // Add isBasedOn for sources
-        if (!empty($sources)) {
-            $schema['isBasedOn'] = array_map(fn ($url) => ['@type' => 'WebPage', 'url' => $url], array_slice($sources, 0, 5));
+        // Add isBasedOn for sources (inside the QAPage schema object, not at root level)
+        if (!empty($sources) && isset($schema[0])) {
+            $schema[0]['isBasedOn'] = array_map(fn ($url) => ['@type' => 'WebPage', 'url' => $url], array_slice($sources, 0, 5));
         }
 
         return $schema;

@@ -15,6 +15,7 @@ use App\Models\ResearchBrief;
 use App\Models\TopicCluster;
 use App\Services\AI\OpenAiService;
 use App\Services\AI\UnsplashService;
+use App\Services\Content\SeoChecklistService;
 use App\Services\PerplexitySearchService;
 use App\Services\Seo\HreflangService;
 use App\Services\Seo\InternalLinkingService;
@@ -1033,6 +1034,16 @@ class ArticleGenerationService
             'quality_score' => $qualityScore,
             'readability_score' => $readabilityScore,
         ]);
+
+        // Run SEO Checklist evaluation
+        try {
+            app(SeoChecklistService::class)->evaluate($article);
+        } catch (\Throwable $e) {
+            Log::warning('ArticleGeneration: SEO checklist failed (non-blocking)', [
+                'article_id' => $article->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function phase15_dispatchTranslations(GeneratedArticle $article, array $languages): void

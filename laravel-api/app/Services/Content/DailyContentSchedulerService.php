@@ -113,6 +113,15 @@ class DailyContentSchedulerService
         }
 
         // ═══════════════════════════════════════════════════════
+        // 4b. News articles (2 per day)
+        // ═══════════════════════════════════════════════════════
+        $newsNeeded = 2 - ($log->news_generated ?? 0);
+        if ($newsNeeded > 0) {
+            Log::info('DailyContentScheduler: generating news articles', ['needed' => $newsNeeded]);
+            $this->generateNews($log, $schedule, $newsNeeded, $errors);
+        }
+
+        // ═══════════════════════════════════════════════════════
         // 5. Custom titles (one-shot, removed after generation)
         // ═══════════════════════════════════════════════════════
         $customTitles = $schedule->custom_titles ?? [];
@@ -499,6 +508,90 @@ class DailyContentSchedulerService
         }
     }
 
+    private function generateNews(
+        DailyContentLog $log,
+        DailyContentSchedule $schedule,
+        int $needed,
+        array &$errors,
+    ): void {
+        $generated = 0;
+
+        // Find topic clusters suitable for news articles
+        $clusters = TopicCluster::whereIn('status', ['pending', 'ready'])
+            ->when($schedule->target_country, fn ($q, $c) => $q->where('country', $c))
+            ->orderByDesc('created_at')
+            ->limit($needed)
+            ->get();
+
+        foreach ($clusters as $cluster) {
+            if ($generated >= $needed) {
+                break;
+            }
+
+            try {
+                $existing = $this->dedup->findDuplicateArticle($cluster->name, $cluster->country ?? '', 'fr');
+                if ($existing) {
+                    $cluster->update(['generated_article_id' => $existing->id, 'status' => 'completed']);
+                    continue;
+                }
+
+                if (!$cluster->researchBrief) {
+                    $this->researchBrief->generateBrief($cluster);
+                    $cluster->refresh();
+                }
+
+                $cluster->update(['status' => 'generating']);
+
+                $brief = $cluster->researchBrief;
+                $params = [
+                    'topic'        => $cluster->name,
+                    'language'     => 'fr',
+                    'country'      => $cluster->country,
+                    'content_type' => 'news',
+                    'keywords'     => (function () use ($brief) {
+                        $pk = $brief?->suggested_keywords['primary'] ?? [];
+                        if (is_string($pk)) $pk = [$pk];
+                        return $pk;
+                    })(),
+                    'cluster_id'   => $cluster->id,
+                    'tone'         => 'journalistic',
+                    'length'       => 'short',
+                    'generate_faq' => true,
+                    'faq_count'    => 4,
+                    'research_sources'     => true,
+                    'image_source'         => 'unsplash',
+                    'auto_internal_links'  => true,
+                    'auto_affiliate_links' => true,
+                    'translation_languages' => [],
+                ];
+
+                $article = $this->articleGeneration->generate($params);
+
+                $plagResult = $this->plagiarism->check($article);
+                if (!$plagResult['is_original'] && ($plagResult['similarity_percent'] ?? 0) > 40) {
+                    $article->update(['status' => 'draft', 'quality_score' => 0]);
+                    $cluster->update(['status' => 'ready']);
+                    continue;
+                }
+
+                if ($article->quality_score < ($schedule->min_quality_score ?? 70)) {
+                    $this->qualityImprover->improve($article, $schedule->min_quality_score ?? 70);
+                }
+
+                $cluster->update(['generated_article_id' => $article->id, 'status' => 'completed']);
+                $log->increment('total_cost_cents', $article->generation_cost_cents ?? 0);
+                $generated++;
+                $log->increment('news_generated');
+            } catch (\Throwable $e) {
+                $errors[] = "News cluster #{$cluster->id} ({$cluster->name}): {$e->getMessage()}";
+                Log::error('DailyContentScheduler: news generation failed', [
+                    'cluster_id' => $cluster->id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
     private function generateCustomTitles(
         DailyContentLog $log,
         DailyContentSchedule $schedule,
@@ -534,6 +627,14 @@ class DailyContentSchedulerService
                 ];
 
                 $article = $this->articleGeneration->generate($params);
+
+                // Plagiarism check
+                $plagResult = $this->plagiarism->check($article);
+                if (!$plagResult['is_original'] && ($plagResult['similarity_percent'] ?? 0) > 40) {
+                    Log::warning('DailyScheduler: plagiarism on custom title', ['title' => $title, 'similarity' => $plagResult['similarity_percent'] ?? 0]);
+                    $article->update(['status' => 'draft', 'quality_score' => 0]);
+                    continue;
+                }
 
                 // Quality improvement if below threshold
                 if ($article->quality_score < $schedule->min_quality_score) {

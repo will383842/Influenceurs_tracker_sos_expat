@@ -2,13 +2,19 @@
 
 namespace App\Services\Content;
 
+use App\Models\ContentExternalLink;
+use App\Models\ExternalLinkRegistry;
 use App\Models\GeneratedArticle;
 use App\Models\GeneratedArticleFaq;
+use App\Models\GeneratedArticleImage;
 use App\Models\QuestionCluster;
 use App\Services\AI\OpenAiService;
-use App\Services\PerplexitySearchService;
-use App\Services\Seo\JsonLdService;
+use App\Services\AI\UnsplashService;
+use App\Services\Content\ContentTypeConfig;
 use App\Services\Content\SeoChecklistService;
+use App\Services\PerplexitySearchService;
+use App\Services\Seo\InternalLinkingService;
+use App\Services\Seo\JsonLdService;
 use App\Services\Seo\SeoAnalysisService;
 use App\Services\Seo\SlugService;
 use Illuminate\Support\Facades\Log;
@@ -28,6 +34,8 @@ class ArticleFromQuestionsService
         private JsonLdService $jsonLd,
         private SeoAnalysisService $seoAnalysis,
         private SeoChecklistService $seoChecklist,
+        private InternalLinkingService $internalLinking,
+        private UnsplashService $unsplash,
     ) {}
 
     /**
@@ -194,6 +202,35 @@ class ArticleFromQuestionsService
             $jsonLdData = $this->generateArticleJsonLd($article, $faqItems);
             $article->update(['json_ld' => $jsonLdData]);
 
+            // Phase 5b: Enrichment — featured snippet, links, images
+            $typeConfig = ContentTypeConfig::get($article->content_type ?? 'article');
+
+            try {
+                // Featured snippet paragraph (40-60 words after first H2)
+                $this->addFeaturedSnippet($article, $cluster->name);
+
+                // Internal links
+                $suggestions = $this->internalLinking->suggestLinks($article, $typeConfig['internal_links'] ?? 6);
+                if (!empty($suggestions)) {
+                    $html = $this->internalLinking->injectLinks($article, $suggestions);
+                    $article->update(['content_html' => $html]);
+                }
+
+                // External links from scraped sources
+                $this->addExternalLinks($article, $typeConfig['external_links'] ?? 3);
+
+                // Affiliate links
+                $this->addAffiliateLinks($article);
+
+                // Images (Unsplash)
+                $this->addImages($article, $typeConfig['images_count'] ?? 2);
+            } catch (\Throwable $e) {
+                Log::warning('ArticleFromQuestions: enrichment failed (non-blocking)', [
+                    'article_id' => $article->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Phase 6: SEO analysis and checklist
             try {
                 $this->seoAnalysis->analyze($article);
@@ -238,6 +275,102 @@ class ArticleFromQuestionsService
             $cluster->update(['status' => 'pending']);
 
             throw $e;
+        }
+    }
+
+    private function addFeaturedSnippet(GeneratedArticle $article, string $topic): void
+    {
+        $keyword = $article->keywords_primary ?? $topic;
+        $result = $this->openAi->complete(
+            "Genere un paragraphe de definition de 40-60 mots pour un featured snippet Google. Commence par une reformulation du sujet.",
+            "Sujet: {$topic}\nMot-cle: {$keyword}\nAnnee: " . date('Y'),
+            ['temperature' => 0.5, 'max_tokens' => 200]
+        );
+        if ($result['success'] && !empty($result['content'])) {
+            $snippet = '<p class="featured-snippet"><strong>' . e(trim($result['content'])) . '</strong></p>';
+            $html = $article->content_html;
+            $pos = strpos($html, '</h2>');
+            if ($pos !== false) {
+                $html = substr($html, 0, $pos + 5) . "\n" . $snippet . "\n" . substr($html, $pos + 5);
+                $article->update(['content_html' => $html]);
+            }
+        }
+    }
+
+    private function addExternalLinks(GeneratedArticle $article, int $count): void
+    {
+        $links = ContentExternalLink::where('country_id', function ($q) use ($article) {
+                $q->select('id')->from('content_countries')->where('slug', Str::slug($article->country ?? ''))->limit(1);
+            })
+            ->whereIn('link_type', ['official', 'news', 'resource'])
+            ->where('is_affiliate', false)
+            ->orderByDesc('occurrences')
+            ->limit($count)
+            ->get();
+
+        if ($links->isEmpty()) {
+            return;
+        }
+
+        $html = $article->content_html ?? '';
+        $linksSection = "\n<h2>Sources et liens utiles</h2>\n<ul>\n";
+        foreach ($links as $link) {
+            $anchor = $link->anchor_text ?: $link->domain;
+            $linksSection .= '<li><a href="' . e($link->url) . '" target="_blank" rel="noopener">' . e($anchor) . '</a></li>' . "\n";
+            ExternalLinkRegistry::create([
+                'article_type' => GeneratedArticle::class,
+                'article_id' => $article->id,
+                'url' => $link->url,
+                'domain' => $link->domain,
+                'anchor_text' => $anchor,
+                'trust_score' => $link->link_type === 'official' ? 90 : 60,
+                'is_nofollow' => false,
+            ]);
+        }
+        $linksSection .= "</ul>\n";
+        $html .= $linksSection;
+        $article->update(['content_html' => $html]);
+    }
+
+    private function addAffiliateLinks(GeneratedArticle $article): void
+    {
+        $siteUrl = config('services.site.url', 'https://sos-expat.com');
+        $cta = '<p><strong>Besoin d\'aide pour votre expatriation ?</strong> <a href="' . $siteUrl . '?utm_source=blog&utm_medium=article&utm_campaign=' . $article->slug . '">Consultez nos experts SOS-Expat</a></p>';
+        $html = $article->content_html ?? '';
+        $html .= "\n" . $cta;
+        $article->update(['content_html' => $html]);
+    }
+
+    private function addImages(GeneratedArticle $article, int $count): void
+    {
+        if (!$this->unsplash->isConfigured()) {
+            return;
+        }
+        $query = $article->keywords_primary ?? $article->title;
+        $result = $this->unsplash->search($query, $count);
+        if (!$result['success'] || empty($result['images'])) {
+            return;
+        }
+
+        foreach ($result['images'] as $i => $img) {
+            $altText = ($article->keywords_primary ? ucfirst($article->keywords_primary) . ' - ' : '') . ($img['alt_text'] ?? $article->title);
+            GeneratedArticleImage::create([
+                'article_id' => $article->id,
+                'url' => $img['url'],
+                'alt_text' => mb_substr($altText, 0, 125),
+                'source' => 'unsplash',
+                'attribution' => $img['attribution'] ?? '',
+                'width' => $img['width'] ?? null,
+                'height' => $img['height'] ?? null,
+                'sort_order' => $i,
+            ]);
+
+            if ($i === 0) {
+                $article->update([
+                    'featured_image_url' => $img['url'],
+                    'featured_image_alt' => mb_substr($altText, 0, 125),
+                ]);
+            }
         }
     }
 

@@ -3,9 +3,15 @@
 namespace App\Services\Content;
 
 use App\Models\Comparative;
+use App\Models\ContentExternalLink;
+use App\Models\ExternalLinkRegistry;
+use App\Models\GeneratedArticle;
 use App\Models\GenerationLog;
 use App\Services\AI\OpenAiService;
+use App\Services\AI\UnsplashService;
+use App\Services\Content\ContentTypeConfig;
 use App\Services\PerplexitySearchService;
+use App\Services\Seo\InternalLinkingService;
 use App\Services\Seo\JsonLdService;
 use App\Services\Seo\SeoAnalysisService;
 use App\Services\Seo\SlugService;
@@ -23,6 +29,8 @@ class ComparativeGenerationService
         private SeoAnalysisService $seoAnalysis,
         private JsonLdService $jsonLd,
         private SlugService $slugService,
+        private InternalLinkingService $internalLinking,
+        private UnsplashService $unsplash,
     ) {}
 
     /**
@@ -31,6 +39,8 @@ class ComparativeGenerationService
     public function generate(array $params): Comparative
     {
         $startTime = microtime(true);
+
+        $typeConfig = ContentTypeConfig::get('comparative');
 
         $entities = $params['entities'] ?? [];
         $language = $params['language'] ?? 'fr';
@@ -53,7 +63,7 @@ class ComparativeGenerationService
         ]);
 
         try {
-            // Phase 1: Research each entity
+            // Phase 1: Research each entity (use config model for research)
             $researchData = [];
             foreach ($entities as $entity) {
                 $research = $this->researchEntity($entity, $language, $country);
@@ -142,6 +152,16 @@ class ComparativeGenerationService
                 ]);
             }
 
+            // Phase 8: Enrichment — FAQ, images, internal links, external links, affiliate links
+            try {
+                $this->enrichComparative($comparative->fresh(), $typeConfig, $params);
+            } catch (\Throwable $e) {
+                Log::warning('ComparativeGeneration: enrichment failed (non-blocking)', [
+                    'comparative_id' => $comparative->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             $totalDuration = (int) ((microtime(true) - $startTime) * 1000);
             Log::info('Comparative generation complete', [
                 'comparative_id' => $comparative->id,
@@ -204,9 +224,11 @@ class ComparativeGenerationService
             . "[{\"criteria\": \"Nom du critère\", \"values\": {\"Entity1\": \"valeur\", \"Entity2\": \"valeur\"}}]\n\n"
             . "Inclus 8-12 critères pertinents (prix, fonctionnalités, facilité d'utilisation, support, etc.).";
 
+        $typeConfig = ContentTypeConfig::get('comparative');
         $result = $this->openAi->complete($systemPrompt,
             "Entités à comparer: {$entitiesStr}\n\nDonnées de recherche:{$researchContext}", [
-                'temperature' => 0.5,
+                'model' => $typeConfig['model'],
+                'temperature' => $typeConfig['temperature'],
                 'max_tokens' => 2000,
                 'json_mode' => true,
             ]);
@@ -233,9 +255,11 @@ class ComparativeGenerationService
             . "{\"pros\": [\"avantage 1\", ...], \"cons\": [\"inconvénient 1\", ...], \"rating\": 4.2}\n\n"
             . "3-6 avantages, 2-4 inconvénients, note sur 5. Sois objectif et factuel.";
 
+        $typeConfig = ContentTypeConfig::get('comparative');
         $result = $this->openAi->complete($systemPrompt,
             "Entité: {$entity}\n\nContexte:\n{$contextExcerpt}", [
-                'temperature' => 0.5,
+                'model' => $typeConfig['model'],
+                'temperature' => $typeConfig['temperature'],
                 'max_tokens' => 800,
                 'json_mode' => true,
             ]);
@@ -285,9 +309,11 @@ class ComparativeGenerationService
             . "\n\nSections pros/cons à intégrer:\n{$prosConsHtml}"
             . "\n\nRédige l'article complet.";
 
+        $typeConfig = ContentTypeConfig::get('comparative');
         $result = $this->openAi->complete($systemPrompt, $userPrompt, [
-            'temperature' => 0.7,
-            'max_tokens' => 5000,
+            'model' => $typeConfig['model'],
+            'temperature' => $typeConfig['temperature'],
+            'max_tokens' => $typeConfig['max_tokens_content'] ?? 5000,
             'costable_type' => Comparative::class,
             'costable_id' => $comparative->id,
         ]);
@@ -394,6 +420,109 @@ class ComparativeGenerationService
             'meta_description' => mb_substr("Comparaison détaillée: {$entitiesStr}", 0, 160),
             'excerpt' => "Découvrez notre comparatif détaillé: {$entitiesStr}.",
         ];
+    }
+
+    /**
+     * Enrich comparative with FAQ, images, internal links, external links, affiliate links.
+     */
+    private function enrichComparative(Comparative $comparative, array $typeConfig, array $params): void
+    {
+        $entities = $comparative->entities ?? [];
+        $entitiesStr = implode(', ', is_array($entities) ? $entities : []);
+
+        // FAQ generation
+        $faqCount = $typeConfig['faq_count'] ?? 6;
+        if ($faqCount > 0) {
+            $faqResult = $this->openAi->complete(
+                "Genere {$faqCount} questions frequentes sur la comparaison entre ces entites pour les expatries. Retourne en JSON: {\"faqs\": [{\"question\":\"...\",\"answer\":\"...\"}]}",
+                "Entites comparees: {$entitiesStr}\nPays: " . ($comparative->country ?? ''),
+                ['temperature' => 0.6, 'max_tokens' => 2000, 'json_mode' => true]
+            );
+            if ($faqResult['success']) {
+                $faqData = json_decode($faqResult['content'], true);
+                $faqs = $faqData['faqs'] ?? $faqData ?? [];
+                if (!empty($faqs) && isset($faqs[0]['question'])) {
+                    $faqHtml = "\n<h2>Questions frequentes</h2>\n";
+                    foreach ($faqs as $faq) {
+                        $faqHtml .= '<h3>' . e($faq['question'] ?? '') . "</h3>\n<p>" . e($faq['answer'] ?? '') . "</p>\n";
+                    }
+                    $comparative->update(['content_html' => ($comparative->content_html ?? '') . $faqHtml]);
+                }
+            }
+            $this->logPhase($comparative, 'faq', 'success', $faqCount . ' FAQs requested');
+        }
+
+        // Images (Unsplash)
+        $imagesCount = $typeConfig['images_count'] ?? 1;
+        if ($this->unsplash->isConfigured() && $imagesCount > 0) {
+            $query = $comparative->title ?? $entitiesStr;
+            $imgResult = $this->unsplash->search($query, $imagesCount);
+            if ($imgResult['success'] && !empty($imgResult['images'])) {
+                $img = $imgResult['images'][0];
+                $altText = mb_substr($comparative->title . ' - ' . ($img['alt_text'] ?? ''), 0, 125);
+                $imgTag = '<figure><img src="' . e($img['url']) . '" alt="' . e($altText) . '" loading="lazy" />';
+                if (!empty($img['attribution'])) {
+                    $imgTag .= '<figcaption>' . e($img['attribution']) . '</figcaption>';
+                }
+                $imgTag .= '</figure>';
+
+                $html = $comparative->content_html ?? '';
+                $pos = strpos($html, '</h2>');
+                if ($pos !== false) {
+                    $html = substr($html, 0, $pos + 5) . "\n" . $imgTag . "\n" . substr($html, $pos + 5);
+                } else {
+                    $html = $imgTag . "\n" . $html;
+                }
+                $comparative->update(['content_html' => $html]);
+            }
+            $this->logPhase($comparative, 'images', 'success');
+        }
+
+        // Internal links — find related published articles
+        $internalLinksCount = $typeConfig['internal_links'] ?? 5;
+        $relatedArticles = GeneratedArticle::where('language', $comparative->language ?? 'fr')
+            ->where('status', 'published')
+            ->whereNull('parent_article_id')
+            ->when($comparative->country, fn ($q, $c) => $q->where('country', $c))
+            ->limit($internalLinksCount)
+            ->get();
+        if ($relatedArticles->isNotEmpty()) {
+            $linksHtml = "\n<h2>Articles connexes</h2>\n<ul>\n";
+            foreach ($relatedArticles as $ra) {
+                $linksHtml .= '<li><a href="/' . $ra->language . '/articles/' . $ra->slug . '">' . e($ra->title) . '</a></li>' . "\n";
+            }
+            $linksHtml .= "</ul>\n";
+            $comparative->update(['content_html' => ($comparative->content_html ?? '') . $linksHtml]);
+            $this->logPhase($comparative, 'internal_links', 'success', $relatedArticles->count() . ' links');
+        }
+
+        // External links from scraped sources
+        $externalLinksCount = $typeConfig['external_links'] ?? 4;
+        $extLinks = ContentExternalLink::where('country_id', function ($q) use ($comparative) {
+                $q->select('id')->from('content_countries')->where('slug', Str::slug($comparative->country ?? ''))->limit(1);
+            })
+            ->whereIn('link_type', ['official', 'news', 'resource'])
+            ->where('is_affiliate', false)
+            ->orderByDesc('occurrences')
+            ->limit($externalLinksCount)
+            ->get();
+        if ($extLinks->isNotEmpty()) {
+            $html = $comparative->content_html ?? '';
+            $extSection = "\n<h2>Sources et liens utiles</h2>\n<ul>\n";
+            foreach ($extLinks as $link) {
+                $anchor = $link->anchor_text ?: $link->domain;
+                $extSection .= '<li><a href="' . e($link->url) . '" target="_blank" rel="noopener">' . e($anchor) . '</a></li>' . "\n";
+            }
+            $extSection .= "</ul>\n";
+            $html .= $extSection;
+            $comparative->update(['content_html' => $html]);
+            $this->logPhase($comparative, 'external_links', 'success', $extLinks->count() . ' links');
+        }
+
+        // Affiliate links
+        $siteUrl = config('services.site.url', 'https://sos-expat.com');
+        $cta = '<p><strong>Besoin d\'aide pour votre expatriation ?</strong> <a href="' . $siteUrl . '?utm_source=blog&utm_medium=comparative&utm_campaign=' . ($comparative->slug ?? 'comparative') . '">Consultez nos experts SOS-Expat</a></p>';
+        $comparative->update(['content_html' => ($comparative->content_html ?? '') . "\n" . $cta]);
     }
 
     private function logPhase(Comparative $comparative, string $phase, string $status, ?string $message = null): void
