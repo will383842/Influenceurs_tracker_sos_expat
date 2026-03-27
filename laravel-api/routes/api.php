@@ -570,5 +570,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/schedule/history', [DailyScheduleController::class, 'getHistory']);
         Route::post('/schedule/run-now', [DailyScheduleController::class, 'runNow'])->middleware('throttle:2,5');
         Route::post('/schedule/custom-titles', [DailyScheduleController::class, 'addCustomTitles']);
+
+        // Taxonomy distribution (percentage-based)
+        Route::get('/taxonomy-distribution', [DailyScheduleController::class, 'getTaxonomyDistribution']);
+        Route::put('/taxonomy-distribution', [DailyScheduleController::class, 'updateTaxonomyDistribution']);
+
+        // Publication stats & rate control
+        Route::get('/publication-stats', [DailyScheduleController::class, 'getPublicationStats']);
+        Route::put('/publication-rate', [DailyScheduleController::class, 'updatePublicationRate']);
+
+        // Quality monitoring
+        Route::get('/quality-monitoring', [DailyScheduleController::class, 'getQualityMonitoring']);
+        Route::post('/articles/{id}/reject', [DailyScheduleController::class, 'rejectArticle']);
+        Route::post('/articles/{id}/approve', [DailyScheduleController::class, 'approveArticle']);
     });
 });

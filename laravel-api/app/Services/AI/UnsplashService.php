@@ -2,6 +2,7 @@
 
 namespace App\Services\AI;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -11,6 +12,9 @@ use Illuminate\Support\Facades\Log;
 class UnsplashService
 {
     private string $accessKey;
+
+    /** Max requests per hour (Unsplash limit is 50, keep 10 margin). */
+    private const RATE_LIMIT_PER_HOUR = 40;
 
     public function __construct()
     {
@@ -23,12 +27,47 @@ class UnsplashService
     }
 
     /**
+     * Check if we are within the hourly rate limit.
+     * Returns true if request is allowed, false if limit reached.
+     */
+    private function checkRateLimit(): bool
+    {
+        $key = 'unsplash:rate:' . now()->format('Y-m-d-H');
+        $current = (int) Cache::get($key, 0);
+
+        if ($current >= self::RATE_LIMIT_PER_HOUR) {
+            Log::warning('Unsplash rate limit reached', [
+                'current'  => $current,
+                'limit'    => self::RATE_LIMIT_PER_HOUR,
+                'hour_key' => $key,
+            ]);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Increment the rate limit counter after a successful API call.
+     */
+    private function incrementRateLimit(): void
+    {
+        $key = 'unsplash:rate:' . now()->format('Y-m-d-H');
+        $current = (int) Cache::get($key, 0);
+        Cache::put($key, $current + 1, 3600);
+    }
+
+    /**
      * Search for photos on Unsplash.
      */
     public function search(string $query, int $perPage = 5, string $orientation = 'landscape'): array
     {
         if (!$this->isConfigured()) {
             return ['success' => false, 'images' => [], 'error' => 'Unsplash access key not configured'];
+        }
+
+        if (!$this->checkRateLimit()) {
+            return ['success' => false, 'images' => [], 'error' => 'Unsplash rate limit reached (40/hour)'];
         }
 
         try {
@@ -76,6 +115,8 @@ class UnsplashService
                     }
                 }
 
+                $this->incrementRateLimit();
+
                 Log::info('Unsplash search OK', [
                     'query' => $query,
                     'results' => count($images),
@@ -86,6 +127,9 @@ class UnsplashService
                     'images' => $images,
                 ];
             }
+
+            // Still counts against our rate limit (Unsplash counts all requests)
+            $this->incrementRateLimit();
 
             Log::warning('Unsplash search error', [
                 'status' => $response->status(),
@@ -121,6 +165,10 @@ class UnsplashService
             return null;
         }
 
+        if (!$this->checkRateLimit()) {
+            return null;
+        }
+
         try {
             $response = Http::withHeaders([
                 'Authorization' => 'Client-ID ' . $this->accessKey,
@@ -137,6 +185,8 @@ class UnsplashService
                 if ($downloadLocation) {
                     $this->triggerDownloadTracking($downloadLocation);
                 }
+
+                $this->incrementRateLimit();
 
                 Log::info('Unsplash random OK', ['query' => $query]);
 
@@ -163,6 +213,8 @@ class UnsplashService
                     ]) : '',
                 ];
             }
+
+            $this->incrementRateLimit();
 
             Log::warning('Unsplash random error', [
                 'status' => $response->status(),

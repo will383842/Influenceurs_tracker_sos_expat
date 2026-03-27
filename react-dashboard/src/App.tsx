@@ -56,6 +56,9 @@ const CampaignDetail = React.lazy(() => import('./pages/content/CampaignDetail')
 const SeoDashboard = React.lazy(() => import('./pages/content/SeoDashboard'));
 const SeoInternalLinks = React.lazy(() => import('./pages/content/SeoInternalLinks'));
 const PublishingDashboard = React.lazy(() => import('./pages/content/PublishingDashboard'));
+const PublicationControl = React.lazy(() => import('./pages/content/PublicationControl'));
+const QualityMonitoring = React.lazy(() => import('./pages/content/QualityMonitoring'));
+const TaxonomyManager = React.lazy(() => import('./pages/content/TaxonomyManager'));
 const CostsDashboard = React.lazy(() => import('./pages/content/CostsDashboard'));
 const MediaLibrary = React.lazy(() => import('./pages/content/MediaLibrary'));
 const PromptTemplates = React.lazy(() => import('./pages/content/PromptTemplates'));
@@ -155,6 +158,9 @@ export default function App() {
             {/* Content Engine v2 (lazy loaded) */}
             <Route path="content/overview" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ContentOverview /></React.Suspense></AdminRoute>} />
             <Route path="content/scheduler" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><DailyScheduler /></React.Suspense></AdminRoute>} />
+            <Route path="content/publication" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><PublicationControl /></React.Suspense></AdminRoute>} />
+            <Route path="content/quality" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><QualityMonitoring /></React.Suspense></AdminRoute>} />
+            <Route path="content/taxonomies" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><TaxonomyManager /></React.Suspense></AdminRoute>} />
             <Route path="content/articles" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticlesList /></React.Suspense></AdminRoute>} />
             <Route path="content/articles/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticleCreate /></React.Suspense></AdminRoute>} />
             <Route path="content/articles/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ArticleDetail /></React.Suspense></AdminRoute>} />

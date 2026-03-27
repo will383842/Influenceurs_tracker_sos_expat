@@ -895,3 +895,40 @@ export interface QualityAuditResult {
     issues: string[];
   };
 }
+
+// ============================================================
+// TAXONOMY DISTRIBUTION & PUBLICATION STATS
+// ============================================================
+
+export interface TaxonomyDistribution {
+  content_type: string;
+  label: string;
+  percentage: number;
+  calculated_count?: number;
+  is_active: boolean;
+}
+
+export interface PublicationStats {
+  unpublished_stock: number;
+  by_status: Record<string, number>;
+  by_content_type: Record<string, number>;
+  publish_per_day: number;
+  days_of_stock: number;
+  published_today: number;
+  published_this_week: number;
+  published_this_month: number;
+  generation_today: number;
+  total_published: number;
+}
+
+export interface QualityMonitoringData {
+  flagged_articles: GeneratedArticle[];
+  stats: {
+    total_checked: number;
+    original: number;
+    similar: number;
+    plagiarized: number;
+    avg_quality_score: number;
+    avg_seo_score: number;
+  };
+}

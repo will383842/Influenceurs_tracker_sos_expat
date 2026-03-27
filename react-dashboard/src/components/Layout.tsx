@@ -67,7 +67,7 @@ export default function Layout() {
     contacts: path.startsWith('/influenceurs') || path === '/a-relancer',
     acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/directories' || path === '/admin/avancement',
     content: path.startsWith('/content'),
-    contentEngine: path === '/content/overview' || path === '/content/scheduler' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press'),
+    contentEngine: path === '/content/overview' || path === '/content/scheduler' || path === '/content/taxonomies' || path === '/content/publication' || path === '/content/quality' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press'),
     seo: path.startsWith('/seo'),
     publication: path === '/publishing' || path === '/media' || path === '/costs',
     translations: path === '/translations',
@@ -335,6 +335,15 @@ export default function Layout() {
                   </NavLink>
                   <NavLink to="/content/scheduler" className={subNavClass} onClick={handleNavClick}>
                     Planification
+                  </NavLink>
+                  <NavLink to="/content/taxonomies" className={subNavClass} onClick={handleNavClick}>
+                    Taxonomies
+                  </NavLink>
+                  <NavLink to="/content/publication" className={subNavClass} onClick={handleNavClick}>
+                    Publication
+                  </NavLink>
+                  <NavLink to="/content/quality" className={subNavClass} onClick={handleNavClick}>
+                    Qualite
                   </NavLink>
                   <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
                     Articles

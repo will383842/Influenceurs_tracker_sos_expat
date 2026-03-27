@@ -37,6 +37,9 @@ import type {
   SeoChecklist,
   QuestionCluster,
   QuestionClusterStats,
+  TaxonomyDistribution,
+  PublicationStats,
+  QualityMonitoringData,
 } from '../types/content';
 
 // ============================================================
@@ -564,3 +567,36 @@ export const fetchFlaggedArticles = (params?: { status?: string; min_similarity?
   api.get<PaginatedResponse<GeneratedArticle>>('/content-gen/articles', {
     params: { ...params, sort_by: 'quality_score', sort_dir: 'asc' },
   });
+
+// ============================================================
+// TAXONOMY DISTRIBUTION
+// ============================================================
+
+export const fetchTaxonomyDistribution = () =>
+  api.get<TaxonomyDistribution[]>('/content-gen/taxonomy-distribution');
+
+export const updateTaxonomyDistribution = (data: { total_articles_per_day: number; distribution: TaxonomyDistribution[] }) =>
+  api.put('/content-gen/taxonomy-distribution', data);
+
+// ============================================================
+// PUBLICATION STATS
+// ============================================================
+
+export const fetchPublicationStats = () =>
+  api.get<PublicationStats>('/content-gen/publication-stats');
+
+export const updatePublicationRate = (data: { publish_per_day: number; start_hour: number; end_hour: number; irregular: boolean }) =>
+  api.put('/content-gen/publication-rate', data);
+
+// ============================================================
+// QUALITY MONITORING
+// ============================================================
+
+export const fetchQualityMonitoring = (params?: { status?: string; language?: string; content_type?: string }) =>
+  api.get<QualityMonitoringData>('/content-gen/quality-monitoring', { params });
+
+export const rejectArticle = (id: number, reason?: string) =>
+  api.post(`/content-gen/articles/${id}/reject`, { reason });
+
+export const approveArticle = (id: number) =>
+  api.post(`/content-gen/articles/${id}/approve`);

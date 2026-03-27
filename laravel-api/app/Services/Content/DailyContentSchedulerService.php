@@ -90,10 +90,13 @@ class DailyContentSchedulerService
                 'log_id'   => $log->id,
             ]);
 
+            // Calculate counts from taxonomy distribution or fallback to fixed fields
+            $counts = $schedule->getCalculatedCounts();
+
             // ═══════════════════════════════════════════════════════
             // 1. Pillar articles (long, 3000+ words, guide content)
             // ═══════════════════════════════════════════════════════
-            $pillarNeeded = $schedule->pillar_articles_per_day - $log->pillar_generated;
+            $pillarNeeded = $counts['pillar'] - $log->pillar_generated;
             if ($pillarNeeded > 0) {
                 Log::info('DailyContentScheduler: generating pillar articles', ['needed' => $pillarNeeded]);
                 $this->generateArticles($log, $schedule, 'pillar', $pillarNeeded, $errors);
@@ -102,7 +105,7 @@ class DailyContentSchedulerService
             // ═══════════════════════════════════════════════════════
             // 2. Normal articles (medium, 1500-2500 words)
             // ═══════════════════════════════════════════════════════
-            $normalNeeded = $schedule->normal_articles_per_day - $log->normal_generated;
+            $normalNeeded = $counts['normal'] - $log->normal_generated;
             if ($normalNeeded > 0) {
                 Log::info('DailyContentScheduler: generating normal articles', ['needed' => $normalNeeded]);
                 $this->generateArticles($log, $schedule, 'normal', $normalNeeded, $errors);
@@ -111,7 +114,7 @@ class DailyContentSchedulerService
             // ═══════════════════════════════════════════════════════
             // 3. Q&A generation
             // ═══════════════════════════════════════════════════════
-            $qaNeeded = $schedule->qa_per_day - $log->qa_generated;
+            $qaNeeded = $counts['qa'] - $log->qa_generated;
             if ($qaNeeded > 0) {
                 Log::info('DailyContentScheduler: generating Q&A entries', ['needed' => $qaNeeded]);
                 $this->generateQa($log, $schedule, $qaNeeded, $errors);
@@ -120,16 +123,16 @@ class DailyContentSchedulerService
             // ═══════════════════════════════════════════════════════
             // 4. Comparative articles
             // ═══════════════════════════════════════════════════════
-            $compNeeded = $schedule->comparatives_per_day - $log->comparatives_generated;
+            $compNeeded = $counts['comparatives'] - $log->comparatives_generated;
             if ($compNeeded > 0) {
                 Log::info('DailyContentScheduler: generating comparatives', ['needed' => $compNeeded]);
                 $this->generateComparatives($log, $schedule, $compNeeded, $errors);
             }
 
             // ═══════════════════════════════════════════════════════
-            // 4b. News articles (2 per day)
+            // 4b. News articles
             // ═══════════════════════════════════════════════════════
-            $newsNeeded = 2 - ($log->news_generated ?? 0);
+            $newsNeeded = $counts['news'] - ($log->news_generated ?? 0);
             if ($newsNeeded > 0) {
                 Log::info('DailyContentScheduler: generating news articles', ['needed' => $newsNeeded]);
                 $this->generateNews($log, $schedule, $newsNeeded, $errors);
@@ -239,13 +242,17 @@ class DailyContentSchedulerService
             ->where('date', today()->toDateString())
             ->first();
 
+        $counts = $schedule->getCalculatedCounts();
+
         return [
             'schedule' => $schedule,
+            'calculated_counts' => $counts,
             'today'    => $todayLog ? [
-                'pillar'      => $todayLog->pillar_generated . '/' . $schedule->pillar_articles_per_day,
-                'normal'      => $todayLog->normal_generated . '/' . $schedule->normal_articles_per_day,
-                'qa'          => $todayLog->qa_generated . '/' . $schedule->qa_per_day,
-                'comparatives' => $todayLog->comparatives_generated . '/' . $schedule->comparatives_per_day,
+                'pillar'      => $todayLog->pillar_generated . '/' . $counts['pillar'],
+                'normal'      => $todayLog->normal_generated . '/' . $counts['normal'],
+                'qa'          => $todayLog->qa_generated . '/' . $counts['qa'],
+                'comparatives' => $todayLog->comparatives_generated . '/' . $counts['comparatives'],
+                'news'        => ($todayLog->news_generated ?? 0) . '/' . $counts['news'],
                 'custom'      => $todayLog->custom_generated,
                 'published'   => $todayLog->published . '/' . $schedule->publish_per_day,
                 'total_cost_cents' => $todayLog->total_cost_cents,
