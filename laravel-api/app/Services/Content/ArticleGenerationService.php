@@ -22,6 +22,7 @@ use App\Services\Seo\InternalLinkingService;
 use App\Services\Seo\JsonLdService;
 use App\Services\Seo\SeoAnalysisService;
 use App\Services\Seo\SlugService;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -238,6 +239,7 @@ class ArticleGenerationService
                 }
             } catch (\Throwable $e) {
                 Log::warning('Phase 9 (internal links) failed, continuing', ['error' => $e->getMessage(), 'article_id' => $article->id]);
+                $this->sendTelegramAlert('9 — Liens internes', $e->getMessage(), $article);
             }
 
             // Phase 10: Add external links
@@ -248,6 +250,7 @@ class ArticleGenerationService
                 $this->logPhase($article, 'external_links', 'success', null, 0, 0, $this->elapsed($phaseStart));
             } catch (\Throwable $e) {
                 Log::warning('Phase 10 (external links) failed, continuing', ['error' => $e->getMessage(), 'article_id' => $article->id]);
+                $this->sendTelegramAlert('10 — Liens externes', $e->getMessage(), $article);
             }
 
             // Phase 11: Add affiliate links
@@ -260,6 +263,7 @@ class ArticleGenerationService
                 }
             } catch (\Throwable $e) {
                 Log::warning('Phase 11 (affiliate links) failed, continuing', ['error' => $e->getMessage(), 'article_id' => $article->id]);
+                $this->sendTelegramAlert('11 — Liens affiliés', $e->getMessage(), $article);
             }
 
             // Phase 12: Add images
@@ -269,6 +273,7 @@ class ArticleGenerationService
                 $this->logPhase($article, 'images', 'success', null, 0, 0, $this->elapsed($phaseStart));
             } catch (\Throwable $e) {
                 Log::warning('Phase 12 (images) failed, continuing', ['error' => $e->getMessage(), 'article_id' => $article->id]);
+                $this->sendTelegramAlert('12 — Images Unsplash', $e->getMessage(), $article);
             }
 
             // Ensure featured_image_url is set from images relation if not already
@@ -297,6 +302,7 @@ class ArticleGenerationService
                 $article->update(['canonical_url' => $canonical]);
             } catch (\Throwable $e) {
                 Log::warning('Phase 13 (slugs) failed, continuing', ['error' => $e->getMessage(), 'article_id' => $article->id]);
+                $this->sendTelegramAlert('13 — Slugs/Canonical', $e->getMessage(), $article);
             }
 
             // Status already set to 'review' after phase 8
@@ -311,6 +317,7 @@ class ArticleGenerationService
                     'article_id' => $article->id,
                     'error' => $e->getMessage(),
                 ]);
+                $this->sendTelegramAlert('14 — Scores SEO/Qualité', $e->getMessage(), $article);
                 $this->logPhase($article, 'quality', 'warning', $e->getMessage(), 0, 0, $this->elapsed($phaseStart));
             }
 
@@ -364,12 +371,18 @@ class ArticleGenerationService
             }
 
             $totalDuration = (int) ((microtime(true) - $startTime) * 1000);
+            $article->refresh();
             Log::info('Article generation complete', [
                 'article_id' => $article->id,
                 'title' => $article->title,
                 'duration_ms' => $totalDuration,
                 'word_count' => $article->word_count,
+                'seo_score' => $article->seo_score,
+                'quality_score' => $article->quality_score,
             ]);
+
+            // Send Telegram success notification
+            $this->sendTelegramSuccess($article);
 
             return $article->fresh();
         } catch (\Throwable $e) {
@@ -384,6 +397,7 @@ class ArticleGenerationService
             $article->update(['status' => 'draft']);
 
             $this->logPhase($article, 'pipeline', 'error', $e->getMessage());
+            $this->sendTelegramAlert('PIPELINE COMPLET (échec critique)', $e->getMessage(), $article);
 
             return $article->fresh();
         }
@@ -1050,54 +1064,150 @@ class ArticleGenerationService
     private function phase10_addExternalLinks(GeneratedArticle $article, array $sources): string
     {
         $html = $article->content_html ?? '';
+        $linksHtml = '';
+        $usedDomains = [];
 
-        if (empty($sources)) {
-            return $html;
+        // 1. Inject directory links from country_directory (if article has a country)
+        $directoryLinks = $this->getDirectoryLinksForArticle($article);
+        foreach ($directoryLinks as $dirLink) {
+            if (in_array($dirLink['domain'], $usedDomains, true)) {
+                continue;
+            }
+
+            GeneratedArticleSource::create([
+                'article_id'  => $article->id,
+                'url'         => $dirLink['url'],
+                'title'       => $dirLink['title'],
+                'domain'      => $dirLink['domain'],
+                'trust_score' => $dirLink['trust_score'],
+            ]);
+
+            ExternalLinkRegistry::create([
+                'article_type' => GeneratedArticle::class,
+                'article_id'   => $article->id,
+                'url'          => $dirLink['url'],
+                'domain'       => $dirLink['domain'],
+                'anchor_text'  => $dirLink['anchor_text'] ?? $dirLink['title'],
+                'trust_score'  => $dirLink['trust_score'],
+                'is_nofollow'  => !($dirLink['is_official'] ?? true),
+            ]);
+
+            $rel = ($dirLink['is_official'] ?? true) ? 'noopener' : 'noopener nofollow';
+            $linksHtml .= '<li><a href="' . htmlspecialchars($dirLink['url']) . '" target="_blank" rel="' . $rel . '">'
+                . htmlspecialchars($dirLink['title']) . '</a></li>';
+            $usedDomains[] = $dirLink['domain'];
         }
 
-        // Take up to 4 authoritative sources
+        // 2. Add Perplexity research sources (up to 4, skip already-used domains)
         $selectedSources = array_slice($sources, 0, 4);
-        $linksHtml = '';
 
         foreach ($selectedSources as $source) {
             $domain = $source['domain'] ?? parse_url($source['url'] ?? '', PHP_URL_HOST) ?? '';
             $url = $source['url'] ?? '';
 
-            if (empty($url)) {
+            if (empty($url) || in_array($domain, $usedDomains, true)) {
                 continue;
             }
 
-            // Save source record
             GeneratedArticleSource::create([
-                'article_id' => $article->id,
-                'url' => $url,
-                'title' => $source['title'] ?? $domain,
-                'domain' => $domain,
+                'article_id'  => $article->id,
+                'url'         => $url,
+                'title'       => $source['title'] ?? $domain,
+                'domain'      => $domain,
                 'trust_score' => $source['trust_score'] ?? 50,
             ]);
 
-            // Save external link registry
             ExternalLinkRegistry::create([
                 'article_type' => GeneratedArticle::class,
-                'article_id' => $article->id,
-                'url' => $url,
-                'domain' => $domain,
-                'anchor_text' => $domain,
-                'trust_score' => $source['trust_score'] ?? 50,
-                'is_nofollow' => false,
+                'article_id'   => $article->id,
+                'url'          => $url,
+                'domain'       => $domain,
+                'anchor_text'  => $domain,
+                'trust_score'  => $source['trust_score'] ?? 50,
+                'is_nofollow'  => false,
             ]);
 
             $linksHtml .= '<li><a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">'
-                . htmlspecialchars($domain) . '</a></li>';
+                . htmlspecialchars($source['title'] ?? $domain) . '</a></li>';
+            $usedDomains[] = $domain;
         }
 
         if (!empty($linksHtml)) {
-            // Append sources section at the end
             $sourcesSection = "\n<h2>Sources</h2>\n<ul>\n{$linksHtml}\n</ul>";
             $html .= $sourcesSection;
         }
 
         return $html;
+    }
+
+    /**
+     * Retrieve relevant directory links from country_directory for the article.
+     * Matches by country code and article content_type → directory category mapping.
+     */
+    private function getDirectoryLinksForArticle(GeneratedArticle $article): array
+    {
+        $country = $article->country;
+        if (empty($country)) {
+            return [];
+        }
+
+        // Resolve country code (could be name or code)
+        $countryCode = mb_strlen($country) === 2
+            ? strtoupper($country)
+            : \App\Models\CountryDirectory::where('country_name', $country)
+                ->orWhere('country_slug', \Illuminate\Support\Str::slug($country))
+                ->value('country_code');
+
+        if (empty($countryCode)) {
+            return [];
+        }
+
+        // Map article content_type to relevant directory categories
+        $relevantCategories = match ($article->content_type) {
+            'guide', 'pillar' => ['ambassade', 'immigration', 'sante', 'logement', 'emploi', 'urgences'],
+            'article'         => ['immigration', 'sante', 'logement', 'emploi'],
+            'comparative'     => ['banque', 'logement', 'telecom'],
+            'qa'              => ['immigration', 'urgences', 'sante'],
+            default           => ['ambassade', 'immigration'],
+        };
+
+        // Get country-specific links (high trust, limited count)
+        $countryLinks = \App\Models\CountryDirectory::active()
+            ->where('country_code', $countryCode)
+            ->whereIn('category', $relevantCategories)
+            ->where('trust_score', '>=', 75)
+            ->orderByDesc('trust_score')
+            ->limit(4)
+            ->get()
+            ->map(fn ($e) => [
+                'url'          => $e->url,
+                'title'        => $e->title,
+                'domain'       => $e->domain,
+                'trust_score'  => $e->trust_score,
+                'anchor_text'  => $e->anchor_text,
+                'is_official'  => $e->is_official,
+            ])
+            ->toArray();
+
+        // Also get 1-2 global resources
+        $globalLinks = \App\Models\CountryDirectory::active()
+            ->where('country_code', 'XX')
+            ->whereIn('category', $relevantCategories)
+            ->where('trust_score', '>=', 85)
+            ->orderByDesc('trust_score')
+            ->limit(2)
+            ->get()
+            ->map(fn ($e) => [
+                'url'          => $e->url,
+                'title'        => $e->title,
+                'domain'       => $e->domain,
+                'trust_score'  => $e->trust_score,
+                'anchor_text'  => $e->anchor_text,
+                'is_official'  => $e->is_official,
+            ])
+            ->toArray();
+
+        return array_merge($countryLinks, $globalLinks);
     }
 
     private function phase11_addAffiliateLinks(GeneratedArticle $article): string
@@ -1406,5 +1516,65 @@ class ArticleGenerationService
     private function elapsed(float $start): int
     {
         return (int) ((microtime(true) - $start) * 1000);
+    }
+
+    /**
+     * Send a Telegram alert when a generation phase fails.
+     * Non-blocking — if Telegram fails, just log it.
+     */
+    private function sendTelegramAlert(string $phase, string $error, ?GeneratedArticle $article = null): void
+    {
+        try {
+            $botToken = config('services.telegram_alerts.bot_token');
+            $chatId = config('services.telegram_alerts.chat_id');
+            if (!$botToken || !$chatId) return;
+
+            $articleInfo = $article
+                ? "Article #{$article->id}: {$article->title}\nLangue: {$article->language} | Pays: {$article->country}"
+                : 'N/A';
+
+            $text = "⚠️ *Pipeline Content — Phase échouée*\n\n"
+                . "Phase: `{$phase}`\n"
+                . "Erreur: " . mb_substr($error, 0, 300) . "\n\n"
+                . "{$articleInfo}\n"
+                . "Heure: " . now()->format('d/m/Y H:i:s');
+
+            Http::timeout(5)->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                'chat_id' => $chatId,
+                'parse_mode' => 'Markdown',
+                'text' => $text,
+            ]);
+        } catch (\Throwable $e) {
+            Log::debug('Telegram alert failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Send a Telegram notification when an article is successfully generated.
+     */
+    private function sendTelegramSuccess(GeneratedArticle $article): void
+    {
+        try {
+            $botToken = config('services.telegram_alerts.bot_token');
+            $chatId = config('services.telegram_alerts.chat_id');
+            if (!$botToken || !$chatId) return;
+
+            $text = "✅ *Nouvel article généré*\n\n"
+                . "Titre: {$article->title}\n"
+                . "Type: {$article->content_type} | Langue: {$article->language} | Pays: {$article->country}\n"
+                . "Mots: {$article->word_count} | SEO: {$article->seo_score}/100 | Qualité: {$article->quality_score}/100\n"
+                . "Image: " . ($article->featured_image_url ? '✅' : '❌') . "\n"
+                . "FAQs: " . $article->faqs()->count() . "\n"
+                . "Status: {$article->status}\n"
+                . "Heure: " . now()->format('d/m/Y H:i:s');
+
+            Http::timeout(5)->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                'chat_id' => $chatId,
+                'parse_mode' => 'Markdown',
+                'text' => $text,
+            ]);
+        } catch (\Throwable $e) {
+            Log::debug('Telegram success notification failed', ['error' => $e->getMessage()]);
+        }
     }
 }

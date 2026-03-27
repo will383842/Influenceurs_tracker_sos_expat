@@ -293,7 +293,10 @@ export default function Layout() {
                     Les Sites
                   </NavLink>
                   <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
-                    Annuaire
+                    Annuaire Entreprises
+                  </NavLink>
+                  <NavLink to="/content/country-directory" className={subNavClass} onClick={handleNavClick}>
+                    Annuaire Pays
                   </NavLink>
                   <NavLink to="/content/lawyers" className={subNavClass} onClick={handleNavClick}>
                     Avocats

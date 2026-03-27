@@ -80,6 +80,7 @@ const PressDetail = React.lazy(() => import('./pages/content/PressDetail'));
 const DossierDetail = React.lazy(() => import('./pages/content/DossierDetail'));
 const DataCleanupDashboard = React.lazy(() => import('./pages/content/DataCleanupDashboard'));
 const GenerationSources = React.lazy(() => import('./pages/content/GenerationSources'));
+const CountryDirectoryPage = React.lazy(() => import('./pages/content/CountryDirectoryPage'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = React.useContext(AuthContext);
@@ -146,6 +147,7 @@ export default function App() {
             <Route path="content/sites" element={<AdminRoute><ContentSites /></AdminRoute>} />
             <Route path="content/links" element={<AdminRoute><ContentLinks /></AdminRoute>} />
             <Route path="content/businesses" element={<AdminRoute><BusinessDirectory /></AdminRoute>} />
+            <Route path="content/country-directory" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><CountryDirectoryPage /></React.Suspense></AdminRoute>} />
             <Route path="content/lawyers" element={<AdminRoute><LawyerDirectory /></AdminRoute>} />
             <Route path="content/contacts" element={<AdminRoute><ContentContacts /></AdminRoute>} />
             <Route path="content/questions" element={<AdminRoute><ContentQuestions /></AdminRoute>} />
