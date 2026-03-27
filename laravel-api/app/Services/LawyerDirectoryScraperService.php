@@ -313,87 +313,114 @@ class LawyerDirectoryScraperService
         return $firms;
     }
 
+    /**
+     * Domains to skip when extracting firm website from Legal500
+     */
+    private const SKIP_WEBSITE_DOMAINS = [
+        'legal500.com', 'legalbusiness.co.uk', 'screenloop.com',
+        'cookieyes.com', 'typekit.net', 'googletagmanager.com',
+        'google.com', 'gstatic.com', 'facebook.com', 'linkedin.com',
+        'twitter.com', 'instagram.com', 'xing.com', 'youtube.com',
+        'cloudflare.com', 'jsdelivr.net', 'unpkg.com',
+    ];
+
     public function legal500ScrapeFirmContact(array $firm): array
     {
         $lawyers = [];
 
-        // Scrape lawyers list
-        $html = $this->fetchPage($firm['lawyers_url']);
-        $lawyerProfiles = [];
-        if ($html) {
-            preg_match_all('#<a[^>]*href="(/firms/[^"]*lawyers/[^"]*)"[^>]*>([^<]+)</a>#i', $html, $m, PREG_SET_ORDER);
-            foreach ($m as $match) {
-                $name = html_entity_decode(trim($match[2]), ENT_QUOTES, 'UTF-8');
-                if ($name && $name !== 'Firm profile' && strlen($name) > 2) {
-                    $lawyerProfiles[] = ['name' => $name, 'url' => 'https://www.legal500.com' . $match[1]];
-                }
-            }
-        }
-
-        // Scrape contact page
-        $this->rateLimitSleep();
+        // Step 1: Scrape Legal500 contact page for emails + find firm website
+        $this->rateLimitSleep('www.legal500.com');
         $contactHtml = $this->fetchPage($firm['contact_url']);
         if (!$contactHtml) return [];
 
         $emails = $this->extractEmails($contactHtml);
-        $phones = []; $website = null;
+        $phones = [];
+        $website = null;
 
+        // Extract phone numbers
         preg_match_all('/(?:\+|00)[1-9]\d{0,3}[\s\-.]?\(?\d{1,4}\)?[\s\-.]?\d{2,4}[\s\-.]?\d{2,4}[\s\-.]?\d{0,4}/', $contactHtml, $phoneMatches);
         foreach ($phoneMatches[0] as $phone) {
             $clean = preg_replace('/[^\d+]/', '', $phone);
             if (strlen($clean) >= 8) $phones[] = $phone;
         }
 
-        if (preg_match('#href="(https?://(?!www\.legal500)[^"]+)"[^>]*>.*?(?:website|\.com|\.co\.|\.org|\.net)#is', $contactHtml, $wm)) {
-            $website = $wm[1];
-        }
-
-        $address = null;
-        preg_match_all('#<p[^>]*class="[^"]*address[^"]*"[^>]*>(.*?)</p>#is', $contactHtml, $addrMatches);
-        if (!empty($addrMatches[1])) {
-            $address = strip_tags(html_entity_decode($addrMatches[1][0], ENT_QUOTES, 'UTF-8'));
-        }
-
-        if (!empty($emails)) {
-            if (!empty($lawyerProfiles)) {
-                foreach ($lawyerProfiles as $i => $profile) {
-                    $email = $emails[$i] ?? $emails[0] ?? null;
-                    if (!$email) break;
-                    $nameParts = $this->parseName($profile['name']);
-                    $lawyers[] = [
-                        'full_name' => $profile['name'], 'first_name' => $nameParts['first'],
-                        'last_name' => $nameParts['last'], 'email' => $email,
-                        'phone' => $phones[0] ?? null, 'firm_name' => $firm['firm_name'],
-                        'website' => $website, 'country' => $firm['country'],
-                        'country_code' => $firm['country_code'], 'address' => $address,
-                        'source_url' => $firm['contact_url'],
-                    ];
-                }
-            } else {
-                foreach ($emails as $email) {
-                    $lawyers[] = [
-                        'full_name' => $firm['firm_name'], 'email' => $email,
-                        'phone' => $phones[0] ?? null, 'firm_name' => $firm['firm_name'],
-                        'website' => $website, 'country' => $firm['country'],
-                        'country_code' => $firm['country_code'], 'address' => $address,
-                        'source_url' => $firm['contact_url'],
-                    ];
-                }
+        // Extract REAL firm website (filter out CDN/social/tracking domains)
+        preg_match_all('#href="(https?://[^"]+)"#i', $contactHtml, $allLinks);
+        foreach ($allLinks[1] as $link) {
+            $linkDomain = $this->getDomain($link);
+            $skip = false;
+            foreach (self::SKIP_WEBSITE_DOMAINS as $skipDomain) {
+                if (str_contains($linkDomain, $skipDomain)) { $skip = true; break; }
+            }
+            if (!$skip && str_contains($link, '.') && !str_contains($link, '.js') && !str_contains($link, '.css')) {
+                $website = $link;
+                break;
             }
         }
 
-        // Fallback: try firm website
-        if (empty($lawyers) && $website) {
-            $this->rateLimitSleep();
-            $siteEmails = $this->enrichFromWebsite($website);
-            if (!empty($siteEmails)) {
-                $lawyers[] = [
-                    'full_name' => $firm['firm_name'], 'email' => $siteEmails[0],
-                    'phone' => $phones[0] ?? null, 'firm_name' => $firm['firm_name'],
-                    'website' => $website, 'country' => $firm['country'],
-                    'country_code' => $firm['country_code'], 'address' => $address,
-                    'source_url' => $website,
-                ];
+        // Step 2: Add emails found on Legal500 contact page
+        foreach ($emails as $email) {
+            $nameParts = $this->guessNameFromEmail($email);
+            $lawyers[] = [
+                'full_name' => $nameParts['full'] ?? $firm['firm_name'],
+                'first_name' => $nameParts['first'], 'last_name' => $nameParts['last'],
+                'email' => $email, 'phone' => $phones[0] ?? null,
+                'firm_name' => $firm['firm_name'], 'website' => $website,
+                'country' => $firm['country'], 'country_code' => $firm['country_code'],
+                'source_url' => $firm['contact_url'],
+            ];
+        }
+
+        // Step 3: Visit actual firm website for MORE emails (the big multiplier)
+        if ($website && $this->isValidFirmWebsite($website)) {
+            $domain = $this->getDomain($website);
+            $base = rtrim($website, '/');
+
+            // Homepage
+            $this->rateLimitSleep($domain);
+            $siteHtml = $this->fetchPage($website);
+            if ($siteHtml) {
+                $siteEmails = $this->extractEmails($siteHtml);
+                foreach ($siteEmails as $email) {
+                    if (!in_array($email, array_column($lawyers, 'email'))) {
+                        $nameParts = $this->guessNameFromEmail($email);
+                        $lawyers[] = [
+                            'full_name' => $nameParts['full'] ?? $firm['firm_name'],
+                            'first_name' => $nameParts['first'], 'last_name' => $nameParts['last'],
+                            'email' => $email, 'phone' => null,
+                            'firm_name' => $firm['firm_name'], 'website' => $website,
+                            'country' => $firm['country'], 'country_code' => $firm['country_code'],
+                            'source_url' => $website,
+                        ];
+                    }
+                }
+            }
+
+            // Team/people pages (where individual lawyer emails live)
+            foreach (self::TEAM_PATHS as $path) {
+                $this->rateLimitSleep($domain);
+                $teamHtml = $this->fetchPage($base . $path);
+                if ($teamHtml && strlen($teamHtml) > 500) {
+                    $teamEmails = $this->extractEmails($teamHtml);
+                    $existingEmails = array_column($lawyers, 'email');
+                    $newCount = 0;
+
+                    foreach ($teamEmails as $email) {
+                        if (in_array($email, $existingEmails)) continue;
+                        $nameParts = $this->guessNameFromEmail($email);
+                        $lawyers[] = [
+                            'full_name' => $nameParts['full'] ?? $firm['firm_name'],
+                            'first_name' => $nameParts['first'], 'last_name' => $nameParts['last'],
+                            'email' => $email, 'phone' => null,
+                            'firm_name' => $firm['firm_name'], 'website' => $website,
+                            'country' => $firm['country'], 'country_code' => $firm['country_code'],
+                            'source_url' => $base . $path,
+                        ];
+                        $newCount++;
+                    }
+
+                    if ($newCount > 0) break; // Found team page with emails, stop looking
+                }
             }
         }
 
