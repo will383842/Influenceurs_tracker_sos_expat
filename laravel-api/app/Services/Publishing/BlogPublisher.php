@@ -77,11 +77,12 @@ class BlogPublisher
             $allTags = $allTags->merge($parentArticle->keywords_secondary);
         }
 
-        // Map content_type → category_slug
+        // Map content_type → blog category_slug (3-category taxonomy)
         $categorySlug = match ($parentArticle->content_type) {
-            'landing'                  => 'landing-page',
-            'press', 'press_release'   => 'press-release',
-            default                    => $parentArticle->content_type ?? 'article',
+            'guide', 'pillar'          => 'fiches-pays',
+            'article', 'tutorial'      => 'fiches-pratiques',
+            'qa', 'comparative', 'news', 'landing', 'press', 'press_release' => 'fiches-thematiques',
+            default                    => 'fiches-pratiques',
         };
 
         // ── Build sources array ──────────────────────────────────

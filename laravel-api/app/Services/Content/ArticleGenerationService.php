@@ -707,8 +707,46 @@ class ArticleGenerationService
             // Strip markdown code fences that GPT sometimes wraps HTML in
             $content = preg_replace('/^```(?:html)?\s*\n?/i', '', $content);
             $content = preg_replace('/\n?```\s*$/i', '', $content);
+            $content = trim($content);
 
-            return trim($content);
+            // Check word count — if too short, retry with stronger instruction
+            $wordCount = str_word_count(strip_tags($content));
+            $minWords = (int) (((int) explode('-', $targetWords)[0]) * 0.7); // 70% of minimum target
+            if ($wordCount < $minWords && $wordCount > 100) {
+                Log::info("Phase 5: Content too short ({$wordCount} words, min {$minWords}), extending...", [
+                    'article_topic' => $params['topic'] ?? '',
+                ]);
+
+                $extendPrompt = "L'article suivant fait seulement {$wordCount} mots. Il DOIT faire MINIMUM {$targetWords} mots. "
+                    . "Réécris-le en le développant considérablement : ajoute des sections détaillées, des exemples concrets, "
+                    . "des chiffres, des tableaux comparatifs, des conseils pratiques, des retours d'expérience. "
+                    . "Chaque section <h2> doit contenir au minimum 3 paragraphes de 80+ mots chacun.\n\n"
+                    . "ARTICLE À DÉVELOPPER :\n" . $content;
+
+                $extendResult = $this->openAi->complete(
+                    "Tu es un rédacteur web expert. Développe cet article en HTML pour qu'il atteigne {$targetWords} mots minimum.",
+                    $extendPrompt,
+                    [
+                        'model' => $typeConfig['model'] ?? null,
+                        'temperature' => 0.8,
+                        'max_tokens' => $maxTokens,
+                    ]
+                );
+
+                if ($extendResult['success']) {
+                    $extended = trim($extendResult['content']);
+                    $extended = preg_replace('/^```(?:html)?\s*\n?/i', '', $extended);
+                    $extended = preg_replace('/\n?```\s*$/i', '', $extended);
+                    $extended = trim($extended);
+                    $newWordCount = str_word_count(strip_tags($extended));
+                    Log::info("Phase 5: Extended from {$wordCount} to {$newWordCount} words");
+                    if ($newWordCount > $wordCount) {
+                        return $extended;
+                    }
+                }
+            }
+
+            return $content;
         }
 
         throw new \RuntimeException('Content generation failed: ' . ($result['error'] ?? 'Unknown error'));
