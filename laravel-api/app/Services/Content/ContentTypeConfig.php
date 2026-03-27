@@ -99,9 +99,8 @@ class ContentTypeConfig
                 'prompt_suffix' => "Article COMPARATIF avec OBLIGATOIREMENT : "
                     . "1) Au moins 2 tableaux <table> comparatifs detailles avec <thead> et <tbody>, "
                     . "2) Des donnees chiffrees precises pour chaque entite comparee, "
-                    . "3) Un resume 'Verdict' en fin d'article avec recommandations par profil. "
-                    . "Inclure un bloc JSON de donnees structurees pour permettre la generation de graphiques cote frontend: "
-                    . "<!-- CHART_DATA:{\"labels\":[...],\"datasets\":[{\"label\":\"...\",\"data\":[...]}]} -->",
+                    . "3) Un bloc 'Chiffres cles' avec les donnees importantes en <strong>, "
+                    . "4) Un resume 'Verdict' en fin d'article avec recommandations par profil d'expatrie.",
             ],
 
             // Q&A (reponses directes, featured snippets)

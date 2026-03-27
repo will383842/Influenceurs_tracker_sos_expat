@@ -107,6 +107,41 @@ class ComparativeGenerationService
                 'status' => 'review',
             ]);
 
+            // Plagiarism check against existing comparatives
+            try {
+                $comparativeText = strip_tags($comparative->content_html ?? '');
+                if (mb_strlen($comparativeText) > 200) {
+                    $existingComparatives = Comparative::where('language', $comparative->language)
+                        ->where('id', '!=', $comparative->id)
+                        ->whereIn('status', ['draft', 'review', 'published'])
+                        ->select('id', 'title', 'content_html')
+                        ->limit(50)
+                        ->get();
+
+                    foreach ($existingComparatives as $existing) {
+                        similar_text(
+                            strip_tags($comparative->content_html ?? ''),
+                            strip_tags($existing->content_html ?? ''),
+                            $percent
+                        );
+                        if ($percent > 35) {
+                            Log::warning('ComparativeGenerationService: similar comparative detected', [
+                                'new' => $comparative->id,
+                                'existing' => $existing->id,
+                                'similarity' => $percent,
+                            ]);
+                            $comparative->update(['status' => 'review']);
+                            break;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('ComparativeGeneration: plagiarism check failed (non-blocking)', [
+                    'comparative_id' => $comparative->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             $totalDuration = (int) ((microtime(true) - $startTime) * 1000);
             Log::info('Comparative generation complete', [
                 'comparative_id' => $comparative->id,

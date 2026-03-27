@@ -354,7 +354,7 @@ export const fetchCluster = (id: number) =>
   api.get<TopicCluster>(`/content-gen/clusters/${id}`);
 
 export const autoCluster = (data: { country: string; category?: string }) =>
-  api.post<{ clusters_created: number; message: string }>('/content-gen/clusters/auto', data);
+  api.post<{ clusters_created: number; message: string }>('/content-gen/clusters/auto-cluster', data);
 
 export const generateClusterBrief = (id: number) =>
   api.post<TopicCluster>(`/content-gen/clusters/${id}/brief`);
@@ -363,7 +363,7 @@ export const generateFromCluster = (id: number) =>
   api.post<TopicCluster>(`/content-gen/clusters/${id}/generate`);
 
 export const generateClusterQa = (id: number) =>
-  api.post<{ qa_created: number }>(`/content-gen/clusters/${id}/qa`);
+  api.post<{ qa_created: number }>(`/content-gen/clusters/${id}/generate-qa`);
 
 export const deleteCluster = (id: number) =>
   api.delete(`/content-gen/clusters/${id}`);
@@ -399,10 +399,10 @@ export const publishQaEntry = (id: number) =>
   api.post(`/content-gen/qa/${id}/publish`);
 
 export const generateQaFromArticle = (articleId: number) =>
-  api.post<{ qa_created: number }>(`/content-gen/qa/from-article/${articleId}`);
+  api.post<{ qa_created: number }>('/content-gen/qa/generate-from-article', { article_id: articleId });
 
 export const generateQaFromPaa = (data: { topic: string; country: string; language?: string }) =>
-  api.post<{ qa_created: number }>('/content-gen/qa/from-paa', data);
+  api.post<{ qa_created: number }>('/content-gen/qa/generate-from-paa', data);
 
 export const bulkPublishQa = (ids: number[]) =>
   api.post('/content-gen/qa/bulk-publish', { qa_ids: ids });
@@ -427,45 +427,45 @@ export const fetchKeywordCannibalization = () =>
   api.get<KeywordCannibalization[]>('/content-gen/keywords/cannibalization');
 
 export const fetchArticleKeywords = (articleId: number) =>
-  api.get<ArticleKeyword[]>(`/content-gen/articles/${articleId}/keywords`);
+  api.get<ArticleKeyword[]>(`/content-gen/keywords/article/${articleId}`);
 
 // ============================================================
 // TRANSLATIONS
 // ============================================================
 
 export const fetchTranslationBatches = (params?: { status?: string; page?: number }) =>
-  api.get<PaginatedResponse<TranslationBatch>>('/content-gen/translations/batches', { params });
+  api.get<PaginatedResponse<TranslationBatch>>('/content-gen/translations', { params });
 
 export const fetchTranslationOverview = () =>
   api.get<TranslationOverview[]>('/content-gen/translations/overview');
 
 export const startTranslationBatch = (data: { target_language: string; content_type: 'article' | 'qa' | 'all' }) =>
-  api.post<TranslationBatch>('/content-gen/translations/batches', data);
+  api.post<TranslationBatch>('/content-gen/translations/start', data);
 
 export const fetchTranslationBatch = (id: number) =>
-  api.get<TranslationBatch>(`/content-gen/translations/batches/${id}`);
+  api.get<TranslationBatch>(`/content-gen/translations/${id}`);
 
 export const pauseTranslationBatch = (id: number) =>
-  api.post<TranslationBatch>(`/content-gen/translations/batches/${id}/pause`);
+  api.post<TranslationBatch>(`/content-gen/translations/${id}/pause`);
 
 export const resumeTranslationBatch = (id: number) =>
-  api.post<TranslationBatch>(`/content-gen/translations/batches/${id}/resume`);
+  api.post<TranslationBatch>(`/content-gen/translations/${id}/resume`);
 
 export const cancelTranslationBatch = (id: number) =>
-  api.post<TranslationBatch>(`/content-gen/translations/batches/${id}/cancel`);
+  api.post<TranslationBatch>(`/content-gen/translations/${id}/cancel`);
 
 // ============================================================
 // SEO CHECKLIST
 // ============================================================
 
 export const fetchSeoChecklist = (articleId: number) =>
-  api.get<SeoChecklist>(`/content-gen/articles/${articleId}/seo-checklist`);
+  api.get<SeoChecklist>(`/content-gen/seo/checklist/${articleId}`);
 
 export const evaluateSeoChecklist = (articleId: number) =>
-  api.post<SeoChecklist>(`/content-gen/articles/${articleId}/seo-checklist/evaluate`);
+  api.post<SeoChecklist>(`/content-gen/seo/checklist/${articleId}/evaluate`);
 
-export const fetchFailedChecks = (params?: { page?: number }) =>
-  api.get<PaginatedResponse<SeoChecklist>>('/content-gen/seo-checklist/failed', { params });
+export const fetchFailedChecks = (articleId: number) =>
+  api.get<{ failed_checks: unknown[]; total_failed: number; overall_score: number }>(`/content-gen/seo/checklist/${articleId}/failed`);
 
 // ============================================================
 // QUESTION CLUSTERS

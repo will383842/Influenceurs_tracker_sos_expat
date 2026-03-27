@@ -243,6 +243,39 @@ class QaFromQuestionsService
                 ]);
             }
 
+            // 9. Simple plagiarism check against existing Q&A
+            try {
+                $answerText = strip_tags($entry->answer_detailed_html ?? '');
+                if (mb_strlen($answerText) > 100) {
+                    $existingQas = QaEntry::where('language', $entry->language)
+                        ->where('id', '!=', $entry->id)
+                        ->whereNull('parent_qa_id')
+                        ->whereIn('status', ['draft', 'review', 'published'])
+                        ->select('id', 'question', 'answer_detailed_html')
+                        ->limit(100)
+                        ->get();
+
+                    foreach ($existingQas as $existing) {
+                        $existingText = strip_tags($existing->answer_detailed_html ?? '');
+                        similar_text($answerText, $existingText, $percent);
+                        if ($percent > 40) {
+                            Log::warning('QaFromQuestionsService: similar Q&A detected', [
+                                'new_qa' => $entry->id,
+                                'existing_qa' => $existing->id,
+                                'similarity' => $percent,
+                            ]);
+                            $entry->update(['status' => 'review']);
+                            break;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('QaFromQuestions: plagiarism check failed (non-blocking)', [
+                    'qa_entry_id' => $entry->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             return $entry;
         } catch (\Throwable $e) {
             Log::error('QaFromQuestions: single Q&A generation failed', [

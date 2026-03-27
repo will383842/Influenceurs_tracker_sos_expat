@@ -397,7 +397,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin')->prefix('content-gen')->group(function () {
         // Articles
         Route::get('/articles', [GeneratedArticleController::class, 'index']);
-        Route::post('/articles', [GeneratedArticleController::class, 'store']);
+        Route::post('/articles', [GeneratedArticleController::class, 'store'])->middleware('throttle:2,5');
         Route::get('/articles/{article}', [GeneratedArticleController::class, 'show']);
         Route::put('/articles/{article}', [GeneratedArticleController::class, 'update']);
         Route::delete('/articles/{article}', [GeneratedArticleController::class, 'destroy']);
@@ -411,7 +411,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Comparatives
         Route::get('/comparatives', [ComparativeController::class, 'index']);
-        Route::post('/comparatives', [ComparativeController::class, 'store']);
+        Route::post('/comparatives', [ComparativeController::class, 'store'])->middleware('throttle:2,5');
         Route::get('/comparatives/{comparative}', [ComparativeController::class, 'show']);
         Route::put('/comparatives/{comparative}', [ComparativeController::class, 'update']);
         Route::delete('/comparatives/{comparative}', [ComparativeController::class, 'destroy']);
@@ -472,7 +472,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/generation/prompts/{prompt}', [GenerationController::class, 'promptUpdate']);
         Route::delete('/generation/prompts/{prompt}', [GenerationController::class, 'promptDelete']);
         Route::post('/generation/prompts/test', [GenerationController::class, 'testPrompt']);
-        Route::post('/generation/auto-pipeline', [GenerationController::class, 'runAutoPipeline']);
+        Route::post('/generation/auto-pipeline', [GenerationController::class, 'runAutoPipeline'])->middleware('throttle:2,5');
         Route::get('/generation/pipeline-status', [GenerationController::class, 'pipelineStatus']);
 
         // SEO
@@ -507,7 +507,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Topic Clusters
         Route::get('/clusters', [TopicClusterController::class, 'index']);
         Route::get('/clusters/{cluster}', [TopicClusterController::class, 'show']);
-        Route::post('/clusters/auto-cluster', [TopicClusterController::class, 'autoCluster']);
+        Route::post('/clusters/auto-cluster', [TopicClusterController::class, 'autoCluster'])->middleware('throttle:1,10');
         Route::post('/clusters/{cluster}/brief', [TopicClusterController::class, 'generateBrief']);
         Route::post('/clusters/{cluster}/generate', [TopicClusterController::class, 'generateArticle']);
         Route::post('/clusters/{cluster}/generate-qa', [TopicClusterController::class, 'generateQa']);
@@ -556,7 +556,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Question Clusters
         Route::get('/question-clusters', [QuestionClusterController::class, 'index']);
         Route::get('/question-clusters/stats', [QuestionClusterController::class, 'stats']);
-        Route::post('/question-clusters/auto-cluster', [QuestionClusterController::class, 'autoCluster']);
+        Route::post('/question-clusters/auto-cluster', [QuestionClusterController::class, 'autoCluster'])->middleware('throttle:1,10');
         Route::get('/question-clusters/{cluster}', [QuestionClusterController::class, 'show']);
         Route::post('/question-clusters/{cluster}/generate-qa', [QuestionClusterController::class, 'generateQa']);
         Route::post('/question-clusters/{cluster}/generate-article', [QuestionClusterController::class, 'generateArticle']);
@@ -568,7 +568,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/schedule', [DailyScheduleController::class, 'getSchedule']);
         Route::put('/schedule', [DailyScheduleController::class, 'updateSchedule']);
         Route::get('/schedule/history', [DailyScheduleController::class, 'getHistory']);
-        Route::post('/schedule/run-now', [DailyScheduleController::class, 'runNow']);
+        Route::post('/schedule/run-now', [DailyScheduleController::class, 'runNow'])->middleware('throttle:2,5');
         Route::post('/schedule/custom-titles', [DailyScheduleController::class, 'addCustomTitles']);
     });
 });
