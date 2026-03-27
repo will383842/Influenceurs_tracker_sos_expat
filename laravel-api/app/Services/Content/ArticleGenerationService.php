@@ -729,6 +729,21 @@ class ArticleGenerationService
             // Strip markdown code fences that GPT sometimes wraps HTML in
             $content = preg_replace('/^```(?:html)?\s*\n?/i', '', $content);
             $content = preg_replace('/\n?```\s*$/i', '', $content);
+
+            // Strip full HTML page wrapper if GPT returned <html>/<head>/<body>/<style>
+            $content = preg_replace('/<html[^>]*>|<\/html>/i', '', $content);
+            $content = preg_replace('/<head>.*?<\/head>/is', '', $content);
+            $content = preg_replace('/<body[^>]*>|<\/body>/i', '', $content);
+            $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
+            $content = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $content);
+            $content = preg_replace('/<!DOCTYPE[^>]*>/i', '', $content);
+            $content = preg_replace('/<title[^>]*>.*?<\/title>/is', '', $content);
+            $content = preg_replace('/<meta[^>]*>/i', '', $content);
+            $content = preg_replace('/<link[^>]*>/i', '', $content);
+
+            // Remove any leftover <h1> (title is separate)
+            $content = preg_replace('/<h1[^>]*>.*?<\/h1>/is', '', $content);
+
             $content = trim($content);
 
             // Check word count — if too short, retry with stronger instruction
