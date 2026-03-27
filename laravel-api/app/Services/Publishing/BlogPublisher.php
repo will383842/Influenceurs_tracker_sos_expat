@@ -158,6 +158,12 @@ class BlogPublisher
             'blog_id'     => $data['data']['id'] ?? $data['id'] ?? null,
         ]);
 
+        // Update Mission Control article status to published
+        $parentArticle->update([
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
         return [
             'external_id'  => (string) ($data['data']['id'] ?? $data['id'] ?? $parentArticle->uuid),
             'external_url' => $this->buildArticleUrl($parentArticle, $data),

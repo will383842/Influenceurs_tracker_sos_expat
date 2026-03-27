@@ -613,8 +613,11 @@ class ArticleGenerationService
                 'target_words' => $targetWords,
                 'year' => date('Y'),
             ])
-            : "Tu es un rédacteur web professionnel et expert SEO. Rédige un article complet en HTML. "
-              . "Langue: {$language}. Ton: {$tone}. Longueur cible: {$targetWords} mots.\n\n"
+            : "Tu es un rédacteur web professionnel et expert SEO. Rédige un article COMPLET et DÉTAILLÉ en HTML. "
+              . "Langue: {$language}. Ton: {$tone}.\n\n"
+              . "LONGUEUR OBLIGATOIRE: L'article DOIT contenir MINIMUM {$targetWords} mots. "
+              . "C'est une exigence absolue. Un article trop court sera rejeté. "
+              . "Développe chaque section avec des détails, exemples concrets, chiffres et conseils pratiques.\n\n"
               . "RÈGLES DE STRUCTURE HTML:\n"
               . "- Utilise des balises HTML: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <blockquote>\n"
               . "- 6-8 sections avec <h2> (pas de <h1>, il sera le titre de la page)\n"
@@ -669,12 +672,14 @@ class ArticleGenerationService
             $userPrompt .= "\n\nMOTS-CLÉS SÉMANTIQUES (LSI) à intégrer naturellement dans le texte :\n{$lsiList}\nCes mots doivent apparaître au moins 1 fois chacun dans l'article pour signaler à Google que l'article couvre le sujet en profondeur.";
         }
 
+        // Token limits must be high enough to reach target word counts
+        // Rule of thumb: 1 French word ≈ 2 tokens, so 3000 words ≈ 6000 tokens + HTML overhead
         $maxTokens = $typeConfig['max_tokens_content'] ?? match ($params['length'] ?? $typeConfig['length'] ?? 'long') {
-            'short' => 3000,
-            'medium' => 4500,
-            'long' => 6500,
-            'extra_long' => 8000,
-            default => 6500,
+            'short' => 5000,       // ~1200 words + HTML
+            'medium' => 8000,      // ~1800 words + HTML
+            'long' => 12000,       // ~2800 words + HTML
+            'extra_long' => 16000, // ~4000 words + HTML
+            default => 12000,
         };
 
         $result = $this->openAi->complete($systemPrompt, $userPrompt, [
@@ -1128,9 +1133,20 @@ class ArticleGenerationService
                         'photographer_name' => $firstImage['photographer_name'] ?? null,
                         'photographer_url' => $firstImage['photographer_url'] ?? null,
                     ]);
+                    Log::info('Phase 12: Featured image set from Unsplash', [
+                        'article_id' => $article->id,
+                        'photographer' => $firstImage['photographer_name'] ?? 'unknown',
+                    ]);
+                    return;
                 }
             }
         }
+
+        // Fallback: if no image source worked, log warning
+        Log::warning('Phase 12: No featured image set (both DALL-E and Unsplash failed or unconfigured)', [
+            'article_id' => $article->id,
+            'unsplash_configured' => $this->unsplash->isConfigured(),
+        ]);
     }
 
     private function phase13_generateSlugs(GeneratedArticle $article): void
@@ -1182,8 +1198,10 @@ class ArticleGenerationService
         );
 
         $article->update([
+            'seo_score' => (int) $seoNormalized,
             'quality_score' => $qualityScore,
             'readability_score' => $readabilityScore,
+            'word_count' => $wordCount > 0 ? $wordCount : $this->seoAnalysis->countWords($article->content_html ?? ''),
         ]);
 
         // Run SEO Checklist evaluation
