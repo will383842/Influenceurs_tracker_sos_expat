@@ -31,6 +31,8 @@ import ContentSites from './pages/content/ContentSites';
 import AffiliateLinks from './pages/content/AffiliateLinks';
 import CountryProfiles from './pages/content/CountryProfiles';
 import CountryProfileDetail from './pages/content/CountryProfileDetail';
+import CityProfiles from './pages/content/CityProfiles';
+import CityProfileDetail from './pages/content/CityProfileDetail';
 import ContentContacts from './pages/content/ContentContacts';
 import ContentQuestions from './pages/content/ContentQuestions';
 import ProspectionHub from './pages/prospection/ProspectionHub';
@@ -157,6 +159,8 @@ export default function App() {
             <Route path="content/sources" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><GenerationSources /></React.Suspense></AdminRoute>} />
             <Route path="content/countries" element={<AdminRoute><CountryProfiles /></AdminRoute>} />
             <Route path="content/country/:countrySlug" element={<AdminRoute><CountryProfileDetail /></AdminRoute>} />
+            <Route path="content/cities" element={<AdminRoute><CityProfiles /></AdminRoute>} />
+            <Route path="content/cities/:citySlug" element={<AdminRoute><CityProfileDetail /></AdminRoute>} />
 
             {/* Content Engine v2 (lazy loaded) */}
             <Route path="content/overview" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ContentOverview /></React.Suspense></AdminRoute>} />

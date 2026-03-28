@@ -323,6 +323,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/sources/{slug}/city-stats', [ContentEngineController::class, 'cityStats']);
         Route::get('/country-profiles', [ContentEngineController::class, 'countryProfiles']);
         Route::get('/country-profiles/{countrySlug}', [ContentEngineController::class, 'countryProfile']);
+        Route::get('/city-profiles', [ContentEngineController::class, 'cityProfiles']);
+        Route::get('/city-profiles/{citySlug}', [ContentEngineController::class, 'cityProfile']);
         Route::get('/stats', [ContentEngineController::class, 'stats']);
         Route::get('/data-cleanup', [ContentEngineController::class, 'dataCleanupStats']);
     });

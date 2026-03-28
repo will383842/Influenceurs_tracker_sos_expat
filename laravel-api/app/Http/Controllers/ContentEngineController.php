@@ -608,6 +608,85 @@ class ContentEngineController extends Controller
         ]);
     }
 
+    /**
+     * City profiles: aggregated data per city from materialized view.
+     */
+    public function cityProfiles(Request $request): JsonResponse
+    {
+        $data = Cache::remember('city-profiles', 300, function () {
+            $profiles = \DB::table('city_profiles')
+                ->orderByDesc('priority_score')
+                ->get();
+
+            $result = $profiles->map(function ($c) {
+                return [
+                    'id'                => $c->city_id,
+                    'name'              => $c->city_name,
+                    'slug'              => $c->city_slug,
+                    'continent'         => $c->continent,
+                    'country_id'        => $c->country_id,
+                    'country_name'      => $c->country_name,
+                    'country_slug'      => $c->country_slug,
+                    'total_articles'    => (int) $c->total_articles,
+                    'total_words'       => (int) ($c->total_words ?? 0),
+                    'avg_word_count'    => (int) ($c->avg_word_count ?? 0),
+                    'nb_sources'        => (int) $c->nb_sources,
+                    'thematic_coverage' => (int) $c->thematic_coverage,
+                    'priority_score'    => (int) $c->priority_score,
+                    'visa'              => (int) $c->visa_articles,
+                    'emploi'            => (int) $c->emploi_articles,
+                    'logement'          => (int) $c->logement_articles,
+                    'sante'             => (int) $c->sante_articles,
+                    'banque'            => (int) $c->banque_articles,
+                    'transport'         => (int) $c->transport_articles,
+                    'culture'           => (int) $c->culture_articles,
+                ];
+            });
+
+            return [
+                'cities'    => $result,
+                'totals'    => [
+                    'cities'   => $result->count(),
+                    'articles' => $result->sum('total_articles'),
+                    'words'    => $result->sum('total_words'),
+                    'with_content' => $result->where('total_articles', '>', 0)->count(),
+                ],
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    /**
+     * Single city profile with detailed articles.
+     */
+    public function cityProfile(string $citySlug): JsonResponse
+    {
+        $city = ContentCity::with('country')->where('slug', $citySlug)->firstOrFail();
+
+        $articles = ContentArticle::where('city_id', $city->id)
+            ->select('id', 'title', 'slug', 'url', 'category', 'section', 'word_count', 'is_guide', 'meta_description', 'scraped_at')
+            ->orderByDesc('is_guide')
+            ->orderBy('category')
+            ->get();
+
+        $categories = ContentArticle::where('city_id', $city->id)
+            ->whereNotNull('category')
+            ->selectRaw('category, COUNT(*) as count')
+            ->groupBy('category')
+            ->orderByDesc('count')
+            ->get();
+
+        $profile = \DB::table('city_profiles')->where('city_id', $city->id)->first();
+
+        return response()->json([
+            'city'       => $city,
+            'articles'   => $articles,
+            'categories' => $categories,
+            'profile'    => $profile,
+        ]);
+    }
+
     public function exportLinks(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $query = ContentExternalLink::query()
