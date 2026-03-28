@@ -906,6 +906,7 @@ export interface TaxonomyDistribution {
   percentage: number;
   calculated_count?: number;
   is_active: boolean;
+  is_visible_on_blog?: boolean;
 }
 
 export interface PublicationStats {

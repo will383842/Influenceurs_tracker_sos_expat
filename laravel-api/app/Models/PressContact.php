@@ -15,13 +15,16 @@ class PressContact extends Model
         'country', 'city', 'language', 'topics',
         'contact_status', 'last_contacted_at', 'notes',
         'scraped_from', 'scraped_at',
+        'email_source', 'email_smtp_valid', 'email_checked_at',
     ];
 
     protected $casts = [
-        'topics' => 'array',
-        'email_verified' => 'boolean',
-        'scraped_at' => 'datetime',
+        'topics'            => 'array',
+        'email_verified'    => 'boolean',
+        'email_smtp_valid'  => 'boolean',
+        'scraped_at'        => 'datetime',
         'last_contacted_at' => 'datetime',
+        'email_checked_at'  => 'datetime',
     ];
 
     public function pressPublication(): BelongsTo

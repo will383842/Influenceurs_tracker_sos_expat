@@ -30,10 +30,18 @@ interface Publication {
   slug: string;
   base_url: string;
   team_url: string | null;
+  authors_url: string | null;
+  articles_url: string | null;
+  email_pattern: string | null;
+  email_domain: string | null;
   media_type: string;
+  category: string | null;
   topics: string[];
   country: string;
   contacts_count: number;
+  authors_discovered: number;
+  emails_inferred: number;
+  emails_verified: number;
   status: string;
   last_scraped_at: string | null;
   last_error: string | null;
@@ -69,6 +77,25 @@ const STATUS_COLORS: Record<string, string> = {
 
 const TOPICS = ['entrepreneuriat', 'voyage', 'expatriation', 'international', 'business', 'tech', 'lifestyle', 'startup'];
 
+const CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
+  presse_nationale:      { label: 'Presse Nationale',        icon: '🗞️', color: 'text-slate-300' },
+  magazine_generaliste:  { label: 'Magazines Généralistes',  icon: '📰', color: 'text-gray-300' },
+  presse_economique:     { label: 'Presse Économique',       icon: '💼', color: 'text-blue-300' },
+  presse_entrepreneuriat:{ label: 'Presse Entrepreneuriat',  icon: '🚀', color: 'text-indigo-300' },
+  presse_tech:           { label: 'Presse Tech & Digital',   icon: '💻', color: 'text-cyan-300' },
+  presse_voyage:         { label: 'Presse Voyage & Tourisme',icon: '✈️', color: 'text-emerald-300' },
+  presse_expat:          { label: 'Presse Expatriation',     icon: '🌍', color: 'text-green-300' },
+  presse_juridique:      { label: 'Presse Juridique',        icon: '⚖️', color: 'text-yellow-300' },
+  presse_lifestyle:      { label: 'Presse Lifestyle',        icon: '🎨', color: 'text-pink-300' },
+  presse_regionale:      { label: 'Presse Régionale',        icon: '📍', color: 'text-orange-300' },
+  presse_francophone:    { label: 'Presse Francophone Internationale', icon: '🌐', color: 'text-teal-300' },
+  tv_news:               { label: 'Chaînes TV Généralistes', icon: '📺', color: 'text-red-300' },
+  tv_economique:         { label: 'TV Économique & Business',icon: '📊', color: 'text-red-400' },
+  radio_nationale:       { label: 'Radio Nationale',         icon: '📻', color: 'text-amber-300' },
+  radio_internationale:  { label: 'Radio Internationale',    icon: '🔊', color: 'text-amber-400' },
+  annuaire_presse:       { label: 'Annuaires & Répertoires', icon: '📋', color: 'text-violet-300' },
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function JournalistContacts() {
@@ -93,6 +120,8 @@ export default function JournalistContacts() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [pubLoading, setPubLoading] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [scrapingAuthors, setScrapingAuthors] = useState(false);
+  const [inferring, setInferring] = useState(false);
   const [showAddPub, setShowAddPub] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
 
@@ -200,10 +229,49 @@ export default function JournalistContacts() {
   const handleScrapeSingle = async (pubId: number, pubName: string) => {
     try {
       await api.post('/content-gen/journalists/publications/scrape', { publication_id: pubId });
-      setError(`Scraping lancé pour ${pubName}`);
+      setError(`Scraping pages équipe lancé pour ${pubName}`);
       setTimeout(() => { setError(null); fetchPublications(); }, 5000);
     } catch {
       setError('Erreur scraping');
+    }
+  };
+
+  const handleScrapeAuthorsAll = async () => {
+    setScrapingAuthors(true);
+    setError(null);
+    try {
+      const res = await api.post('/content-gen/journalists/publications/scrape-authors');
+      setError(`${res.data.queued} publications en queue pour scraping auteurs/bylines`);
+      setTimeout(() => setError(null), 8000);
+      setTimeout(fetchPublications, 5000);
+    } catch {
+      setError('Erreur lancement scraping auteurs');
+    } finally {
+      setScrapingAuthors(false);
+    }
+  };
+
+  const handleScrapeAuthorsSingle = async (pubId: number, pubName: string) => {
+    try {
+      await api.post('/content-gen/journalists/publications/scrape-authors', { publication_id: pubId, infer_emails: true });
+      setError(`Scraping auteurs/bylines lancé pour ${pubName}`);
+      setTimeout(() => { setError(null); fetchPublications(); }, 6000);
+    } catch {
+      setError('Erreur scraping auteurs');
+    }
+  };
+
+  const handleInferEmails = async () => {
+    setInferring(true);
+    setError(null);
+    try {
+      const res = await api.post('/content-gen/journalists/publications/infer-emails');
+      setError(`${res.data.inferred} emails inférés sur ${res.data.publications} publications`);
+      setTimeout(() => { setError(null); fetchPublications(); fetchContacts(); }, 5000);
+    } catch {
+      setError('Erreur inférence emails');
+    } finally {
+      setInferring(false);
     }
   };
 
@@ -264,9 +332,17 @@ export default function JournalistContacts() {
                 className="px-3 py-2 bg-surface2 text-muted rounded-lg text-xs font-medium hover:text-white transition-colors">
                 + Publication
               </button>
+              <button onClick={handleInferEmails} disabled={inferring}
+                className="px-3 py-2 bg-amber-900/40 text-amber-300 rounded-lg text-xs font-medium hover:bg-amber-900/60 disabled:opacity-50 transition-colors">
+                {inferring ? '...' : 'Inférer emails'}
+              </button>
+              <button onClick={handleScrapeAuthorsAll} disabled={scrapingAuthors}
+                className="px-3 py-2 bg-green-900/40 text-green-300 rounded-lg text-xs font-medium hover:bg-green-900/60 disabled:opacity-50 transition-colors">
+                {scrapingAuthors ? 'Lancement...' : 'Scraper auteurs (bylines)'}
+              </button>
               <button onClick={handleScrapeAll} disabled={scraping}
                 className="px-3 py-2 bg-violet hover:bg-violet/80 text-white rounded-lg text-xs font-medium disabled:opacity-50 transition-colors">
-                {scraping ? 'Lancement...' : 'Scraper toutes les publications'}
+                {scraping ? 'Lancement...' : 'Scraper pages équipe'}
               </button>
             </>
           )}
@@ -581,39 +657,43 @@ export default function JournalistContacts() {
               <div className="w-6 h-6 border-2 border-violet border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="space-y-2">
-              {(['presse_ecrite', 'web', 'tv', 'radio'] as const).map((mediaType) => {
-                const group = publications.filter(p => p.media_type === mediaType);
+            <div className="space-y-4">
+              {Object.keys(CATEGORIES).map((categoryKey) => {
+                const group = publications.filter(p => (p.category || 'presse_economique') === categoryKey);
                 if (group.length === 0) return null;
+                const catInfo = CATEGORIES[categoryKey];
                 return (
-                  <div key={mediaType} className="space-y-1">
-                    <h3 className="text-white font-title font-bold text-sm border-b border-border pb-1.5">
-                      {MEDIA_TYPES[mediaType].label}
-                      <span className="text-muted text-xs font-normal ml-2">
-                        {group.length} publications · {group.reduce((s, p) => s + p.contacts_count, 0)} journalistes
+                  <div key={categoryKey} className="space-y-2">
+                    <h3 className={`font-title font-bold text-sm border-b border-border pb-1.5 flex items-center gap-2 ${catInfo.color}`}>
+                      <span>{catInfo.icon}</span>
+                      <span>{catInfo.label}</span>
+                      <span className="text-muted text-xs font-normal">
+                        {group.length} publications · {group.reduce((s, p) => s + (p.contacts_count || 0), 0)} journalistes
+                        {group.reduce((s, p) => s + (p.emails_inferred || 0), 0) > 0 && (
+                          <span className="text-amber-400 ml-2">
+                            +{group.reduce((s, p) => s + (p.emails_inferred || 0), 0)} emails inférés
+                          </span>
+                        )}
                       </span>
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                       {group.map((pub) => (
                         <div key={pub.id} className="bg-surface border border-border rounded-xl p-3 hover:bg-surface2 transition-colors">
                           <div className="flex items-start justify-between mb-1">
-                            <div>
-                              <div className="text-white font-medium text-sm">{pub.name}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-white font-medium text-sm truncate">{pub.name}</div>
                               <a href={pub.base_url} target="_blank" rel="noopener noreferrer"
                                 className="text-xs text-muted hover:text-cyan truncate block max-w-[200px]">
                                 {pub.base_url.replace(/^https?:\/\//, '')}
                               </a>
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                              {pub.status === 'scraped' && (
-                                <span className="w-2 h-2 rounded-full bg-green-400" title="Scrapée" />
-                              )}
-                              {pub.status === 'pending' && (
-                                <span className="w-2 h-2 rounded-full bg-amber-400" title="En attente" />
-                              )}
-                              {pub.status === 'failed' && (
-                                <span className="w-2 h-2 rounded-full bg-red-400" title="Échec" />
-                              )}
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${MEDIA_TYPES[pub.media_type]?.color || 'bg-surface2 text-muted'}`}>
+                                {MEDIA_TYPES[pub.media_type]?.label || pub.media_type}
+                              </span>
+                              {pub.status === 'scraped' && <span className="w-2 h-2 rounded-full bg-green-400" title="Scrapée" />}
+                              {pub.status === 'pending' && <span className="w-2 h-2 rounded-full bg-amber-400" title="En attente" />}
+                              {pub.status === 'failed'  && <span className="w-2 h-2 rounded-full bg-red-400" title="Échec" />}
                             </div>
                           </div>
 
@@ -624,16 +704,48 @@ export default function JournalistContacts() {
                             ))}
                           </div>
 
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm">
+                          {/* Contact & email stats */}
+                          <div className="flex flex-wrap gap-2 mb-2 text-xs">
+                            <span>
                               <span className="text-green-400 font-bold">{pub.contacts_count}</span>
-                              <span className="text-muted text-xs ml-1">contacts</span>
+                              <span className="text-muted ml-1">contacts</span>
+                            </span>
+                            {pub.emails_inferred > 0 && (
+                              <span>
+                                <span className="text-amber-400 font-bold">{pub.emails_inferred}</span>
+                                <span className="text-muted ml-1">inférés</span>
+                              </span>
+                            )}
+                            {pub.emails_verified > 0 && (
+                              <span>
+                                <span className="text-cyan-400 font-bold">{pub.emails_verified}</span>
+                                <span className="text-muted ml-1">vérifiés</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Pattern info */}
+                          {pub.email_pattern && (
+                            <div className="text-[9px] text-muted/60 font-mono mb-1 truncate" title={pub.email_pattern + '@' + (pub.email_domain || '')}>
+                              {pub.email_pattern}@{pub.email_domain}
                             </div>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="flex gap-1 flex-wrap">
+                            {(pub.authors_url || pub.articles_url) && (
+                              <button
+                                onClick={() => handleScrapeAuthorsSingle(pub.id, pub.name)}
+                                className="px-2 py-1 bg-green-900/40 text-green-300 rounded text-[10px] hover:bg-green-900/60 transition-colors"
+                              >
+                                Auteurs/bylines
+                              </button>
+                            )}
                             <button
                               onClick={() => handleScrapeSingle(pub.id, pub.name)}
-                              className="px-2 py-1 bg-violet/20 text-violet-light rounded text-xs hover:bg-violet/30 transition-colors"
+                              className="px-2 py-1 bg-violet/20 text-violet-light rounded text-[10px] hover:bg-violet/30 transition-colors"
                             >
-                              {pub.status === 'scraped' ? 'Re-scraper' : 'Scraper'}
+                              Page équipe
                             </button>
                           </div>
 

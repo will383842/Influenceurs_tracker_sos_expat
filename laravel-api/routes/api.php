@@ -18,8 +18,11 @@ use App\Http\Controllers\GenerationController;
 use App\Http\Controllers\KeywordTrackingController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\ContactsBaseController;
+use App\Http\Controllers\ScrapingDashboardController;
 use App\Http\Controllers\JournalistController;
 use App\Http\Controllers\PressController;
+use App\Http\Controllers\SondageController;
 use App\Http\Controllers\PublishingController;
 use App\Http\Controllers\QaEntryController;
 use App\Http\Controllers\SeoChecklistController;
@@ -334,10 +337,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // GENERATION SOURCES (Sources pour l'outil de generation)
     // ============================================================
     Route::prefix('generation-sources')->middleware('role:admin')->group(function () {
-        Route::get('/categories', [\App\Http\Controllers\GenerationSourceController::class, 'categories']);
-        Route::get('/stats', [\App\Http\Controllers\GenerationSourceController::class, 'stats']);
-        Route::get('/items/{id}', [\App\Http\Controllers\GenerationSourceController::class, 'itemDetail'])->where('id', '[0-9]+');
-        Route::get('/{categorySlug}/items', [\App\Http\Controllers\GenerationSourceController::class, 'categoryItems']);
+        Route::get('/categories',         [\App\Http\Controllers\GenerationSourceController::class, 'categories']);
+        Route::get('/stats',              [\App\Http\Controllers\GenerationSourceController::class, 'stats']);
+        Route::get('/command-center',              [\App\Http\Controllers\GenerationSourceController::class, 'commandCenter']);
+        Route::post('/trigger-all',                [\App\Http\Controllers\GenerationSourceController::class, 'triggerAll']);
+        Route::match(['get','post'], '/scheduler-config', [\App\Http\Controllers\GenerationSourceController::class, 'schedulerConfig']);
+        Route::patch('/{slug}/weight',             [\App\Http\Controllers\GenerationSourceController::class, 'weight']);
+        Route::get('/items/{id}',         [\App\Http\Controllers\GenerationSourceController::class, 'itemDetail'])->where('id', '[0-9]+');
+        Route::get('/{slug}/items',       [\App\Http\Controllers\GenerationSourceController::class, 'categoryItems']);
+        Route::post('/{slug}/trigger',    [\App\Http\Controllers\GenerationSourceController::class, 'trigger']);
+        Route::post('/{slug}/pause',      [\App\Http\Controllers\GenerationSourceController::class, 'pause']);
+        Route::post('/{slug}/visibility', [\App\Http\Controllers\GenerationSourceController::class, 'visibility']);
+        Route::patch('/{slug}/quota',     [\App\Http\Controllers\GenerationSourceController::class, 'quota']);
     });
 
     // ============================================================
@@ -464,6 +475,20 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/dossiers/{dossier}/export-pdf', [PressController::class, 'dossierExportPdf']);
         });
 
+        // Scraping Dashboard centralisé
+        Route::prefix('scraping')->group(function () {
+            Route::get('/status', [ScrapingDashboardController::class, 'status']);
+            Route::post('/launch', [ScrapingDashboardController::class, 'launch']);
+        });
+
+        // Contacts Base Unifiée (toutes sources)
+        Route::prefix('contacts-base')->group(function () {
+            Route::get('/stats', [ContactsBaseController::class, 'stats']);
+            Route::get('/contacts', [ContactsBaseController::class, 'contacts']);
+            Route::get('/duplicates', [ContactsBaseController::class, 'duplicates']);
+            Route::post('/deduplicate', [ContactsBaseController::class, 'deduplicateAuto']);
+        });
+
         // Journalists / Press Contacts Scraper
         Route::prefix('journalists')->group(function () {
             Route::get('/stats', [JournalistController::class, 'stats']);
@@ -474,7 +499,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/contacts/export', [JournalistController::class, 'exportContacts']);
             Route::get('/publications', [JournalistController::class, 'publications']);
             Route::post('/publications', [JournalistController::class, 'storePublication']);
+            Route::put('/publications/{id}/config', [JournalistController::class, 'updatePublicationConfig']);
             Route::post('/publications/scrape', [JournalistController::class, 'scrapePublications']);
+            Route::post('/publications/scrape-authors', [JournalistController::class, 'scrapeAuthors']);
+            Route::post('/publications/infer-emails', [JournalistController::class, 'inferEmails']);
         });
 
         // Campaigns
@@ -612,5 +640,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/quality-monitoring', [DailyScheduleController::class, 'getQualityMonitoring']);
         Route::post('/articles/{id}/reject', [DailyScheduleController::class, 'rejectArticle']);
         Route::post('/articles/{id}/approve', [DailyScheduleController::class, 'approveArticle']);
+    });
+
+    // ── Sondages ────────────────────────────────────────────────────────────
+    Route::prefix('sondages')->group(function () {
+        Route::get('/',                      [SondageController::class, 'index']);
+        Route::post('/',                     [SondageController::class, 'store']);
+        Route::get('/{sondage}',             [SondageController::class, 'show']);
+        Route::put('/{sondage}',             [SondageController::class, 'update']);
+        Route::delete('/{sondage}',          [SondageController::class, 'destroy']);
+        Route::post('/{sondage}/sync',       [SondageController::class, 'syncToBlog']);
+        Route::get('/{sondage}/resultats',   [SondageController::class, 'resultats']);
     });
 });

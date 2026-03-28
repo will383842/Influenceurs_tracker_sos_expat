@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GenerationSourceController extends Controller
 {
@@ -96,7 +97,7 @@ class GenerationSourceController extends Controller
     {
         $query = DB::table('generation_source_items')
             ->where('category_slug', $categorySlug)
-            ->select('id', 'source_type', 'source_id', 'title', 'country', 'country_slug', 'theme', 'sub_category', 'language', 'word_count', 'quality_score', 'is_cleaned', 'processing_status', 'used_count', 'data_json');
+            ->select('id', 'source_type', 'source_id', 'title', 'country', 'country_slug', 'theme', 'sub_category', 'language', 'word_count', 'quality_score', 'is_cleaned', 'processing_status', 'used_count', 'input_quality', 'data_json');
 
         // Filter: brut vs nettoyé
         if ($request->filled('cleaned')) {
@@ -163,6 +164,291 @@ class GenerationSourceController extends Controller
             'sub_categories' => $subCategories,
             'countries'      => $countries,
             'themes'         => $themes,
+        ]);
+    }
+
+    /**
+     * Command Center: aggregated data for all 14 sources with pipeline status.
+     * Response shape matches ContentCommandCenter.tsx interfaces exactly:
+     *   sources[]  → PipelineSourceStatus  (quota_daily, pipeline_status, generated_today…)
+     *   pipeline   → PipelineGlobal        (is_running, currently_generating…)
+     */
+    public function commandCenter(): JsonResponse
+    {
+        $data = Cache::remember('gen-source-command-center', 30, function () {
+            $today     = now()->toDateString();
+            $weekStart = now()->subDays(6)->toDateString();
+
+            // Per-source configs
+            $categories = DB::table('generation_source_categories')
+                ->select('slug', 'config_json')
+                ->get()
+                ->keyBy('slug');
+
+            // Articles generated per source: today + this week + last activity
+            $articleStats = DB::table('generated_articles')
+                ->whereDate('created_at', '>=', $weekStart)
+                ->selectRaw("
+                    source_slug,
+                    COUNT(*) FILTER (WHERE DATE(created_at) = ?)         as generated_today,
+                    COUNT(*)                                              as generated_week,
+                    MAX(created_at)                                       as last_generated_at,
+                    COUNT(*) FILTER (WHERE status = 'processing')        as current_running
+                ", [$today])
+                ->groupBy('source_slug')
+                ->get()
+                ->keyBy('source_slug');
+
+            // Build sources array in format expected by PipelineSourceStatus
+            $sources = $categories->map(function ($cat) use ($articleStats) {
+                $config  = json_decode($cat->config_json ?? '{}', true);
+                $art     = $articleStats->get($cat->slug);
+                $isPaused = $config['is_paused'] ?? false;
+                $quota    = (int) ($config['daily_quota'] ?? 0);
+                $running  = (int) ($art->current_running ?? 0);
+
+                if ($isPaused || $quota === 0) {
+                    $status = 'paused';
+                } elseif ($running > 0) {
+                    $status = 'generating';
+                } elseif ($art && (int) $art->generated_today > 0) {
+                    $status = 'active';
+                } else {
+                    $status = 'idle';
+                }
+
+                return [
+                    'slug'             => $cat->slug,
+                    'pipeline_status'  => $status,
+                    'generated_today'  => (int) ($art->generated_today ?? 0),
+                    'generated_week'   => (int) ($art->generated_week ?? 0),
+                    'quota_daily'      => $quota,
+                    'last_generated_at'=> $art->last_generated_at ?? null,
+                    'current_running'  => $running,
+                    'is_paused'        => $isPaused,
+                    'is_visible'       => $config['is_visible'] ?? true,
+                ];
+            })->values();
+
+            // Global pipeline object (PipelineGlobal)
+            $globalRaw = DB::table('generated_articles')
+                ->selectRaw("
+                    COUNT(*) FILTER (WHERE DATE(created_at) = ?)  as generated_today,
+                    COUNT(*) FILTER (WHERE status = 'processing') as currently_generating,
+                    COUNT(*) FILTER (WHERE status = 'error')      as errors_count,
+                    MAX(created_at)                               as last_activity
+                ", [$today])
+                ->first();
+
+            $activeSources = $categories->filter(function ($cat) {
+                $cfg = json_decode($cat->config_json ?? '{}', true);
+                return !($cfg['is_paused'] ?? false) && (int) ($cfg['daily_quota'] ?? 0) > 0;
+            })->count();
+
+            $queueSize = DB::table('generation_source_items')
+                ->where('processing_status', 'ready')
+                ->count();
+
+            $pipeline = [
+                'is_running'            => (int) ($globalRaw->currently_generating ?? 0) > 0,
+                'currently_generating'  => (int) ($globalRaw->currently_generating ?? 0),
+                'queue_size'            => (int) $queueSize,
+                'last_activity'         => $globalRaw->last_activity ?? null,
+                'errors_count'          => (int) ($globalRaw->errors_count ?? 0),
+                'active_sources'        => $activeSources,
+                'generated_today_total' => (int) ($globalRaw->generated_today ?? 0),
+            ];
+
+            return [
+                'sources'  => $sources,
+                'pipeline' => $pipeline,
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    /**
+     * Trigger generation for a specific source slug.
+     */
+    public function trigger(string $slug): JsonResponse
+    {
+        $category = DB::table('generation_source_categories')->where('slug', $slug)->first();
+        if (!$category) {
+            return response()->json(['error' => "Source '{$slug}' introuvable."], 404);
+        }
+
+        $config = json_decode($category->config_json ?? '{}', true);
+        if ($config['is_paused'] ?? false) {
+            return response()->json(['error' => "Source '{$slug}' est en pause."], 409);
+        }
+
+        \App\Jobs\GenerateFromSourceJob::dispatch($slug, (int) ($config['daily_quota'] ?? 3));
+
+        Cache::forget('gen-source-command-center');
+
+        return response()->json([
+            'ok'      => true,
+            'message' => "Génération lancée pour '{$slug}'.",
+            'slug'    => $slug,
+        ]);
+    }
+
+    /**
+     * Pause or resume a source (toggle is_paused in config_json).
+     */
+    public function pause(string $slug, Request $request): JsonResponse
+    {
+        $category = DB::table('generation_source_categories')->where('slug', $slug)->first();
+        if (!$category) {
+            return response()->json(['error' => "Source '{$slug}' introuvable."], 404);
+        }
+
+        $config = json_decode($category->config_json ?? '{}', true);
+        $newPaused = $request->boolean('paused', !($config['is_paused'] ?? false));
+        $config['is_paused'] = $newPaused;
+
+        DB::table('generation_source_categories')
+            ->where('slug', $slug)
+            ->update(['config_json' => json_encode($config), 'updated_at' => now()]);
+
+        Cache::forget('gen-source-command-center');
+        Cache::forget('gen-source-categories');
+
+        return response()->json([
+            'ok'        => true,
+            'slug'      => $slug,
+            'is_paused' => $newPaused,
+            'message'   => $newPaused ? "Source '{$slug}' mise en pause." : "Source '{$slug}' relancée.",
+        ]);
+    }
+
+    /**
+     * Toggle visibility of a source (is_visible in config_json).
+     */
+    public function visibility(string $slug, Request $request): JsonResponse
+    {
+        $request->validate(['visible' => 'required|boolean']);
+
+        $category = DB::table('generation_source_categories')->where('slug', $slug)->first();
+        if (!$category) {
+            return response()->json(['error' => "Source '{$slug}' introuvable."], 404);
+        }
+
+        $config = json_decode($category->config_json ?? '{}', true);
+        $config['is_visible'] = $request->boolean('visible');
+
+        DB::table('generation_source_categories')
+            ->where('slug', $slug)
+            ->update(['config_json' => json_encode($config), 'updated_at' => now()]);
+
+        Cache::forget('gen-source-command-center');
+        Cache::forget('gen-source-categories');
+
+        return response()->json([
+            'ok'         => true,
+            'slug'       => $slug,
+            'is_visible' => $config['is_visible'],
+        ]);
+    }
+
+    /**
+     * Update daily_quota for a source.
+     */
+    public function quota(string $slug, Request $request): JsonResponse
+    {
+        // Accept both 'quota' and 'daily' (frontend sends 'daily')
+        $request->validate(['quota' => 'nullable|integer|min:0|max:100', 'daily' => 'nullable|integer|min:0|max:100']);
+        $value = $request->filled('daily') ? $request->input('daily') : $request->input('quota');
+        if ($value === null) return response()->json(['error' => 'Missing quota or daily field'], 422);
+
+        $category = DB::table('generation_source_categories')->where('slug', $slug)->first();
+        if (!$category) {
+            return response()->json(['error' => "Source '{$slug}' introuvable."], 404);
+        }
+
+        $config = json_decode($category->config_json ?? '{}', true);
+        $config['daily_quota'] = (int) $value;
+
+        DB::table('generation_source_categories')
+            ->where('slug', $slug)
+            ->update(['config_json' => json_encode($config), 'updated_at' => now()]);
+
+        Cache::forget('gen-source-command-center');
+
+        return response()->json([
+            'ok'          => true,
+            'slug'        => $slug,
+            'daily_quota' => $config['daily_quota'],
+        ]);
+    }
+
+    /**
+     * Trigger generation for ALL sources using the percentage scheduler.
+     * Respects total_daily config + weight_percent per source.
+     */
+    public function triggerAll(Request $request): JsonResponse
+    {
+        $scheduler = app(\App\Services\Content\GenerationSourceSchedulerService::class);
+        $total     = $request->filled('total') ? (int) $request->input('total') : null;
+        $result    = $scheduler->runDaily($total);
+
+        $launched = array_keys($result['dispatched']);
+        $skipped  = $result['skipped'];
+
+        return response()->json([
+            'ok'              => true,
+            'launched'        => $launched,
+            'skipped'         => $skipped,
+            'total_target'    => $result['total_target'],
+            'total_dispatched'=> $result['total_dispatched'],
+            'dispatched'      => $result['dispatched'],
+            'message'         => $result['total_dispatched'] . ' articles répartis sur ' . count($launched) . ' sources.',
+        ]);
+    }
+
+    /**
+     * Get + update global scheduler config (total_daily, schedule_mode).
+     */
+    public function schedulerConfig(Request $request): JsonResponse
+    {
+        $scheduler = app(\App\Services\Content\GenerationSourceSchedulerService::class);
+
+        if ($request->isMethod('POST')) {
+            $request->validate([
+                'total_daily'   => 'required|integer|min:1|max:500',
+                'schedule_mode' => 'nullable|in:percentage,manual',
+            ]);
+            $scheduler->updateGlobalConfig(
+                (int) $request->input('total_daily'),
+                $request->input('schedule_mode', 'percentage')
+            );
+        }
+
+        // Always return current preview distribution
+        $preview = $scheduler->previewDistribution();
+        return response()->json(['ok' => true, 'preview' => $preview]);
+    }
+
+    /**
+     * Update weight_percent for a source (percentage mode).
+     */
+    public function weight(string $slug, Request $request): JsonResponse
+    {
+        $request->validate(['weight' => 'required|integer|min:0|max:100']);
+
+        $category = DB::table('generation_source_categories')->where('slug', $slug)->first();
+        if (!$category) {
+            return response()->json(['error' => "Source '{$slug}' introuvable."], 404);
+        }
+
+        $scheduler = app(\App\Services\Content\GenerationSourceSchedulerService::class);
+        $scheduler->updateWeight($slug, (int) $request->input('weight'));
+
+        return response()->json([
+            'ok'     => true,
+            'slug'   => $slug,
+            'weight' => (int) $request->input('weight'),
         ]);
     }
 

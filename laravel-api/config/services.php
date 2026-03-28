@@ -46,6 +46,12 @@ return [
         'model'   => env('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514'),
     ],
 
+    'claude' => [
+        'api_key' => env('ANTHROPIC_API_KEY', ''),
+        'model'   => env('CLAUDE_MODEL', 'claude-sonnet-4-6'),
+        'timeout' => (int) env('CLAUDE_TIMEOUT', 180),
+    ],
+
     'perplexity' => [
         'api_key' => env('PERPLEXITY_API_KEY', ''),
         'model'   => env('PERPLEXITY_MODEL', 'sonar'),

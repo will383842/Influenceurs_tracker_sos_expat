@@ -9,12 +9,14 @@ class PressPublication extends Model
 {
     protected $fillable = [
         'name', 'slug', 'base_url', 'team_url', 'contact_url',
-        'media_type', 'topics', 'language', 'country',
-        'contacts_count', 'status', 'last_error', 'last_scraped_at',
+        'authors_url', 'articles_url', 'email_pattern', 'email_domain',
+        'media_type', 'category', 'topics', 'language', 'country',
+        'contacts_count', 'authors_discovered', 'emails_inferred', 'emails_verified',
+        'status', 'last_error', 'last_scraped_at',
     ];
 
     protected $casts = [
-        'topics' => 'array',
+        'topics'          => 'array',
         'last_scraped_at' => 'datetime',
     ];
 

@@ -77,12 +77,15 @@ class BlogPublisher
             $allTags = $allTags->merge($parentArticle->keywords_secondary);
         }
 
-        // Map content_type → blog category_slug (3-category taxonomy)
+        // Map content_type → blog category_slug (7-category taxonomy)
         $categorySlug = match ($parentArticle->content_type) {
-            'guide', 'pillar'          => 'fiches-pays',
-            'article', 'tutorial'      => 'fiches-pratiques',
-            'qa', 'comparative', 'news', 'landing', 'press', 'press_release' => 'fiches-thematiques',
-            default                    => 'fiches-pratiques',
+            'guide', 'pillar', 'guide_city'                           => 'fiches-pays',
+            'article', 'tutorial', 'partner_legal', 'partner_expat'  => 'fiches-pratiques',
+            'qa', 'comparative', 'news', 'testimonial', 'qa_needs',
+                'press', 'press_release'                              => 'fiches-thematiques',
+            'outreach'                                                => 'programme',
+            'affiliation', 'landing'                                  => 'affiliation',
+            default                                                   => 'fiches-pratiques',
         };
 
         // ── Build sources array ──────────────────────────────────
@@ -101,6 +104,7 @@ class BlogPublisher
             'idempotency_key'    => $parentArticle->uuid ?? ($parentArticle->id . '_' . now()->timestamp),
             'external_id'        => $parentArticle->uuid,
             'content_type'       => $parentArticle->content_type ?? 'article',
+            'source_slug'        => $parentArticle->source_slug ?? null,
             'category_slug'      => $categorySlug,
             'status'             => 'draft',
             'featured_image_url' => $parentArticle->featured_image_url,

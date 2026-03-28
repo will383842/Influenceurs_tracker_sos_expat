@@ -35,6 +35,8 @@ import CityProfiles from './pages/content/CityProfiles';
 import CityProfileDetail from './pages/content/CityProfileDetail';
 import ContentContacts from './pages/content/ContentContacts';
 import JournalistContacts from './pages/contacts/JournalistContacts';
+import ContactsBase from './pages/contacts/ContactsBase';
+import ScrapingDashboard from './pages/scraping/ScrapingDashboard';
 import ContentQuestions from './pages/content/ContentQuestions';
 import ProspectionHub from './pages/prospection/ProspectionHub';
 import ProspectionOverview from './pages/prospection/ProspectionOverview';
@@ -84,7 +86,11 @@ const PressDetail = React.lazy(() => import('./pages/content/PressDetail'));
 const DossierDetail = React.lazy(() => import('./pages/content/DossierDetail'));
 const DataCleanupDashboard = React.lazy(() => import('./pages/content/DataCleanupDashboard'));
 const GenerationSources = React.lazy(() => import('./pages/content/GenerationSources'));
+const SourceDetail = React.lazy(() => import('./pages/content/SourceDetail'));
+const ContentCommandCenter = React.lazy(() => import('./pages/content/ContentCommandCenter'));
 const CountryDirectoryPage = React.lazy(() => import('./pages/content/CountryDirectoryPage'));
+const SondagesList = React.lazy(() => import('./pages/content/SondagesList'));
+const SondagesResultats = React.lazy(() => import('./pages/content/SondagesResultats'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = React.useContext(AuthContext);
@@ -155,10 +161,14 @@ export default function App() {
             <Route path="content/lawyers" element={<AdminRoute><LawyerDirectory /></AdminRoute>} />
             <Route path="content/contacts" element={<AdminRoute><ContentContacts /></AdminRoute>} />
             <Route path="contacts/journalistes" element={<AdminRoute><JournalistContacts /></AdminRoute>} />
+            <Route path="contacts/base" element={<AdminRoute><ContactsBase /></AdminRoute>} />
+            <Route path="scraping/dashboard" element={<AdminRoute><ScrapingDashboard /></AdminRoute>} />
             <Route path="content/questions" element={<AdminRoute><ContentQuestions /></AdminRoute>} />
             <Route path="content/affiliates" element={<AdminRoute><AffiliateLinks /></AdminRoute>} />
             <Route path="content/data-cleanup" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><DataCleanupDashboard /></React.Suspense></AdminRoute>} />
+            <Route path="content/command-center" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><ContentCommandCenter /></React.Suspense></AdminRoute>} />
             <Route path="content/sources" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><GenerationSources /></React.Suspense></AdminRoute>} />
+            <Route path="content/sources/:sourceType" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><SourceDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/countries" element={<AdminRoute><CountryProfiles /></AdminRoute>} />
             <Route path="content/country/:countrySlug" element={<AdminRoute><CountryProfileDetail /></AdminRoute>} />
             <Route path="content/cities" element={<AdminRoute><CityProfiles /></AdminRoute>} />
@@ -191,6 +201,8 @@ export default function App() {
             <Route path="content/landings/new" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><LandingCreate /></React.Suspense></AdminRoute>} />
             <Route path="content/landings/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><LandingDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/press" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><PressList /></React.Suspense></AdminRoute>} />
+            <Route path="content/sondages" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><SondagesList /></React.Suspense></AdminRoute>} />
+            <Route path="content/sondages/resultats" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><SondagesResultats /></React.Suspense></AdminRoute>} />
             <Route path="content/press/releases/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><PressDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/press/dossiers/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><DossierDetail /></React.Suspense></AdminRoute>} />
             <Route path="seo/keywords" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><KeywordTracker /></React.Suspense></AdminRoute>} />

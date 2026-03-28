@@ -64,15 +64,16 @@ export default function Layout() {
 
   // Helper: determine which groups should be open for a given path
   const getGroupsForPath = (path: string) => ({
-    contacts: path.startsWith('/influenceurs') || path === '/a-relancer',
-    acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/directories' || path === '/admin/avancement',
+    contacts: path.startsWith('/influenceurs') || path === '/a-relancer' || path === '/contacts/base',
+    acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/admin/avancement',
+    scraping: path === '/directories' || path === '/contacts/journalistes' || path === '/admin/scraper' || path.startsWith('/content/sites') || path.startsWith('/content/businesses') || path.startsWith('/content/lawyers') || path.startsWith('/content/country-directory') || path.startsWith('/scraping'),
     content: path.startsWith('/content'),
-    contentEngine: path === '/content/overview' || path === '/content/scheduler' || path === '/content/taxonomies' || path === '/content/publication' || path === '/content/quality' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press'),
+    contentEngine: path === '/content/command-center' || path === '/content/overview' || path === '/content/scheduler' || path === '/content/taxonomies' || path === '/content/publication' || path === '/content/quality' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press') || path.startsWith('/content/sources'),
     seo: path.startsWith('/seo'),
     publication: path === '/publishing' || path === '/media' || path === '/costs',
     translations: path === '/translations',
     prospection: path.startsWith('/prospection') || path === '/outreach',
-    parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/scraper') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
+    parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
   });
 
   // Track which nav groups are expanded
@@ -84,6 +85,7 @@ export default function Layout() {
     setOpenGroups(prev => ({
       contacts: prev.contacts || needed.contacts,
       acquisition: prev.acquisition || needed.acquisition,
+      scraping: prev.scraping || needed.scraping,
       content: prev.content || needed.content,
       contentEngine: prev.contentEngine || needed.contentEngine,
       seo: prev.seo || needed.seo,
@@ -207,11 +209,11 @@ export default function Layout() {
                 isOpen={openGroups.contacts}
                 onToggle={() => toggleGroup('contacts')}
               >
-                <NavLink to="/influenceurs" className={subNavClass} onClick={handleNavClick}>
-                  Liste des contacts
+                <NavLink to="/contacts/base" className={subNavClass} onClick={handleNavClick}>
+                  🗂️ Base unifiée & triage
                 </NavLink>
-                <NavLink to="/contacts/journalistes" className={subNavClass} onClick={handleNavClick}>
-                  Journalistes & Presse
+                <NavLink to="/influenceurs" className={subNavClass} onClick={handleNavClick}>
+                  CRM principal
                 </NavLink>
                 <NavLink to="/a-relancer" className={subNavClass} onClick={handleNavClick}>
                   <span className="flex items-center gap-2">
@@ -225,7 +227,42 @@ export default function Layout() {
                 </NavLink>
               </NavGroup>
 
-              {/* 3. Acquisition (group) - admin/manager */}
+              {/* 3. Outils de Scraping (group) - admin only */}
+              {isAdmin && (
+                <NavGroup
+                  label="Outils de Scraping"
+                  icon="🔧"
+                  isOpen={openGroups.scraping}
+                  onToggle={() => toggleGroup('scraping')}
+                >
+                  <NavLink to="/scraping/dashboard" className={subNavClass} onClick={handleNavClick}>
+                    📡 Tableau de bord scraping
+                  </NavLink>
+                  <NavLink to="/contacts/journalistes" className={subNavClass} onClick={handleNavClick}>
+                    🗞️ Journalistes & Presse
+                  </NavLink>
+                  <NavLink to="/directories" className={subNavClass} onClick={handleNavClick}>
+                    📚 Annuaires web
+                  </NavLink>
+                  <NavLink to="/content/lawyers" className={subNavClass} onClick={handleNavClick}>
+                    ⚖️ Avocats
+                  </NavLink>
+                  <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
+                    🏢 Entreprises
+                  </NavLink>
+                  <NavLink to="/content/sites" className={subNavClass} onClick={handleNavClick}>
+                    🌐 Sites web
+                  </NavLink>
+                  <NavLink to="/content/country-directory" className={subNavClass} onClick={handleNavClick}>
+                    🗺️ Annuaire Pays
+                  </NavLink>
+                  <NavLink to="/admin/scraper" className={subNavClass} onClick={handleNavClick}>
+                    ⚙️ Configuration scraper
+                  </NavLink>
+                </NavGroup>
+              )}
+
+              {/* 4. Acquisition (group) - admin/manager */}
               {canAccessAI && (
                 <NavGroup
                   label="Acquisition"
@@ -240,9 +277,6 @@ export default function Layout() {
                   )}
                   <NavLink to="/ai-research" className={subNavClass} onClick={handleNavClick}>
                     Recherche IA
-                  </NavLink>
-                  <NavLink to="/directories" className={subNavClass} onClick={handleNavClick}>
-                    Annuaires
                   </NavLink>
                   {isAdmin && (
                     <NavLink to="/admin/avancement" className={subNavClass} onClick={handleNavClick}>
@@ -281,10 +315,10 @@ export default function Layout() {
                 </NavGroup>
               )}
 
-              {/* 5. Données scrappées brutes - admin only */}
+              {/* 5. Données scrappées - admin only */}
               {isAdmin && (
                 <NavGroup
-                  label="Donnees scrappees"
+                  label="Données scrappées"
                   icon="📄"
                   isOpen={openGroups.content}
                   onToggle={() => toggleGroup('content')}
@@ -292,20 +326,11 @@ export default function Layout() {
                   <NavLink to="/content" end className={subNavClass} onClick={handleNavClick}>
                     Dashboard
                   </NavLink>
-                  <NavLink to="/content/sites" className={subNavClass} onClick={handleNavClick}>
-                    Les Sites
-                  </NavLink>
-                  <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
-                    Annuaire Entreprises
-                  </NavLink>
-                  <NavLink to="/content/country-directory" className={subNavClass} onClick={handleNavClick}>
-                    Annuaire Pays
-                  </NavLink>
-                  <NavLink to="/content/lawyers" className={subNavClass} onClick={handleNavClick}>
-                    Avocats
-                  </NavLink>
                   <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
                     Fiches Pays
+                  </NavLink>
+                  <NavLink to="/content/cities" className={subNavClass} onClick={handleNavClick}>
+                    Fiches Villes
                   </NavLink>
                   <NavLink to="/content/contacts" className={subNavClass} onClick={handleNavClick}>
                     Contacts
@@ -314,7 +339,7 @@ export default function Layout() {
                     Q&A Forum
                   </NavLink>
                   <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
-                    Liens Affilies
+                    Liens Affiliés
                   </NavLink>
                   <NavLink to="/content/links" className={subNavClass} onClick={handleNavClick}>
                     Tous les liens
@@ -325,16 +350,19 @@ export default function Layout() {
                 </NavGroup>
               )}
 
-              {/* Sources de contenu + outils de génération - admin only */}
+              {/* Content Generator - admin only */}
               {isAdmin && (
                 <NavGroup
-                  label="Sources de contenu"
+                  label="Content Generator"
                   icon="✍️"
                   isOpen={openGroups.contentEngine}
                   onToggle={() => toggleGroup('contentEngine')}
                 >
+                  <NavLink to="/content/command-center" className={subNavClass} onClick={handleNavClick}>
+                    ⚡ Command Center
+                  </NavLink>
                   <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
-                    Sources de generation
+                    Sources de génération
                   </NavLink>
                   <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
                     Vue d'ensemble
@@ -374,6 +402,12 @@ export default function Layout() {
                   </NavLink>
                   <NavLink to="/content/press" className={subNavClass} onClick={handleNavClick}>
                     Presse
+                  </NavLink>
+                  <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
+                    Sondages
+                  </NavLink>
+                  <NavLink to="/content/sondages/resultats" className={subNavClass} onClick={handleNavClick}>
+                    Résultats de sondages
                   </NavLink>
                 </NavGroup>
               )}
@@ -453,9 +487,6 @@ export default function Layout() {
                   <NavLink to="/admin/prompts" className={subNavClass} onClick={handleNavClick}>
                     Prompts IA
                   </NavLink>
-                  <NavLink to="/admin/scraper" className={subNavClass} onClick={handleNavClick}>
-                    Scraper
-                  </NavLink>
                   <NavLink to="/admin/prompt-templates" className={subNavClass} onClick={handleNavClick}>
                     Prompts Content
                   </NavLink>
@@ -480,11 +511,6 @@ export default function Layout() {
                   <NavLink to="/journal" className={navClass} onClick={handleNavClick}>
                     <span>📝</span> Journal
                   </NavLink>
-                  {!canAccessAI && (
-                    <NavLink to="/directories" className={navClass} onClick={handleNavClick}>
-                      <span>📚</span> Annuaires
-                    </NavLink>
-                  )}
                 </>
               )}
             </>

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ScrapePressPublicationJob;
+use App\Jobs\ScrapePublicationAuthorsJob;
 use App\Models\PressContact;
 use App\Models\PressPublication;
+use App\Services\EmailInferenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -84,6 +86,87 @@ class JournalistController extends Controller
             $delay += 5;
         }
         return response()->json(['message' => "{$pubs->count()} publications envoyées en queue", 'queued' => $pubs->count()]);
+    }
+
+    /**
+     * Launch deep author/byline scraping (+ email inference) for one or all publications.
+     * Uses ScrapePublicationAuthorsJob which reads authors_url + articles_url.
+     */
+    public function scrapeAuthors(Request $request): JsonResponse
+    {
+        $pubId       = $request->input('publication_id');
+        $inferEmails = $request->boolean('infer_emails', true);
+        $maxPages    = (int) $request->input('max_article_pages', 5);
+
+        if ($pubId) {
+            $pub = PressPublication::findOrFail($pubId);
+            ScrapePublicationAuthorsJob::dispatch($pub->id, $inferEmails, $maxPages);
+            return response()->json(['message' => "Scraping auteurs lancé pour {$pub->name}", 'queued' => 1]);
+        }
+
+        // All publications that have at least authors_url or articles_url configured
+        $pubs = PressPublication::where(function ($q) {
+            $q->whereNotNull('authors_url')->orWhereNotNull('articles_url');
+        })->get();
+
+        $delay = 0;
+        foreach ($pubs as $pub) {
+            ScrapePublicationAuthorsJob::dispatch($pub->id, $inferEmails, $maxPages)
+                ->delay(now()->addSeconds($delay));
+            $delay += 10; // slightly more spacing for heavy jobs
+        }
+
+        return response()->json([
+            'message' => "{$pubs->count()} publications en queue pour scraping auteurs",
+            'queued'  => $pubs->count(),
+        ]);
+    }
+
+    /**
+     * Run email inference only (no scraping) for one or all publications.
+     */
+    public function inferEmails(Request $request, EmailInferenceService $svc): JsonResponse
+    {
+        $pubId = $request->input('publication_id');
+
+        if ($pubId) {
+            $pub    = PressPublication::findOrFail($pubId);
+            $result = $svc->inferForPublication($pub);
+            Cache::forget('journalist-stats');
+            return response()->json(array_merge(['publication' => $pub->name], $result));
+        }
+
+        $pubs = PressPublication::whereNotNull('email_pattern')
+            ->whereNotNull('email_domain')
+            ->get();
+
+        $totals = ['inferred' => 0, 'skipped' => 0, 'publications' => $pubs->count()];
+        foreach ($pubs as $pub) {
+            $r = $svc->inferForPublication($pub);
+            $totals['inferred'] += $r['inferred'];
+            $totals['skipped']  += $r['skipped'];
+        }
+
+        Cache::forget('journalist-stats');
+        return response()->json($totals);
+    }
+
+    /**
+     * Update scraping config (authors_url, articles_url, email_pattern, email_domain) for a publication.
+     */
+    public function updatePublicationConfig(Request $request, int $id): JsonResponse
+    {
+        $pub  = PressPublication::findOrFail($id);
+        $data = $request->validate([
+            'authors_url'   => 'nullable|url|max:500',
+            'articles_url'  => 'nullable|url|max:500',
+            'email_pattern' => 'nullable|string|max:100',
+            'email_domain'  => 'nullable|string|max:100',
+            'team_url'      => 'nullable|url|max:500',
+            'contact_url'   => 'nullable|url|max:500',
+        ]);
+        $pub->update($data);
+        return response()->json($pub);
     }
 
     // ─── CONTACTS ─────────────────────────────────────────────────────────

@@ -132,6 +132,222 @@ class ContentTypeConfig
                     . "suivie d'une reponse detaillee structuree.",
             ],
 
+            // CITY GUIDES (fiches villes — sous-type de guide, focus ville spécifique)
+            'guide_city' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.65,
+                'min_words' => 2500,
+                'max_words' => 4000,
+                'target_words' => 3000,
+                'target_words_range' => '2500-4000',
+                'length' => 'long',
+                'faq_count' => 8,
+                'max_tokens_content' => 10000,
+                'max_tokens_title' => 100,
+                'internal_links' => 6,
+                'external_links' => 3,
+                'images_count' => 3,
+                'featured_snippet' => true,
+                'comparison_table' => true,
+                'numbered_steps' => false,
+                'research_depth' => 'deep',
+                'quality_threshold' => 85,
+                'h2_count' => [6, 10],
+                'include_charts_data' => true,
+                'include_key_figures' => true,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Guide complet sur cette VILLE spécifique pour les expatriés. "
+                    . "Inclure : coût de la vie par quartier, transports, activités, communauté expat locale, "
+                    . "logement, sécurité, comparaison avec d'autres villes du même pays.",
+            ],
+
+            // TESTIMONIALS (témoignages d'expatriés, social proof)
+            'testimonial' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.8,
+                'min_words' => 1200,
+                'max_words' => 2500,
+                'target_words' => 1800,
+                'target_words_range' => '1200-2500',
+                'length' => 'medium',
+                'faq_count' => 4,
+                'max_tokens_content' => 5000,
+                'max_tokens_title' => 90,
+                'internal_links' => 4,
+                'external_links' => 1,
+                'images_count' => 1,
+                'featured_snippet' => false,
+                'comparison_table' => false,
+                'numbered_steps' => false,
+                'research_depth' => 'light',
+                'quality_threshold' => 75,
+                'h2_count' => [4, 6],
+                'include_charts_data' => false,
+                'include_key_figures' => false,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Témoignage authentique d'un expatrié. "
+                    . "Style narratif à la première personne (simulé). "
+                    . "Inclure : contexte de départ, défis rencontrés, bonnes surprises, conseils concrets pour ceux qui veulent faire pareil. "
+                    . "NE PAS inventer de données chiffrées précises, rester dans le vécu personnel.",
+            ],
+
+            // Q&A NEEDS (longue traîne — intentions de recherche précises)
+            'qa_needs' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.5,
+                'min_words' => 600,
+                'max_words' => 1500,
+                'target_words' => 900,
+                'target_words_range' => '600-1500',
+                'length' => 'short',
+                'faq_count' => 0,
+                'max_tokens_content' => 2500,
+                'max_tokens_title' => 80,
+                'internal_links' => 2,
+                'external_links' => 1,
+                'images_count' => 0,
+                'featured_snippet' => true,
+                'comparison_table' => false,
+                'numbered_steps' => true,
+                'research_depth' => 'light',
+                'quality_threshold' => 75,
+                'h2_count' => [2, 4],
+                'include_charts_data' => false,
+                'include_key_figures' => false,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Page longue traîne optimisée pour une intention de recherche très précise. "
+                    . "Réponse directe en 40-60 mots (featured snippet position 0) puis développement court. "
+                    . "Structurer autour de l'intention exacte de l'internaute.",
+            ],
+
+            // PARTNER LEGAL (contenus partenaires avocats — expertise juridique)
+            'partner_legal' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.4,
+                'min_words' => 1500,
+                'max_words' => 3000,
+                'target_words' => 2000,
+                'target_words_range' => '1500-3000',
+                'length' => 'long',
+                'faq_count' => 6,
+                'max_tokens_content' => 7000,
+                'max_tokens_title' => 100,
+                'internal_links' => 4,
+                'external_links' => 3,
+                'images_count' => 1,
+                'featured_snippet' => true,
+                'comparison_table' => false,
+                'numbered_steps' => true,
+                'research_depth' => 'deep',
+                'quality_threshold' => 90,
+                'h2_count' => [5, 8],
+                'include_charts_data' => false,
+                'include_key_figures' => true,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Article juridique expert sur un sujet lié à l'expatriation. "
+                    . "Ton professionnel et précis. Mentionner les textes de loi applicables si pertinent. "
+                    . "Inclure les étapes concrètes, les délais, les coûts estimatifs, et les erreurs à éviter. "
+                    . "AJOUTER une clause de non-responsabilité en fin d'article.",
+            ],
+
+            // PARTNER EXPAT (contenus partenaires expats — vécu terrain)
+            'partner_expat' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.75,
+                'min_words' => 1200,
+                'max_words' => 2500,
+                'target_words' => 1800,
+                'target_words_range' => '1200-2500',
+                'length' => 'medium',
+                'faq_count' => 5,
+                'max_tokens_content' => 5000,
+                'max_tokens_title' => 90,
+                'internal_links' => 4,
+                'external_links' => 2,
+                'images_count' => 2,
+                'featured_snippet' => false,
+                'comparison_table' => false,
+                'numbered_steps' => true,
+                'research_depth' => 'standard',
+                'quality_threshold' => 80,
+                'h2_count' => [4, 6],
+                'include_charts_data' => false,
+                'include_key_figures' => false,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Article basé sur l'expérience terrain d'un expatrié prestataire partenaire. "
+                    . "Mélanger expertise professionnelle et vécu personnel. "
+                    . "Conseils pratiques et actionnables, ton accessible.",
+            ],
+
+            // OUTREACH (recrutement : chatters, bloggeurs, admin groups)
+            // Objectif : convaincre des candidats potentiels de rejoindre le programme
+            // research_depth = 'none' : GPT connaît le programme, Perplexity inutile ici
+            'outreach' => [
+                'model' => 'gpt-4o',
+                'research_model' => null,          // pas de recherche externe
+                'temperature' => 0.8,
+                'min_words' => 800,
+                'max_words' => 1500,
+                'target_words' => 1000,
+                'target_words_range' => '800-1500',
+                'length' => 'short',
+                'faq_count' => 4,
+                'max_tokens_content' => 3500,
+                'max_tokens_title' => 80,
+                'internal_links' => 3,
+                'external_links' => 1,
+                'images_count' => 1,
+                'featured_snippet' => false,
+                'comparison_table' => false,
+                'numbered_steps' => true,
+                'research_depth' => 'none',        // skip Perplexity — GPT génère de sa propre connaissance
+                'quality_threshold' => 75,
+                'h2_count' => [3, 5],
+                'include_charts_data' => false,
+                'include_key_figures' => true,
+                'eeat_signals' => false,
+                'prompt_suffix' => "Article de recrutement / outreach. "
+                    . "Objectif : convaincre le lecteur de rejoindre le programme SOS-Expat. "
+                    . "Ton enthousiaste mais honnête. Mettre en avant les avantages concrets (commissions, flexibilité, communauté). "
+                    . "Inclure un CTA clair en fin d'article.",
+            ],
+
+            // AFFILIATION (landing pages conversion avec liens affiliés)
+            'affiliation' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.6,
+                'min_words' => 1000,
+                'max_words' => 2500,
+                'target_words' => 1500,
+                'target_words_range' => '1000-2500',
+                'length' => 'medium',
+                'faq_count' => 5,
+                'max_tokens_content' => 5000,
+                'max_tokens_title' => 90,
+                'internal_links' => 3,
+                'external_links' => 5,
+                'images_count' => 2,
+                'featured_snippet' => true,
+                'comparison_table' => true,
+                'numbered_steps' => false,
+                'research_depth' => 'standard',
+                'quality_threshold' => 80,
+                'h2_count' => [4, 7],
+                'include_charts_data' => true,
+                'include_key_figures' => true,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Article d'affiliation comparatif et orienté conversion. "
+                    . "Comparer objectivement les services (prix, avantages, inconvénients). "
+                    . "Les liens affiliés doivent apparaître naturellement dans le contexte. "
+                    . "Inclure des avis utilisateurs simulés et un tableau comparatif.",
+            ],
+
             // DEFAULT
             default => [
                 'model' => 'gpt-4o',

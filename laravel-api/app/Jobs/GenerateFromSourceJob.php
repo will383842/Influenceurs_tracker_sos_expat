@@ -1,0 +1,341 @@
+<?php
+
+namespace App\Jobs;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * Connects the 14-source system to ArticleGenerationService.
+ *
+ * Picks N "ready" items from generation_source_items for a given source,
+ * adapts params per source type AND per item input_quality,
+ * then dispatches GenerateArticleJob for each item.
+ *
+ * source  → determines content_type, blog_category, keyword strategy
+ * item    → determines input_quality, source_content, topic
+ */
+class GenerateFromSourceJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $timeout = 300;
+    public int $tries   = 2;
+
+    // Sources that don't generate articles
+    private const SKIP_SOURCES = ['annuaires'];
+
+    public function __construct(
+        public readonly string $sourceSlug,
+        public readonly int    $quota = 3,
+    ) {
+        $this->onQueue('content');
+    }
+
+    public function handle(): void
+    {
+        if (in_array($this->sourceSlug, self::SKIP_SOURCES, true)) {
+            Log::info("GenerateFromSourceJob: [{$this->sourceSlug}] is a directory — skip");
+            return;
+        }
+
+        // Check source exists and is not paused
+        $category = DB::table('generation_source_categories')
+            ->where('slug', $this->sourceSlug)
+            ->first();
+
+        if (!$category) {
+            Log::warning("GenerateFromSourceJob: source '{$this->sourceSlug}' not found in DB");
+            return;
+        }
+
+        $config = json_decode($category->config_json ?? '{}', true);
+        if ($config['is_paused'] ?? false) {
+            Log::info("GenerateFromSourceJob: source '{$this->sourceSlug}' is paused — skip");
+            return;
+        }
+
+        // Effective quota: use argument OR source config
+        $effectiveQuota = $this->quota > 0
+            ? $this->quota
+            : (int) ($config['daily_quota'] ?? 3);
+
+        if ($effectiveQuota === 0) {
+            Log::info("GenerateFromSourceJob: quota=0 for '{$this->sourceSlug}' — skip");
+            return;
+        }
+
+        // Pick best ready items (highest quality_score first)
+        $items = DB::table('generation_source_items')
+            ->where('category_slug', $this->sourceSlug)
+            ->where('processing_status', 'ready')
+            ->where('is_cleaned', true)
+            ->orderByDesc('quality_score')
+            ->limit($effectiveQuota)
+            ->get();
+
+        if ($items->isEmpty()) {
+            // Fallback: try unclean items if no clean ones available
+            $items = DB::table('generation_source_items')
+                ->where('category_slug', $this->sourceSlug)
+                ->where('processing_status', 'ready')
+                ->orderByDesc('quality_score')
+                ->limit($effectiveQuota)
+                ->get();
+        }
+
+        if ($items->isEmpty()) {
+            Log::info("GenerateFromSourceJob: no ready items for '{$this->sourceSlug}'");
+            return;
+        }
+
+        // Lock items immediately to prevent double-dispatch
+        DB::table('generation_source_items')
+            ->whereIn('id', $items->pluck('id')->toArray())
+            ->update(['processing_status' => 'processing', 'updated_at' => now()]);
+
+        $dispatched = 0;
+        foreach ($items as $item) {
+            try {
+                $params = $this->buildParams($item);
+                if ($params === null) {
+                    DB::table('generation_source_items')
+                        ->where('id', $item->id)
+                        ->update(['processing_status' => 'ready']);
+                    continue;
+                }
+
+                GenerateArticleJob::dispatch($params)->onQueue('content');
+                $dispatched++;
+
+                Log::info("GenerateFromSourceJob: dispatched item #{$item->id} [{$item->title}]", [
+                    'source'       => $this->sourceSlug,
+                    'content_type' => $params['content_type'],
+                    'input_quality'=> $params['input_quality'],
+                    'has_content'  => !empty($params['source_content']),
+                ]);
+            } catch (\Throwable $e) {
+                Log::error("GenerateFromSourceJob: error on item #{$item->id}", [
+                    'error' => $e->getMessage(),
+                ]);
+                // Roll back so item can be retried
+                DB::table('generation_source_items')
+                    ->where('id', $item->id)
+                    ->update(['processing_status' => 'ready']);
+            }
+        }
+
+        Log::info("GenerateFromSourceJob: done [{$this->sourceSlug}] dispatched={$dispatched}/{$items->count()}");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Params builder
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Build ArticleGenerationService $params for one item.
+     * Two-level decision: source slug → content_type, item → input_quality + content.
+     */
+    private function buildParams(object $item): ?array
+    {
+        [$contentType] = $this->resolveContentType($this->sourceSlug);
+
+        // Level 2: per-item input quality
+        $inputQuality  = $item->input_quality ?? $this->deriveInputQuality($item);
+        $sourceContent = $this->loadSourceContent($item, $inputQuality);
+        $topic         = $this->buildTopic($item, $this->sourceSlug);
+        $keywords      = $this->buildKeywords($item, $this->sourceSlug);
+
+        return [
+            'topic'               => $topic,
+            'content_type'        => $contentType,
+            'language'            => $item->language ?? 'fr',
+            'country'             => $item->country  ?? null,
+            'keywords'            => $keywords,
+            'source_slug'         => $this->sourceSlug,
+            'source_item_id'      => $item->id,
+            'input_quality'       => $inputQuality,
+            'source_content'      => $sourceContent,
+            'structured_data'     => $inputQuality === 'structured'
+                                     ? json_decode($item->data_json ?? '{}', true)
+                                     : null,
+            'auto_internal_links' => true,
+            'auto_affiliate_links'=> in_array($contentType, [
+                'affiliation', 'partner_legal', 'partner_expat'
+            ]),
+        ];
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Level 1 — Source slug → content_type
+    // ─────────────────────────────────────────────────────────────
+
+    private function resolveContentType(string $slug): array
+    {
+        return match ($slug) {
+            'fiche-pays'       => ['guide'],
+            'fiche-villes'     => ['guide_city'],
+            'qa'               => ['qa'],
+            'besoins-reels'    => ['qa_needs'],
+            'fiches-pratiques' => ['article'],
+            'comparatifs'      => ['comparative'],
+            'temoignages'      => ['testimonial'],
+            'chatters'         => ['outreach'],
+            'bloggeurs'        => ['outreach'],
+            'admin-groups'     => ['outreach'],
+            'affiliation'      => ['affiliation'],
+            'part-avocats'     => ['partner_legal'],
+            'part-expat'       => ['partner_expat'],
+            default            => ['article'],
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Level 2 — Item data → input_quality, content, topic, keywords
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Derive input_quality from item fields when not explicitly stored.
+     */
+    private function deriveInputQuality(object $item): string
+    {
+        if (!empty($item->data_json)) {
+            $data = json_decode($item->data_json ?? '{}', true);
+            if (!empty($data['article_ids']) || !empty($data['structured'])) {
+                return 'structured';
+            }
+        }
+        return ($item->word_count ?? 0) >= 200 ? 'full_content' : 'title_only';
+    }
+
+    /**
+     * Build the article topic from item title + source context.
+     */
+    private function buildTopic(object $item, string $slug): string
+    {
+        $title   = trim($item->title ?? '');
+        $country = $item->country ?? '';
+
+        // Outreach sources: enrich title with programme context
+        return match ($slug) {
+            'chatters'     => "Devenir Chatter SOS-Expat"
+                            . ($country ? " en {$country}" : '')
+                            . " : guide complet, missions et revenus",
+            'bloggeurs'    => "Devenir Bloggeur Affilié SOS-Expat"
+                            . ($country ? " en {$country}" : '')
+                            . " : comment gagner de l'argent avec votre blog",
+            'admin-groups' => "Devenir Admin de Groupe WhatsApp SOS-Expat"
+                            . ($country ? " en {$country}" : '')
+                            . " : rôle, missions et rémunération",
+            default        => !empty($title)
+                            ? $title
+                            : "Guide complet" . ($country ? " — {$country}" : ''),
+        };
+    }
+
+    /**
+     * Build keyword array tuned per source type.
+     */
+    private function buildKeywords(object $item, string $slug): array
+    {
+        $keywords = [];
+        $country  = $item->country ?? '';
+        $theme    = $item->theme   ?? '';
+        $title    = $item->title   ?? '';
+
+        // Primary keyword from title
+        if (!empty($title)) {
+            $keywords[] = mb_strtolower(trim(strip_tags($title)));
+        }
+
+        // Country secondary
+        if ($country) {
+            $keywords[] = "expatrié {$country}";
+        }
+
+        // Source-specific keyword set
+        $extra = match ($slug) {
+            'fiche-pays'       => ['guide expatrié', 'vivre à l\'étranger', "s'installer {$country}"],
+            'fiche-villes'     => ['vivre en ville expatrié', 'logement expat', "déménager {$country}"],
+            'qa'               => ['question expatrié', 'conseil expat', 'aide juridique'],
+            'besoins-reels'    => ['besoin expat', 'aide expatrié', 'problème à l\'étranger'],
+            'fiches-pratiques' => ['démarche pratique', 'guide pratique expat'],
+            'comparatifs'      => ['comparatif', 'meilleur choix', 'quelle option choisir'],
+            'temoignages'      => ['témoignage expatrié', 'expérience à l\'étranger'],
+            'chatters'         => ['chatter rémunéré', 'gagner argent téléphone', 'travail flexible domicile'],
+            'bloggeurs'        => ['blogueur affilié', 'gagner argent blog', 'revenu passif blog'],
+            'admin-groups'     => ['admin WhatsApp rémunéré', 'gérer communauté expat'],
+            'affiliation'      => ['affiliation', 'lien partenaire', 'recommandation rémunérée'],
+            'part-avocats'     => ['avocat expatrié', 'aide juridique', 'conseil juridique international'],
+            'part-expat'       => ['services expat', 'assistance expatriation', 'prestataire expat'],
+            default            => [],
+        };
+
+        $keywords = array_merge($keywords, array_filter($extra));
+
+        if (!empty($theme)) {
+            $keywords[] = $theme;
+        }
+
+        return array_values(array_unique(array_filter($keywords)));
+    }
+
+    /**
+     * Load source article/question content for full_content items.
+     * Returns null for title_only and structured items.
+     */
+    private function loadSourceContent(object $item, string $inputQuality): ?string
+    {
+        if ($inputQuality !== 'full_content' || empty($item->source_id)) {
+            return null;
+        }
+
+        if ($item->source_type === 'article') {
+            $row = DB::table('content_articles')
+                ->where('id', $item->source_id)
+                ->select('content_text', 'title', 'meta_description')
+                ->first();
+
+            return ($row && !empty($row->content_text)) ? $row->content_text : null;
+        }
+
+        if ($item->source_type === 'question') {
+            $row = DB::table('content_questions')
+                ->where('id', $item->source_id)
+                ->select('title', 'country', 'replies', 'views')
+                ->first();
+
+            if ($row) {
+                return "Question expat : {$row->title}\n"
+                     . "Pays : {$row->country}\n"
+                     . "Vues : {$row->views} · Réponses : {$row->replies}";
+            }
+        }
+
+        return null;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Error handler
+    // ─────────────────────────────────────────────────────────────
+
+    public function failed(\Throwable $e): void
+    {
+        Log::error("GenerateFromSourceJob failed for '{$this->sourceSlug}'", [
+            'error' => $e->getMessage(),
+            'trace' => mb_substr($e->getTraceAsString(), 0, 500),
+        ]);
+
+        // Roll back any items stuck in "processing" from this run
+        DB::table('generation_source_items')
+            ->where('category_slug', $this->sourceSlug)
+            ->where('processing_status', 'processing')
+            ->where('updated_at', '>=', now()->subMinutes(10))
+            ->update(['processing_status' => 'ready']);
+    }
+}

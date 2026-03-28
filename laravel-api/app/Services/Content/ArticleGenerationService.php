@@ -13,6 +13,7 @@ use App\Models\GenerationLog;
 use App\Models\PromptTemplate;
 use App\Models\ResearchBrief;
 use App\Models\TopicCluster;
+use App\Services\AI\ClaudeService;
 use App\Services\AI\OpenAiService;
 use App\Services\AI\UnsplashService;
 use App\Services\Content\SeoChecklistService;
@@ -34,6 +35,7 @@ class ArticleGenerationService
 {
     public function __construct(
         private OpenAiService $openAi,
+        private ClaudeService $claude,
         private UnsplashService $unsplash,
         private PerplexitySearchService $perplexity,
         private SeoAnalysisService $seoAnalysis,
@@ -87,6 +89,8 @@ class ArticleGenerationService
                 'status' => 'generating',
                 'generation_preset_id' => $params['preset_id'] ?? null,
                 'created_by' => $params['created_by'] ?? null,
+                'source_slug'   => $params['source_slug']   ?? null,
+                'input_quality' => $params['input_quality'] ?? null,
             ]);
         }
 
@@ -102,10 +106,34 @@ class ArticleGenerationService
             $validated = $this->phase01_validate($params);
             $this->logPhase($article, 'validate', 'success', null, 0, 0, $this->elapsed($phaseStart));
 
-            // Phase 2: Research (use cluster data if available, otherwise fresh research)
-            $phaseStart = microtime(true);
+            // Phase 2: Research
+            // Decision tree (in priority order):
+            //   1. Cluster         → extract facts from TopicCluster data
+            //   2. source_content  → extract facts from scraped article (+ optional Perplexity enrich)
+            //   3. research_depth = 'none' or (title_only + depth = 'light') → skip Perplexity (cost saving)
+            //   4. Default         → full Perplexity research
+            $phaseStart     = microtime(true);
+            $researchDepth  = $typeConfig['research_depth']  ?? 'standard';
+            $inputQuality   = $params['input_quality']        ?? null;
+            $skipPerplexity = $researchDepth === 'none'
+                || ($researchDepth === 'light' && $inputQuality === 'title_only');
+
             if (!empty($params['cluster_id'])) {
                 $research = $this->phase02_researchFromCluster((int) $params['cluster_id']);
+            } elseif (!empty($params['source_content'])) {
+                $research = $this->phase02_researchFromSourceContent(
+                    $params['topic'],
+                    $params['source_content'],
+                    $params['language'] ?? 'fr',
+                    $params['country'] ?? null,
+                    $researchDepth
+                );
+            } elseif ($skipPerplexity) {
+                // Light/outreach sources with no scraped content — GPT generates from its own knowledge
+                Log::info('ArticleGenerationService: skipping Perplexity (research_depth=' . $researchDepth . ', input_quality=' . $inputQuality . ')', [
+                    'topic' => $params['topic'] ?? '',
+                ]);
+                $research = ['facts' => [], 'sources' => [], 'lsi_keywords' => []];
             } else {
                 $research = $this->phase02_research(
                     $params['topic'],
@@ -352,6 +380,17 @@ class ArticleGenerationService
                 $this->sendTelegramAlert('15 — Traductions', $e->getMessage(), $article);
             }
 
+            // Mark source item as used
+            if (!empty($params['source_item_id'])) {
+                \Illuminate\Support\Facades\DB::table('generation_source_items')
+                    ->where('id', $params['source_item_id'])
+                    ->update([
+                        'processing_status' => 'used',
+                        'used_count'        => \Illuminate\Support\Facades\DB::raw('used_count + 1'),
+                        'updated_at'        => now(),
+                    ]);
+            }
+
             // Update cluster if generated from one
             if (!empty($params['cluster_id'])) {
                 TopicCluster::where('id', $params['cluster_id'])->update([
@@ -431,7 +470,14 @@ class ArticleGenerationService
         }
 
         // Validate content_type against known types
-        $validTypes = ['guide', 'pillar', 'article', 'comparative', 'qa', 'news', 'tutorial', 'landing', 'press', 'press_release'];
+        $validTypes = [
+            'guide', 'pillar', 'guide_city',
+            'article', 'tutorial', 'news',
+            'comparative', 'qa', 'qa_needs',
+            'testimonial', 'partner_legal', 'partner_expat',
+            'outreach', 'affiliation',
+            'landing', 'press', 'press_release',
+        ];
         if (!empty($params['content_type']) && !in_array($params['content_type'], $validTypes, true)) {
             $errors[] = 'Invalid content_type "' . $params['content_type'] . '". Must be one of: ' . implode(', ', $validTypes);
         }
@@ -446,8 +492,9 @@ class ArticleGenerationService
             Log::warning('ArticleGeneration: no keywords provided — SEO quality will be degraded');
         }
 
-        if (!$this->openAi->isConfigured()) {
-            $errors[] = 'OpenAI API key not configured';
+        // Validate that at least one AI service is configured
+        if (!$this->openAi->isConfigured() && !$this->claude->isConfigured()) {
+            $errors[] = 'No AI API key configured (OpenAI or Anthropic required)';
         }
 
         if (!empty($errors)) {
@@ -455,6 +502,72 @@ class ArticleGenerationService
         }
 
         return $params;
+    }
+
+    /**
+     * Phase 2 variant: extract research facts from existing scraped content.
+     * Used for full_content items — faster and cheaper than Perplexity.
+     * Still calls Perplexity to enrich with recent data if configured.
+     */
+    /**
+     * Phase 2 variant: extract research facts from existing scraped content.
+     * Used for full_content items — faster and cheaper than pure Perplexity.
+     *
+     * - Always: GPT extracts facts + LSI from the source text (cheap, fast)
+     * - If research_depth = 'deep' or 'standard': also calls Perplexity for recent data enrichment
+     * - If research_depth = 'light' or 'none': skip Perplexity (source content is enough)
+     */
+    private function phase02_researchFromSourceContent(
+        string $topic,
+        string $sourceContent,
+        string $language,
+        ?string $country,
+        string $researchDepth = 'standard'
+    ): array {
+        $facts   = [];
+        $sources = [];
+
+        // Step 1 — GPT extracts key facts from the scraped content (always done)
+        $truncated     = mb_substr(strip_tags($sourceContent), 0, 4000);
+        $extractResult = $this->openAi->complete(
+            "Tu es un assistant de recherche. Extrais les faits clés, chiffres, données importantes "
+            . "et points essentiels de ce contenu. "
+            . "Retourne en JSON : {\"facts\": [\"fait1\", \"fait2\", ...], \"lsi_keywords\": [\"mot1\", \"mot2\", ...]}",
+            "Contenu source :\n{$truncated}",
+            ['temperature' => 0.3, 'max_tokens' => 1000, 'json_mode' => true]
+        );
+
+        $lsiKeywords = [];
+        if ($extractResult['success']) {
+            $data        = json_decode($extractResult['content'], true);
+            $facts       = $data['facts']       ?? [];
+            $lsiKeywords = $data['lsi_keywords'] ?? [];
+        }
+
+        // Step 2 — Perplexity enrichment (only for deep/standard research depth)
+        $enrichWithPerplexity = in_array($researchDepth, ['deep', 'standard'], true)
+            && $this->perplexity->isConfigured();
+
+        if ($enrichWithPerplexity) {
+            $countryCtx = $country ? " en {$country}" : '';
+            $query      = "Données récentes {$countryCtx} sur : \"{$topic}\". "
+                        . "Statistiques " . date('Y') . ", lois en vigueur, informations pratiques à jour.";
+
+            $result = $this->perplexity->search($query, $language);
+            if ($result['success'] && !empty($result['text'])) {
+                foreach (explode("\n", $result['text']) as $line) {
+                    $line = trim($line);
+                    if (mb_strlen($line) > 20) {
+                        $facts[] = $line;
+                    }
+                }
+                foreach ($result['citations'] ?? [] as $citation) {
+                    $sources[] = ['url' => $citation, 'domain' => parse_url($citation, PHP_URL_HOST) ?? ''];
+                }
+            }
+        }
+
+        return ['facts' => $facts, 'sources' => $sources, 'lsi_keywords' => $lsiKeywords];
     }
 
     private function phase02_research(string $topic, string $language, ?string $country): array
@@ -795,6 +908,17 @@ class ArticleGenerationService
             $userPrompt .= "\n\nMOTS-CLÉS SÉMANTIQUES (LSI) à intégrer naturellement dans le texte :\n{$lsiList}\nCes mots doivent apparaître au moins 1 fois chacun dans l'article pour signaler à Google que l'article couvre le sujet en profondeur.";
         }
 
+        // If source content is provided (full_content items), inject it as GPT reference
+        $sourceContent = $params['source_content'] ?? null;
+        if (!empty($sourceContent)) {
+            $truncated = mb_substr(strip_tags($sourceContent), 0, 3000);
+            $userPrompt .= "\n\n═══ CONTENU SOURCE À ENRICHIR ═══\n"
+                . "Voici le contenu existant sur ce sujet. Ne le recopie PAS — utilise-le comme base "
+                . "pour créer un article BIEN MEILLEUR : plus complet, mieux structuré, avec plus de données, "
+                . "d'exemples concrets et de valeur ajoutée. Réécris et enrichis :\n\n"
+                . $truncated;
+        }
+
         // Token limits for world-class content (1 French word ≈ 1.8 tokens + HTML overhead ~30%)
         $maxTokens = $typeConfig['max_tokens_content'] ?? match ($params['length'] ?? $typeConfig['length'] ?? 'long') {
             'short' => 8000,       // ~2000 words + HTML
@@ -804,7 +928,7 @@ class ArticleGenerationService
             default => 16384,
         };
 
-        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+        $result = $this->aiComplete($systemPrompt, $userPrompt, [
             'model' => $typeConfig['model'] ?? null,
             'temperature' => $typeConfig['temperature'] ?? 0.7,
             'max_tokens' => $maxTokens,
@@ -1626,5 +1750,20 @@ class ArticleGenerationService
         } catch (\Throwable $e) {
             Log::debug('Telegram success notification failed', ['error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Route a completion request to Claude or OpenAI depending on the model.
+     * Model names starting with 'claude-' go to ClaudeService; everything else to OpenAiService.
+     */
+    private function aiComplete(string $systemPrompt, string $userPrompt, array $options = []): array
+    {
+        $model = $options['model'] ?? null;
+
+        if ($model && str_starts_with($model, 'claude-')) {
+            return $this->claude->complete($systemPrompt, $userPrompt, $options);
+        }
+
+        return $this->openAi->complete($systemPrompt, $userPrompt, $options);
     }
 }
