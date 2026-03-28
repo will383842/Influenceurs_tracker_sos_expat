@@ -42,7 +42,7 @@ function NavGroup({
       </button>
       <div
         className={`overflow-hidden transition-all duration-200 ${
-          isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
         <div className="ml-4 pl-3 border-l border-border/50 space-y-0.5 py-1">
@@ -67,11 +67,7 @@ export default function Layout() {
     contacts: path.startsWith('/influenceurs') || path === '/a-relancer' || path === '/contacts/base',
     acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/admin/avancement',
     scraping: path === '/directories' || path === '/contacts/journalistes' || path === '/admin/scraper' || path.startsWith('/content/sites') || path.startsWith('/content/businesses') || path.startsWith('/content/lawyers') || path.startsWith('/content/country-directory') || path.startsWith('/scraping'),
-    content: path.startsWith('/content'),
-    contentEngine: path === '/content/command-center' || path === '/content/overview' || path === '/content/scheduler' || path === '/content/taxonomies' || path === '/content/publication' || path === '/content/quality' || path.startsWith('/content/articles') || path.startsWith('/content/comparatives') || path.startsWith('/content/campaigns') || path.startsWith('/content/clusters') || path.startsWith('/content/qa') || path.startsWith('/content/question-clusters') || path.startsWith('/content/landings') || path.startsWith('/content/press') || path.startsWith('/content/sources'),
-    seo: path.startsWith('/seo'),
-    publication: path === '/publishing' || path === '/media' || path === '/costs',
-    translations: path === '/translations',
+    contentEngine: path.startsWith('/content') || path.startsWith('/seo') || path === '/publishing' || path === '/media' || path === '/costs' || path === '/translations',
     prospection: path.startsWith('/prospection') || path === '/outreach',
     parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
   });
@@ -86,11 +82,7 @@ export default function Layout() {
       contacts: prev.contacts || needed.contacts,
       acquisition: prev.acquisition || needed.acquisition,
       scraping: prev.scraping || needed.scraping,
-      content: prev.content || needed.content,
       contentEngine: prev.contentEngine || needed.contentEngine,
-      seo: prev.seo || needed.seo,
-      publication: prev.publication || needed.publication,
-      translations: prev.translations || needed.translations,
       prospection: prev.prospection || needed.prospection,
       parametres: prev.parametres || needed.parametres,
     }));
@@ -315,42 +307,7 @@ export default function Layout() {
                 </NavGroup>
               )}
 
-              {/* 5. Données scrappées - admin only */}
-              {isAdmin && (
-                <NavGroup
-                  label="Données scrappées"
-                  icon="📄"
-                  isOpen={openGroups.content}
-                  onToggle={() => toggleGroup('content')}
-                >
-                  <NavLink to="/content" end className={subNavClass} onClick={handleNavClick}>
-                    Dashboard
-                  </NavLink>
-                  <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
-                    Fiches Pays
-                  </NavLink>
-                  <NavLink to="/content/cities" className={subNavClass} onClick={handleNavClick}>
-                    Fiches Villes
-                  </NavLink>
-                  <NavLink to="/content/contacts" className={subNavClass} onClick={handleNavClick}>
-                    Contacts
-                  </NavLink>
-                  <NavLink to="/content/questions" className={subNavClass} onClick={handleNavClick}>
-                    Q&A Forum
-                  </NavLink>
-                  <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
-                    Liens Affiliés
-                  </NavLink>
-                  <NavLink to="/content/links" className={subNavClass} onClick={handleNavClick}>
-                    Tous les liens
-                  </NavLink>
-                  <NavLink to="/content/data-cleanup" className={subNavClass} onClick={handleNavClick}>
-                    Nettoyage
-                  </NavLink>
-                </NavGroup>
-              )}
-
-              {/* Content Generator - admin only */}
+              {/* ✍️ Content Generator — groupe unifié */}
               {isAdmin && (
                 <NavGroup
                   label="Content Generator"
@@ -358,119 +315,87 @@ export default function Layout() {
                   isOpen={openGroups.contentEngine}
                   onToggle={() => toggleGroup('contentEngine')}
                 >
+                  {/* ── Piloter ── */}
+                  <p className="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Piloter</p>
                   <NavLink to="/content/command-center" className={subNavClass} onClick={handleNavClick}>
                     ⚡ Command Center
                   </NavLink>
-                  <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
-                    Sources de génération
-                  </NavLink>
                   <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
-                    Vue d'ensemble
+                    📊 Vue d'ensemble
                   </NavLink>
-                  <NavLink to="/content/scheduler" className={subNavClass} onClick={handleNavClick}>
-                    Planification
+
+                  {/* ── Sources ── */}
+                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Sources</p>
+                  <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
+                    🗂️ Sources de génération
                   </NavLink>
-                  <NavLink to="/content/taxonomies" className={subNavClass} onClick={handleNavClick}>
-                    Taxonomies
+                  <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
+                    🌍 Fiches Pays
                   </NavLink>
-                  <NavLink to="/content/publication" className={subNavClass} onClick={handleNavClick}>
-                    Publication
+                  <NavLink to="/content/cities" className={subNavClass} onClick={handleNavClick}>
+                    🏙️ Fiches Villes
                   </NavLink>
-                  <NavLink to="/content/quality" className={subNavClass} onClick={handleNavClick}>
-                    Qualite
+                  <NavLink to="/content/questions" className={subNavClass} onClick={handleNavClick}>
+                    💬 Q&A Forum
                   </NavLink>
+                  <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
+                    🔗 Liens Affiliés
+                  </NavLink>
+
+                  {/* ── Créer du contenu ── */}
+                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Contenu</p>
                   <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
-                    Articles
+                    📝 Articles
                   </NavLink>
                   <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
-                    Comparatifs
-                  </NavLink>
-                  <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
-                    Campagnes
-                  </NavLink>
-                  <NavLink to="/content/clusters" className={subNavClass} onClick={handleNavClick}>
-                    Clusters
+                    ⚖️ Comparatifs
                   </NavLink>
                   <NavLink to="/content/qa" className={subNavClass} onClick={handleNavClick}>
-                    Q&A
+                    ❓ Q&A générés
                   </NavLink>
-                  <NavLink to="/content/question-clusters" className={subNavClass} onClick={handleNavClick}>
-                    Questions Forum
+                  <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
+                    🎯 Campagnes
+                  </NavLink>
+                  <NavLink to="/content/clusters" className={subNavClass} onClick={handleNavClick}>
+                    🔵 Clusters
                   </NavLink>
                   <NavLink to="/content/landings" className={subNavClass} onClick={handleNavClick}>
-                    Landings
+                    🛬 Landings
                   </NavLink>
                   <NavLink to="/content/press" className={subNavClass} onClick={handleNavClick}>
-                    Presse
+                    📰 Presse
                   </NavLink>
                   <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
-                    Sondages
+                    📊 Sondages
                   </NavLink>
-                  <NavLink to="/content/sondages/resultats" className={subNavClass} onClick={handleNavClick}>
-                    Résultats de sondages
-                  </NavLink>
-                </NavGroup>
-              )}
 
-              {/* SEO - admin only */}
-              {isAdmin && (
-                <NavGroup
-                  label="SEO"
-                  icon="🔍"
-                  isOpen={openGroups.seo}
-                  onToggle={() => toggleGroup('seo')}
-                >
-                  <NavLink to="/seo" end className={subNavClass} onClick={handleNavClick}>
-                    Dashboard SEO
+                  {/* ── Optimiser & Publier ── */}
+                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Optimiser & Publier</p>
+                  <NavLink to="/content/quality" className={subNavClass} onClick={handleNavClick}>
+                    ✅ Qualité
                   </NavLink>
-                  <NavLink to="/seo/internal-links" className={subNavClass} onClick={handleNavClick}>
-                    Maillage interne
+                  <NavLink to="/seo" end className={subNavClass} onClick={handleNavClick}>
+                    🔍 SEO
                   </NavLink>
                   <NavLink to="/seo/keywords" className={subNavClass} onClick={handleNavClick}>
-                    Mots-cles
+                    🔑 Mots-clés
                   </NavLink>
-                </NavGroup>
-              )}
-
-              {/* Publication - admin only */}
-              {isAdmin && (
-                <NavGroup
-                  label="Publication"
-                  icon="📤"
-                  isOpen={openGroups.publication}
-                  onToggle={() => toggleGroup('publication')}
-                >
+                  <NavLink to="/seo/internal-links" className={subNavClass} onClick={handleNavClick}>
+                    🕸️ Maillage interne
+                  </NavLink>
                   <NavLink to="/publishing" className={subNavClass} onClick={handleNavClick}>
-                    Publication
+                    📤 Publication
+                  </NavLink>
+                  <NavLink to="/translations" className={subNavClass} onClick={handleNavClick}>
+                    🌐 Traductions
                   </NavLink>
                   <NavLink to="/media" className={subNavClass} onClick={handleNavClick}>
-                    Medias
+                    🖼️ Médias
                   </NavLink>
                   <NavLink to="/costs" className={subNavClass} onClick={handleNavClick}>
-                    Couts IA
+                    💰 Coûts IA
                   </NavLink>
                 </NavGroup>
-              )}
-
-              {/* Traductions - admin only */}
-              {isAdmin && (
-                <NavGroup
-                  label="Traductions"
-                  icon="🌐"
-                  isOpen={openGroups.translations}
-                  onToggle={() => toggleGroup('translations')}
-                >
-                  <NavLink to="/translations" className={subNavClass} onClick={handleNavClick}>
-                    Traductions
-                  </NavLink>
-                </NavGroup>
-              )}
-
-              {/* 6. Qualite - admin only */}
-              {isAdmin && (
-                <NavLink to="/admin/qualite" className={navClass} onClick={handleNavClick}>
-                  <span>✅</span> Qualite
-                </NavLink>
               )}
 
               {/* 6. Parametres (group) - admin only */}
