@@ -23,7 +23,7 @@ class ContentTypeConfig
                 'target_words_range' => '4000-7000',
                 'length' => 'extra_long',
                 'faq_count' => 12,
-                'max_tokens_content' => 12000,
+                'max_tokens_content' => 16384,
                 'max_tokens_title' => 100,
                 'internal_links' => 8,
                 'external_links' => 5,

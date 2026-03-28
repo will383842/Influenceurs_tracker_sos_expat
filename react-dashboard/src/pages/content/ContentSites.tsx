@@ -15,6 +15,13 @@ interface ContentSource {
   last_scraped_at: string | null;
 }
 
+interface CityStats {
+  total_cities: number;
+  scraped_cities: number;
+  pending_cities: number;
+  total_city_articles: number;
+}
+
 export default function ContentSites() {
   const [sources, setSources] = useState<ContentSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +30,8 @@ export default function ContentSites() {
   const [newUrl, setNewUrl] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cityStats, setCityStats] = useState<Record<string, CityStats>>({});
+  const [scrapingCities, setScrapingCities] = useState<Record<string, boolean>>({});
 
   const fetchSources = async () => {
     try {
@@ -35,7 +44,20 @@ export default function ContentSites() {
     }
   };
 
+  const fetchCityStats = async (slug: string) => {
+    try {
+      const res = await api.get(`/content/sources/${slug}/city-stats`);
+      setCityStats(prev => ({ ...prev, [slug]: res.data }));
+    } catch { /* silencieux */ }
+  };
+
   useEffect(() => { fetchSources(); }, []);
+
+  useEffect(() => {
+    if (sources.length > 0) {
+      sources.forEach(src => fetchCityStats(src.slug));
+    }
+  }, [sources.length]);
 
   // Auto-refresh while any source is scraping
   useEffect(() => {
@@ -103,10 +125,16 @@ export default function ContentSites() {
   };
 
   const handleScrapeCities = async (slug: string) => {
+    setScrapingCities(prev => ({ ...prev, [slug]: true }));
     try {
       await api.post(`/content/sources/${slug}/scrape-cities`);
+      setError(null);
+      // Rafraichir les stats apres quelques secondes
+      setTimeout(() => fetchCityStats(slug), 5000);
     } catch {
       setError('Erreur lancement villes');
+    } finally {
+      setTimeout(() => setScrapingCities(prev => ({ ...prev, [slug]: false })), 3000);
     }
   };
 
@@ -209,8 +237,8 @@ export default function ContentSites() {
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-4 gap-4 mb-4">
+              {/* Stats pays */}
+              <div className="grid grid-cols-4 gap-4 mb-3">
                 <div className="text-center">
                   <div className="text-white font-bold text-lg">{src.total_countries}</div>
                   <div className="text-xs text-muted">Pays</div>
@@ -230,6 +258,28 @@ export default function ContentSites() {
                   <div className="text-xs text-muted">Dernier scraping</div>
                 </div>
               </div>
+
+              {/* Stats villes */}
+              {cityStats[src.slug] && (
+                <div className="grid grid-cols-4 gap-3 mb-3 p-3 bg-blue-950/30 border border-blue-800/30 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-blue-300 font-bold text-base">{cityStats[src.slug].total_cities}</div>
+                    <div className="text-xs text-blue-500">Villes</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-green-400 font-bold text-base">{cityStats[src.slug].scraped_cities}</div>
+                    <div className="text-xs text-blue-500">Scrapees</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-amber-400 font-bold text-base">{cityStats[src.slug].pending_cities}</div>
+                    <div className="text-xs text-blue-500">En attente</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-white font-bold text-base">{cityStats[src.slug].total_city_articles.toLocaleString()}</div>
+                    <div className="text-xs text-blue-500">Art. villes</div>
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex gap-2 border-t border-border pt-3">
@@ -253,10 +303,14 @@ export default function ContentSites() {
                   className="px-3 py-1.5 bg-pink-900/30 text-pink-400 rounded-lg text-xs font-medium hover:bg-pink-900/40 transition-colors">
                   Guides thematiques
                 </button>
-                <button onClick={() => handleScrapeCities(src.slug)}
-                  className="px-3 py-1.5 bg-blue-900/30 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-900/40 transition-colors">
-                  Articles manquants
+                <button onClick={() => handleScrapeCities(src.slug)} disabled={scrapingCities[src.slug]}
+                  className="px-3 py-1.5 bg-blue-900/30 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-900/40 disabled:opacity-50 transition-colors">
+                  {scrapingCities[src.slug] ? 'Lancement...' : cityStats[src.slug]?.total_cities ? `Villes (${cityStats[src.slug].total_cities})` : 'Scraper les villes'}
                 </button>
+                <Link to={`/content/${src.slug}/cities`}
+                  className="px-3 py-1.5 bg-blue-900/20 text-blue-300 rounded-lg text-xs font-medium hover:bg-blue-900/30 transition-colors">
+                  Voir les villes
+                </Link>
                 <button onClick={() => handleScrapeBusinesses(src.slug)}
                   className="px-3 py-1.5 bg-cyan/20 text-cyan rounded-lg text-xs font-medium hover:bg-cyan/30 transition-colors">
                   Scraper l'annuaire

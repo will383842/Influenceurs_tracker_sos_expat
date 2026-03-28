@@ -318,6 +318,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/sources/{slug}/scrape-thematic', [ContentEngineController::class, 'scrapeThematic']);
         Route::post('/sources/{slug}/scrape-cities', [ContentEngineController::class, 'scrapeCities']);
         Route::post('/sources/{slug}/scrape-full', [ContentEngineController::class, 'scrapeFull']);
+        Route::get('/sources/{slug}/cities', [ContentEngineController::class, 'cities']);
+        Route::get('/sources/{slug}/cities/{citySlug}', [ContentEngineController::class, 'cityArticles']);
+        Route::get('/sources/{slug}/city-stats', [ContentEngineController::class, 'cityStats']);
         Route::get('/country-profiles', [ContentEngineController::class, 'countryProfiles']);
         Route::get('/country-profiles/{countrySlug}', [ContentEngineController::class, 'countryProfile']);
         Route::get('/stats', [ContentEngineController::class, 'stats']);

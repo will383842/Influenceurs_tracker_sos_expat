@@ -23,6 +23,7 @@ import ContentHub from './pages/content/ContentHub';
 import ContentLinks from './pages/content/ContentLinks';
 import ContentSourcePage from './pages/content/ContentSource';
 import ContentCountryPage from './pages/content/ContentCountry';
+import ContentCities from './pages/content/ContentCities';
 import ContentArticlePage from './pages/content/ContentArticle';
 import BusinessDirectory from './pages/content/BusinessDirectory';
 import LawyerDirectory from './pages/content/LawyerDirectory';
@@ -188,6 +189,9 @@ export default function App() {
             <Route path="content/press/dossiers/:id" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><DossierDetail /></React.Suspense></AdminRoute>} />
             <Route path="seo/keywords" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><KeywordTracker /></React.Suspense></AdminRoute>} />
             <Route path="translations" element={<AdminRoute><React.Suspense fallback={<div className="p-8 text-gray-400">Chargement...</div>}><TranslationsDashboard /></React.Suspense></AdminRoute>} />
+
+            {/* Villes scrapees */}
+            <Route path="content/:sourceSlug/cities" element={<AdminRoute><ContentCities /></AdminRoute>} />
 
             {/* Content v1 catch-all routes (must come after specific content/* routes) */}
             <Route path="content/:sourceSlug" element={<AdminRoute><ContentSourcePage /></AdminRoute>} />

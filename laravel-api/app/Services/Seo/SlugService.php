@@ -61,6 +61,16 @@ class SlugService
         // Trim hyphens from start/end
         $slug = trim($slug, '-');
 
+        // SEO: slug must not exceed 60 characters; truncate at last hyphen
+        if (mb_strlen($slug) > 60) {
+            $slug = mb_substr($slug, 0, 60);
+            $lastHyphen = mb_strrpos($slug, '-');
+            if ($lastHyphen && $lastHyphen > 30) {
+                $slug = mb_substr($slug, 0, $lastHyphen);
+            }
+            $slug = trim($slug, '-');
+        }
+
         return $slug;
     }
 
@@ -92,6 +102,14 @@ class SlugService
      */
     public function ensureUnique(string $slug, string $language, string $table = 'generated_articles', ?int $excludeId = null): string
     {
+        // Cap base slug at 57 chars to leave room for "-NNN" suffix without exceeding 60
+        if (mb_strlen($slug) > 57) {
+            $truncated = mb_substr($slug, 0, 57);
+            $lastHyphen = mb_strrpos($truncated, '-');
+            $slug = ($lastHyphen && $lastHyphen > 30) ? mb_substr($truncated, 0, $lastHyphen) : $truncated;
+            $slug = trim($slug, '-');
+        }
+
         $originalSlug = $slug;
         $counter = 1;
 

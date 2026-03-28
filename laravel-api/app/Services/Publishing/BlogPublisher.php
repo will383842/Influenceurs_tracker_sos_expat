@@ -131,6 +131,13 @@ class BlogPublisher
             }
         }
 
+        // ── Sign request with HMAC-SHA256 (replay-safe) ─────────
+        // IMPORTANT: use same JSON flags as withBody() so signed bytes = sent bytes.
+        // Default json_encode() escapes Unicode (\u00e9) while Guzzle sends UTF-8 (é).
+        $timestamp = (string) time();
+        $body      = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha256', $timestamp . '.' . $body, $apiToken);
+
         // ── Send to blog API ─────────────────────────────────────
         Log::info('BlogPublisher: sending article to blog', [
             'uuid'         => $parentArticle->uuid,
@@ -139,9 +146,15 @@ class BlogPublisher
             'images_count' => $allImages->count(),
         ]);
 
-        $response = Http::withToken($apiToken)
+        $response = Http::withHeaders([
+                'X-Webhook-Timestamp' => $timestamp,
+                'X-Webhook-Signature' => $signature,
+                'Content-Type'        => 'application/json',
+                'Accept'              => 'application/json',
+            ])
+            ->withBody($body, 'application/json')
             ->timeout(30)
-            ->post(rtrim($blogUrl, '/') . '/api/v1/articles', $payload);
+            ->post(rtrim($blogUrl, '/') . '/api/v1/articles');
 
         if ($response->failed()) {
             $error = $response->json('message') ?? $response->body();

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ContentArticle;
+use App\Models\ContentCity;
 use App\Models\ContentCountry;
 use App\Models\ContentExternalLink;
 use App\Models\ContentSource;
@@ -255,6 +256,207 @@ class ContentScraperService
             'country'  => $country->slug,
             'count'    => count($unique),
             'strategy' => empty($articles) ? 'none' : 'ok',
+        ]);
+
+        return $unique;
+    }
+
+    /**
+     * Discover all cities for a country on expat.com.
+     * Scrapes: /fr/guide/{continent}/{country}/villes/
+     * Returns array of ['name', 'slug', 'guide_url', 'continent']
+     */
+    public function scrapeCityList(ContentCountry $country): array
+    {
+        // Build the /villes/ URL from the country guide URL
+        // country->guide_url = https://www.expat.com/fr/guide/europe/france/
+        $villesUrl = rtrim($country->guide_url, '/') . '/villes/';
+
+        $html = $this->fetchPage($villesUrl);
+        if (!$html) {
+            Log::info('ContentScraper: no villes page', [
+                'country' => $country->slug,
+                'url'     => $villesUrl,
+            ]);
+            return [];
+        }
+
+        $cities = [];
+
+        // Strategy 1: embedded JSON (same pattern as countries)
+        $unescaped = str_replace('\\/', '/', $html);
+        // City URLs: /fr/guide/{continent}/{country}/{city}/
+        $pattern = '/"id"\s*:\s*"https?:\/\/[^"]*\/fr\/guide\/([a-z-]+)\/([a-z-]+)\/([a-z-]+)\/"\s*,\s*"text"\s*:\s*"([^"]+)"/';
+        if (preg_match_all($pattern, $unescaped, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $continentSlug = $m[1];
+                $countrySlug   = $m[2];
+                $citySlug      = $m[3];
+                $cityName      = html_entity_decode($m[4], ENT_QUOTES, 'UTF-8');
+
+                if ($countrySlug !== $country->slug) continue;
+                if (in_array($citySlug, ['villes', 'guide', 'forum'])) continue;
+
+                $cities[] = [
+                    'name'      => $cityName,
+                    'slug'      => $citySlug,
+                    'continent' => $this->normalizeContinent($continentSlug),
+                    'guide_url' => 'https://www.expat.com/fr/guide/' . $continentSlug . '/' . $countrySlug . '/' . $citySlug . '/',
+                ];
+            }
+        }
+
+        // Strategy 2: DOM links (fallback)
+        if (empty($cities)) {
+            $dom = new \DOMDocument();
+            libxml_use_internal_errors(true);
+            $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+            libxml_clear_errors();
+            $xpath = new \DOMXPath($dom);
+
+            $countryEscaped = preg_quote($country->slug, '#');
+            $links = $xpath->query('//a[contains(@href, "/fr/guide/")]');
+            foreach ($links as $link) {
+                $href = $link->getAttribute('href');
+                $text = trim($link->textContent);
+                // Match city URLs: /fr/guide/{continent}/{country}/{city}/
+                if (preg_match('#/fr/guide/([a-z-]+)/' . $countryEscaped . '/([a-z-]+)/?$#', $href, $m)) {
+                    $citySlug = $m[2];
+                    if (in_array($citySlug, ['villes', 'guide', 'forum'])) continue;
+                    if (str_ends_with($citySlug, '.html')) continue;
+
+                    $cities[] = [
+                        'name'      => $text ?: ucfirst(str_replace('-', ' ', $citySlug)),
+                        'slug'      => $citySlug,
+                        'continent' => $country->continent,
+                        'guide_url' => $this->resolveUrl($href, $villesUrl),
+                    ];
+                }
+            }
+            unset($xpath, $dom);
+        }
+
+        // Deduplicate by slug
+        $seen = [];
+        $unique = [];
+        foreach ($cities as $city) {
+            if (!isset($seen[$city['slug']])) {
+                $seen[$city['slug']] = true;
+                $unique[] = $city;
+            }
+        }
+
+        Log::info('ContentScraper: cities discovered', [
+            'country' => $country->slug,
+            'count'   => count($unique),
+        ]);
+
+        return $unique;
+    }
+
+    /**
+     * Scrape all article links from a city's guide page.
+     * Same logic as scrapeCountryArticles but scoped to city slug.
+     */
+    public function scrapeCityArticles(ContentCity $city): array
+    {
+        $html = $this->fetchPage($city->guide_url);
+        if (!$html) {
+            Log::warning('ContentScraper: failed to fetch city page', [
+                'city' => $city->slug,
+                'url'  => $city->guide_url,
+            ]);
+            return [];
+        }
+
+        $articles = [];
+
+        // Strategy 1: embedded JSON — articles under city slug
+        if (preg_match_all('/<script[^>]*>(.*?)<\/script>/si', $html, $matches)) {
+            foreach ($matches[1] as $script) {
+                $cityPattern = preg_quote($city->slug, '/');
+                if (preg_match_all('/\/fr\/guide\/[^"\']+\/' . $cityPattern . '\/(\d+-[^"\']+\.html)/', $script, $urlMatches)) {
+                    foreach ($urlMatches[0] as $path) {
+                        $fullUrl = $this->resolveUrl($path, $city->guide_url);
+                        $title   = '';
+                        $titlePattern = '/"(?:title|name|label)"\s*:\s*"([^"]+)".*?' . preg_quote(basename($path), '/') . '/si';
+                        if (preg_match($titlePattern, $script, $tm)) {
+                            $title = $tm[1];
+                        }
+                        $articles[] = [
+                            'url'      => $fullUrl,
+                            'title'    => $title,
+                            'category' => $this->detectCategory($path, $title),
+                            'is_guide' => false,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Strategy 2: DOM links
+        if (empty($articles)) {
+            $dom = new \DOMDocument();
+            libxml_use_internal_errors(true);
+            $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+            libxml_clear_errors();
+            $xpath = new \DOMXPath($dom);
+
+            $cityPattern = preg_quote($city->slug, '#');
+            $links = $xpath->query('//a[contains(@href, ".html")]');
+            foreach ($links as $link) {
+                $href = $link->getAttribute('href');
+                $text = trim($link->textContent);
+                if (preg_match('#/fr/guide/[^/]+/[^/]+/' . $cityPattern . '/.*\.html#', $href)) {
+                    $fullUrl = $this->resolveUrl($href, $city->guide_url);
+                    $articles[] = [
+                        'url'      => $fullUrl,
+                        'title'    => $text,
+                        'category' => $this->detectCategory($href, $text),
+                        'is_guide' => false,
+                    ];
+                }
+            }
+            unset($xpath, $dom);
+        }
+
+        // Strategy 3: JSON-LD
+        if (empty($articles)) {
+            if (preg_match_all('/<script\s+type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/si', $html, $ldMatches)) {
+                foreach ($ldMatches[1] as $jsonStr) {
+                    $data = @json_decode(trim($jsonStr), true);
+                    if (!$data) continue;
+                    $items = $data['itemListElement'] ?? $data['hasPart'] ?? [];
+                    foreach ($items as $item) {
+                        $itemUrl  = $item['url'] ?? $item['item']['url'] ?? null;
+                        $itemName = $item['name'] ?? $item['item']['name'] ?? '';
+                        if ($itemUrl && str_contains($itemUrl, $city->slug)) {
+                            $articles[] = [
+                                'url'      => $this->resolveUrl($itemUrl, $city->guide_url),
+                                'title'    => $itemName,
+                                'category' => $this->detectCategory($itemUrl, $itemName),
+                                'is_guide' => false,
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Deduplicate by URL
+        $seen   = [];
+        $unique = [];
+        foreach ($articles as $a) {
+            $normalized = rtrim($a['url'], '/');
+            if (!isset($seen[$normalized])) {
+                $seen[$normalized] = true;
+                $unique[] = $a;
+            }
+        }
+
+        Log::info('ContentScraper: city articles found', [
+            'city'  => $city->slug,
+            'count' => count($unique),
         ]);
 
         return $unique;

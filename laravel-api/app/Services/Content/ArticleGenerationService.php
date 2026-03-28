@@ -430,6 +430,22 @@ class ArticleGenerationService
             $errors[] = 'Language is required';
         }
 
+        // Validate content_type against known types
+        $validTypes = ['guide', 'pillar', 'article', 'comparative', 'qa', 'news', 'tutorial', 'landing', 'press', 'press_release'];
+        if (!empty($params['content_type']) && !in_array($params['content_type'], $validTypes, true)) {
+            $errors[] = 'Invalid content_type "' . $params['content_type'] . '". Must be one of: ' . implode(', ', $validTypes);
+        }
+
+        // Validate country if provided (must be non-empty string or null)
+        if (array_key_exists('country', $params) && !is_null($params['country']) && empty(trim((string) $params['country']))) {
+            $errors[] = 'Country must be a non-empty string or null';
+        }
+
+        // At least one keyword is recommended
+        if (empty($params['keywords'])) {
+            Log::warning('ArticleGeneration: no keywords provided — SEO quality will be degraded');
+        }
+
         if (!$this->openAi->isConfigured()) {
             $errors[] = 'OpenAI API key not configured';
         }
@@ -576,14 +592,15 @@ class ArticleGenerationService
               . "2. MOT-CLÉ PRINCIPAL : \"{$primaryKeyword}\" doit apparaître dans les 3 PREMIERS MOTS du titre\n"
               . "3. ANNÉE : inclure \"{$year}\" dans le titre (signal de fraîcheur critique)\n"
               . "4. FORMAT PROUVÉ (choisir un de ces formats haute performance) :\n"
-              . "   - \"{Mot-clé} : Guide Complet {$year}\"\n"
+              . "   - \"{Mot-clé} : Complet {$year}\"\n"
               . "   - \"{Mot-clé} - {Chiffre} Étapes Essentielles ({$year})\"\n"
               . "   - \"{Mot-clé} : Tout Savoir en {$year}\"\n"
               . "   - \"{Mot-clé} {$year} : Conseils, Démarches et Astuces\"\n"
               . "   - \"Top {Chiffre} : {Mot-clé} en {$year}\"\n"
               . "5. POWER WORDS : utiliser un de ces mots qui augmentent le CTR : "
-              . "Guide, Complet, Pratique, Essentiel, À Jour, Officiel, Ultime, Simple, Rapide\n"
+              . "Complet, Pratique, Essentiel, À Jour, Officiel, Ultime, Simple, Rapide\n"
               . "6. PAS de : clickbait, point d'exclamation, majuscules excessives, \"meilleur\" sans justification\n"
+              . "7. NE COMMENCE PAS le titre par : \"Guide\", \"Article\", \"Comment\", \"Voici\"\n"
               . "7. UNIQUE : le titre ne doit pas être générique, il doit être spécifique au sujet\n\n"
               . "Langue: {$language}. Retourne UNIQUEMENT le titre, sans guillemets ni explication.";
 
@@ -624,11 +641,27 @@ class ArticleGenerationService
                 }
             }
 
+            // Validation: reject titles starting with forbidden words
+            $forbiddenStarts = ['guide ', 'article ', 'comment ', 'voici '];
+            $titleLower = mb_strtolower($title);
+            foreach ($forbiddenStarts as $word) {
+                if (str_starts_with($titleLower, $word)) {
+                    // Prepend keyword to reframe the title
+                    $title = ucfirst($primaryKeyword) . ' : ' . $title;
+                    if (mb_strlen($title) > 60) {
+                        $truncated = mb_substr($title, 0, 60);
+                        $lastSpace = mb_strrpos($truncated, ' ');
+                        $title = $lastSpace && $lastSpace > 40 ? mb_substr($truncated, 0, $lastSpace) : $truncated;
+                    }
+                    break;
+                }
+            }
+
             return $title;
         }
 
-        // Fallback: titre structuré basique avec mot-clé + année
-        $fallback = ucfirst($primaryKeyword) . ' : Guide Complet ' . $year;
+        // Fallback: titre structuré basique avec mot-clé + année (pas "Guide")
+        $fallback = ucfirst($primaryKeyword) . ' : Tout Savoir en ' . $year;
         return mb_substr($fallback, 0, 60);
     }
 
@@ -636,27 +669,33 @@ class ArticleGenerationService
     {
         $factsContext = !empty($facts) ? "\nFaits: " . implode('. ', array_slice($facts, 0, 3)) : '';
 
-        $systemPrompt = "Tu es un expert SEO. Génère un résumé de 2-3 phrases (60-100 mots) qui servira à la fois de :"
-            . "\n1. EXCERPT de l'article (affiché dans les listings)"
-            . "\n2. AI SUMMARY pour les moteurs IA (Google AI Overview, ChatGPT, Perplexity)"
-            . "\n\nRÈGLES :"
+        $systemPrompt = "Tu es un expert SEO. Génère un résumé de 2-3 phrases (150-200 caractères) qui servira d'EXCERPT pour l'article."
+            . "\n\nRÈGLES STRICTES :"
+            . "\n- LONGUEUR : entre 150 et 200 caractères EXACTEMENT (Google snippet + meta description)"
             . "\n- Commence directement par l'information clé (PAS 'Cet article traite de...')"
-            . "\n- Contient les 2-3 faits les plus importants"
+            . "\n- Contient le mot-clé principal et 1-2 faits importants"
             . "\n- Mentionne le pays et l'année si pertinent"
-            . "\n- Ton factuel et informatif"
-            . "\n- Donne envie de lire l'article complet"
-            . "\nLangue: {$language}. Retourne UNIQUEMENT le texte.";
+            . "\n- Ton factuel, informatif, donne envie de lire l'article complet"
+            . "\nLangue: {$language}. Retourne UNIQUEMENT le texte, sans guillemets.";
 
         $result = $this->openAi->complete($systemPrompt, "Titre: {$title}{$factsContext}", [
             'temperature' => 0.5,
-            'max_tokens' => 300,
+            'max_tokens' => 100,
         ]);
 
         if ($result['success']) {
-            return trim($result['content']);
+            $excerpt = trim($result['content']);
+            // Ensure it's within 150-200 chars; truncate at last word boundary if needed
+            if (mb_strlen($excerpt) > 200) {
+                $truncated = mb_substr($excerpt, 0, 200);
+                $lastSpace = mb_strrpos($truncated, ' ');
+                $excerpt = $lastSpace > 120 ? mb_substr($truncated, 0, $lastSpace) : $truncated;
+            }
+            return $excerpt;
         }
 
-        return '';
+        // Fallback: build a minimal excerpt from the title rather than returning empty
+        return mb_substr($title, 0, 150);
     }
 
     private function phase05_generateContent(string $title, string $excerpt, array $facts, array $params, array $typeConfig = []): string
@@ -1018,19 +1057,19 @@ class ArticleGenerationService
             . "{\n"
             . "  \"og_title\": \"Titre accrocheur pour réseaux sociaux (≤95 chars, DIFFÉRENT du meta_title)\",\n"
             . "  \"og_description\": \"Description incitant au partage social avec CTA (≤200 chars)\",\n"
-            . "  \"ai_summary\": \"Résumé factuel 2-3 phrases pour les moteurs IA (≤500 chars, PAS de marketing)\"\n"
+            . "  \"ai_summary\": \"Résumé factuel 100-200 mots pour les moteurs IA (PAS de marketing, commence par les faits)\"\n"
             . "}\n\n"
             . "IMPORTANT:\n"
             . "- og_title : plus ÉMOTIONNEL et ENGAGEANT que le meta_title (qui est SEO)\n"
             . "- og_description : doit donner envie de CLIQUER et PARTAGER\n"
-            . "- ai_summary : STRICTEMENT FACTUEL, commence par les faits, pas par 'Cet article...'";
+            . "- ai_summary : STRICTEMENT FACTUEL, 100-200 mots, commence par les faits, pas par 'Cet article...'";
 
         $userPrompt = "Meta title actuel: {$metaTitle}\nMeta desc actuelle: {$metaDescription}\nTitre H1: {$title}\nContenu: {$contentSnippet}";
 
         try {
             $result = $this->openAi->complete($systemPrompt, $userPrompt, [
                 'temperature' => 0.5,
-                'max_tokens' => 400,
+                'max_tokens' => 600,
                 'json_mode' => true,
             ]);
 
@@ -1040,7 +1079,7 @@ class ArticleGenerationService
                     return [
                         'og_title'       => mb_substr($parsed['og_title'] ?? $metaTitle, 0, 95),
                         'og_description' => mb_substr($parsed['og_description'] ?? $metaDescription, 0, 200),
-                        'ai_summary'     => mb_substr($parsed['ai_summary'] ?? $excerpt, 0, 500),
+                        'ai_summary'     => mb_substr($parsed['ai_summary'] ?? $excerpt, 0, 1400),
                     ];
                 }
             }
@@ -1052,7 +1091,7 @@ class ArticleGenerationService
         return [
             'og_title'       => mb_substr($title, 0, 95),
             'og_description' => mb_substr($metaDescription, 0, 200),
-            'ai_summary'     => mb_substr($excerpt, 0, 500),
+            'ai_summary'     => mb_substr($excerpt, 0, 1400),
         ];
     }
 
@@ -1138,7 +1177,7 @@ class ArticleGenerationService
                 'is_nofollow'  => false,
             ]);
 
-            $linksHtml .= '<li><a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">'
+            $linksHtml .= '<li><a href="' . htmlspecialchars($url) . '" target="_blank" rel="nofollow noopener">'
                 . htmlspecialchars($source['title'] ?? $domain) . '</a></li>';
             $usedDomains[] = $domain;
         }
@@ -1262,7 +1301,7 @@ class ArticleGenerationService
                     $pattern = '/(<p[^>]*>[^<]*' . $escapedKeyword . '[^<]*<\/p>)/iu';
 
                     if (preg_match($pattern, $html, $match)) {
-                        $link = ' <a href="' . htmlspecialchars($target['url']) . '" target="_blank" rel="sponsored">'
+                        $link = ' <a href="' . htmlspecialchars($target['url']) . '" target="_blank" rel="sponsored noopener">'
                             . htmlspecialchars($target['anchor']) . '</a>';
 
                         // Insert before closing </p>

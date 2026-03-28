@@ -7,8 +7,10 @@ use App\Jobs\ScrapeFrancaisEtrangerJob;
 use App\Jobs\ScrapeGenericSiteJob;
 use App\Jobs\ScrapeContentMagazineJob;
 use App\Jobs\ScrapeContentSourceJob;
+use App\Jobs\ScrapeContentCitiesJob;
 use App\Models\ContentArticle;
 use App\Models\ContentBusiness;
+use App\Models\ContentCity;
 use App\Models\ContentCountry;
 use App\Models\ContentExternalLink;
 use App\Models\ContentSource;
@@ -364,11 +366,128 @@ class ContentEngineController extends Controller
         return response()->json(['message' => 'Thematic guides scraping started']);
     }
 
-    public function scrapeCities(string $slug): JsonResponse
+    /**
+     * Lance le scraping complet des villes : découverte + scraping per-ville.
+     * Optionnel: country_id pour limiter à un seul pays.
+     */
+    public function scrapeCities(string $slug, Request $request): JsonResponse
+    {
+        $source    = ContentSource::where('slug', $slug)->firstOrFail();
+        $countryId = $request->input('country_id') ? (int) $request->input('country_id') : null;
+
+        ScrapeContentCitiesJob::dispatch($source->id, $countryId);
+
+        return response()->json([
+            'message'    => 'Scraping des villes lancé',
+            'source'     => $source->slug,
+            'country_id' => $countryId,
+        ]);
+    }
+
+    /**
+     * Liste toutes les villes scrapées pour une source, groupées par pays.
+     */
+    public function cities(string $slug, Request $request): JsonResponse
     {
         $source = ContentSource::where('slug', $slug)->firstOrFail();
-        ScrapeContentMagazineJob::dispatch($source->id, 'cities');
-        return response()->json(['message' => 'Cities/missing articles scraping started']);
+
+        $query = ContentCity::where('source_id', $source->id)
+            ->with('country:id,name,slug,continent')
+            ->withCount('articles');
+
+        if ($request->filled('country_slug')) {
+            $country = ContentCountry::where('source_id', $source->id)
+                ->where('slug', $request->input('country_slug'))
+                ->first();
+            if ($country) {
+                $query->where('country_id', $country->id);
+            }
+        }
+
+        if ($request->filled('continent')) {
+            $query->where('continent', $request->input('continent'));
+        }
+
+        $cities = $query->orderBy('continent')->orderBy('name')->get();
+
+        $continents = $cities->pluck('continent')->filter()->unique()->sort()->values();
+        $countries  = $cities->pluck('country')->filter()->unique('id')->sortBy('name')->values();
+
+        $stats = [
+            'total_cities'          => $cities->count(),
+            'cities_scraped'        => $cities->whereNotNull('scraped_at')->count(),
+            'cities_pending'        => $cities->whereNull('scraped_at')->count(),
+            'total_city_articles'   => $cities->sum('articles_count'),
+        ];
+
+        return response()->json([
+            'cities'     => $cities,
+            'continents' => $continents,
+            'countries'  => $countries,
+            'stats'      => $stats,
+        ]);
+    }
+
+    /**
+     * Articles d'une ville spécifique.
+     */
+    public function cityArticles(string $slug, string $citySlug, Request $request): JsonResponse
+    {
+        $source = ContentSource::where('slug', $slug)->firstOrFail();
+        $city   = ContentCity::where('source_id', $source->id)
+            ->where('slug', $citySlug)
+            ->with('country:id,name,slug')
+            ->firstOrFail();
+
+        $query = ContentArticle::where('city_id', $city->id)
+            ->select('id', 'title', 'slug', 'url', 'category', 'word_count', 'is_guide', 'scraped_at')
+            ->withCount('links')
+            ->orderByDesc('is_guide')
+            ->orderBy('category')
+            ->orderBy('title');
+
+        $perPage = min((int) $request->input('per_page', 50), 100);
+
+        return response()->json([
+            'city'     => $city,
+            'articles' => $query->paginate($perPage),
+        ]);
+    }
+
+    /**
+     * Stats globales des villes scrapées (pour le dashboard).
+     */
+    public function cityStats(string $slug): JsonResponse
+    {
+        $source = ContentSource::where('slug', $slug)->firstOrFail();
+
+        $stats = Cache::remember("city-stats-{$source->id}", 120, function () use ($source) {
+            $cities = ContentCity::where('source_id', $source->id)->get();
+
+            $byContinent = ContentCity::where('source_id', $source->id)
+                ->selectRaw('continent, COUNT(*) as nb_villes, SUM(articles_count) as nb_articles')
+                ->groupBy('continent')
+                ->orderByDesc('nb_articles')
+                ->get();
+
+            $topCities = ContentCity::where('source_id', $source->id)
+                ->whereNotNull('scraped_at')
+                ->with('country:id,name,slug')
+                ->orderByDesc('articles_count')
+                ->limit(20)
+                ->get(['id', 'name', 'slug', 'continent', 'country_id', 'articles_count', 'scraped_at']);
+
+            return [
+                'total_cities'        => $cities->count(),
+                'scraped_cities'      => $cities->whereNotNull('scraped_at')->count(),
+                'pending_cities'      => $cities->whereNull('scraped_at')->count(),
+                'total_city_articles' => (int) $cities->sum('articles_count'),
+                'by_continent'        => $byContinent,
+                'top_cities'          => $topCities,
+            ];
+        });
+
+        return response()->json($stats);
     }
 
     public function scrapeFull(string $slug): JsonResponse

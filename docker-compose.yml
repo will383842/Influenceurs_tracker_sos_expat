@@ -65,6 +65,7 @@ services:
       - app_storage:/var/www/html/storage
     networks:
       - internal
+      - shared-network
 
   scheduler:
     build:
@@ -187,7 +188,7 @@ services:
       dockerfile: deploy/Dockerfile.api
     container_name: inf-content-worker
     restart: unless-stopped
-    command: ["php", "artisan", "queue:work", "redis", "--queue=content", "--sleep=3", "--tries=2", "--timeout=600", "--memory=512"]
+    command: ["php", "artisan", "queue:work", "redis", "--queue=content", "--sleep=3", "--tries=3", "--timeout=600", "--memory=512"]
     mem_limit: 512m
     memswap_limit: 512m
     env_file:
@@ -202,6 +203,7 @@ services:
       - app_storage:/var/www/html/storage
     networks:
       - internal
+      - shared-network
 
   publication-worker:
     build:
@@ -224,6 +226,7 @@ services:
       - app_storage:/var/www/html/storage
     networks:
       - internal
+      - shared-network
 
   nginx-api:
     image: nginx:alpine
@@ -265,3 +268,7 @@ volumes:
 networks:
   internal:
     driver: bridge
+  # Shared with Blog frontend — create first: docker network create shared-network
+  shared-network:
+    external: true
+    name: shared-network

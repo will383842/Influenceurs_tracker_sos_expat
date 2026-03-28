@@ -22,10 +22,10 @@ class JsonLdService
      */
     public function generateArticleSchema(GeneratedArticle $article): array
     {
-        $image = '';
-        $featuredImage = $article->images()->orderBy('sort_order')->first();
-        if ($featuredImage) {
-            $image = $featuredImage->url;
+        $imageUrl = $article->featured_image_url ?? null;
+        if (!$imageUrl) {
+            $featuredImage = $article->images()->orderBy('sort_order')->first();
+            $imageUrl = $featuredImage?->url ?? null;
         }
 
         $schema = [
@@ -33,7 +33,6 @@ class JsonLdService
             '@type' => 'Article',
             'headline' => $article->meta_title ?? $article->title,
             'description' => $article->meta_description ?? $article->excerpt ?? '',
-            'image' => $image,
             'datePublished' => $article->published_at
                 ? $article->published_at->toIso8601String()
                 : $article->created_at->toIso8601String(),
@@ -54,7 +53,7 @@ class JsonLdService
             ],
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
-                '@id' => $article->canonical_url ?? $article->published_url ?? $article->url,
+                '@id' => $article->canonical_url ?? $article->published_url ?? $article->url ?? self::ORGANIZATION_URL,
             ],
             'wordCount' => $article->word_count ?? 0,
             'inLanguage' => $article->language ?? 'fr',
@@ -63,6 +62,11 @@ class JsonLdService
                 'cssSelector' => ['.featured-snippet', 'h1'],
             ],
         ];
+
+        // Only add image if it exists — an empty string violates Google's structured data rules
+        if (!empty($imageUrl)) {
+            $schema['image'] = $imageUrl;
+        }
 
         // Add Table of Contents as hasPart for enhanced Article schema
         if ($article->content_html) {

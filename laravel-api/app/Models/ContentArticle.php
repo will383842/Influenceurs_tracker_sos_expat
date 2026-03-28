@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ContentArticle extends Model
 {
     protected $fillable = [
-        'source_id', 'country_id', 'title', 'slug', 'url', 'url_hash',
+        'source_id', 'country_id', 'city_id', 'title', 'slug', 'url', 'url_hash',
         'category', 'section', 'content_text', 'content_html',
         'word_count', 'language',
         'external_links', 'ads_and_sponsors', 'images',
@@ -42,6 +42,11 @@ class ContentArticle extends Model
     public function country(): BelongsTo
     {
         return $this->belongsTo(ContentCountry::class, 'country_id');
+    }
+
+    public function city(): BelongsTo
+    {
+        return $this->belongsTo(ContentCity::class, 'city_id');
     }
 
     public function links(): HasMany

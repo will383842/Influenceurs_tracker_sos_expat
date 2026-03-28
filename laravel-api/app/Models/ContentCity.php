@@ -4,10 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class ContentCountry extends Model
+class ContentCity extends Model
 {
     protected $fillable = [
-        'source_id', 'name', 'slug', 'continent',
+        'source_id', 'country_id', 'name', 'slug', 'continent',
         'guide_url', 'articles_count', 'scraped_at',
     ];
 
@@ -21,18 +21,13 @@ class ContentCountry extends Model
         return $this->belongsTo(ContentSource::class, 'source_id');
     }
 
+    public function country()
+    {
+        return $this->belongsTo(ContentCountry::class, 'country_id');
+    }
+
     public function articles()
     {
-        return $this->hasMany(ContentArticle::class, 'country_id');
-    }
-
-    public function cities()
-    {
-        return $this->hasMany(ContentCity::class, 'country_id');
-    }
-
-    public function externalLinks()
-    {
-        return $this->hasMany(ContentExternalLink::class, 'country_id');
+        return $this->hasMany(ContentArticle::class, 'city_id');
     }
 }
