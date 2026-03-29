@@ -66,7 +66,7 @@ export default function CountryProfiles() {
       <div>
         <h1 className="font-title text-2xl font-bold text-white">Fiches Pays</h1>
         <p className="text-muted text-sm mt-1">
-          {totals && `${totals.countries} pays — ${totals.articles.toLocaleString()} articles — ${totals.businesses.toLocaleString()} entreprises`}
+          {totals && `${totals.countries ?? 0} pays — ${(totals.articles ?? 0).toLocaleString()} articles — ${(totals.businesses ?? 0).toLocaleString()} entreprises`}
         </p>
       </div>
 
@@ -74,11 +74,11 @@ export default function CountryProfiles() {
       {totals && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: 'Pays', value: totals.countries },
-            { label: 'Articles', value: totals.articles.toLocaleString() },
-            { label: 'Mots', value: totals.words > 1000000 ? `${(totals.words / 1000000).toFixed(1)}M` : totals.words.toLocaleString() },
-            { label: 'Liens', value: totals.links.toLocaleString() },
-            { label: 'Entreprises', value: totals.businesses.toLocaleString() },
+            { label: 'Pays', value: totals.countries ?? 0 },
+            { label: 'Articles', value: (totals.articles ?? 0).toLocaleString() },
+            { label: 'Mots', value: (totals.words ?? 0) > 1000000 ? `${((totals.words ?? 0) / 1000000).toFixed(1)}M` : (totals.words ?? 0).toLocaleString() },
+            { label: 'Liens', value: (totals.links ?? 0).toLocaleString() },
+            { label: 'Entreprises', value: (totals.businesses ?? 0).toLocaleString() },
           ].map((k) => (
             <div key={k.label} className="bg-surface border border-border rounded-xl p-3 text-center">
               <div className="text-lg font-bold text-white">{k.value}</div>
