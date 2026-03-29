@@ -389,22 +389,46 @@ export default function Layout() {
                 onToggle={() => toggleGroup('contacts')}
                 badge={reminders.length}
               >
-                <NavLink to="/contacts" end className={subNavClass} onClick={handleNavClick}>
+                <NavLink
+                  to="/contacts"
+                  className={subNavClass({ isActive: location.pathname === '/contacts' && !location.search.includes('category=') })}
+                  onClick={handleNavClick}
+                >
                   👥 Tous les contacts
                 </NavLink>
-                <NavLink to="/contacts?category=institutionnel" className={subNavClass} onClick={handleNavClick}>
+                <NavLink
+                  to="/contacts?category=institutionnel"
+                  className={subNavClass({ isActive: location.pathname === '/contacts' && location.search.includes('category=institutionnel') })}
+                  onClick={handleNavClick}
+                >
                   🏛️ Institutionnel
                 </NavLink>
-                <NavLink to="/contacts?category=medias_influence" className={subNavClass} onClick={handleNavClick}>
+                <NavLink
+                  to="/contacts?category=medias_influence"
+                  className={subNavClass({ isActive: location.pathname === '/contacts' && location.search.includes('category=medias_influence') })}
+                  onClick={handleNavClick}
+                >
                   📺 Médias & Influence
                 </NavLink>
-                <NavLink to="/contacts?category=services_b2b" className={subNavClass} onClick={handleNavClick}>
+                <NavLink
+                  to="/contacts?category=services_b2b"
+                  className={subNavClass({ isActive: location.pathname === '/contacts' && location.search.includes('category=services_b2b') })}
+                  onClick={handleNavClick}
+                >
                   💼 Services B2B
                 </NavLink>
-                <NavLink to="/contacts?category=communautes" className={subNavClass} onClick={handleNavClick}>
+                <NavLink
+                  to="/contacts?category=communautes"
+                  className={subNavClass({ isActive: location.pathname === '/contacts' && location.search.includes('category=communautes') })}
+                  onClick={handleNavClick}
+                >
                   🌍 Communautés
                 </NavLink>
-                <NavLink to="/contacts?category=digital" className={subNavClass} onClick={handleNavClick}>
+                <NavLink
+                  to="/contacts?category=digital"
+                  className={subNavClass({ isActive: location.pathname === '/contacts' && location.search.includes('category=digital') })}
+                  onClick={handleNavClick}
+                >
                   🔗 Digital & SEO
                 </NavLink>
                 <NavLink to="/a-relancer" className={subNavClass} onClick={handleNavClick}>
