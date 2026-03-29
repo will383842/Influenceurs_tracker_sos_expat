@@ -7,6 +7,7 @@ use App\Models\CountryDirectory;
 use App\Services\WikidataService;
 use App\Services\OverpassService;
 use App\Services\PerplexityPracticalLinksService;
+use App\Services\EmergencyNumbersService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Log;
  *   wikidata   = ambassades (toutes nationalités, 9 langues via labels Wikidata)
  *   overpass   = institutions physiques OpenStreetMap (hôpitaux, banques, gares…)
  *   perplexity = liens web officiels recherchés sur le vrai web (URLs vérifiées, zéro hallucination)
+ *   emergency  = numéros d'urgence officiels (police, pompiers, médical) pour 195 pays
  */
 class ProcessAnnuaireImport implements ShouldQueue
 {
@@ -36,7 +38,8 @@ class ProcessAnnuaireImport implements ShouldQueue
     public function handle(
         WikidataService                  $wikidata,
         OverpassService                  $overpass,
-        PerplexityPracticalLinksService  $perplexity
+        PerplexityPracticalLinksService  $perplexity,
+        EmergencyNumbersService          $emergency
     ): void {
         $job = AnnuaireImportJob::findOrFail($this->importJobId);
 
@@ -50,6 +53,7 @@ class ProcessAnnuaireImport implements ShouldQueue
                 'wikidata'   => $this->runWikidata($job, $wikidata),
                 'overpass'   => $this->runOverpass($job, $overpass),
                 'perplexity' => $this->runPerplexity($job, $perplexity),
+                'emergency'  => $this->runEmergency($job, $emergency),
                 default      => throw new \InvalidArgumentException("Source inconnue: {$job->source}"),
             };
 
@@ -219,6 +223,36 @@ class ProcessAnnuaireImport implements ShouldQueue
 
                 sleep(2); // Perplexity : pause 2s entre requêtes (rate limit sonar)
             }
+        }
+    }
+
+    // ── Numéros d'urgence : données statiques vérifiées ──────────────────────
+
+    private function runEmergency(AnnuaireImportJob $job, EmergencyNumbersService $emergency): void
+    {
+        $isoCodes = $this->resolveIsoCodes($job, $emergency->getSupportedIsoCodes());
+        $job->update(['total_expected' => count($isoCodes)]);
+        $job->appendLog(count($isoCodes) . " pays — numéros urgence police/pompiers/médical");
+
+        foreach ($isoCodes as $iso) {
+            if ($job->isCancelled()) { $job->appendLog("Import annulé."); return; }
+
+            $name    = WikidataService::COUNTRY_NAMES_FR[$iso] ?? $iso;
+            $entries = $emergency->generateForCountry($iso);
+
+            $inserted = $updated = $errors = 0;
+            foreach ($entries as $data) {
+                try {
+                    CountryDirectory::updateOrCreate(
+                        ['country_code' => $data['country_code'], 'nationality_code' => null, 'url' => $data['url']],
+                        $data
+                    );
+                    $inserted++;
+                } catch (\Exception $e) { $errors++; }
+            }
+
+            $job->appendLog("[{$iso}] {$name} : " . count($entries) . " numéros");
+            $job->incrementProcessed($inserted, 0, $errors);
         }
     }
 

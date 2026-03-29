@@ -369,12 +369,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Imports (lancement depuis la console admin)
         Route::prefix('imports')->group(function () {
-            Route::get('/sources',    [\App\Http\Controllers\AnnuaireImportController::class, 'sources']);
-            Route::get('/',           [\App\Http\Controllers\AnnuaireImportController::class, 'index']);
-            Route::post('/',          [\App\Http\Controllers\AnnuaireImportController::class, 'create']);
-            Route::get('/{id}',       [\App\Http\Controllers\AnnuaireImportController::class, 'show']);
-            Route::post('/{id}/cancel',[\App\Http\Controllers\AnnuaireImportController::class, 'cancel']);
-            Route::delete('/{id}',    [\App\Http\Controllers\AnnuaireImportController::class, 'destroy']);
+            Route::get('/sources',       [\App\Http\Controllers\AnnuaireImportController::class, 'sources']);
+            Route::post('/launch-all',   [\App\Http\Controllers\AnnuaireImportController::class, 'launchAll']);
+            Route::get('/',              [\App\Http\Controllers\AnnuaireImportController::class, 'index']);
+            Route::post('/',             [\App\Http\Controllers\AnnuaireImportController::class, 'create']);
+            Route::get('/{id}',          [\App\Http\Controllers\AnnuaireImportController::class, 'show']);
+            Route::post('/{id}/cancel',  [\App\Http\Controllers\AnnuaireImportController::class, 'cancel']);
+            Route::delete('/{id}',       [\App\Http\Controllers\AnnuaireImportController::class, 'destroy']);
         });
     });
 

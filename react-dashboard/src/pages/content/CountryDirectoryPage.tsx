@@ -867,6 +867,7 @@ const SOURCE_COLORS: Record<string, string> = {
   wikidata:   'text-blue-400 bg-blue-500/20',
   overpass:   'text-emerald-400 bg-emerald-500/20',
   perplexity: 'text-orange-400 bg-orange-500/20',
+  emergency:  'text-red-400 bg-red-500/20',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -880,6 +881,7 @@ const STATUS_COLORS: Record<string, string> = {
 const ALL_WIKIDATA_CATS    = ['ambassade'];
 const ALL_OVERPASS_CATS    = ['sante', 'hopitaux', 'banque', 'education', 'transport', 'urgences', 'communaute'];
 const ALL_PERPLEXITY_CATS  = ['immigration', 'fiscalite', 'logement', 'emploi', 'telecom', 'juridique', 'education', 'sante', 'communaute', 'banque'];
+const ALL_EMERGENCY_CATS   = ['urgences'];
 
 function ImportsTab() {
   const [imports, setImports] = useState<ImportJob[]>([]);
@@ -889,7 +891,8 @@ function ImportsTab() {
   const [pollingId, setPollingId] = useState<number | null>(null);
 
   // Formulaire
-  const [source, setSource] = useState<'wikidata' | 'overpass' | 'perplexity'>('wikidata');
+  const [source, setSource] = useState<'wikidata' | 'overpass' | 'perplexity' | 'emergency'>('emergency');
+  const [launchingAll, setLaunchingAll] = useState(false);
   const [scopeType, setScopeType] = useState<'nationality' | 'country' | 'all'>('nationality');
   const [scopeValue, setScopeValue] = useState('');
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
@@ -898,6 +901,7 @@ function ImportsTab() {
 
   const availableCats = source === 'wikidata' ? ALL_WIKIDATA_CATS
     : source === 'overpass' ? ALL_OVERPASS_CATS
+    : source === 'emergency' ? ALL_EMERGENCY_CATS
     : ALL_PERPLEXITY_CATS;
 
   // Charger l'historique + les métadonnées sources
@@ -961,6 +965,19 @@ function ImportsTab() {
     setSelectedCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
   };
 
+  const launchAll = async () => {
+    if (!confirm('Lancer l\'import COMPLET (195 pays × toutes sources) ?\n\n⚡ Emergency : ~30s (gratuit)\n🌐 Wikidata : ~3-4h (gratuit)\n🗺️ Overpass : ~4-5h (gratuit)\n🔍 Perplexity : ~6-8h (~$3-4)\n\nTotal : ~15-20h en background. Le serveur continue même si tu fermes la page.')) return;
+    setLaunchingAll(true);
+    try {
+      await api.post('/country-directory/imports/launch-all');
+      await reloadImports();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Erreur lors du lancement');
+    } finally {
+      setLaunchingAll(false);
+    }
+  };
+
   const launchImport = async () => {
     setCreating(true); setCreateError('');
     try {
@@ -984,7 +1001,6 @@ function ImportsTab() {
   useEffect(() => {
     setSelectedCats([]);
     setScopeType(source === 'wikidata' ? 'nationality' : 'country');
-    // Wikidata = nationality scope, Overpass + Perplexity = country scope
   }, [source]);
 
   const srcMeta = sources[source];
@@ -996,29 +1012,38 @@ function ImportsTab() {
     <div className="space-y-5">
       {/* ── Formulaire de lancement ── */}
       <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <h2 className="text-white font-bold text-base mb-1">Lancer un import</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-white font-bold text-base">Lancer un import</h2>
+          <button onClick={launchAll} disabled={launchingAll}
+            className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 disabled:opacity-50 text-white font-bold text-sm rounded-lg flex items-center gap-2">
+            {launchingAll ? '⏳ Lancement...' : '🚀 TOUT LANCER (195 pays)'}
+          </button>
+        </div>
         <p className="text-xs text-gray-400 mb-4">
-          L'import tourne en background (queue Laravel). Tu peux fermer la page, il continuera.
+          <strong className="text-orange-400">TOUT LANCER</strong> = 4 sources × 195 pays en une fois (~15-20h en background, ~$3-4 Perplexity).
+          Ou choisir une source spécifique ci-dessous.
         </p>
 
         {/* Source */}
         <div className="mb-4">
           <label className="block text-xs text-gray-400 mb-2">Source de données</label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {(['wikidata', 'overpass', 'perplexity'] as const).map(s => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(['emergency', 'wikidata', 'overpass', 'perplexity'] as const).map(s => (
               <button key={s} onClick={() => setSource(s)}
                 className={`p-3 rounded-lg border text-left transition-colors ${source === s ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-gray-500'}`}>
                 <div className={`text-xs font-bold mb-0.5 ${SOURCE_COLORS[s]?.split(' ')[0]}`}>
-                  {s === 'wikidata' ? '🌐 Wikidata' : s === 'overpass' ? '🗺️ OpenStreetMap' : '🔍 Perplexity'}
+                  {s === 'emergency' ? '🚨 Urgences' : s === 'wikidata' ? '🌐 Wikidata' : s === 'overpass' ? '🗺️ OpenStreetMap' : '🔍 Perplexity'}
                 </div>
                 <div className="text-xs text-gray-400 line-clamp-2">
-                  {sources[s]?.description?.substring(0, 80)}...
+                  {sources[s]?.description?.substring(0, 70)}...
                 </div>
                 {sources[s] && (
                   <div className="text-[10px] text-gray-500 mt-1">{sources[s].estimated_time}</div>
                 )}
                 {sources[s]?.cost_estimate && (
-                  <div className="text-[10px] text-amber-500/70 mt-0.5">{sources[s].cost_estimate}</div>
+                  <div className={`text-[10px] mt-0.5 ${sources[s].cost_estimate?.includes('Gratuit') ? 'text-emerald-500/70' : 'text-amber-500/70'}`}>
+                    {sources[s].cost_estimate}
+                  </div>
                 )}
               </button>
             ))}

@@ -7,6 +7,7 @@ use App\Models\AnnuaireImportJob;
 use App\Services\WikidataService;
 use App\Services\OverpassService;
 use App\Services\PerplexityPracticalLinksService;
+use App\Services\EmergencyNumbersService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -28,7 +29,7 @@ class AnnuaireImportController extends Controller
     public function create(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'source'      => 'required|in:wikidata,overpass,perplexity',
+            'source'      => 'required|in:wikidata,overpass,perplexity,emergency',
             'scope_type'  => 'required|in:nationality,country,all',
             'scope_value' => 'nullable|string|max:1000',  // CSV de codes ISO ou null
             'categories'  => 'nullable|array',
@@ -154,6 +155,34 @@ class AnnuaireImportController extends Controller
     }
 
     /**
+     * Lance tous les imports d'un coup (emergency + wikidata + overpass + perplexity).
+     * Dispatche 4 jobs en queue — tournent séquentiellement.
+     */
+    public function launchAll(Request $request): JsonResponse
+    {
+        $sources = ['emergency', 'wikidata', 'overpass', 'perplexity'];
+        $jobs    = [];
+
+        foreach ($sources as $source) {
+            $job = AnnuaireImportJob::create([
+                'source'      => $source,
+                'scope_type'  => $source === 'wikidata' ? 'nationality' : 'country',
+                'scope_value' => null,  // all
+                'categories'  => null,  // all
+                'status'      => 'pending',
+                'launched_by' => $request->user()?->email ?? 'admin-launch-all',
+            ]);
+            ProcessAnnuaireImport::dispatch($job->id)->onQueue('default');
+            $jobs[] = ['id' => $job->id, 'source' => $source];
+        }
+
+        return response()->json([
+            'message' => 'Import complet lancé — 4 jobs en queue (emergency → wikidata → overpass → perplexity)',
+            'jobs'    => $jobs,
+        ], 202);
+    }
+
+    /**
      * Métadonnées des sources disponibles (pour le formulaire frontend).
      */
     public function sources(): JsonResponse
@@ -177,6 +206,16 @@ class AnnuaireImportController extends Controller
                 'categories'  => OverpassService::SUPPORTED_CATEGORIES, // hopitaux→sub de sante
                 'iso_codes'   => $allIsoCodes,
                 'estimated_time' => '~30 min pour 50 pays, ~4h pour tous',
+            ],
+            'emergency' => [
+                'label'          => 'Numéros d\'urgence officiels',
+                'description'    => 'Police, Pompiers, SAMU/Ambulances pour 195 pays. Données statiques vérifiées (112, 911, 999...). Disponible en 6 langues. Rapide — quelques secondes.',
+                'scope_types'    => ['country', 'all'],
+                'categories'     => ['urgences'],
+                'iso_codes'      => $allIsoCodes,
+                'total_countries'=> count($allIsoCodes),
+                'estimated_time' => '~30 secondes pour les 195 pays',
+                'cost_estimate'  => 'Gratuit — données statiques',
             ],
             'perplexity' => [
                 'label'          => 'Perplexity — Liens pratiques (recherche web réelle)',
