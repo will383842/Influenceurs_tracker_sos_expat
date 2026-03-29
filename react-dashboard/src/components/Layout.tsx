@@ -25,6 +25,41 @@ function NavSeparator({ label }: { label: string }) {
   );
 }
 
+// ── Collapsible nav sub-group (niveau 2) ───────────────────
+function NavSubGroup({
+  label,
+  children,
+  isOpen,
+  onToggle,
+}: {
+  label: string;
+  children: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-1.5 px-3 pt-3 pb-0.5 group/sub"
+      >
+        <span className="flex-1 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-600 group-hover/sub:text-gray-400 transition-colors">
+          {label}
+        </span>
+        <svg
+          className={`w-3 h-3 text-gray-700 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+      <div className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ── Collapsible nav group ───────────────────────────────────
 function NavGroup({
   label,
@@ -69,6 +104,27 @@ function NavGroup({
   );
 }
 
+// ── localStorage keys ───────────────────────────────────────
+const LS_GROUPS    = 'mc_nav_groups';
+const LS_SUBGROUPS = 'mc_nav_subgroups';
+
+const DEFAULT_SUBGROUPS: Record<string, boolean> = {
+  sourcing_contacts : true,
+  sourcing_content  : true,
+  sourcing_config   : true,
+  content_piloter   : true,
+  content_contenu   : true,
+  content_publish   : true,
+};
+
+function loadLS<T extends Record<string, boolean>>(key: string, defaults: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return { ...defaults, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return defaults;
+}
+
 // ── Main Layout ─────────────────────────────────────────────
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -88,24 +144,47 @@ export default function Layout() {
     parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
   });
 
-  // Track which nav groups are expanded
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => getGroupsForPath(window.location.pathname));
+  // Track which nav groups are expanded — persist dans localStorage
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    loadLS(LS_GROUPS, getGroupsForPath(window.location.pathname))
+  );
 
-  // Auto-expand the relevant group when route changes (but never auto-close user-opened groups)
+  // Track which sub-groups are expanded — persist dans localStorage
+  const [openSubGroups, setOpenSubGroups] = useState<Record<string, boolean>>(() =>
+    loadLS(LS_SUBGROUPS, DEFAULT_SUBGROUPS)
+  );
+
+  // Auto-expand le groupe parent quand on navigue vers une route qu'il contient
   useEffect(() => {
     const needed = getGroupsForPath(location.pathname);
-    setOpenGroups(prev => ({
-      contacts: prev.contacts || needed.contacts,
-      acquisition: prev.acquisition || needed.acquisition,
-      scraping: prev.scraping || needed.scraping,
-      contentEngine: prev.contentEngine || needed.contentEngine,
-      prospection: prev.prospection || needed.prospection,
-      parametres: prev.parametres || needed.parametres,
-    }));
+    setOpenGroups(prev => {
+      const next = {
+        contacts    : prev.contacts     || needed.contacts,
+        acquisition : prev.acquisition  || needed.acquisition,
+        scraping    : prev.scraping     || needed.scraping,
+        contentEngine: prev.contentEngine || needed.contentEngine,
+        prospection : prev.prospection  || needed.prospection,
+        parametres  : prev.parametres   || needed.parametres,
+      };
+      try { localStorage.setItem(LS_GROUPS, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   }, [location.pathname]);
 
   const toggleGroup = (key: string) => {
-    setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }));
+    setOpenGroups(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(LS_GROUPS, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const toggleSubGroup = (key: string) => {
+    setOpenSubGroups(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(LS_SUBGROUPS, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   };
 
   const handleLogout = async () => {
@@ -226,47 +305,50 @@ export default function Layout() {
                     📡 Vue d'ensemble
                   </NavLink>
 
-                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Contacts</p>
-                  <NavLink to="/contacts/journalistes" className={subNavClass} onClick={handleNavClick}>
-                    🗞️ Journalistes & Presse
-                  </NavLink>
-                  <NavLink to="/directories" className={subNavClass} onClick={handleNavClick}>
-                    📚 Annuaires web
-                  </NavLink>
-                  <NavLink to="/content/lawyers" className={subNavClass} onClick={handleNavClick}>
-                    ⚖️ Avocats
-                  </NavLink>
-                  <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
-                    🏢 Entreprises
-                  </NavLink>
+                  <NavSubGroup label="Contacts" isOpen={openSubGroups.sourcing_contacts} onToggle={() => toggleSubGroup('sourcing_contacts')}>
+                    <NavLink to="/contacts/journalistes" className={subNavClass} onClick={handleNavClick}>
+                      🗞️ Journalistes & Presse
+                    </NavLink>
+                    <NavLink to="/directories" className={subNavClass} onClick={handleNavClick}>
+                      📚 Annuaires web
+                    </NavLink>
+                    <NavLink to="/content/lawyers" className={subNavClass} onClick={handleNavClick}>
+                      ⚖️ Avocats
+                    </NavLink>
+                    <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
+                      🏢 Entreprises
+                    </NavLink>
+                  </NavSubGroup>
 
-                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Données contenu</p>
-                  <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
-                    🗂️ Sources de génération
-                  </NavLink>
-                  <NavLink to="/content/sites" className={subNavClass} onClick={handleNavClick}>
-                    🌐 Sites web
-                  </NavLink>
-                  <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
-                    🌍 Fiches Pays
-                  </NavLink>
-                  <NavLink to="/content/cities" className={subNavClass} onClick={handleNavClick}>
-                    🏙️ Fiches Villes
-                  </NavLink>
-                  <NavLink to="/content/questions" className={subNavClass} onClick={handleNavClick}>
-                    💬 Q&A Forum
-                  </NavLink>
-                  <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
-                    🔗 Liens Affiliés
-                  </NavLink>
-                  <NavLink to="/content/country-directory" className={subNavClass} onClick={handleNavClick}>
-                    🗺️ Annuaire Pays
-                  </NavLink>
+                  <NavSubGroup label="Données contenu" isOpen={openSubGroups.sourcing_content} onToggle={() => toggleSubGroup('sourcing_content')}>
+                    <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
+                      🗂️ Sources de génération
+                    </NavLink>
+                    <NavLink to="/content/sites" className={subNavClass} onClick={handleNavClick}>
+                      🌐 Sites web
+                    </NavLink>
+                    <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
+                      🌍 Fiches Pays
+                    </NavLink>
+                    <NavLink to="/content/cities" className={subNavClass} onClick={handleNavClick}>
+                      🏙️ Fiches Villes
+                    </NavLink>
+                    <NavLink to="/content/questions" className={subNavClass} onClick={handleNavClick}>
+                      💬 Q&A Forum
+                    </NavLink>
+                    <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
+                      🔗 Liens Affiliés
+                    </NavLink>
+                    <NavLink to="/content/country-directory" className={subNavClass} onClick={handleNavClick}>
+                      🗺️ Annuaire Pays
+                    </NavLink>
+                  </NavSubGroup>
 
-                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Config</p>
-                  <NavLink to="/admin/scraper" className={subNavClass} onClick={handleNavClick}>
-                    ⚙️ Configuration scraper
-                  </NavLink>
+                  <NavSubGroup label="Config" isOpen={openSubGroups.sourcing_config} onToggle={() => toggleSubGroup('sourcing_config')}>
+                    <NavLink to="/admin/scraper" className={subNavClass} onClick={handleNavClick}>
+                      ⚙️ Configuration scraper
+                    </NavLink>
+                  </NavSubGroup>
                 </NavGroup>
               )}
 
@@ -383,65 +465,68 @@ export default function Layout() {
                   isOpen={openGroups.contentEngine}
                   onToggle={() => toggleGroup('contentEngine')}
                 >
-                  <p className="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Piloter</p>
-                  <NavLink to="/content/command-center" className={subNavClass} onClick={handleNavClick}>
-                    ⚡ Command Center
-                  </NavLink>
-                  <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
-                    📊 Vue d'ensemble
-                  </NavLink>
+                  <NavSubGroup label="Piloter" isOpen={openSubGroups.content_piloter} onToggle={() => toggleSubGroup('content_piloter')}>
+                    <NavLink to="/content/command-center" className={subNavClass} onClick={handleNavClick}>
+                      ⚡ Command Center
+                    </NavLink>
+                    <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
+                      📊 Vue d'ensemble
+                    </NavLink>
+                  </NavSubGroup>
 
-                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Contenu</p>
-                  <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
-                    📝 Articles
-                  </NavLink>
-                  <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
-                    ⚖️ Comparatifs
-                  </NavLink>
-                  <NavLink to="/content/qa" className={subNavClass} onClick={handleNavClick}>
-                    ❓ Q&A générés
-                  </NavLink>
-                  <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
-                    🎯 Campagnes
-                  </NavLink>
-                  <NavLink to="/content/clusters" className={subNavClass} onClick={handleNavClick}>
-                    🔵 Clusters
-                  </NavLink>
-                  <NavLink to="/content/landings" className={subNavClass} onClick={handleNavClick}>
-                    🛬 Landings
-                  </NavLink>
-                  <NavLink to="/content/press" className={subNavClass} onClick={handleNavClick}>
-                    📰 Presse
-                  </NavLink>
-                  <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
-                    📊 Sondages
-                  </NavLink>
+                  <NavSubGroup label="Contenu" isOpen={openSubGroups.content_contenu} onToggle={() => toggleSubGroup('content_contenu')}>
+                    <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
+                      📝 Articles
+                    </NavLink>
+                    <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
+                      ⚖️ Comparatifs
+                    </NavLink>
+                    <NavLink to="/content/qa" className={subNavClass} onClick={handleNavClick}>
+                      ❓ Q&A générés
+                    </NavLink>
+                    <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
+                      🎯 Campagnes
+                    </NavLink>
+                    <NavLink to="/content/clusters" className={subNavClass} onClick={handleNavClick}>
+                      🔵 Clusters
+                    </NavLink>
+                    <NavLink to="/content/landings" className={subNavClass} onClick={handleNavClick}>
+                      🛬 Landings
+                    </NavLink>
+                    <NavLink to="/content/press" className={subNavClass} onClick={handleNavClick}>
+                      📰 Presse
+                    </NavLink>
+                    <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
+                      📊 Sondages
+                    </NavLink>
+                  </NavSubGroup>
 
-                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Optimiser & Publier</p>
-                  <NavLink to="/content/quality" className={subNavClass} onClick={handleNavClick}>
-                    ✅ Qualité
-                  </NavLink>
-                  <NavLink to="/seo" end className={subNavClass} onClick={handleNavClick}>
-                    🔍 SEO
-                  </NavLink>
-                  <NavLink to="/seo/keywords" className={subNavClass} onClick={handleNavClick}>
-                    🔑 Mots-clés
-                  </NavLink>
-                  <NavLink to="/seo/internal-links" className={subNavClass} onClick={handleNavClick}>
-                    🕸️ Maillage interne
-                  </NavLink>
-                  <NavLink to="/publishing" className={subNavClass} onClick={handleNavClick}>
-                    📤 Publication
-                  </NavLink>
-                  <NavLink to="/translations" className={subNavClass} onClick={handleNavClick}>
-                    🌐 Traductions
-                  </NavLink>
-                  <NavLink to="/media" className={subNavClass} onClick={handleNavClick}>
-                    🖼️ Médias
-                  </NavLink>
-                  <NavLink to="/costs" className={subNavClass} onClick={handleNavClick}>
-                    💰 Coûts IA
-                  </NavLink>
+                  <NavSubGroup label="Optimiser & Publier" isOpen={openSubGroups.content_publish} onToggle={() => toggleSubGroup('content_publish')}>
+                    <NavLink to="/content/quality" className={subNavClass} onClick={handleNavClick}>
+                      ✅ Qualité
+                    </NavLink>
+                    <NavLink to="/seo" end className={subNavClass} onClick={handleNavClick}>
+                      🔍 SEO
+                    </NavLink>
+                    <NavLink to="/seo/keywords" className={subNavClass} onClick={handleNavClick}>
+                      🔑 Mots-clés
+                    </NavLink>
+                    <NavLink to="/seo/internal-links" className={subNavClass} onClick={handleNavClick}>
+                      🕸️ Maillage interne
+                    </NavLink>
+                    <NavLink to="/publishing" className={subNavClass} onClick={handleNavClick}>
+                      📤 Publication
+                    </NavLink>
+                    <NavLink to="/translations" className={subNavClass} onClick={handleNavClick}>
+                      🌐 Traductions
+                    </NavLink>
+                    <NavLink to="/media" className={subNavClass} onClick={handleNavClick}>
+                      🖼️ Médias
+                    </NavLink>
+                    <NavLink to="/costs" className={subNavClass} onClick={handleNavClick}>
+                      💰 Coûts IA
+                    </NavLink>
+                  </NavSubGroup>
                 </NavGroup>
               )}
 
