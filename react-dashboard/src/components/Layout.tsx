@@ -82,8 +82,8 @@ export default function Layout() {
   const getGroupsForPath = (path: string) => ({
     contacts: path.startsWith('/contacts') || path === '/a-relancer' || path.startsWith('/influenceurs'),
     acquisition: path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/admin/avancement',
-    scraping: path === '/directories' || path === '/contacts/journalistes' || path === '/admin/scraper' || path.startsWith('/content/sites') || path.startsWith('/content/businesses') || path.startsWith('/content/lawyers') || path.startsWith('/content/country-directory') || path.startsWith('/scraping'),
-    contentEngine: path.startsWith('/content') || path.startsWith('/seo') || path === '/publishing' || path === '/media' || path === '/costs' || path === '/translations',
+    scraping: path === '/directories' || path === '/contacts/journalistes' || path === '/admin/scraper' || path.startsWith('/content/sites') || path.startsWith('/content/businesses') || path.startsWith('/content/lawyers') || path.startsWith('/content/country-directory') || path.startsWith('/scraping') || path.startsWith('/content/sources') || path.startsWith('/content/countries') || path.startsWith('/content/cities') || path.startsWith('/content/questions') || path.startsWith('/content/affiliates'),
+    contentEngine: (path.startsWith('/content') && !path.startsWith('/content/sources') && !path.startsWith('/content/countries') && !path.startsWith('/content/cities') && !path.startsWith('/content/questions') && !path.startsWith('/content/affiliates') && !path.startsWith('/content/sites') && !path.startsWith('/content/lawyers') && !path.startsWith('/content/businesses') && !path.startsWith('/content/country-directory')) || path.startsWith('/seo') || path === '/publishing' || path === '/media' || path === '/costs' || path === '/translations',
     prospection: path.startsWith('/prospection') || path === '/outreach',
     parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
   });
@@ -268,6 +268,9 @@ export default function Layout() {
                   <NavLink to="/scraping/dashboard" className={subNavClass} onClick={handleNavClick}>
                     📡 Vue d'ensemble
                   </NavLink>
+
+                  {/* ── Acquisition contacts ── */}
+                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Contacts</p>
                   <NavLink to="/contacts/journalistes" className={subNavClass} onClick={handleNavClick}>
                     🗞️ Journalistes & Presse
                   </NavLink>
@@ -280,14 +283,35 @@ export default function Layout() {
                   <NavLink to="/content/businesses" className={subNavClass} onClick={handleNavClick}>
                     🏢 Entreprises
                   </NavLink>
+
+                  {/* ── Sources de contenu ── */}
+                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Données contenu</p>
+                  <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
+                    🗂️ Sources de génération
+                  </NavLink>
                   <NavLink to="/content/sites" className={subNavClass} onClick={handleNavClick}>
                     🌐 Sites web
+                  </NavLink>
+                  <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
+                    🌍 Fiches Pays
+                  </NavLink>
+                  <NavLink to="/content/cities" className={subNavClass} onClick={handleNavClick}>
+                    🏙️ Fiches Villes
+                  </NavLink>
+                  <NavLink to="/content/questions" className={subNavClass} onClick={handleNavClick}>
+                    💬 Q&A Forum
+                  </NavLink>
+                  <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
+                    🔗 Liens Affiliés
                   </NavLink>
                   <NavLink to="/content/country-directory" className={subNavClass} onClick={handleNavClick}>
                     🗺️ Annuaire Pays
                   </NavLink>
+
+                  {/* ── Config ── */}
+                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Config</p>
                   <NavLink to="/admin/scraper" className={subNavClass} onClick={handleNavClick}>
-                    ⚙️ Configuration
+                    ⚙️ Configuration scraper
                   </NavLink>
                 </NavGroup>
               )}
@@ -366,24 +390,6 @@ export default function Layout() {
                   </NavLink>
                   <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
                     📊 Vue d'ensemble
-                  </NavLink>
-
-                  {/* ── Sources ── */}
-                  <p className="px-3 pt-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">Sources</p>
-                  <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
-                    🗂️ Sources de génération
-                  </NavLink>
-                  <NavLink to="/content/countries" className={subNavClass} onClick={handleNavClick}>
-                    🌍 Fiches Pays
-                  </NavLink>
-                  <NavLink to="/content/cities" className={subNavClass} onClick={handleNavClick}>
-                    🏙️ Fiches Villes
-                  </NavLink>
-                  <NavLink to="/content/questions" className={subNavClass} onClick={handleNavClick}>
-                    💬 Q&A Forum
-                  </NavLink>
-                  <NavLink to="/content/affiliates" className={subNavClass} onClick={handleNavClick}>
-                    🔗 Liens Affiliés
                   </NavLink>
 
                   {/* ── Créer du contenu ── */}
