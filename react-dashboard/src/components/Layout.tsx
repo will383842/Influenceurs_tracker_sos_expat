@@ -16,6 +16,15 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
+// ── Section separator ──────────────────────────────────────
+function NavSeparator({ label }: { label: string }) {
+  return (
+    <div className="px-4 pt-4 pb-1">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 select-none">{label}</p>
+    </div>
+  );
+}
+
 // ── Collapsible nav group ───────────────────────────────────
 function NavGroup({
   label,
@@ -23,21 +32,28 @@ function NavGroup({
   children,
   isOpen,
   onToggle,
+  badge,
 }: {
   label: string;
   icon: React.ReactNode;
   children: React.ReactNode;
   isOpen: boolean;
   onToggle: () => void;
+  badge?: number;
 }) {
   return (
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:bg-surface2 hover:text-white transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:bg-surface2 hover:text-white transition-colors group"
       >
         <span className="text-base flex-shrink-0">{icon}</span>
         <span className="flex-1 text-left">{label}</span>
+        {badge != null && badge > 0 && (
+          <span className="bg-amber text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none mr-1">
+            {badge}
+          </span>
+        )}
         <ChevronIcon open={isOpen} />
       </button>
       <div
@@ -108,15 +124,15 @@ export default function Layout() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
       isActive
-        ? 'bg-violet/20 text-violet-light'
-        : 'text-gray-400 hover:bg-surface2 hover:text-white'
+        ? 'bg-violet/20 text-white'
+        : 'text-gray-400 hover:bg-white/5 hover:text-white'
     }`;
 
   const subNavClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
       isActive
-        ? 'text-violet-light bg-violet/10'
-        : 'text-gray-500 hover:text-gray-300 hover:bg-surface2/50'
+        ? 'text-white bg-violet/20 font-medium'
+        : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
     }`;
 
   return (
@@ -194,14 +210,18 @@ export default function Layout() {
                 <span>📊</span> Dashboard
               </NavLink>
 
+              {/* ── Gérer ── */}
+              <NavSeparator label="Gérer" />
+
               {/* 2. Contacts (group) */}
               <NavGroup
                 label="Contacts"
                 icon="👥"
                 isOpen={openGroups.contacts}
                 onToggle={() => toggleGroup('contacts')}
+                badge={reminders.length}
               >
-                <NavLink to="/contacts" className={subNavClass} onClick={handleNavClick}>
+                <NavLink to="/contacts" end className={subNavClass} onClick={handleNavClick}>
                   👥 Tous les contacts
                 </NavLink>
                 <NavLink to="/contacts?category=institutionnel" className={subNavClass} onClick={handleNavClick}>
@@ -220,10 +240,10 @@ export default function Layout() {
                   🔗 Digital & SEO
                 </NavLink>
                 <NavLink to="/a-relancer" className={subNavClass} onClick={handleNavClick}>
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 w-full">
                     🔔 Relances
                     {reminders.length > 0 && (
-                      <span className="bg-amber text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                      <span className="ml-auto bg-amber text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                         {reminders.length}
                       </span>
                     )}
@@ -234,16 +254,19 @@ export default function Layout() {
                 </NavLink>
               </NavGroup>
 
-              {/* 3. Outils de Scraping (group) - admin only */}
+              {/* ── Sourcer ── */}
+              {isAdmin && <NavSeparator label="Sourcer" />}
+
+              {/* 3. Sourcing (group) - admin only */}
               {isAdmin && (
                 <NavGroup
-                  label="Outils de Scraping"
-                  icon="🔧"
+                  label="Sourcing"
+                  icon="🔍"
                   isOpen={openGroups.scraping}
                   onToggle={() => toggleGroup('scraping')}
                 >
                   <NavLink to="/scraping/dashboard" className={subNavClass} onClick={handleNavClick}>
-                    📡 Tableau de bord scraping
+                    📡 Vue d'ensemble
                   </NavLink>
                   <NavLink to="/contacts/journalistes" className={subNavClass} onClick={handleNavClick}>
                     🗞️ Journalistes & Presse
@@ -264,10 +287,13 @@ export default function Layout() {
                     🗺️ Annuaire Pays
                   </NavLink>
                   <NavLink to="/admin/scraper" className={subNavClass} onClick={handleNavClick}>
-                    ⚙️ Configuration scraper
+                    ⚙️ Configuration
                   </NavLink>
                 </NavGroup>
               )}
+
+              {/* ── Engager ── */}
+              {(canAccessAI || isAdmin) && <NavSeparator label="Engager" />}
 
               {/* 4. Acquisition (group) - admin/manager */}
               {canAccessAI && (
@@ -279,21 +305,21 @@ export default function Layout() {
                 >
                   {isAdmin && (
                     <NavLink to="/admin/campaigns" className={subNavClass} onClick={handleNavClick}>
-                      Campagnes auto
+                      🤖 Campagnes auto
                     </NavLink>
                   )}
                   <NavLink to="/ai-research" className={subNavClass} onClick={handleNavClick}>
-                    Recherche IA
+                    🧠 Recherche IA
                   </NavLink>
                   {isAdmin && (
                     <NavLink to="/admin/avancement" className={subNavClass} onClick={handleNavClick}>
-                      Couverture
+                      📈 Couverture
                     </NavLink>
                   )}
                 </NavGroup>
               )}
 
-              {/* 4. Prospection (group) - admin only */}
+              {/* 5. Prospection (group) - admin only */}
               {isAdmin && (
                 <NavGroup
                   label="Prospection"
@@ -302,25 +328,28 @@ export default function Layout() {
                   onToggle={() => toggleGroup('prospection')}
                 >
                   <NavLink to="/prospection" end className={subNavClass} onClick={handleNavClick}>
-                    Hub
+                    🏠 Hub
                   </NavLink>
                   <NavLink to="/prospection/campaign" className={subNavClass} onClick={handleNavClick}>
-                    Lancer campagne
+                    🎯 Lancer campagne
                   </NavLink>
                   <NavLink to="/prospection/emails" className={subNavClass} onClick={handleNavClick}>
-                    Emails
+                    📧 Emails
                   </NavLink>
                   <NavLink to="/prospection/sequences" className={subNavClass} onClick={handleNavClick}>
-                    Sequences
+                    🔄 Séquences
                   </NavLink>
                   <NavLink to="/outreach" className={subNavClass} onClick={handleNavClick}>
-                    Templates
+                    📝 Templates
                   </NavLink>
                   <NavLink to="/prospection/config" className={subNavClass} onClick={handleNavClick}>
-                    Configuration
+                    ⚙️ Configuration
                   </NavLink>
                 </NavGroup>
               )}
+
+              {/* ── Créer ── */}
+              {isAdmin && <NavSeparator label="Créer" />}
 
               {/* ✍️ Content Generator — groupe unifié */}
               {isAdmin && (
@@ -413,10 +442,13 @@ export default function Layout() {
                 </NavGroup>
               )}
 
-              {/* 6. Parametres (group) - admin only */}
+              {/* ── Config ── */}
+              {isAdmin && <NavSeparator label="Config" />}
+
+              {/* 6. Paramètres (group) - admin only */}
               {isAdmin && (
                 <NavGroup
-                  label="Parametres"
+                  label="Paramètres"
                   icon="⚙️"
                   isOpen={openGroups.parametres}
                   onToggle={() => toggleGroup('parametres')}
@@ -458,22 +490,27 @@ export default function Layout() {
         </nav>
 
         {/* User footer */}
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-violet/30 flex items-center justify-center text-violet-light font-bold text-sm">
-              {user?.name?.[0] ?? '?'}
+        <div className="p-3 border-t border-border">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group">
+            <div className="w-8 h-8 rounded-full bg-violet/30 flex items-center justify-center text-violet-light font-bold text-sm flex-shrink-0 ring-1 ring-violet/20">
+              {user?.name?.[0]?.toUpperCase() ?? '?'}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-muted capitalize">{user?.role}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-white truncate leading-tight">{user?.name}</p>
+              <p className="text-[11px] text-muted capitalize leading-tight">{user?.role}</p>
             </div>
+            <button
+              onClick={handleLogout}
+              title="Déconnexion"
+              className="flex-shrink-0 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full text-sm text-muted hover:text-white py-1.5 transition-colors text-left"
-          >
-            Deconnexion &rarr;
-          </button>
         </div>
       </aside>
 
