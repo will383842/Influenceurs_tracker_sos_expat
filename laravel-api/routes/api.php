@@ -23,6 +23,8 @@ use App\Http\Controllers\ContactsBaseController;
 use App\Http\Controllers\ScrapingDashboardController;
 use App\Http\Controllers\JournalistController;
 use App\Http\Controllers\PressController;
+use App\Http\Controllers\BlogToolsProxyController;
+use App\Http\Controllers\PromoTemplateController;
 use App\Http\Controllers\SondageController;
 use App\Http\Controllers\PublishingController;
 use App\Http\Controllers\QaEntryController;
@@ -88,7 +90,7 @@ Route::get('/enums', function () {
 });
 
 // Auth publique
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1')->name('login');
 
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {
@@ -673,14 +675,31 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{affiliateProgram}/earnings',             [AffiliateProgramController::class, 'addEarning']);
     });
 
-    // ── Sondages ────────────────────────────────────────────────────────────
-    Route::prefix('sondages')->group(function () {
+    // ── Promo Templates (admin only) ────────────────────────────────────────
+    Route::middleware('role:admin')->prefix('promo-templates')->group(function () {
+        Route::get('/',                           [PromoTemplateController::class, 'index']);
+        Route::post('/',                          [PromoTemplateController::class, 'store'])->middleware('throttle:30,1');
+        Route::get('/{promoTemplate}',            [PromoTemplateController::class, 'show']);
+        Route::put('/{promoTemplate}',            [PromoTemplateController::class, 'update'])->middleware('throttle:30,1');
+        Route::delete('/{promoTemplate}',         [PromoTemplateController::class, 'destroy'])->middleware('throttle:20,1');
+        Route::patch('/reorder',                  [PromoTemplateController::class, 'reorder'])->middleware('throttle:30,1');
+    });
+
+    // ── Outils Visiteurs (admin only, proxy → Blog) ─────────────────────────
+    Route::middleware('role:admin')->prefix('blog/tools')->group(function () {
+        Route::get('/',              [BlogToolsProxyController::class, 'index']);
+        Route::get('/leads',         [BlogToolsProxyController::class, 'leads']);
+        Route::post('/{id}/toggle',  [BlogToolsProxyController::class, 'toggle'])->middleware('throttle:20,1');
+    });
+
+    // ── Sondages (admin only) ───────────────────────────────────────────────
+    Route::middleware('role:admin')->prefix('sondages')->group(function () {
         Route::get('/',                      [SondageController::class, 'index']);
-        Route::post('/',                     [SondageController::class, 'store']);
+        Route::post('/',                     [SondageController::class, 'store'])->middleware('throttle:20,1');
         Route::get('/{sondage}',             [SondageController::class, 'show']);
-        Route::put('/{sondage}',             [SondageController::class, 'update']);
-        Route::delete('/{sondage}',          [SondageController::class, 'destroy']);
-        Route::post('/{sondage}/sync',       [SondageController::class, 'syncToBlog']);
+        Route::put('/{sondage}',             [SondageController::class, 'update'])->middleware('throttle:20,1');
+        Route::delete('/{sondage}',          [SondageController::class, 'destroy'])->middleware('throttle:10,1');
+        Route::post('/{sondage}/sync',       [SondageController::class, 'syncToBlog'])->middleware('throttle:3,1');
         Route::get('/{sondage}/resultats',   [SondageController::class, 'resultats']);
     });
 });

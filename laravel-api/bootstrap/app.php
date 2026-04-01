@@ -18,5 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {})
+    ->withExceptions(function (Exceptions $exceptions) {
+        // API-only : retourner JSON 401 au lieu de rediriger vers route('login')
+        // Toutes les routes sont API (pas de web routes), donc on retourne toujours JSON.
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        });
+    })
     ->create();

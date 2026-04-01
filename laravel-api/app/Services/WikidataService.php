@@ -203,41 +203,51 @@ class WikidataService
             throw new \InvalidArgumentException("Pas de QID Wikidata pour : {$nationalityIso}");
         }
 
+        // La jointure wdt:P297 (QID → ISO code) est trop lente sur Wikidata public
+        // pour les grands pays (DE, US, GB... >150 ambassades → timeout 60s).
+        // Solution : on récupère le QID du pays hôte (?h) et on fait le mapping en PHP
+        // via array_flip(COUNTRY_QID). Pagination par tranche de 50.
+        $allBindings = [];
+        $limit  = 50;
+        $offset = 0;
+
+        do {
+            $query = $this->buildSparqlQuery($qid, $limit, $offset);
+            $bindings = $this->executeSparql($query);
+            $allBindings = array_merge($allBindings, $bindings);
+            $offset += $limit;
+            if (count($bindings) === $limit) {
+                sleep(1); // respecter Wikidata entre pages
+            }
+        } while (count($bindings) === $limit);
+
+        return $allBindings;
+    }
+
+    private function buildSparqlQuery(string $qid, int $limit, int $offset): string
+    {
         // Types Wikidata couverts :
         //   Q3917681 = ambassade, Q134830 = consulat, Q7843791 = consulat général
         //   Q4898743 = haute-commission (Commonwealth), Q16917 = mission diplomatique
-        // Langues récupérées : fr, en, es, ar, de, pt, zh (→ ch dans le projet), hi, ru
-        $query = <<<SPARQL
-SELECT DISTINCT ?embassy
-  ?labelFr ?labelEn ?labelEs ?labelAr ?labelDe ?labelPt ?labelZh ?labelHi ?labelRu
-  ?hostCountry ?hostCountryCode ?hostCountryLabelFr
-  ?website ?coord ?streetAddress ?phone ?email
+        //
+        // NOTE : on évite wdt:P297 (QID→ISO) car trop lente pour grands pays.
+        // Le champ ?hostQid retourne "http://www.wikidata.org/entity/QXX",
+        // le mapping vers ISO se fait dans normalizeEmbassies() via QID_TO_ISO.
+        return <<<SPARQL
+SELECT DISTINCT ?hostQid ?website ?coord
 WHERE {
-  VALUES ?embassyType { wd:Q3917681 wd:Q134830 wd:Q7843791 wd:Q4898743 wd:Q16917 }
-  ?embassy wdt:P31 ?embassyType .
-  ?embassy wdt:P137 wd:{$qid} .
-  ?embassy wdt:P17 ?hostCountry .
-  ?hostCountry wdt:P297 ?hostCountryCode .
-
-  OPTIONAL { ?embassy rdfs:label ?labelFr FILTER(LANG(?labelFr) = "fr") }
-  OPTIONAL { ?embassy rdfs:label ?labelEn FILTER(LANG(?labelEn) = "en") }
-  OPTIONAL { ?embassy rdfs:label ?labelEs FILTER(LANG(?labelEs) = "es") }
-  OPTIONAL { ?embassy rdfs:label ?labelAr FILTER(LANG(?labelAr) = "ar") }
-  OPTIONAL { ?embassy rdfs:label ?labelDe FILTER(LANG(?labelDe) = "de") }
-  OPTIONAL { ?embassy rdfs:label ?labelPt FILTER(LANG(?labelPt) = "pt") }
-  OPTIONAL { ?embassy rdfs:label ?labelZh FILTER(LANG(?labelZh) = "zh") }
-  OPTIONAL { ?embassy rdfs:label ?labelHi FILTER(LANG(?labelHi) = "hi") }
-  OPTIONAL { ?embassy rdfs:label ?labelRu FILTER(LANG(?labelRu) = "ru") }
-  OPTIONAL { ?hostCountry rdfs:label ?hostCountryLabelFr FILTER(LANG(?hostCountryLabelFr) = "fr") }
-  OPTIONAL { ?embassy wdt:P856 ?website }
-  OPTIONAL { ?embassy wdt:P625 ?coord }
-  OPTIONAL { ?embassy wdt:P6375 ?streetAddress }
-  OPTIONAL { ?embassy wdt:P1329 ?phone }
-  OPTIONAL { ?embassy wdt:P968 ?email }
+  { ?e wdt:P31 wd:Q3917681 } UNION { ?e wdt:P31 wd:Q134830 } UNION
+  { ?e wdt:P31 wd:Q7843791 } UNION { ?e wdt:P31 wd:Q4898743 } UNION
+  { ?e wdt:P31 wd:Q16917   }
+  ?e wdt:P137 wd:{$qid} .
+  ?e wdt:P17 ?hostQid .
+  OPTIONAL { ?e wdt:P856 ?website }
+  OPTIONAL { ?e wdt:P625 ?coord   }
 }
+ORDER BY ?hostQid
+LIMIT {$limit}
+OFFSET {$offset}
 SPARQL;
-
-        return $this->executeSparql($query);
     }
 
     /**
@@ -246,15 +256,21 @@ SPARQL;
     public function normalizeEmbassies(array $bindings, string $nationalityIso): array
     {
         $nationalityName = self::COUNTRY_NAMES_FR[$nationalityIso] ?? $nationalityIso;
+        // Reverse map : QID (ex. "Q183") → ISO (ex. "DE")
+        $qidToIso = array_flip(self::COUNTRY_QID);
         $seen = [];
         $embassies = [];
 
         foreach ($bindings as $row) {
             $get = fn(string $k) => $row[$k]['value'] ?? null;
 
-            $hostCode = strtoupper($get('hostCountryCode') ?? '');
+            // ?hostQid retourne "http://www.wikidata.org/entity/Q183" → on extrait "Q183"
+            $hostQidFull = $get('hostQid') ?? '';
+            $hostQid     = basename(rtrim($hostQidFull, '/'));
+            $hostCode    = strtoupper($qidToIso[$hostQid] ?? '');
+
             if (strlen($hostCode) !== 2) continue;
-            if ($hostCode === $nationalityIso)  continue; // pas d'ambassade chez soi
+            if ($hostCode === $nationalityIso) continue; // pas d'ambassade chez soi
 
             $url = $get('website');
             if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) continue;
@@ -264,28 +280,10 @@ SPARQL;
             if (isset($seen[$key])) continue;
             $seen[$key] = true;
 
-            $labelFr = $get('labelFr');
-            $labelEn = $get('labelEn');
+            $hostName = self::COUNTRY_NAMES_FR[$hostCode] ?? $hostCode;
+            $defaultTitle = "Ambassade de {$nationalityName} en {$hostName}";
 
-            $hostName = self::COUNTRY_NAMES_FR[$hostCode]
-                ?? $get('hostCountryLabelFr')
-                ?? $hostCode;
-
-            $defaultTitle = $labelFr
-                ?? $labelEn
-                ?? "Ambassade de {$nationalityName} en {$hostName}";
-
-            // Traductions dans les 9 langues du projet SOS Expat
-            // Note : le projet utilise "ch" pour le chinois (code Wikidata : "zh")
             $translations = [];
-            if ($labelEn && $labelEn !== $defaultTitle) $translations['en'] = ['title' => $labelEn];
-            if ($get('labelEs'))  $translations['es'] = ['title' => $get('labelEs')];
-            if ($get('labelAr'))  $translations['ar'] = ['title' => $get('labelAr')];
-            if ($get('labelDe'))  $translations['de'] = ['title' => $get('labelDe')];
-            if ($get('labelPt'))  $translations['pt'] = ['title' => $get('labelPt')];
-            if ($get('labelZh'))  $translations['ch'] = ['title' => $get('labelZh')]; // "ch" = chinois dans le projet
-            if ($get('labelHi'))  $translations['hi'] = ['title' => $get('labelHi')];
-            if ($get('labelRu'))  $translations['ru'] = ['title' => $get('labelRu')];
 
             // Coordonnées GPS ("Point(lon lat)")
             $lat = null; $lon = null;
@@ -315,12 +313,12 @@ SPARQL;
                 'domain'           => $domain,
                 'description'      => null,
                 'language'         => 'fr',
-                'translations'     => !empty($translations) ? $translations : null, // array — le model cast 'array' encode lui-même
-                'address'          => $get('streetAddress'),
+                'translations'     => !empty($translations) ? $translations : null,
+                'address'          => null,
                 'city'             => null,
-                'phone'            => $get('phone'),
+                'phone'            => null,
                 'phone_emergency'  => null,
-                'email'            => $get('email'),
+                'email'            => null,
                 'opening_hours'    => null,
                 'latitude'         => $lat,
                 'longitude'        => $lon,
@@ -346,7 +344,7 @@ SPARQL;
         $response = Http::withHeaders([
             'User-Agent' => self::USER_AGENT,
             'Accept'     => 'application/sparql-results+json',
-        ])->timeout(90)->get(self::SPARQL_ENDPOINT, [
+        ])->timeout(180)->get(self::SPARQL_ENDPOINT, [
             'query'  => $query,
             'format' => 'json',
         ]);
