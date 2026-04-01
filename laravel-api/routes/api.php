@@ -92,6 +92,14 @@ Route::get('/enums', function () {
 // Auth publique
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1')->name('login');
 
+// ============================================================
+// COUNTRY DIRECTORY — PUBLIC (lecture seule, pour sos-expat.com/annuaire)
+// ============================================================
+Route::prefix('public/country-directory')->group(function () {
+    Route::get('/countries',             [\App\Http\Controllers\CountryDirectoryController::class, 'countries']);
+    Route::get('/country/{countryCode}', [\App\Http\Controllers\CountryDirectoryController::class, 'country']);
+});
+
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {
 
