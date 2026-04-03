@@ -7,6 +7,7 @@ interface Props {
   onFilterChange: (filters: InfluenceurFilters) => void;
   total?: number;
   summary?: { with_email: number; with_phone: number; verified: number } | null;
+  initialFilters?: InfluenceurFilters;
 }
 
 interface CoverageCountry { country: string; total: number }
@@ -40,8 +41,8 @@ const SEARCH_FIELDS: { value: SearchField; label: string }[] = [
   { value: 'url',     label: 'URL' },
 ];
 
-export default function FilterBar({ onFilterChange, total, summary }: Props) {
-  const [filters, setFilters] = useState<InfluenceurFilters>({});
+export default function FilterBar({ onFilterChange, total, summary, initialFilters }: Props) {
+  const [filters, setFilters] = useState<InfluenceurFilters>(initialFilters ?? {});
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState<SearchField>('all');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -49,6 +50,7 @@ export default function FilterBar({ onFilterChange, total, summary }: Props) {
   const [countries, setCountries] = useState<CoverageCountry[]>([]);
   const [languages, setLanguages] = useState<CoverageLanguage[]>([]);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const isMounted = useRef(false);
 
   useEffect(() => {
     api.get<TeamMember[]>('/team').then(({ data }) => setTeam(data)).catch(() => {});
@@ -77,8 +79,9 @@ export default function FilterBar({ onFilterChange, total, summary }: Props) {
     emit(next);
   };
 
-  // Debounce de la recherche texte
+  // Debounce de la recherche texte (ne se déclenche pas au montage)
   useEffect(() => {
+    if (!isMounted.current) { isMounted.current = true; return; }
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => emit(filters, search), 350);
     return () => clearTimeout(searchTimer.current);

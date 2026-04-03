@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useContext } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useContacts } from '../hooks/useContacts';
 import ContactsTable from '../components/ContactsTable';
@@ -46,6 +46,7 @@ export default function Contacts() {
   const { contacts, loading, error, hasMore, load, loadMore, createContact } = useContacts();
   const { user } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(EMPTY_FORM);
@@ -121,10 +122,9 @@ export default function Contacts() {
   };
 
   const handleCategoryClick = (cat: ContactCategory | null) => {
-    setActiveCategory(cat);
-    const newFilters: InfluenceurFilters = { ...currentFilters, category: cat ?? undefined, contact_type: undefined };
-    setCurrentFilters(newFilters);
-    load(newFilters);
+    const params = new URLSearchParams();
+    if (cat) params.set('category', cat);
+    navigate('/contacts' + (params.toString() ? '?' + params.toString() : ''));
   };
 
   const handleEmailBlur = async (email: string) => {
@@ -296,6 +296,8 @@ export default function Contacts() {
 
       {/* ── Barre de filtres ── */}
       <FilterBar
+        key={searchParams.toString()}
+        initialFilters={currentFilters}
         onFilterChange={handleFilterChange}
         total={total}
         summary={summary}
