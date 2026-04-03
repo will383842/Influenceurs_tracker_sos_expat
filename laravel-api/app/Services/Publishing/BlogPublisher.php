@@ -79,7 +79,8 @@ class BlogPublisher
 
         // Map content_type → blog category_slug (7-category taxonomy)
         $categorySlug = match ($parentArticle->content_type) {
-            'guide', 'pillar', 'guide_city'                           => 'fiches-pays',
+            'guide', 'pillar'                                         => 'fiches-pays',
+            'guide_city'                                              => 'fiches-villes',
             'article', 'tutorial', 'partner_legal', 'partner_expat'  => 'fiches-pratiques',
             'qa', 'comparative', 'news', 'testimonial', 'qa_needs',
                 'press', 'press_release'                              => 'fiches-thematiques',
@@ -125,6 +126,20 @@ class BlogPublisher
             'images'             => $allImages->unique('url')->values()->toArray(),
             'tags'               => $allTags->unique()->values()->toArray(),
             'countries'          => $allCountries->unique()->values()->toArray(),
+            // Extended SEO / geo / OG / Twitter fields
+            'og_type'          => $parentArticle->og_type ?? 'article',
+            'og_locale'        => $parentArticle->og_locale ?? null,
+            'og_url'           => $parentArticle->og_url ?? $parentArticle->canonical_url ?? null,
+            'og_site_name'     => $parentArticle->og_site_name ?? 'SOS Expat & Travelers',
+            'twitter_card'     => $parentArticle->twitter_card ?? 'summary_large_image',
+            'geo_region'       => $parentArticle->geo_region ?? null,
+            'geo_placename'    => $parentArticle->geo_placename ?? null,
+            'geo_position'     => $parentArticle->geo_position ?? null,
+            'icbm'             => $parentArticle->icbm ?? null,
+            'meta_keywords'    => $parentArticle->meta_keywords ?? null,
+            'content_language' => $parentArticle->content_language ?? $parentArticle->language ?? null,
+            'last_reviewed_at' => $parentArticle->last_reviewed_at?->toIso8601String(),
+            'noindex'          => false,
         ];
 
         // ── Extract and send table of contents ────────────────────

@@ -30,7 +30,7 @@ class PublishingController extends Controller
     {
         $validated = $request->validate([
             'name'       => 'required|string|max:100',
-            'type'       => 'required|string|in:firestore,wordpress,webhook',
+            'type'       => 'required|string|in:firestore,wordpress,webhook,blog',
             'config'     => 'required|array',
             'is_active'  => 'nullable|boolean',
             'is_default' => 'nullable|boolean',
@@ -66,7 +66,7 @@ class PublishingController extends Controller
     {
         $validated = $request->validate([
             'name'       => 'nullable|string|max:100',
-            'type'       => 'nullable|string|in:firestore,wordpress,webhook',
+            'type'       => 'nullable|string|in:firestore,wordpress,webhook,blog',
             'config'     => 'nullable|array',
             'is_active'  => 'nullable|boolean',
             'is_default' => 'nullable|boolean',

@@ -34,6 +34,9 @@ class GeneratedArticle extends Model
         'status',
         'published_at', 'scheduled_at',
         'canonical_url',
+        'og_type', 'og_locale', 'og_url', 'og_site_name', 'twitter_card',
+        'geo_region', 'geo_placename', 'geo_position', 'icbm',
+        'meta_keywords', 'content_language', 'last_reviewed_at',
         'created_by',
     ];
 
@@ -53,6 +56,7 @@ class GeneratedArticle extends Model
         'word_count'                    => 'integer',
         'reading_time_minutes'          => 'integer',
         'generation_duration_seconds'   => 'integer',
+        'last_reviewed_at'  => 'datetime',
     ];
 
     // ============================================================

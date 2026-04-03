@@ -18,6 +18,7 @@ use App\Services\AI\OpenAiService;
 use App\Services\AI\UnsplashService;
 use App\Services\Content\SeoChecklistService;
 use App\Services\PerplexitySearchService;
+use App\Services\Seo\GeoMetaService;
 use App\Services\Seo\HreflangService;
 use App\Services\Seo\InternalLinkingService;
 use App\Services\Seo\JsonLdService;
@@ -43,6 +44,7 @@ class ArticleGenerationService
         private JsonLdService $jsonLd,
         private SlugService $slugService,
         private InternalLinkingService $internalLinking,
+        private GeoMetaService $geoMeta,
     ) {}
 
     /**
@@ -158,7 +160,9 @@ class ArticleGenerationService
                 $research['facts'],
                 $params['language'] ?? 'fr',
                 $params['keywords'] ?? [],
-                $typeConfig
+                $typeConfig,
+                $params['country'] ?? null,
+                $contentType
             );
             $article->update(['title' => $title]);
             $this->logPhase($article, 'title', 'success', $title, 0, 0, $this->elapsed($phaseStart));
@@ -197,7 +201,8 @@ class ArticleGenerationService
                         $title,
                         $contentHtml,
                         $params['language'] ?? 'fr',
-                        $effectiveFaqCount
+                        $effectiveFaqCount,
+                        $params['country'] ?? null
                     );
                     if (!empty($faqs)) {
                         foreach ($faqs as $index => $faq) {
@@ -241,11 +246,26 @@ class ArticleGenerationService
                 $params['keywords'][0] ?? '',
                 $params['language'] ?? 'fr'
             );
-            $article->update([
-                'og_title'       => $aeoMeta['og_title'],
-                'og_description' => $aeoMeta['og_description'],
-                'ai_summary'     => $aeoMeta['ai_summary'],
-            ]);
+            // Build geo/OG/Twitter extended meta fields
+            $geoUpdate = [
+                'og_title'         => $aeoMeta['og_title'],
+                'og_description'   => $aeoMeta['og_description'],
+                'ai_summary'       => $aeoMeta['ai_summary'],
+                'og_type'          => 'article',
+                'og_locale'        => GeoMetaService::OG_LOCALE_MAP[$params['language'] ?? 'fr'] ?? 'fr_FR',
+                'og_site_name'     => 'SOS Expat & Travelers',
+                'twitter_card'     => 'summary_large_image',
+                'content_language' => $params['language'] ?? 'fr',
+                'meta_keywords'    => implode(', ', array_filter(array_slice($params['keywords'] ?? [], 0, 5))),
+                'last_reviewed_at' => now(),
+            ];
+            if (!empty($params['country'])) {
+                $geoUpdate['geo_region']    = $this->geoMeta->getGeoRegion($params['country']);
+                $geoUpdate['geo_placename'] = $this->geoMeta->getGeoPlacename($params['country'], $params['language'] ?? 'fr');
+                $geoUpdate['geo_position']  = $this->geoMeta->getGeoPosition($params['country']);
+                $geoUpdate['icbm']          = $this->geoMeta->getIcbm($params['country']);
+            }
+            $article->update($geoUpdate);
             $this->logPhase($article, 'aeo_meta', 'success', null, 0, 0, $this->elapsed($phaseStart));
 
             // Phase 8: Generate JSON-LD
@@ -332,7 +352,10 @@ class ArticleGenerationService
                 $article->refresh();
                 $siteUrl = config('services.blog.site_url', config('services.site.url', 'https://sos-expat.com'));
                 $canonical = rtrim($siteUrl, '/') . '/' . $article->language . '/articles/' . $article->slug;
-                $article->update(['canonical_url' => $canonical]);
+                $article->update([
+                    'canonical_url' => $canonical,
+                    'og_url'        => $canonical,
+                ]);
             } catch (\Throwable $e) {
                 Log::warning('Phase 13 (slugs) failed, continuing', ['error' => $e->getMessage(), 'article_id' => $article->id]);
                 $this->sendTelegramAlert('13 — Slugs/Canonical', $e->getMessage(), $article);
@@ -688,7 +711,7 @@ class ArticleGenerationService
         return ['facts' => $facts, 'sources' => $sources];
     }
 
-    private function phase03_generateTitle(string $topic, array $facts, string $language, array $keywords, array $typeConfig = []): string
+    private function phase03_generateTitle(string $topic, array $facts, string $language, array $keywords, array $typeConfig = [], ?string $country = null, string $contentType = 'article'): string
     {
         $primaryKeyword = $keywords[0] ?? $topic;
         $year = date('Y');
@@ -718,6 +741,12 @@ class ArticleGenerationService
               . "Langue: {$language}. Retourne UNIQUEMENT le titre, sans guillemets ni explication.";
 
         $userPrompt = "Sujet: {$topic}\nMot-clé principal: {$primaryKeyword}\nAnnée: {$year}{$factsContext}";
+
+        // Force country name in title for country/city guide articles (anti-duplicate content)
+        if ($country && in_array($contentType, ['guide', 'pillar', 'guide_city'], true)) {
+            $countryName = $this->geoMeta->getGeoPlacename($country, $language);
+            $userPrompt .= "\n\nOBLIGATOIRE : Le titre DOIT contenir explicitement le nom du pays ou de la ville '{$countryName}'. Exemple : 'Visa pour {$countryName} : Guide Complet {$year}'. Sans ce nom géographique le titre sera REJETÉ.";
+        }
 
         $result = $this->openAi->complete($systemPrompt, $userPrompt, [
             'model' => $typeConfig['model'] ?? null,
@@ -889,6 +918,14 @@ class ArticleGenerationService
             . "Année courante: " . date('Y') . ". Mentionne cette année dans le premier paragraphe et les données chiffrées.\n\n"
             . "Rédige l'article complet en HTML.";
 
+        // Inject country geo context for guide/pillar/guide_city — prevents duplicate content across 197 countries
+        if (!empty($params['country']) && in_array($contentType, ['guide', 'pillar', 'guide_city'], true)) {
+            $geoContext = $this->geoMeta->buildCountryContextForPrompt($params['country'], $language);
+            if (!empty($geoContext)) {
+                $userPrompt = $geoContext . "\n\n" . $userPrompt;
+            }
+        }
+
         // Append content-type-specific instructions
         $promptSuffix = $typeConfig['prompt_suffix'] ?? '';
         if (!empty($promptSuffix)) {
@@ -1056,16 +1093,20 @@ class ArticleGenerationService
         return $article->content_html;
     }
 
-    private function phase06_generateFaq(string $title, string $contentHtml, string $language, int $count = 8): array
+    private function phase06_generateFaq(string $title, string $contentHtml, string $language, int $count = 8, ?string $country = null): array
     {
         $contentText = $this->seoAnalysis->extractTextFromHtml($contentHtml);
         $contentExcerpt = mb_substr($contentText, 0, 2000);
+
+        // Force country name in every FAQ question — prevents generic duplicate FAQs across 197 countries
+        $faqCountryConstraint = $country ? $this->geoMeta->buildFaqCountryConstraint($country, $language) : '';
 
         $systemPrompt = "Tu es un expert SEO spécialisé en FAQ Schema. Génère exactement {$count} questions fréquemment posées "
             . "sur le sujet de l'article, avec des réponses détaillées (3-5 phrases chacune). "
             . "Langue: {$language}.\n\n"
             . "Retourne en JSON: [{\"question\": \"...\", \"answer\": \"...\"}]\n"
-            . "Les questions doivent être celles que les utilisateurs taperaient réellement dans Google.";
+            . "Les questions doivent être celles que les utilisateurs taperaient réellement dans Google."
+            . $faqCountryConstraint;
 
         $result = $this->openAi->complete($systemPrompt, "Titre: {$title}\n\nContenu (extrait):\n{$contentExcerpt}", [
             'temperature' => 0.6,

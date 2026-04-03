@@ -334,6 +334,35 @@ class JsonLdService
             }
         }
 
+        // Place+Geo schema — for country/city guide articles
+        if (!empty($article->country) && in_array($article->content_type ?? '', ['guide', 'pillar', 'guide_city'], true)) {
+            try {
+                $geo = app(\App\Services\Seo\GeoMetaService::class)->getByCode($article->country);
+                if ($geo) {
+                    $lang = $article->language ?? 'fr';
+                    $placeName = $lang === 'en' ? $geo->country_name_en : $geo->country_name_fr;
+                    $placeSchema = [
+                        '@type'  => 'Place',
+                        'name'   => $placeName,
+                        'geo'    => [
+                            '@type'     => 'GeoCoordinates',
+                            'latitude'  => $geo->latitude,
+                            'longitude' => $geo->longitude,
+                        ],
+                        'address' => [
+                            '@type'           => 'PostalAddress',
+                            'addressCountry'  => strtoupper($article->country),
+                            'addressLocality' => $lang === 'en' ? ($geo->capital_en ?? '') : ($geo->capital_fr ?? ''),
+                        ],
+                    ];
+                    unset($placeSchema['@context']);
+                    $graph[] = $placeSchema;
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::debug('JsonLdService: Place schema failed', ['error' => $e->getMessage()]);
+            }
+        }
+
         return [
             '@context' => 'https://schema.org',
             '@graph' => $graph,
