@@ -89,13 +89,15 @@ class SondageController extends Controller
         ]);
 
         DB::transaction(function () use ($data, $sondage) {
-            $sondage->update(array_filter([
-                'title'       => $data['title'] ?? null,
-                'description' => array_key_exists('description', $data) ? $data['description'] : $sondage->description,
-                'status'      => $data['status'] ?? null,
-                'language'    => $data['language'] ?? null,
-                'closes_at'   => array_key_exists('closes_at', $data) ? $data['closes_at'] : $sondage->closes_at,
-            ], fn ($v) => $v !== null));
+            $updates = [];
+            if (isset($data['title']))    $updates['title']    = $data['title'];
+            if (isset($data['status']))   $updates['status']   = $data['status'];
+            if (isset($data['language'])) $updates['language'] = $data['language'];
+            if (array_key_exists('description', $data)) $updates['description'] = $data['description'];
+            if (array_key_exists('closes_at', $data))   $updates['closes_at']   = $data['closes_at'];
+            if (!empty($updates)) {
+                $sondage->update($updates);
+            }
 
             if (isset($data['questions'])) {
                 $sondage->questions()->delete();

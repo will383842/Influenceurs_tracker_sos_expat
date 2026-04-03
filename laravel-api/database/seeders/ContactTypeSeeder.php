@@ -27,6 +27,7 @@ class ContactTypeSeeder extends Seeder
             ['value' => 'blog',                   'label' => 'Blogs & Créateurs',         'icon' => '📝', 'color' => '#A855F7', 'sort_order' => 11, 'scraper_enabled' => true],
             ['value' => 'podcast_radio',          'label' => 'Podcasts & Radios',         'icon' => '🎙️', 'color' => '#F97316', 'sort_order' => 12, 'scraper_enabled' => true],
             ['value' => 'influenceur',            'label' => 'Influenceurs',              'icon' => '✨', 'color' => '#FFD60A', 'sort_order' => 13, 'scraper_enabled' => false],
+            ['value' => 'youtubeur',              'label' => 'YouTubeurs',                'icon' => '▶️', 'color' => '#FF0000', 'sort_order' => 14, 'scraper_enabled' => false],
 
             // Services B2B
             ['value' => 'avocat',                 'label' => 'Avocats',                   'icon' => '⚖️', 'color' => '#8B5CF6', 'sort_order' => 20, 'scraper_enabled' => true],

@@ -327,10 +327,14 @@ class EmergencyNumbersService
     private function buildDescription(array $services, string $country): string
     {
         $parts = [];
-        if ($services['g']) $parts[] = $services['g'] . ' (urgences)';
-        if ($services['p'] && $services['p'] !== $services['g']) $parts[] = $services['p'] . ' (police)';
-        if ($services['f'] && $services['f'] !== $services['g']) $parts[] = $services['f'] . ' (pompiers)';
-        if ($services['m'] && $services['m'] !== $services['g']) $parts[] = $services['m'] . ' (médical)';
+        $g = $services['general'] ?? '';
+        $p = $services['police']  ?? '';
+        $f = $services['fire']    ?? '';
+        $m = $services['medical'] ?? '';
+        if ($g) $parts[] = $g . ' (urgences)';
+        if ($p && $p !== $g) $parts[] = $p . ' (police)';
+        if ($f && $f !== $g) $parts[] = $f . ' (pompiers)';
+        if ($m && $m !== $g) $parts[] = $m . ' (médical)';
         return implode(' · ', $parts);
     }
 

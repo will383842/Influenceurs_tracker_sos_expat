@@ -1,0 +1,543 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#2A2A2E;--s1:#363639;--s2:#434347;--s3:#525256;--w:#fff;--w8:rgba(255,255,255,.85);--w6:rgba(255,255,255,.6);--w3:rgba(255,255,255,.2);--b1:rgba(255,255,255,.12);--b2:rgba(255,255,255,.25)}
+.wrap{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--w);display:flex;flex-direction:column;min-height:520px}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--s1);border-bottom:1px solid var(--b1);flex-shrink:0}
+.brand{display:flex;align-items:center;gap:9px}
+.sq{width:32px;height:32px;background:#E8192C;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#fff;flex-shrink:0}
+.bn{font-size:14px;font-weight:800;color:#fff;line-height:1.2}
+.bs{font-size:10px;color:var(--w6);line-height:1.4}
+.prog-row{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.pnum{font-size:11px;color:var(--w6);font-weight:600;white-space:nowrap}
+.ptrack{width:70px;height:3px;background:var(--b1);border-radius:2px;overflow:hidden}
+.pfill{height:100%;border-radius:2px;transition:width .4s ease}
+
+/* HUB */
+.hub-body{padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+.live-bar{display:flex;align-items:center;justify-content:space-between;background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:9px 13px}
+.ll{display:flex;align-items:center;gap:6px}
+.livdot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:blink 2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.lt{font-size:11px;color:var(--w6);font-weight:500}
+.lc{font-size:13px;font-weight:700;color:#fff}
+.lbars{display:flex;gap:2px;align-items:flex-end;height:15px}
+.lbar{width:3px;border-radius:1px;background:#E8192C;opacity:.7}
+.hub-intro{text-align:center;padding:4px 0 2px}
+.hub-globe{font-size:38px;display:block;margin-bottom:7px;line-height:1.3}
+.hub-h{font-size:19px;font-weight:900;color:#fff;letter-spacing:-.3px;margin-bottom:5px}
+.hub-sub{font-size:12px;color:var(--w6);line-height:1.6}
+
+/* SURVEY GRID — cards carrées */
+.survey-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.s-card{border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;overflow:hidden;position:relative;aspect-ratio:1;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;transition:transform .12s}
+.s-card:active{transform:scale(.96)}
+.s-card-bg{position:absolute;inset:0;opacity:.15;border-radius:14px}
+.s-card-inner{position:relative;z-index:1;display:flex;flex-direction:column;gap:4px}
+.s-card-emoji{font-size:26px;line-height:1.2;margin-bottom:4px}
+.s-card-title{font-size:12px;font-weight:800;color:#fff;line-height:1.3;letter-spacing:-.1px}
+.s-card-sub{font-size:10px;color:rgba(255,255,255,.75);line-height:1.3;font-weight:500}
+.s-card-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:9px;font-weight:800;margin-top:5px;width:fit-content}
+.badge-todo{background:rgba(255,255,255,.2);color:#fff}
+.badge-done{background:rgba(34,197,94,.25);color:#22c55e}
+.s-card-done-overlay{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(34,197,94,.9);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#fff}
+
+/* GLOBAL STATS */
+.global-stats{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:13px}
+.gs-title{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--w6);margin-bottom:10px;font-weight:800}
+.gs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gs-stat{text-align:center}
+.gs-n{font-size:18px;font-weight:900;color:#fff}
+.gs-l{font-size:10px;color:var(--w6);margin-top:2px;font-weight:600}
+
+/* SURVEY MODE */
+.survey-body{padding:14px 16px;display:flex;flex-direction:column;gap:11px}
+.q-tag{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;line-height:1.4;display:flex;align-items:center;gap:6px}
+.q-emoji{font-size:17px;line-height:1}
+.q-txt{font-size:18px;font-weight:800;color:#fff;line-height:1.4;letter-spacing:-.2px}
+.q-hint{font-size:12px;color:var(--w6);font-style:italic}
+
+/* OPTIONS */
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{position:relative;overflow:hidden;border:1.5px solid var(--b1);border-radius:12px;cursor:pointer;background:var(--s1);-webkit-tap-highlight-color:transparent;transition:border-color .1s,background .1s}
+.opt.sel{background:var(--s2)}
+.ofill{position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,.06);border-radius:10px;transition:width .6s cubic-bezier(.4,0,.2,1);pointer-events:none}
+.oin{position:relative;z-index:1;display:flex;align-items:center;padding:13px 14px;gap:11px;min-height:50px}
+.ora{width:20px;height:20px;min-width:20px;border-radius:50%;border:2px solid var(--b2);display:flex;align-items:center;justify-content:center;background:var(--s2);flex-shrink:0;transition:all .1s}
+.olbl{font-size:14px;color:#fff;flex:1;line-height:1.45;font-weight:500}
+.ordot{width:7px;height:7px;border-radius:50%;background:#fff;opacity:0;transition:opacity .1s}
+.opt.sel .ordot{opacity:1}
+.opct{font-size:12px;font-weight:800;color:var(--w6);min-width:32px;text-align:right;flex-shrink:0}
+
+/* CARDS 2x2 */
+.card4{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.c4{border:1.5px solid var(--b1);border-radius:12px;cursor:pointer;background:var(--s1);-webkit-tap-highlight-color:transparent;transition:border-color .1s,background .1s;padding:14px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;aspect-ratio:.9}
+.c4.sel{background:var(--s2)}
+.c4e{font-size:24px;line-height:1.2}
+.c4l{font-size:13px;color:#fff;font-weight:700;line-height:1.3}
+.c4p{font-size:11px;font-weight:800;color:var(--w6)}
+
+/* CHECKBOXES */
+.cbs{display:flex;flex-direction:column;gap:7px}
+.cb{position:relative;overflow:hidden;border:1.5px solid var(--b1);border-radius:12px;cursor:pointer;background:var(--s1);-webkit-tap-highlight-color:transparent;transition:border-color .1s}
+.cb.sel{background:var(--s2)}
+.cbfill{position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,.06);border-radius:10px;transition:width .6s cubic-bezier(.4,0,.2,1);pointer-events:none}
+.cbi{position:relative;z-index:1;display:flex;align-items:center;padding:12px 14px;gap:11px;min-height:48px}
+.cbsq{width:20px;height:20px;min-width:20px;border-radius:5px;border:2px solid var(--b2);display:flex;align-items:center;justify-content:center;background:var(--s2);flex-shrink:0;transition:all .1s}
+.cbck{width:10px;height:6px;border-left:2.5px solid #fff;border-bottom:2.5px solid #fff;transform:rotate(-45deg) translateY(-1px);opacity:0;transition:opacity .1s}
+.cb.sel .cbck{opacity:1}
+.cblbl{font-size:14px;color:#fff;flex:1;line-height:1.4;font-weight:500}
+.cbpct{font-size:12px;font-weight:800;color:var(--w6);flex-shrink:0}
+
+/* SELECT */
+.selwrap{position:relative}
+.selwrap select{width:100%;background:var(--s1);border:1.5px solid var(--b1);border-radius:12px;padding:0 42px 0 14px;height:52px;font-size:15px;color:#fff;font-family:inherit;outline:none;cursor:pointer;appearance:none;font-weight:600;display:block}
+.selwrap select:focus{border-color:rgba(255,255,255,.4)}
+.selwrap select option{background:#3A3A3F;color:#fff}
+.sarr{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--w6);pointer-events:none;font-size:13px}
+
+/* SLIDER */
+.slbox{border:1.5px solid var(--b1);border-radius:12px;padding:18px 16px;background:var(--s1)}
+.slval{font-size:40px;font-weight:900;color:#fff;letter-spacing:-1.5px;line-height:1.1;text-align:center}
+.slunit{font-size:12px;color:var(--w6);margin-top:4px;font-weight:600;text-align:center}
+.slavg{font-size:11px;margin-top:3px;font-weight:700;text-align:center}
+.sltrack{position:relative;height:4px;background:rgba(255,255,255,.12);border-radius:2px;margin:14px 0 4px}
+.slrail{position:absolute;left:0;top:0;height:100%;border-radius:2px}
+input.rng{width:100%;appearance:none;background:transparent;height:4px;display:block;cursor:pointer;margin:0}
+input.rng::-webkit-slider-thumb{appearance:none;width:28px;height:28px;border-radius:50%;background:#fff;border:3px solid currentColor;cursor:pointer}
+input.rng::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:#fff;cursor:pointer;border-style:solid;border-width:3px}
+.rlbls{display:flex;justify-content:space-between;font-size:11px;color:var(--w6);margin-top:8px;font-weight:500}
+
+/* STARS */
+.stbox{border:1.5px solid var(--b1);border-radius:12px;padding:18px;text-align:center;background:var(--s1)}
+.strow{display:flex;gap:6px;justify-content:center;padding:0 0 10px}
+.star{font-size:38px;cursor:pointer;color:rgba(255,255,255,.15);transition:all .12s;user-select:none;line-height:1.2;display:inline-block;-webkit-tap-highlight-color:transparent}
+.star.lit{filter:drop-shadow(0 0 8px rgba(255,255,255,.3))}
+.sdesc{font-size:13px;color:var(--w6);min-height:20px;font-weight:600}
+
+/* NPS */
+.npsbox{border:1.5px solid var(--b1);border-radius:12px;padding:16px;background:var(--s1)}
+.npslbls{display:flex;justify-content:space-between;font-size:12px;color:var(--w6);margin-bottom:10px;font-weight:600}
+.npsrow{display:grid;grid-template-columns:repeat(11,1fr);gap:4px}
+.nbtn{width:100%;aspect-ratio:1;border-radius:8px;border:1.5px solid var(--b1);background:var(--s2);font-size:13px;font-weight:800;cursor:pointer;color:#fff;font-family:inherit;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;transition:all .1s;padding:0}
+.nbtn.sel{transform:scale(1.1)}
+
+/* EMAIL */
+.embox{border:1.5px solid var(--b1);border-radius:12px;padding:16px;background:var(--s1);display:flex;flex-direction:column;gap:10px}
+.em-notice{font-size:12px;color:var(--w8);font-weight:600;line-height:1.5;padding:9px 11px;border-radius:8px;border-left:3px solid currentColor}
+input.ein{width:100%;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;padding:0 14px;height:52px;font-size:15px;color:#fff;font-family:inherit;outline:none;transition:border-color .1s;font-weight:500;display:block}
+input.ein::placeholder{color:var(--w3)}
+.consent-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cbox3{width:20px;height:20px;min-width:20px;border-radius:5px;border:2px solid var(--b2);background:var(--s2);display:flex;align-items:center;justify-content:center;margin-top:1px;flex-shrink:0;transition:all .1s}
+.cck3{width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translateY(-1px);opacity:0}
+.ctxt{font-size:11px;color:var(--w6);line-height:1.6}
+.skip-lnk{background:transparent;border:none;color:var(--w6);font-size:12px;font-family:inherit;cursor:pointer;text-align:center;padding:2px;text-decoration:underline;width:100%;-webkit-tap-highlight-color:transparent}
+
+/* MULTI-SELECT */
+.multi-sel-wrap{display:flex;flex-direction:column;gap:10px}
+.sel-field{display:flex;flex-direction:column;gap:5px}
+.sel-lbl{font-size:10px;color:var(--w6);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+
+/* NAV */
+.nav{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--b1);background:var(--s1);flex-shrink:0}
+.btnb{padding:0 16px;height:46px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid var(--b2);background:var(--s2);color:var(--w8);font-family:inherit;display:flex;align-items:center;gap:5px;-webkit-tap-highlight-color:transparent}
+.btnb:disabled{opacity:.3;cursor:default}
+.btnn{padding:0 22px;height:46px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;border:none;color:#fff;font-family:inherit;display:flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.btnn:active{transform:scale(.97)}
+
+/* RESULTS */
+.res-body{padding:14px 16px;display:flex;flex-direction:column;gap:11px}
+.res-hero{text-align:center;padding:6px 0 14px;border-bottom:1px solid var(--b1)}
+.res-globe{font-size:40px;display:block;margin-bottom:7px;animation:fl 3s ease-in-out infinite;line-height:1.3}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.res-h{font-size:19px;font-weight:900;color:#fff;letter-spacing:-.3px;margin-bottom:4px}
+.res-sub{font-size:12px;color:var(--w6);line-height:1.6}
+.bigstat{border-radius:12px;padding:16px;text-align:center}
+.bsn{font-size:34px;font-weight:900;color:#fff;letter-spacing:-1.5px;line-height:1.1}
+.bsl{font-size:11px;color:rgba(255,255,255,.8);margin-top:4px;font-weight:700}
+.bsc{font-size:10px;color:rgba(255,255,255,.55);margin-top:2px}
+.sg2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sc2{background:var(--s1);border:1.5px solid var(--b1);border-radius:11px;padding:12px;text-align:center}
+.scn2{font-size:18px;font-weight:900;color:#fff}
+.scl2{font-size:10px;color:var(--w6);margin-top:2px;font-weight:700}
+.scc2{font-size:10px;margin-top:1px;font-weight:800}
+.rsec{background:var(--s1);border:1.5px solid var(--b1);border-radius:12px;padding:13px}
+.rsect{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--w6);margin-bottom:10px;font-weight:800}
+.rrow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.rlbl{font-size:12px;color:#fff;width:108px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.rtrack{flex:1;height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+.rfill{height:100%;border-radius:3px;transition:width .9s cubic-bezier(.4,0,.2,1)}
+.rpct{font-size:11px;font-weight:800;width:30px;text-align:right;flex-shrink:0}
+.next-card{border-radius:12px;padding:14px;text-align:center;border:1.5px solid rgba(255,255,255,.2)}
+.btn-hub-back{width:100%;height:44px;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid var(--b2);background:var(--s1);color:#fff;font-family:inherit}
+.btn-next-s{width:100%;height:48px;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer;border:none;color:#fff;font-family:inherit;margin-top:4px}
+</style>
+
+<div class="wrap" id="wrap"></div>
+
+<script>
+const COLORS={
+  S0:{main:"#E8192C",dark:"#9b1019",light:"rgba(232,25,44,.18)"},
+  S1:{main:"#2563EB",dark:"#1a47b0",light:"rgba(37,99,235,.18)"},
+  S2:{main:"#16A34A",dark:"#0f6e32",light:"rgba(22,163,74,.18)"},
+  S3:{main:"#7C3AED",dark:"#5226a8",light:"rgba(124,58,237,.18)"},
+  S4:{main:"#EA580C",dark:"#a83c07",light:"rgba(234,88,12,.18)"},
+  S5:{main:"#0891B2",dark:"#05607a",light:"rgba(8,145,178,.18)"},
+};
+
+const PO=["🇫🇷 Française","🇩🇪 Allemande","🇬🇧 Britannique","🇺🇸 Américaine","🇨🇳 Chinoise","🇮🇳 Indienne","🇧🇷 Brésilienne","🇯🇵 Japonaise","🇰🇷 Coréenne","🇨🇦 Canadienne","🇦🇺 Australienne","🇪🇸 Espagnole","🇮🇹 Italienne","🇵🇱 Polonaise","🇲🇦 Marocaine","🇩🇿 Algérienne","🇸🇳 Sénégalaise","🇲🇽 Mexicaine","🇷🇺 Russe","🇵🇭 Philippine","🇧🇪 Belge","🇨🇭 Suisse","🇳🇱 Néerlandaise","Autre"];
+const PA=["🇹🇭 Thaïlande","🇦🇪 Émirats","🇵🇹 Portugal","🇪🇸 Espagne","🇸🇬 Singapour","🇲🇾 Malaisie","🇩🇪 Allemagne","🇬🇧 Royaume-Uni","🇫🇷 France","🇨🇭 Suisse","🇨🇦 Canada","🇦🇺 Australie","🇯🇵 Japon","🇺🇸 États-Unis","🇲🇽 Mexique","🇲🇦 Maroc","🇮🇩 Indonésie","🇻🇳 Vietnam","🇵🇭 Philippines","🇳🇱 Pays-Bas","🇧🇪 Belgique","Autre"];
+const LG=["🌐 Français","🌐 Anglais","🌐 Espagnol","🌐 Arabe","🌐 Mandarin","🌐 Hindi","🌐 Portugais","🌐 Russe","🌐 Japonais","🌐 Allemand","🌐 Coréen","🌐 Thaï","🌐 Autre"];
+
+const PROFIL=[
+  {id:"nat",label:"Ma nationalité",opts:PO},
+  {id:"pays",label:"Je vis en",opts:PA},
+  {id:"lang",label:"Ma langue",opts:LG},
+];
+
+const SURVEYS=[
+  {id:"S0",emoji:"🌍",title:"Baromètre Général",sub:"Vue d'ensemble · Incontournable",teaser:"⏱ 2 min · 8 questions",steps:[
+    {id:"duree",tag:"Profil",emoji:"📅",q:"Depuis combien de temps êtes-vous expat ?",type:"c4",opts:[{v:"<1an",e:"🌱",l:"< 1 an"},{v:"1-3",e:"✈️",l:"1–3 ans"},{v:"3-7",e:"🏡",l:"3–7 ans"},{v:"7+",e:"🌟",l:"7 ans +"}]},
+    {id:"rev",tag:"Finances",emoji:"💰",q:"Votre revenu mensuel net ?",type:"sl",min:0,max:20000,step:500,def:0,unit:"€ / mois",avg:4200},
+    {id:"pouvoir",tag:"Finances",emoji:"📈",q:"Votre pouvoir d'achat a-t-il augmenté depuis l'expatriation ?",type:"c4",opts:[{v:"beaucoup",e:"🚀",l:"Oui !"},{v:"unpeu",e:"👍",l:"Un peu"},{v:"stable",e:"😐",l:"Stable"},{v:"non",e:"📉",l:"Non"}]},
+    {id:"qualite",tag:"Bien-être",emoji:"⭐",q:"Comment vous sentez-vous dans votre pays d'accueil ?",type:"stars"},
+    {id:"diff",tag:"Difficultés",emoji:"🧩",q:"Vos plus grands défis en tant qu'expat ?",type:"check",hint:"Plusieurs choix",opts:["📋 Admin / visa","👨‍👩‍👧 Famille loin","💸 Fiscalité","😔 Solitude","🏥 Soins","🗣️ Langue","🎒 Scolarité"],vals:["Admin/visa","Famille loin","Fiscalité","Solitude","Soins","Langue","Scolarité"],lkd:{Admin:61,Famille:54,Fiscal:48,Solitude:39,Soins:33,Langue:28,Scolarité:18}},
+    {id:"motiv",tag:"Motivation",emoji:"🎯",q:"Pourquoi avez-vous choisi l'expatriation ?",type:"radio",opts:["🌴 Qualité de vie","💼 Opportunité pro","🗺️ Aventure","💰 Fiscal","❤️ Amour / famille","🏖️ Retraite"],vals:["Qualité de vie","Opportunité pro","Aventure","Fiscal","Amour","Retraite"],lkd:{"Qualité de vie":38,"Opportunité pro":27,"Aventure":18,"Fiscal":9,"Amour":5,"Retraite":3}},
+    {id:"nps",tag:"Recommandation",emoji:"🙌",q:"Recommanderiez-vous votre destination à un ami expat ?",type:"nps"},
+    {id:"email",tag:"Résultats",emoji:"🎁",q:"Voir les résultats de toute l'enquête !",type:"email"},
+  ]},
+  {id:"S1",emoji:"😊",title:"Vie & Bien-être",sub:"Bonheur, intégration, avenir",teaser:"⏱ 2 min · 7 questions",steps:[
+    {id:"integ",tag:"Intégration",emoji:"🤝",q:"Votre niveau d'intégration locale ?",type:"c4",opts:[{v:"local",e:"🏠",l:"Je vis local"},{v:"partiel",e:"🌗",l:"Partiel"},{v:"expat",e:"👥",l:"Communauté expat"},{v:"peu",e:"🚪",l:"Peu intégré"}]},
+    {id:"accueil",tag:"Accueil",emoji:"😊",q:"Comment les locaux vous accueillent-ils ?",type:"c4",opts:[{v:"super",e:"🤗",l:"Chaleureux"},{v:"neutre",e:"😐",l:"Neutre"},{v:"mitige",e:"🤷",l:"Mitigé"},{v:"dur",e:"😬",l:"Difficile"}]},
+    {id:"soc",tag:"Social",emoji:"👫",q:"Votre vie sociale en expatriation ?",type:"c4",opts:[{v:"riche",e:"🎉",l:"Très riche"},{v:"bien",e:"🙂",l:"Bonne"},{v:"limite",e:"😐",l:"Limitée"},{v:"seul",e:"😔",l:"Isolé(e)"}]},
+    {id:"langue-niveau",tag:"Langue",emoji:"🗣️",q:"Votre niveau dans la langue locale ?",type:"c4",opts:[{v:"fluent",e:"🌟",l:"Courant"},{v:"moyen",e:"📚",l:"Intermédiaire"},{v:"debutant",e:"🔤",l:"Débutant"},{v:"non",e:"🙈",l:"Je ne parle pas"}]},
+    {id:"futur",tag:"Avenir",emoji:"🔮",q:"Votre plan pour les 2 prochaines années ?",type:"c4",opts:[{v:"reste",e:"🏠",l:"Je reste"},{v:"bouge",e:"🗺️",l:"Je change"},{v:"rentre",e:"✈️",l:"Je rentre"},{v:"saitpas",e:"🤔",l:"Je sais pas"}]},
+    {id:"bonheur",tag:"Bonheur",emoji:"😄",q:"Sur 10 — êtes-vous plus heureux expat qu'avant ?",type:"nps"},
+    {id:"email",tag:"Résultats",emoji:"🎁",q:"Voir les résultats de toute l'enquête !",type:"email"},
+  ]},
+  {id:"S2",emoji:"💰",title:"Finances & Salaires",sub:"Revenus, épargne, banque",teaser:"⏱ 2 min · 7 questions",steps:[
+    {id:"rev2",tag:"Revenus",emoji:"💰",q:"Votre revenu mensuel net ?",type:"sl",min:0,max:20000,step:500,def:0,unit:"€ / mois",avg:4200},
+    {id:"epargne",tag:"Épargne",emoji:"🏦",q:"Combien épargnez-vous par mois ?",type:"sl",min:0,max:5000,step:100,def:0,unit:"€ / mois",avg:820},
+    {id:"envoi",tag:"Transferts",emoji:"📤",q:"Envoyez-vous de l'argent dans votre pays d'origine ?",type:"c4",opts:[{v:"oui-reg",e:"📅",l:"Oui, régulier"},{v:"oui-parf",e:"🔄",l:"Parfois"},{v:"non",e:"🚫",l:"Non"},{v:"famille",e:"👨‍👩‍👧",l:"Pour ma famille"}]},
+    {id:"banque",tag:"Banque",emoji:"🏧",q:"Votre principale difficulté bancaire ?",type:"radio",opts:["💳 Ouvrir un compte","💸 Transferts internationaux","📊 Double imposition","📱 Banque en ligne","✅ Aucune difficulté"],vals:["Ouvrir compte","Transferts","Double impôt","Banque ligne","Aucune"],lkd:{"Ouvrir compte":28,"Transferts":31,"Double impôt":22,"Banque ligne":6,"Aucune":13}},
+    {id:"crypto",tag:"Investissement",emoji:"₿",q:"Utilisez-vous des investissements alternatifs (crypto, ETF…) ?",type:"c4",opts:[{v:"actif",e:"🚀",l:"Oui, actif"},{v:"peu",e:"👀",l:"Oui, un peu"},{v:"non",e:"🏦",l:"Non"},{v:"saitpas",e:"🤷",l:"Je sais pas"}]},
+    {id:"satisffin",tag:"Satisfaction",emoji:"😊",q:"Êtes-vous satisfait de votre situation financière ?",type:"stars"},
+    {id:"email",tag:"Résultats",emoji:"🎁",q:"Voir les résultats de toute l'enquête !",type:"email"},
+  ]},
+  {id:"S3",emoji:"🏠",title:"Logement & Vie",sub:"Loyer, quartier, coût de la vie",teaser:"⏱ 2 min · 7 questions",steps:[
+    {id:"loyer",tag:"Logement",emoji:"🏠",q:"Votre loyer mensuel charges comprises ?",type:"sl",min:0,max:5000,step:100,def:0,unit:"€ / mois",avg:1100},
+    {id:"type-log",tag:"Logement",emoji:"🏢",q:"Quel est votre type de logement ?",type:"c4",opts:[{v:"appart",e:"🏢",l:"Appartement"},{v:"maison",e:"🏡",l:"Maison"},{v:"coloc",e:"👥",l:"Colocation"},{v:"proprio",e:"🔑",l:"Propriétaire"}]},
+    {id:"charges",tag:"Budget",emoji:"💡",q:"Vos charges mensuelles (élec, internet, eau…) ?",type:"sl",min:0,max:800,step:25,def:0,unit:"€ / mois",avg:180},
+    {id:"alimentation",tag:"Budget",emoji:"🍽️",q:"Votre budget alimentation mensuel ?",type:"sl",min:0,max:1500,step:50,def:0,unit:"€ / mois",avg:450},
+    {id:"quartier",tag:"Quartier",emoji:"📍",q:"Comment décririez-vous votre quartier ?",type:"c4",opts:[{v:"centre",e:"🏙️",l:"Centre-ville"},{v:"resid",e:"🌳",l:"Résidentiel"},{v:"expat",e:"🌍",l:"Zone expats"},{v:"nature",e:"🌾",l:"Nature"}]},
+    {id:"satisflog",tag:"Satisfaction",emoji:"😊",q:"Êtes-vous satisfait de votre logement ?",type:"stars"},
+    {id:"email",tag:"Résultats",emoji:"🎁",q:"Voir les résultats de toute l'enquête !",type:"email"},
+  ]},
+  {id:"S4",emoji:"🏥",title:"Santé & Couverture",sub:"Assurance, soins, bien-être",teaser:"⏱ 2 min · 6 questions",steps:[
+    {id:"assurance",tag:"Assurance",emoji:"🛡️",q:"Votre couverture santé à l'étranger ?",type:"radio",opts:["🌍 Assurance expat internationale","🏢 Mutuelle employeur locale","💳 Carte bancaire premium","🤞 Aucune couverture","🔀 Combinaison"],vals:["Assurance expat","Mutuelle","CB premium","Aucune","Combinaison"],lkd:{"Assurance expat":38,"Mutuelle":22,"CB premium":8,"Aucune":14,"Combinaison":18}},
+    {id:"cout-sante",tag:"Budget",emoji:"💊",q:"Votre budget santé mensuel ?",type:"sl",min:0,max:800,step:25,def:0,unit:"€ / mois",avg:120},
+    {id:"urgence",tag:"Urgence",emoji:"🚨",q:"Avez-vous vécu une urgence médicale à l'étranger ?",type:"c4",opts:[{v:"oui-bien",e:"✅",l:"Oui, bien géré"},{v:"oui-dur",e:"😰",l:"Oui, difficile"},{v:"non-peur",e:"😟",l:"Non, j'ai peur"},{v:"non-ok",e:"😌",l:"Non, serein"}]},
+    {id:"qualite-soins",tag:"Soins",emoji:"🏥",q:"Qualité des soins dans votre pays d'accueil ?",type:"stars"},
+    {id:"sante-mentale",tag:"Bien-être",emoji:"🧠",q:"Votre santé mentale en expatriation ?",type:"c4",opts:[{v:"top",e:"🌟",l:"Je m'épanouis"},{v:"bien",e:"🙂",l:"Bien"},{v:"bof",e:"😐",l:"Ça va"},{v:"dur",e:"😔",l:"C'est dur"}]},
+    {id:"email",tag:"Résultats",emoji:"🎁",q:"Voir les résultats de toute l'enquête !",type:"email"},
+  ]},
+  {id:"S5",emoji:"💻",title:"Digital Nomads",sub:"Visa, revenus, outils, mobilité",teaser:"⏱ 2 min · 7 questions",steps:[
+    {id:"statut",tag:"Statut",emoji:"💼",q:"Votre statut professionnel ?",type:"c4",opts:[{v:"salarie",e:"🏢",l:"Salarié remote"},{v:"freelance",e:"💻",l:"Freelance"},{v:"entrepreneur",e:"🚀",l:"Entrepreneur"},{v:"etudiant",e:"🎓",l:"Étudiant"}]},
+    {id:"rev-nomade",tag:"Revenus",emoji:"💰",q:"Votre revenu mensuel net ?",type:"sl",min:0,max:20000,step:500,def:0,unit:"€ / mois",avg:5800},
+    {id:"visa",tag:"Visa",emoji:"🛂",q:"Quel visa utilisez-vous principalement ?",type:"radio",opts:["🌍 Visa nomade dédié","✈️ Visa touriste","🏢 Visa travailleur","🇪🇺 Libre circulation UE","🔀 Autre"],vals:["Nomade","Touriste","Travailleur","EU","Autre"],lkd:{"Nomade":29,"Touriste":34,"Travailleur":18,"EU":8,"Autre":11}},
+    {id:"sejour",tag:"Mobilité",emoji:"📅",q:"Combien de temps en moyenne dans un même pays ?",type:"c4",opts:[{v:"<1m",e:"🦋",l:"< 1 mois"},{v:"1-3m",e:"✈️",l:"1–3 mois"},{v:"3-12m",e:"🏡",l:"3–12 mois"},{v:"1y+",e:"🌱",l:"+ d'1 an"}]},
+    {id:"outil",tag:"Outils",emoji:"🛠️",q:"Votre outil indispensable ?",type:"c4",opts:[{v:"cloud",e:"☁️",l:"Cloud"},{v:"fintech",e:"💳",l:"Fintech"},{v:"vpn",e:"🔒",l:"VPN"},{v:"ia",e:"🤖",l:"IA"}]},
+    {id:"satisf-nomade",tag:"Satisfaction",emoji:"🙌",q:"Recommanderiez-vous le nomadisme digital ?",type:"nps"},
+    {id:"email",tag:"Résultats",emoji:"🎁",q:"Voir les résultats de toute l'enquête !",type:"email"},
+  ]},
+];
+
+const gAns={};const completed=new Set();let con=false;
+let mode='hub';let curSv=null;let curQ=0;
+
+/* ─── HUB ─── */
+function renderHub(){
+  mode='hub';
+  const done=completed.size;
+  document.getElementById('wrap').innerHTML=`
+  <div class="top">
+    <div class="brand"><div class="sq">SE</div>
+      <div><div class="bn">SOS-Expat.com</div><div class="bs">Baromètre Mondial 2026</div></div></div>
+    <div style="font-size:11px;color:var(--w6);font-weight:700">${done}/6 faits</div>
+  </div>
+  <div class="hub-body">
+    <div class="live-bar">
+      <div class="ll"><div class="livdot"></div><div class="lt">En direct</div></div>
+      <div class="lc">2 055 réponses</div>
+      <div class="lbars"><div class="lbar" style="height:5px"></div><div class="lbar" style="height:11px"></div><div class="lbar" style="height:7px"></div><div class="lbar" style="height:14px"></div><div class="lbar" style="height:9px"></div></div>
+    </div>
+    <div class="hub-intro">
+      <span class="hub-globe">🌍</span>
+      <div class="hub-h">6 sondages thématiques</div>
+      <div class="hub-sub">2 minutes chacun · Choisissez ceux qui vous parlent · Chaque réponse enrichit la base de données mondiale.</div>
+    </div>
+    <div class="survey-grid">
+      ${SURVEYS.map(s=>{
+        const c=COLORS[s.id];const isDone=completed.has(s.id);
+        return`<div class="s-card" style="background:${c.main}" onclick="startSurvey('${s.id}')">
+          ${isDone?`<div class="s-card-done-overlay">✓</div>`:''}
+          <div class="s-card-inner">
+            <div class="s-card-emoji">${s.emoji}</div>
+            <div class="s-card-title">${s.title}</div>
+            <div class="s-card-sub">${s.sub}</div>
+            <div class="s-card-badge ${isDone?'badge-done':'badge-todo'}">${isDone?'✓ Fait':'Répondre'}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="global-stats">
+      <div class="gs-title">Données collectées</div>
+      <div class="gs-grid">
+        <div class="gs-stat"><div class="gs-n">2 055</div><div class="gs-l">Participants</div></div>
+        <div class="gs-stat"><div class="gs-n">197</div><div class="gs-l">Pays</div></div>
+        <div class="gs-stat"><div class="gs-n">6</div><div class="gs-l">Thèmes</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ─── SURVEY ─── */
+function startSurvey(id){
+  curSv=SURVEYS.find(s=>s.id===id);curQ=0;
+  if(!gAns[id])gAns[id]={};
+  mode='survey';renderSurvey();
+}
+
+function renderSurvey(){
+  const sv=curSv;const c=COLORS[sv.id];const tot=sv.steps.length;
+  const s=sv.steps[curQ];const a=gAns[sv.id][s.id];
+  const pct=Math.round((curQ+1)/tot*100);
+  const isLast=curQ===tot-1;
+  const isFirst=curQ===0;
+
+  let extra='';
+  if(isFirst){
+    extra=`<div class="multi-sel-wrap">${PROFIL.map(f=>{
+      const av=gAns._p?gAns._p[f.id]:'';
+      return`<div class="sel-field">
+        <div class="sel-lbl">${f.label}</div>
+        <div class="selwrap"><select onchange="sp('${f.id}',this.value)"><option value="">— Sélectionner —</option>${f.opts.map(o=>`<option${av===o?' selected':''}>${o}</option>`).join('')}</select><span class="sarr">▾</span></div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  document.getElementById('wrap').innerHTML=`
+  <div class="top" style="background:${c.main}">
+    <div class="brand"><div class="sq" style="background:rgba(0,0,0,.25)">${sv.emoji}</div>
+      <div><div class="bn">${sv.title}</div><div class="bs">${sv.teaser}</div></div></div>
+    <div class="prog-row">
+      <div class="pnum" style="color:rgba(255,255,255,.8)">${curQ+1}/${tot}</div>
+      <div class="ptrack"><div class="pfill" style="width:${pct}%;background:rgba(255,255,255,.9)"></div></div>
+    </div>
+  </div>
+  <div class="survey-body">
+    <div class="q-tag" style="color:${c.main}"><span class="q-emoji">${s.emoji}</span>${s.tag}</div>
+    <div class="q-txt">${isFirst?'D\'abord votre profil, puis : '+s.q:s.q}</div>
+    ${s.hint?`<div class="q-hint">${s.hint}</div>`:''}
+    ${extra}
+    ${buildQ(s,a,sv.id,c)}
+    ${s.type==='email'?`<button class="skip-lnk" onclick="finishSurvey()">Passer → voir les résultats sans email</button>`:''}
+  </div>
+  <div class="nav">
+    <button class="btnb" onclick="${isFirst?'renderHub()':'prevQ()'}">${isFirst?'← Hub':'← Retour'}</button>
+    <button class="btnn" style="background:${c.main}" onclick="${isLast?'finishSurvey()':'nextQ()'}">
+      ${isLast?'Voir les résultats →':'Suivant →'}
+    </button>
+  </div>`;
+}
+
+function buildQ(s,a,sid,c){
+  const col=c.main;
+  if(s.type==='c4'){
+    return`<div class="card4">${s.opts.map(o=>`
+      <div class="c4${a===o.v?' sel':''}" style="${a===o.v?'border-color:'+col+';':''}" onclick="pickC4('${sid}','${s.id}','${o.v}',this)">
+        <div class="c4e">${o.e}</div><div class="c4l">${o.l}</div>
+      </div>`).join('')}</div>`;
+  } else if(s.type==='radio'){
+    const lkd=s.lkd||{};const tot=Object.values(lkd).reduce((a,b)=>a+b,0)||100;
+    return`<div class="opts">${s.opts.map((o,i)=>{
+      const v=s.vals?s.vals[i]:o;const sel=a===v;
+      const p=lkd[v]?Math.round(lkd[v]/tot*100):0;
+      return`<div class="opt${sel?' sel':''}" style="${sel?'border-color:'+col:''}" onclick="pickOpt('${sid}','${s.id}','${v}',this)">
+        <div class="ofill" style="width:${p}%;background:${col}22"></div>
+        <div class="oin"><div class="ora" style="${sel?'background:'+col+';border-color:'+col:''}"><div class="ordot"></div></div>
+        <span class="olbl">${o}</span>${p?`<span class="opct" style="${sel?'color:'+col:''}">${p}%</span>`:''}</div></div>`;
+    }).join('')}</div>`;
+  } else if(s.type==='check'){
+    const sa=a||[];const lkd=s.lkd||{};const tot=Object.values(lkd).reduce((a,b)=>a+b,0)||100;
+    return`<div class="cbs">${s.opts.map((o,i)=>{
+      const v=s.vals?s.vals[i]:o;const sel=sa.includes(v);
+      const lkey=Object.keys(lkd).find(k=>v.includes(k.slice(0,4)));
+      const p=lkey?Math.round(lkd[lkey]/tot*100):0;
+      return`<div class="cb${sel?' sel':''}" style="${sel?'border-color:'+col:''}" onclick="togCb('${sid}','${s.id}','${v}',this)">
+        <div class="cbfill" style="width:${p}%;background:${col}22"></div>
+        <div class="cbi"><div class="cbsq" style="${sel?'background:'+col+';border-color:'+col:''}"><div class="cbck"></div></div>
+        <span class="cblbl">${o}</span>${p?`<span class="cbpct" style="${sel?'color:'+col:''}">${p}%</span>`:''}</div></div>`;
+    }).join('')}</div>`;
+  } else if(s.type==='sl'){
+    const v=a??s.def;const p=Math.round((v-s.min)/(s.max-s.min)*100);
+    const disp=v>=s.max?(v.toLocaleString('fr-FR')+'+ €'):v===0?'0 €':(v.toLocaleString('fr-FR')+' €');
+    return`<div class="slbox">
+      <div class="slval" id="slv">${disp}</div>
+      <div class="slunit">${s.unit}</div>
+      <div class="slavg" style="color:${col}">Moyenne enquête : ${s.avg.toLocaleString('fr-FR')} €</div>
+      <div class="sltrack"><div class="slrail" id="slr" style="width:${p}%;background:${col}"></div>
+      <input type="range" class="rng" style="color:${col}" min="${s.min}" max="${s.max}" step="${s.step}" value="${v}" oninput="updSl(this,${s.min},${s.max},'${sid}','${s.id}','${col}')"></div>
+      <div class="rlbls"><span>0 €</span><span>${s.max.toLocaleString('fr-FR')}+ €</span></div>
+    </div>`;
+  } else if(s.type==='stars'){
+    const sv2=a||0;
+    const lb=['','😬 Dur','😐 Moyen','🙂 Bien','😊 Très bien','🤩 Incroyable !'];
+    return`<div class="stbox">
+      <div class="strow">${[1,2,3,4,5].map(i=>`<span class="star${sv2>=i?' lit':''}" style="${sv2>=i?'color:'+col:'color:rgba(255,255,255,.15)'}" onclick="setSt('${sid}','${s.id}',${i},'${col}')" data-v="${i}">★</span>`).join('')}</div>
+      <div class="sdesc" id="sdesc">${sv2?lb[sv2]:'Touchez une étoile'}</div>
+    </div>`;
+  } else if(s.type==='nps'){
+    const sv2=a!==undefined?a:-1;
+    return`<div class="npsbox">
+      <div class="npslbls"><span>🙅 Jamais</span><span>Absolument 🙌</span></div>
+      <div class="npsrow">${[...Array(11).keys()].map(i=>`<button class="nbtn${sv2===i?' sel':''}" style="${sv2===i?'background:'+col+';border-color:'+col:''}" onclick="setNPS('${sid}','${s.id}',${i},'${col}')">${i}</button>`).join('')}</div>
+    </div>`;
+  } else if(s.type==='email'){
+    const av=gAns[sid]?.email||'';
+    return`<div class="embox">
+      <div class="em-notice" style="background:${col}18;border-color:${col}">📊 Les stats sont calculées pour TOUS — email totalement optionnel.</div>
+      <input class="ein" type="email" placeholder="votre@email.com (optionnel)" value="${av}" oninput="gAns['${sid}']['email']=this.value">
+      <div class="consent-row" onclick="toggleCon('${col}')">
+        <div class="cbox3${con?' on':''}" id="cbox3" style="${con?'background:'+col+';border-color:'+col:''}"><div class="cck3" style="opacity:${con?1:0}"></div></div>
+        <span class="ctxt">Recevoir les résultats finaux par email. RGPD, zéro spam.</span>
+      </div>
+    </div>`;
+  }
+  return'';
+}
+
+function sp(fid,v){if(!gAns._p)gAns._p={};gAns._p[fid]=v}
+function toggleCon(col){con=!con;const b=document.getElementById('cbox3');if(b){b.style.background=con?col:'';b.style.borderColor=con?col:'';b.querySelector('.cck3').style.opacity=con?'1':'0';}}
+function pickC4(sid,qid,v,el){
+  if(!gAns[sid])gAns[sid]={};gAns[sid][qid]=v;
+  el.closest('.card4').querySelectorAll('.c4').forEach(o=>{o.classList.remove('sel');o.style.borderColor='';});
+  el.classList.add('sel');el.style.borderColor=COLORS[sid].main;
+  setTimeout(()=>nextQ(),300);
+}
+function pickOpt(sid,qid,v,el){
+  if(!gAns[sid])gAns[sid]={};gAns[sid][qid]=v;
+  el.closest('.opts').querySelectorAll('.opt').forEach(o=>{o.classList.remove('sel');o.style.borderColor='';});
+  el.classList.add('sel');el.style.borderColor=COLORS[sid].main;
+  setTimeout(()=>nextQ(),300);
+}
+function togCb(sid,qid,v,el){
+  if(!gAns[sid])gAns[sid]={};if(!gAns[sid][qid])gAns[sid][qid]=[];
+  const i=gAns[sid][qid].indexOf(v);
+  if(i>=0)gAns[sid][qid].splice(i,1);else gAns[sid][qid].push(v);
+  el.classList.toggle('sel');
+  const col=COLORS[sid].main;
+  el.style.borderColor=el.classList.contains('sel')?col:'';
+}
+function updSl(el,mn,mx,sid,qid,col){
+  const v=parseInt(el.value);if(!gAns[sid])gAns[sid]={};gAns[sid][qid]=v;
+  document.getElementById('slr').style.width=Math.round((v-mn)/(mx-mn)*100)+'%';
+  document.getElementById('slv').textContent=v>=mx?(v.toLocaleString('fr-FR')+'+ €'):v===0?'0 €':(v.toLocaleString('fr-FR')+' €');
+}
+function setSt(sid,qid,v,col){
+  if(!gAns[sid])gAns[sid]={};gAns[sid][qid]=v;
+  const lb=['','😬 Dur','😐 Moyen','🙂 Bien','😊 Très bien','🤩 Incroyable !'];
+  document.querySelectorAll('.star').forEach(s=>{
+    const lit=parseInt(s.dataset.v)<=v;s.classList.toggle('lit',lit);s.style.color=lit?col:'rgba(255,255,255,.15)';
+  });
+  const d=document.getElementById('sdesc');if(d)d.textContent=lb[v];
+  setTimeout(()=>nextQ(),380);
+}
+function setNPS(sid,qid,v,col){
+  if(!gAns[sid])gAns[sid]={};gAns[sid][qid]=v;
+  document.querySelectorAll('.nbtn').forEach((b,i)=>{
+    b.classList.toggle('sel',i===v);b.style.background=i===v?col:'';b.style.borderColor=i===v?col:'';
+  });
+  setTimeout(()=>nextQ(),300);
+}
+function nextQ(){
+  const tot=curSv.steps.length;
+  if(curQ<tot-1){curQ++;renderSurvey();}
+}
+function prevQ(){if(curQ>0){curQ--;renderSurvey();}}
+function finishSurvey(){completed.add(curSv.id);showResults();}
+
+function showResults(){
+  const sv=curSv;const c=COLORS[sv.id];
+  const nextIdx=SURVEYS.findIndex(s=>s.id===sv.id)+1;
+  const nextSv=nextIdx<SURVEYS.length?SURVEYS[nextIdx]:null;
+  const myAns=gAns[sv.id]||{};
+
+  const STATS={
+    S0:{main:"7.2/10",mainL:"Bonheur moyen des expats",sub1:"4 200 €",sub1l:"Revenu moyen",sub1c:"mensuel net",sub2:"74%",sub2l:"Pouvoir d'achat",sub2c:"en hausse"},
+    S1:{main:"7.2/10",mainL:"Bonheur moyen expat",sub1:"43%",sub1l:"Partiellement intégrés",sub1c:"dans la culture locale",sub2:"51%",sub2l:"Restent dans leur pays",sub2c:"pour les 2 ans à venir"},
+    S2:{main:"4 200 €",mainL:"Revenu mensuel moyen net",sub1:"820 €",sub1l:"Épargne par mois",sub1c:"moyenne enquête",sub2:"74%",sub2l:"Pouvoir d'achat +",sub2c:"vs pays d'origine"},
+    S3:{main:"1 780 €",mainL:"Coût de vie total / mois",sub1:"1 100 €",sub1l:"Loyer moyen",sub1c:"charges comprises",sub2:"450 €",sub2l:"Budget alimentation",sub2c:"mensuel moyen"},
+    S4:{main:"14%",mainL:"Sans couverture médicale",sub1:"120 €",sub1l:"Budget santé / mois",sub1c:"assurance + soins",sub2:"3.8★",sub2l:"Qualité des soins",sub2c:"note de satisfaction"},
+    S5:{main:"5 800 €",mainL:"Revenu moyen digital nomad",sub1:"8.1/10",sub1l:"Score de recommandation",sub1c:"nomadisme digital",sub2:"34%",sub2l:"Visa touriste",sub2c:"le plus utilisé"},
+  };
+  const st=STATS[sv.id];
+
+  const BARS={
+    S0:{title:"Difficultés principales",data:{"Admin/visa":61,"Famille":54,"Fiscalité":48,"Solitude":39,"Soins":33,"Langue":28}},
+    S1:{title:"Intégration locale",data:{"Partiellement":43,"Comme un local":22,"Communauté expat":21,"Peu intégré":14}},
+    S2:{title:"Difficultés bancaires",data:{"Transferts":31,"Ouvrir compte":28,"Double impôt":22,"Aucune":13,"Banque ligne":6}},
+    S3:{title:"Type de logement",data:{"Appartement":52,"Maison":24,"Colocation":14,"Propriétaire":10}},
+    S4:{title:"Type d'assurance",data:{"Assurance expat":38,"Combinaison":18,"Mutuelle":22,"Aucune":14,"CB premium":8}},
+    S5:{title:"Type de visa",data:{"Visa touriste":34,"Visa nomade":29,"Travailleur":18,"Autre":11,"EU":8}},
+  };
+  const bar=BARS[sv.id];
+  const barTot=Object.values(bar.data).reduce((a,b)=>a+b,0);
+
+  document.getElementById('wrap').innerHTML=`
+  <div class="top" style="background:${c.main}">
+    <div class="brand"><div class="sq" style="background:rgba(0,0,0,.25)">${sv.emoji}</div>
+      <div><div class="bn">Résultats — ${sv.title}</div><div class="bs">2 055+ répondants · En direct</div></div></div>
+    <div style="font-size:12px;color:rgba(255,255,255,.8);font-weight:800">✓ Terminé</div>
+  </div>
+  <div class="res-body">
+    <div class="res-hero">
+      <span class="res-globe">🎉</span>
+      <div class="res-h">Résultats de l'enquête</div>
+      <div class="res-sub"><strong style="color:#fff">2 055 expatriés</strong> ont répondu dans 197 pays</div>
+    </div>
+    <div class="bigstat" style="background:${c.main};box-shadow:0 4px 16px ${c.main}55">
+      <div class="bsn">${st.main}</div>
+      <div class="bsl">${st.mainL}</div>
+    </div>
+    <div class="sg2">
+      <div class="sc2"><div class="scn2">${st.sub1}</div><div class="scl2">${st.sub1l}</div><div class="scc2" style="color:${c.main}">${st.sub1c}</div></div>
+      <div class="sc2"><div class="scn2">${st.sub2}</div><div class="scl2">${st.sub2l}</div><div class="scc2" style="color:${c.main}">${st.sub2c}</div></div>
+    </div>
+    <div class="rsec">
+      <div class="rsect">${bar.title}</div>
+      ${Object.keys(bar.data).map(k=>`<div class="rrow">
+        <div class="rlbl">${k}</div>
+        <div class="rtrack"><div class="rfill" style="width:${Math.round(bar.data[k]/barTot*100)}%;background:${c.main}"></div></div>
+        <div class="rpct" style="color:${c.main}">${Math.round(bar.data[k]/barTot*100)}%</div>
+      </div>`).join('')}
+    </div>
+    ${nextSv?`
+    <div class="next-card" style="background:${COLORS[nextSv.id].main}22;border-color:${COLORS[nextSv.id].main}55">
+      <div style="font-size:11px;color:var(--w6);margin-bottom:6px;font-weight:700">SONDAGE SUIVANT</div>
+      <div style="font-size:22px;margin-bottom:4px">${nextSv.emoji}</div>
+      <div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:3px">${nextSv.title}</div>
+      <div style="font-size:11px;color:var(--w6);margin-bottom:12px">${nextSv.teaser}</div>
+      <button class="btn-next-s" style="background:${COLORS[nextSv.id].main}" onclick="startSurvey('${nextSv.id}')">Continuer → ${nextSv.emoji} ${nextSv.title}</button>
+    </div>`:`
+    <div style="background:${c.main};border-radius:12px;padding:16px;text-align:center">
+      <div style="font-size:20px;margin-bottom:6px">🏆</div>
+      <div style="font-size:15px;font-weight:900;color:#fff">Tous les sondages complétés !</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:4px">Merci pour votre contribution à la recherche mondiale</div>
+    </div>`}
+    <button class="btn-hub-back" onclick="renderHub()">← Retour au hub des sondages</button>
+  </div>`;
+}
+
+renderHub();
+</script>

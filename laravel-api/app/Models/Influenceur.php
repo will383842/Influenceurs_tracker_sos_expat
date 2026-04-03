@@ -26,6 +26,7 @@ class Influenceur extends Model
         'blog'                     => 'medias_influence',
         'podcast_radio'            => 'medias_influence',
         'influenceur'              => 'medias_influence',
+        'youtubeur'                => 'medias_influence',
         'avocat'                   => 'services_b2b',
         'immobilier'               => 'services_b2b',
         'assurance'                => 'services_b2b',
