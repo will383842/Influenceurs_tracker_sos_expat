@@ -59,23 +59,27 @@ export default function CategoryContactsPage({ category, contactType }: Props) {
   const [exporting, setExporting] = useState(false);
   const [categoryTotal, setCategoryTotal] = useState<number | null>(null);
 
-  // ── Chargement initial avec filtre figé ────────────────────────────────────
+  // Ref stable vers load — évite la dépendance cyclique dans useEffect
+  const loadRef = useRef(load);
+  useEffect(() => { loadRef.current = load; });
+
+  // ── Chargement : se déclenche au montage ET si category/contactType changent ─
+  // (double sécurité : même si React Router réutilise le composant sans remount)
   useEffect(() => {
-    const initialFilters: InfluenceurFilters = {
+    const filters: InfluenceurFilters = {
       category,
       ...(contactType ? { contact_type: contactType } : {}),
     };
-    load(initialFilters);
+    loadRef.current(filters);
+    setCategoryTotal(null);
 
     // Récupère le total exact pour cette catégorie
     const params: Record<string, string> = { category };
     if (contactType) params.contact_type = contactType;
     api.get('/stats/category-count', { params })
       .then(({ data }) => { if ((data as { count?: number }).count !== undefined) setCategoryTotal((data as { count: number }).count); })
-      .catch(() => {
-        // Fallback : pas de total disponible
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — props fixes, montage unique
+      .catch(() => {});
+  }, [category, contactType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Infinite scroll ────────────────────────────────────────────────────────
   useEffect(() => {
