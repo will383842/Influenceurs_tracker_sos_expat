@@ -478,7 +478,7 @@ class DailyContentSchedulerService
             ->when($schedule->target_country, fn ($q, $c) => $q->where('country', $c))
             ->selectRaw('country, COUNT(*) as cnt')
             ->groupBy('country')
-            ->having('cnt', '>=', 3)
+            ->havingRaw('COUNT(*) >= 3')
             ->orderByDesc('cnt')
             ->limit(20)
             ->pluck('country')
