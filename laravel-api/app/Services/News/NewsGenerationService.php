@@ -152,6 +152,7 @@ Catégorie: {$category}{$retryNote}
 
 Réponds UNIQUEMENT en JSON valide (sans markdown):
 {
+  "title": "titre accrocheur 65-90 chars, angle expatrié clair",
   "meta_title": "max 60 chars, mot-clé principal au début",
   "meta_description": "140-155 chars, incitative",
   "excerpt": "2-3 phrases d'accroche max 180 chars",
@@ -201,7 +202,7 @@ PROMPT;
             'event'              => 'create',
             'content_type'       => 'news',
             'language'           => $item->language,
-            'title'              => $content['meta_title'] ?? $item->title,
+            'title'              => $content['title'] ?? $content['meta_title'] ?? $item->title,
             'content_html'       => $content['content_html'] ?? '',
             'excerpt'            => $content['excerpt'] ?? null,
             'meta_title'         => $content['meta_title'] ?? null,

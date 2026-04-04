@@ -128,6 +128,7 @@ function FeedsTab({ onStatsRefresh }: { onStatsRefresh: () => void }) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editFeed, setEditFeed] = useState<RssFeed | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
 
   const loadFeeds = useCallback(async () => {
@@ -264,6 +265,13 @@ function FeedsTab({ onStatsRefresh }: { onStatsRefresh: () => void }) {
                     {actionLoading === feed.id ? '...' : '↻ Fetch'}
                   </button>
                   <button
+                    onClick={() => setEditFeed(feed)}
+                    disabled={actionLoading === feed.id}
+                    className="px-2.5 py-1 bg-surface border border-border hover:border-violet/60 text-muted hover:text-white text-xs rounded transition-colors disabled:opacity-50"
+                  >
+                    Éditer
+                  </button>
+                  <button
                     onClick={() => setConfirmDelete({ id: feed.id, name: feed.name })}
                     disabled={actionLoading === feed.id}
                     className="px-2.5 py-1 bg-red-600/30 hover:bg-red-600/60 text-red-400 text-xs rounded transition-colors disabled:opacity-50"
@@ -290,6 +298,14 @@ function FeedsTab({ onStatsRefresh }: { onStatsRefresh: () => void }) {
         <AddFeedModal
           onClose={() => setShowAddModal(false)}
           onSaved={() => { setShowAddModal(false); loadFeeds(); onStatsRefresh(); }}
+        />
+      )}
+
+      {editFeed && (
+        <EditFeedModal
+          feed={editFeed}
+          onClose={() => setEditFeed(null)}
+          onSaved={() => { setEditFeed(null); loadFeeds(); }}
         />
       )}
     </div>
@@ -460,6 +476,176 @@ function AddFeedModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               className="px-4 py-1.5 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
             >
               {saving ? 'Enregistrement...' : 'Ajouter le flux'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── EditFeedModal ───────────────────────────────────────────
+function EditFeedModal({ feed, onClose, onSaved }: { feed: RssFeed; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    name: feed.name,
+    url: feed.url,
+    language: feed.language,
+    country: feed.country ?? '',
+    category: feed.category ?? '',
+    active: feed.active,
+    fetch_interval_hours: feed.fetch_interval_hours ?? 6,
+    relevance_threshold: feed.relevance_threshold ?? 65,
+    notes: feed.notes ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload: Partial<typeof form> = { ...form };
+      if (!payload.country) delete payload.country;
+      if (!payload.category) delete payload.category;
+      if (!payload.notes) delete payload.notes;
+      await updateRssFeed(feed.id, payload);
+      toast('success', 'Flux mis à jour');
+      onSaved();
+    } catch (err) {
+      toast('error', errMsg(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-lg space-y-4 overflow-y-auto max-h-[90vh]">
+        <div className="flex items-center justify-between">
+          <h3 className="font-title font-semibold text-white text-lg">Éditer le flux RSS</h3>
+          <button onClick={onClose} className="text-muted hover:text-white transition-colors">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs text-muted mb-1">Nom *</label>
+            <input
+              className={inputClass + ' w-full'}
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">URL du flux RSS *</label>
+            <input
+              className={inputClass + ' w-full'}
+              value={form.url}
+              onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
+              required
+              type="url"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-muted mb-1">Langue *</label>
+              <select
+                className={inputClass + ' w-full'}
+                value={form.language}
+                onChange={e => setForm(f => ({ ...f, language: e.target.value }))}
+              >
+                {LANGUAGE_OPTIONS.map(l => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Pays (optionnel)</label>
+              <input
+                className={inputClass + ' w-full'}
+                value={form.country}
+                onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                placeholder="fr, us, de..."
+                maxLength={5}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-muted mb-1">Catégorie</label>
+              <select
+                className={inputClass + ' w-full'}
+                value={form.category}
+                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+              >
+                {CATEGORY_OPTIONS.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Intervalle de collecte</label>
+              <select
+                className={inputClass + ' w-full'}
+                value={form.fetch_interval_hours}
+                onChange={e => setForm(f => ({ ...f, fetch_interval_hours: Number(e.target.value) }))}
+              >
+                {[1, 2, 4, 6, 12, 24].map(h => (
+                  <option key={h} value={h}>Toutes les {h}h</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">
+              Seuil de pertinence : <span className="text-white font-medium">{form.relevance_threshold}%</span>
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={form.relevance_threshold}
+              onChange={e => setForm(f => ({ ...f, relevance_threshold: Number(e.target.value) }))}
+              className="w-full accent-violet"
+            />
+            <div className="flex justify-between text-[10px] text-muted mt-0.5">
+              <span>0% (tout)</span>
+              <span>100% (strict)</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Notes (optionnel)</label>
+            <textarea
+              className={inputClass + ' w-full resize-none'}
+              rows={2}
+              value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Commentaires sur ce flux..."
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="edit_feed_active"
+              checked={form.active}
+              onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+              className="accent-violet"
+            />
+            <label htmlFor="edit_feed_active" className="text-sm text-muted">Flux actif</label>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-1.5 text-sm text-muted hover:text-white transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-1.5 bg-violet hover:bg-violet/90 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
         </form>
@@ -1045,9 +1231,10 @@ function GeneratedTab() {
                       <td className="px-3 py-2.5 text-right">
                         {item.blog_article_uuid && (
                           <a
-                            href={`https://sos-expat.com/article/${item.blog_article_uuid}`}
+                            href={`https://sos-expat.com/${item.language ?? 'fr'}-fr/actualites-expats`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            title={`UUID: ${item.blog_article_uuid}`}
                             className="text-xs text-violet hover:text-violet/80 transition-colors"
                           >
                             Voir →
