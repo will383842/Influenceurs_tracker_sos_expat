@@ -412,6 +412,9 @@ export default function Layout() {
                 <NavLink to="/contacts/digital" className={subNavClass} onClick={handleNavClick}>
                   🔗 Digital & SEO
                 </NavLink>
+                <NavLink to="/contacts/ecoles" className={subNavClass} onClick={handleNavClick}>
+                  🏫 Écoles
+                </NavLink>
                 <NavLink to="/content/lawyers" className={subNavClass} onClick={handleNavClick}>
                   ⚖️ Avocats
                 </NavLink>
