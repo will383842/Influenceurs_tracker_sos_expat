@@ -442,10 +442,21 @@ Route::middleware('auth:sanctum')->group(function () {
     // Q/R BLOG GENERATOR — Génération Q/R vers Blog SSR
     // ============================================================
     Route::prefix('content-gen/qr-blog')->middleware('role:admin')->group(function () {
+        // Stats & progression
         Route::get('/stats',    [\App\Http\Controllers\QrBlogGeneratorController::class, 'stats']);
         Route::post('/generate',[\App\Http\Controllers\QrBlogGeneratorController::class, 'generate']);
         Route::get('/progress', [\App\Http\Controllers\QrBlogGeneratorController::class, 'progress']);
         Route::post('/reset',   [\App\Http\Controllers\QrBlogGeneratorController::class, 'reset']);
+        // Sources (questions)
+        Route::get('/sources',         [\App\Http\Controllers\QrBlogGeneratorController::class, 'sources']);
+        Route::post('/sources',        [\App\Http\Controllers\QrBlogGeneratorController::class, 'addSource']);
+        Route::put('/sources/{id}',    [\App\Http\Controllers\QrBlogGeneratorController::class, 'updateSource']);
+        Route::delete('/sources/{id}', [\App\Http\Controllers\QrBlogGeneratorController::class, 'deleteSource']);
+        // Programmation quotidienne
+        Route::get('/schedule',  [\App\Http\Controllers\QrBlogGeneratorController::class, 'getSchedule']);
+        Route::put('/schedule',  [\App\Http\Controllers\QrBlogGeneratorController::class, 'saveSchedule']);
+        // Contenus générés (proxy Blog)
+        Route::get('/generated', [\App\Http\Controllers\QrBlogGeneratorController::class, 'getGenerated']);
     });
 
     // ============================================================

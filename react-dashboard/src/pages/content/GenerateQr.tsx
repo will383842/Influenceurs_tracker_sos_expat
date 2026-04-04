@@ -2,24 +2,17 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   fetchQrBlogStats, fetchQrBlogProgress,
   launchQrBlogGeneration, resetQrBlogWriting,
+  fetchQrSources, addQrSource, updateQrSource, deleteQrSource,
+  fetchQrSchedule, saveQrSchedule,
+  fetchQrGenerated,
 } from '../../api/contentApi';
-import type { QrBlogStats, QrBlogProgress } from '../../api/contentApi';
+import type { QrBlogStats, QrBlogProgress, QrSource, QrSchedule } from '../../api/contentApi';
 import { toast } from '../../components/Toast';
 import { inputClass, errMsg } from './helpers';
-import api from '../../api/client';
 
-// ─── Types locaux ────────────────────────────────────────────
-interface Question {
-  id: number;
-  title: string;
-  country: string | null;
-  country_slug: string | null;
-  language: string;
-  views: number;
-  replies: number;
-  article_status: string;
-}
-
+// ─────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────
 const STATUS_BADGE: Record<string, string> = {
   opportunity: 'bg-blue-500/20 text-blue-400',
   writing:     'bg-amber/20 text-amber animate-pulse',
@@ -27,9 +20,12 @@ const STATUS_BADGE: Record<string, string> = {
   skipped:     'bg-muted/20 text-muted',
   covered:     'bg-gray-500/20 text-gray-400',
 };
-
 const STATUS_LABEL: Record<string, string> = {
-  opportunity: 'Disponible', writing: 'En cours…', published: 'Publiée', skipped: 'Ignorée', covered: 'Traitée',
+  opportunity: 'Disponible',
+  writing:     'En cours…',
+  published:   'Publiée',
+  skipped:     'Ignorée',
+  covered:     'Traitée',
 };
 
 const CATEGORIES = [
@@ -46,39 +42,30 @@ const CATEGORIES = [
   { value: 'retraite', label: 'Retraite' },
 ];
 
-// ─── Component ────────────────────────────────────────────────
+const TABS = [
+  { id: 'sources',    label: 'Sources',           icon: '📋' },
+  { id: 'generation', label: 'Génération',         icon: '⚡' },
+  { id: 'generated',  label: 'Contenus générés',   icon: '✅' },
+] as const;
+type TabId = typeof TABS[number]['id'];
+
+// ─────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────
 export default function GenerateQr() {
+  const [tab, setTab]           = useState<TabId>('sources');
   const [stats, setStats]       = useState<QrBlogStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [progress, setProgress] = useState<QrBlogProgress | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [launching, setLaunching] = useState(false);
-  const [resetting, setResetting] = useState(false);
-
-  // Options de génération
-  const [limit, setLimit]       = useState(50);
-  const [country, setCountry]   = useState('');
-  const [category, setCategory] = useState('');
-
-  // Base de questions (liste visible + éditable)
-  const [questions, setQuestions]     = useState<Question[]>([]);
-  const [qLoading, setQLoading]       = useState(false);
-  const [qSearch, setQSearch]         = useState('');
-  const [qStatus, setQStatus]         = useState('opportunity');
-  const [qPage, setQPage]             = useState(1);
-  const [qTotal, setQTotal]           = useState(0);
-  const [editingId, setEditingId]     = useState<number | null>(null);
-  const [editTitle, setEditTitle]     = useState('');
-  const [savingId, setSavingId]       = useState<number | null>(null);
-
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Chargement stats ────────────────────────────────────────
+  // ── Stats ──────────────────────────────────────────────────
   const loadStats = useCallback(async () => {
     try {
       const res = await fetchQrBlogStats();
       const data = res.data as unknown as QrBlogStats;
       setStats(data);
-      if (data.progress) setProgress(data.progress);
+      if (data.progress) setProgress(data.progress as unknown as QrBlogProgress);
     } catch { /* silent */ }
   }, []);
 
@@ -89,432 +76,754 @@ export default function GenerateQr() {
       setProgress(data);
       if (data.status === 'completed' || data.status === 'failed') {
         stopPolling();
-        setLaunching(false);
         loadStats();
-        loadQuestions();
       }
     } catch { /* silent */ }
   }, []);
 
-  const stopPolling = () => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  };
-  const startPolling = () => {
-    stopPolling();
-    pollRef.current = setInterval(loadProgress, 3000);
-  };
+  const stopPolling = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  const startPolling = () => { stopPolling(); pollRef.current = setInterval(loadProgress, 3000); };
 
-  useEffect(() => {
-    loadStats().finally(() => setLoading(false));
-    return () => stopPolling();
-  }, []);
+  useEffect(() => { loadStats().finally(() => setStatsLoading(false)); return () => stopPolling(); }, []);
+  useEffect(() => { if (progress?.status === 'running') startPolling(); }, []);
 
-  // Reprendre polling si génération déjà en cours au chargement
-  useEffect(() => {
-    if (progress?.status === 'running') {
-      setLaunching(true);
-      startPolling();
-    }
-  }, []);
+  const isRunning = progress?.status === 'running';
 
-  // ── Questions DB ─────────────────────────────────────────────
-  const loadQuestions = useCallback(async () => {
-    setQLoading(true);
+  if (statsLoading) return (
+    <div className="p-6 space-y-4">
+      {[1,2,3].map(i => <div key={i} className="animate-pulse bg-surface2 rounded-xl h-20" />)}
+    </div>
+  );
+
+  return (
+    <div className="p-4 md:p-6 space-y-5">
+
+      {/* ── Header + stats rapides ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="font-title text-2xl font-bold text-white flex items-center gap-2">
+            ❓ Générateur Q/R
+          </h2>
+          <p className="text-muted text-sm mt-0.5">
+            Pages Questions/Réponses SEO générées par Claude · 9 langues automatiques
+          </p>
+        </div>
+        {stats && (
+          <div className="flex gap-3 shrink-0">
+            <StatPill n={stats.available}  label="Disponibles" color="text-blue-400" />
+            <StatPill n={stats.writing}    label="En cours"    color="text-amber" />
+            <StatPill n={stats.published}  label="Publiées"    color="text-success" />
+          </div>
+        )}
+      </div>
+
+      {/* ── Bandeau progression (toujours visible si génération en cours) ── */}
+      {progress && progress.status !== 'idle' && (
+        <ProgressBanner progress={progress} />
+      )}
+
+      {/* ── Onglets ── */}
+      <div className="flex gap-1 border-b border-border">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`px-4 py-2.5 text-sm font-medium rounded-t transition-colors ${
+              tab === t.id
+                ? 'bg-surface border border-b-surface border-border text-white -mb-px'
+                : 'text-muted hover:text-white'
+            }`}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Contenu de l'onglet ── */}
+      {tab === 'sources'    && <TabSources    stats={stats} reloadStats={loadStats} />}
+      {tab === 'generation' && <TabGeneration stats={stats} progress={progress} isRunning={isRunning}
+                                              reloadStats={loadStats} onProgressStart={startPolling}
+                                              setProgress={setProgress} />}
+      {tab === 'generated'  && <TabGenerated />}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// StatPill
+// ─────────────────────────────────────────────────────────────
+function StatPill({ n, label, color }: { n: number; label: string; color: string }) {
+  return (
+    <div className="bg-surface border border-border rounded-xl px-4 py-2 text-center">
+      <div className={`text-xl font-bold ${color}`}>{n.toLocaleString('fr-FR')}</div>
+      <div className="text-[10px] text-muted mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ProgressBanner
+// ─────────────────────────────────────────────────────────────
+function ProgressBanner({ progress }: { progress: QrBlogProgress }) {
+  const isRunning = progress.status === 'running';
+  const isDone    = progress.status === 'completed';
+  const isFailed  = progress.status === 'failed';
+  const pct = progress.total > 0
+    ? Math.round(((progress.completed + progress.skipped + progress.errors) / progress.total) * 100)
+    : 0;
+
+  return (
+    <div className={`border rounded-xl p-4 ${
+      isRunning ? 'bg-surface border-blue-500/30' :
+      isDone    ? 'bg-success/5 border-success/30' :
+                  'bg-danger/5 border-danger/30'
+    }`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold text-white flex items-center gap-2">
+          {isRunning && <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />}
+          {isDone    && <span className="text-success">✓</span>}
+          {isFailed  && <span className="text-danger">✗</span>}
+          {isRunning ? 'Génération en cours…' : isDone ? 'Génération terminée' : 'Génération échouée'}
+          {progress.triggered_by === 'scheduler' && (
+            <span className="text-[10px] bg-violet/20 text-violet px-2 py-0.5 rounded">auto</span>
+          )}
+        </span>
+        <span className="text-xs text-muted">{progress.completed + progress.skipped + progress.errors} / {progress.total}</span>
+      </div>
+      <div className="w-full h-1.5 bg-surface2 rounded-full overflow-hidden mb-2">
+        <div className={`h-full rounded-full transition-all duration-500 ${
+          isDone ? 'bg-success' : isFailed ? 'bg-danger' : 'bg-blue-500'
+        }`} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex gap-4 text-xs">
+        <span className="text-success">✓ {progress.completed} publiées</span>
+        <span className="text-muted">– {progress.skipped} ignorées</span>
+        {progress.errors > 0 && <span className="text-danger">✗ {progress.errors} erreurs</span>}
+        {progress.current_title && <span className="text-blue-400 truncate flex-1">⟳ {progress.current_title}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tab Sources
+// ─────────────────────────────────────────────────────────────
+function TabSources({ stats, reloadStats }: { stats: QrBlogStats | null; reloadStats: () => void }) {
+  const [sources, setSources]   = useState<QrSource[]>([]);
+  const [loading, setLoading]   = useState(false);
+  const [search, setSearch]     = useState('');
+  const [status, setStatus]     = useState('opportunity');
+  const [country, setCountry]   = useState('');
+  const [page, setPage]         = useState(1);
+  const [total, setTotal]       = useState(0);
+
+  // Édition inline
+  const [editId, setEditId]     = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [savingId, setSavingId] = useState<number | null>(null);
+
+  // Ajout manuel
+  const [showAdd, setShowAdd]   = useState(false);
+  const [addTitle, setAddTitle] = useState('');
+  const [addCountry, setAddCountry] = useState('');
+  const [addLang, setAddLang]   = useState('fr');
+  const [addNotes, setAddNotes] = useState('');
+  const [adding, setAdding]     = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const params: Record<string, unknown> = { per_page: 20, page: qPage, sort: 'views', direction: 'desc' };
-      if (qStatus) params.status = qStatus;
-      if (qSearch) params.search = qSearch;
+      const params: Record<string, unknown> = { per_page: 20, page, sort: 'views', direction: 'desc' };
+      if (status)  params.status  = status;
+      if (search)  params.search  = search;
       if (country) params.country = country;
-      const res = await api.get('/questions', { params });
-      const data = res.data as { data: Question[]; total: number };
-      setQuestions(data.data ?? []);
-      setQTotal(data.total ?? 0);
-    } catch { toast('error', 'Erreur chargement questions'); }
-    finally { setQLoading(false); }
-  }, [qPage, qStatus, qSearch, country]);
+      const res  = await fetchQrSources(params);
+      const data = res.data as { data: QrSource[]; total: number };
+      setSources(data.data ?? []);
+      setTotal(data.total ?? 0);
+    } catch { toast('error', 'Erreur chargement sources'); }
+    finally { setLoading(false); }
+  }, [page, status, search, country]);
 
-  useEffect(() => { loadQuestions(); }, [loadQuestions]);
+  useEffect(() => { load(); }, [load]);
 
-  // ── Lancer génération ─────────────────────────────────────────
+  const saveEdit = async (id: number) => {
+    if (!editTitle.trim()) return;
+    setSavingId(id);
+    try {
+      await updateQrSource(id, { title: editTitle.trim() });
+      setSources(ss => ss.map(s => s.id === id ? { ...s, title: editTitle.trim() } : s));
+      toast('success', 'Titre mis à jour');
+      setEditId(null);
+    } catch (e) { toast('error', errMsg(e)); }
+    finally { setSavingId(null); }
+  };
+
+  const doUpdateStatus = async (id: number, st: string) => {
+    try {
+      await updateQrSource(id, { article_status: st });
+      setSources(ss => ss.map(s => s.id === id ? { ...s, article_status: st } : s));
+      reloadStats();
+    } catch (e) { toast('error', errMsg(e)); }
+  };
+
+  const doDelete = async (id: number) => {
+    if (!confirm('Supprimer cette question ?')) return;
+    try {
+      await deleteQrSource(id);
+      setSources(ss => ss.filter(s => s.id !== id));
+      setTotal(t => t - 1);
+      reloadStats();
+      toast('success', 'Question supprimée.');
+    } catch (e) { toast('error', errMsg(e)); }
+  };
+
+  const doAdd = async () => {
+    if (!addTitle.trim()) { toast('error', 'Titre requis'); return; }
+    setAdding(true);
+    try {
+      const res = await addQrSource({ title: addTitle.trim(), country: addCountry || undefined, language: addLang, notes: addNotes || undefined });
+      setSources(ss => [res.data as unknown as QrSource, ...ss]);
+      setTotal(t => t + 1);
+      setAddTitle(''); setAddCountry(''); setAddNotes(''); setShowAdd(false);
+      reloadStats();
+      toast('success', 'Question ajoutée.');
+    } catch (e) { toast('error', errMsg(e)); }
+    finally { setAdding(false); }
+  };
+
+  return (
+    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+
+      {/* Toolbar */}
+      <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-white">
+            Sources
+            <span className="ml-1.5 text-muted font-normal text-xs">({total.toLocaleString('fr-FR')})</span>
+          </span>
+          <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={inputClass + ' text-xs'}>
+            <option value="">Tous statuts</option>
+            <option value="opportunity">Disponibles</option>
+            <option value="writing">En cours</option>
+            <option value="published">Publiées</option>
+            <option value="skipped">Ignorées</option>
+            <option value="covered">Traitées</option>
+          </select>
+          <input value={search} placeholder="Rechercher…"
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            className={inputClass + ' w-44 text-xs'} />
+          <input value={country} placeholder="Pays…"
+            onChange={e => { setCountry(e.target.value); setPage(1); }}
+            className={inputClass + ' w-32 text-xs'} />
+        </div>
+        <button onClick={() => setShowAdd(v => !v)}
+          className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded font-medium transition shrink-0">
+          + Ajouter manuellement
+        </button>
+      </div>
+
+      {/* Formulaire d'ajout manuel */}
+      {showAdd && (
+        <div className="p-4 bg-blue-500/5 border-b border-blue-500/20 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="sm:col-span-3">
+            <label className="block text-xs text-muted mb-1">Question / Titre <span className="text-danger">*</span></label>
+            <input value={addTitle} onChange={e => setAddTitle(e.target.value)}
+              placeholder="Ex: Comment ouvrir un compte bancaire en Allemagne ?"
+              className={inputClass + ' w-full'} />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Pays</label>
+            <input value={addCountry} onChange={e => setAddCountry(e.target.value)}
+              placeholder="Ex: Allemagne" className={inputClass + ' w-full'} />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Langue source</label>
+            <select value={addLang} onChange={e => setAddLang(e.target.value)} className={inputClass + ' w-full'}>
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="de">Deutsch</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Notes (optionnel)</label>
+            <input value={addNotes} onChange={e => setAddNotes(e.target.value)}
+              placeholder="Notes internes…" className={inputClass + ' w-full'} />
+          </div>
+          <div className="sm:col-span-3 flex gap-2">
+            <button onClick={doAdd} disabled={adding}
+              className="px-4 py-2 text-xs bg-success/20 text-success rounded hover:bg-success/30 font-medium transition disabled:opacity-50">
+              {adding ? 'Ajout…' : '✓ Ajouter'}
+            </button>
+            <button onClick={() => setShowAdd(false)}
+              className="px-4 py-2 text-xs bg-surface2 text-muted rounded hover:text-white transition">
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left bg-surface2/30">
+              <th className="px-4 py-2.5 text-xs text-muted font-medium">Question</th>
+              <th className="px-4 py-2.5 text-xs text-muted font-medium w-28">Pays</th>
+              <th className="px-4 py-2.5 text-xs text-muted font-medium w-20 text-right">Vues</th>
+              <th className="px-4 py-2.5 text-xs text-muted font-medium w-28">Statut</th>
+              <th className="px-4 py-2.5 text-xs text-muted font-medium w-28">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              [...Array(8)].map((_, i) => (
+                <tr key={i} className="border-b border-border/40">
+                  <td colSpan={5} className="px-4 py-2.5">
+                    <div className="animate-pulse bg-surface2 h-3.5 rounded w-full" />
+                  </td>
+                </tr>
+              ))
+            ) : sources.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted text-sm">Aucune question trouvée</td></tr>
+            ) : sources.map(s => (
+              <tr key={s.id} className="border-b border-border/40 hover:bg-surface2/40 transition-colors">
+                <td className="px-4 py-2.5">
+                  {editId === s.id ? (
+                    <div className="flex items-center gap-2">
+                      <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(s.id); if (e.key === 'Escape') setEditId(null); }}
+                        className={inputClass + ' flex-1 text-xs'} autoFocus />
+                      <button onClick={() => saveEdit(s.id)} disabled={savingId === s.id}
+                        className="text-xs px-2 py-1 bg-success/20 text-success rounded">
+                        {savingId === s.id ? '…' : '✓'}
+                      </button>
+                      <button onClick={() => setEditId(null)}
+                        className="text-xs px-2 py-1 bg-surface2 text-muted rounded">✗</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-white text-xs leading-snug line-clamp-2">{s.title}</span>
+                      {s.article_notes && (
+                        <span className="text-[10px] text-muted italic">{s.article_notes}</span>
+                      )}
+                      {!s.url && (
+                        <span className="ml-1.5 text-[10px] bg-violet/20 text-violet px-1.5 py-0.5 rounded">manuel</span>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className="text-xs text-muted">{s.country ?? '—'}</span>
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <span className="text-xs text-muted">{(s.views || 0).toLocaleString('fr-FR')}</span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${STATUS_BADGE[s.article_status] ?? 'bg-muted/20 text-muted'}`}>
+                    {STATUS_LABEL[s.article_status] ?? s.article_status}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center gap-1">
+                    {s.article_status === 'opportunity' && editId !== s.id && (
+                      <ActionBtn title="Modifier le titre" onClick={() => { setEditId(s.id); setEditTitle(s.title); }}>✏</ActionBtn>
+                    )}
+                    {s.article_status === 'opportunity' && (
+                      <ActionBtn title="Ignorer" onClick={() => doUpdateStatus(s.id, 'skipped')} hover="hover:text-amber">—</ActionBtn>
+                    )}
+                    {(s.article_status === 'skipped' || s.article_status === 'covered') && (
+                      <ActionBtn title="Remettre en file" onClick={() => doUpdateStatus(s.id, 'opportunity')} hover="hover:text-blue-400">↺</ActionBtn>
+                    )}
+                    {!s.url && (
+                      <ActionBtn title="Supprimer" onClick={() => doDelete(s.id)} hover="hover:text-danger">🗑</ActionBtn>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {total > 20 && (
+        <div className="p-3 border-t border-border flex items-center justify-between">
+          <span className="text-xs text-muted">Page {page} · {total.toLocaleString('fr-FR')} questions</span>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 text-xs bg-surface2 text-muted rounded hover:text-white disabled:opacity-40">← Préc.</button>
+            <button onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}
+              className="px-3 py-1.5 text-xs bg-surface2 text-muted rounded hover:text-white disabled:opacity-40">Suiv. →</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tab Génération
+// ─────────────────────────────────────────────────────────────
+function TabGeneration({
+  stats, progress, isRunning, reloadStats, onProgressStart, setProgress,
+}: {
+  stats: QrBlogStats | null;
+  progress: QrBlogProgress | null;
+  isRunning: boolean;
+  reloadStats: () => void;
+  onProgressStart: () => void;
+  setProgress: React.Dispatch<React.SetStateAction<QrBlogProgress | null>>;
+}) {
+  // Génération manuelle
+  const [limit, setLimit]       = useState(20);
+  const [country, setCountry]   = useState('');
+  const [category, setCategory] = useState('');
+  const [launching, setLaunching] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  // Programmation
+  const [schedule, setSchedule]   = useState<QrSchedule | null>(null);
+  const [schedLoading, setSchedLoading] = useState(true);
+  const [schedSaving, setSchedSaving]   = useState(false);
+  const [schedActive, setSchedActive]   = useState(false);
+  const [schedLimit, setSchedLimit]     = useState(20);
+  const [schedCountry, setSchedCountry] = useState('');
+  const [schedCategory, setSchedCategory] = useState('');
+
+  useEffect(() => {
+    fetchQrSchedule().then(res => {
+      const d = res.data as unknown as QrSchedule;
+      setSchedule(d);
+      setSchedActive(d.active);
+      setSchedLimit(d.daily_limit);
+      setSchedCountry(d.country ?? '');
+      setSchedCategory(d.category ?? '');
+    }).catch(() => {/* silent */}).finally(() => setSchedLoading(false));
+  }, []);
+
   const handleGenerate = async () => {
     setLaunching(true);
     try {
       const res = await launchQrBlogGeneration({ limit, country: country || undefined, category: category || undefined });
       const data = res.data as { message: string; total: number };
       toast('success', data.message);
-      startPolling();
-      loadStats();
+      onProgressStart();
+      reloadStats();
     } catch (e) {
       toast('error', errMsg(e));
       setLaunching(false);
     }
   };
 
-  // ── Réinitialiser bloquées ────────────────────────────────────
   const handleReset = async () => {
     setResetting(true);
     try {
       const res = await resetQrBlogWriting();
       const data = res.data as { message: string };
       toast('success', data.message);
-      loadStats();
-      loadQuestions();
+      reloadStats();
     } catch (e) { toast('error', errMsg(e)); }
     finally { setResetting(false); }
   };
 
-  // ── Édition titre inline ──────────────────────────────────────
-  const startEdit = (q: Question) => {
-    setEditingId(q.id);
-    setEditTitle(q.title);
-  };
-  const saveEdit = async (id: number) => {
-    if (!editTitle.trim()) return;
-    setSavingId(id);
+  const handleSaveSchedule = async () => {
+    setSchedSaving(true);
     try {
-      await api.put(`/questions/${id}/status`, { title: editTitle.trim() });
-      setQuestions(qs => qs.map(q => q.id === id ? { ...q, title: editTitle.trim() } : q));
-      toast('success', 'Titre mis à jour');
-      setEditingId(null);
+      await saveQrSchedule({ active: schedActive, daily_limit: schedLimit, country: schedCountry, category: schedCategory, last_run_at: schedule?.last_run_at ?? null });
+      toast('success', 'Programmation enregistrée.');
     } catch (e) { toast('error', errMsg(e)); }
-    finally { setSavingId(null); }
+    finally { setSchedSaving(false); }
   };
-
-  // ── Ignorer / Remettre une question ──────────────────────────
-  const updateStatus = async (id: number, status: string) => {
-    try {
-      await api.put(`/questions/${id}/status`, { article_status: status });
-      setQuestions(qs => qs.map(q => q.id === id ? { ...q, article_status: status } : q));
-    } catch (e) { toast('error', errMsg(e)); }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-4 md:p-6 space-y-4">
-        {[1, 2, 3].map(i => <div key={i} className="animate-pulse bg-surface2 rounded-xl h-20" />)}
-      </div>
-    );
-  }
-
-  const isRunning  = progress?.status === 'running';
-  const isDone     = progress?.status === 'completed';
-  const isFailed   = progress?.status === 'failed';
-  const pct = progress && progress.total > 0
-    ? Math.round(((progress.completed + progress.skipped + progress.errors) / progress.total) * 100)
-    : 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="space-y-5">
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-title text-2xl font-bold text-white flex items-center gap-2">
-            ❓ Générer Q/R
-          </h2>
-          <p className="text-muted text-sm mt-1">
-            Génère des pages Questions/Réponses SEO pour le Blog à partir des questions de forum scrapées.
-            Titres, méta et contenu optimisés par Claude. 9 langues automatiques.
-          </p>
-        </div>
-        {stats && (
-          <div className="text-right">
-            <span className="text-3xl font-bold text-blue-400">{stats.available}</span>
-            <p className="text-xs text-muted">disponibles</p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Stats rapides ── */}
-      {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-surface border border-border rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-blue-400">{stats.available}</div>
-            <div className="text-xs text-muted mt-1">Disponibles</div>
-          </div>
-          <div className="bg-surface border border-border rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-amber">{stats.writing}</div>
-            <div className="text-xs text-muted mt-1">En cours</div>
-          </div>
-          <div className="bg-surface border border-border rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-success">{stats.published}</div>
-            <div className="text-xs text-muted mt-1">Publiées</div>
-          </div>
-          <div className="bg-surface border border-border rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-muted">{stats.skipped}</div>
-            <div className="text-xs text-muted mt-1">Ignorées</div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Panel de génération ── */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-violet/10 border border-blue-500/30 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-white mb-1">Lancer une génération Q/R</h3>
-        <p className="text-sm text-muted mb-4">
-          Claude analyse chaque question, optimise le titre pour Google, génère une page riche (600+ mots,
-          H2/H3, 5-7 sous-questions) et traduit automatiquement en 9 langues.
+      {/* ── Lancer maintenant ── */}
+      <div className="bg-gradient-to-r from-blue-500/10 to-violet/10 border border-blue-500/30 rounded-xl p-5">
+        <h3 className="text-base font-bold text-white mb-1">Lancer une génération maintenant</h3>
+        <p className="text-xs text-muted mb-4">
+          Claude optimise le titre, génère 600+ mots (H2/H3, 5-7 sous-questions) et traduit en 9 langues.
+          ~${(limit * 0.023).toFixed(2)} USD estimé.
         </p>
 
-        {/* Options */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-xs text-muted mb-1">Nombre de Q/R <span className="text-blue-400">(1-200)</span></label>
             <input type="number" min={1} max={200} value={limit}
               onChange={e => setLimit(Math.min(200, Math.max(1, +e.target.value)))}
-              disabled={isRunning}
-              className={inputClass + ' w-full'} />
+              disabled={isRunning} className={inputClass + ' w-full'} />
           </div>
           <div>
             <label className="block text-xs text-muted mb-1">Pays (optionnel)</label>
-            <input type="text" value={country} placeholder="Ex: france, allemagne…"
+            <input value={country} placeholder="Ex: france, allemagne…"
               onChange={e => setCountry(e.target.value)}
-              disabled={isRunning}
-              className={inputClass + ' w-full'} />
+              disabled={isRunning} className={inputClass + ' w-full'} />
           </div>
           <div>
             <label className="block text-xs text-muted mb-1">Catégorie (optionnel)</label>
             <select value={category} onChange={e => setCategory(e.target.value)}
-              disabled={isRunning}
-              className={inputClass + ' w-full'}>
+              disabled={isRunning} className={inputClass + ' w-full'}>
               {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Coût estimé */}
-        <p className="text-xs text-muted mb-4">
-          Coût estimé : ~${(limit * 0.023).toFixed(2)} USD (Sonnet génération + Haiku traductions × 8 langues)
-        </p>
-
-        {/* Bouton lancer */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleGenerate}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={handleGenerate}
             disabled={isRunning || launching || (stats?.available ?? 0) === 0}
-            className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
+            className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
             {isRunning ? (
-              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Génération en cours…</>
-            ) : (
-              <>❓ Générer {limit} Q/R</>
-            )}
+              <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />En cours…</>
+            ) : (<>⚡ Générer {limit} Q/R</>)}
           </button>
 
-          {stats && stats.writing > 0 && !isRunning && (
+          {(stats?.available ?? 0) === 0 && !isRunning && (
+            <span className="text-xs text-amber">⚠ Aucune question disponible dans les Sources</span>
+          )}
+
+          {(stats?.writing ?? 0) > 0 && !isRunning && (
             <button onClick={handleReset} disabled={resetting}
-              className="px-4 py-2 rounded-lg border border-amber/30 text-amber text-sm hover:bg-amber/10 transition">
-              {resetting ? 'Réinitialisation…' : `Débloquer ${stats.writing} en cours`}
+              className="px-3 py-2 text-sm rounded-lg border border-amber/30 text-amber hover:bg-amber/10 transition">
+              {resetting ? 'Réinitialisation…' : `Débloquer ${stats!.writing} en cours`}
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Barre de progression ── */}
-      {progress && progress.status !== 'idle' && (
-        <div className={`border rounded-xl p-5 ${
-          isRunning ? 'bg-surface border-blue-500/30' :
-          isDone    ? 'bg-success/5 border-success/30' :
-          isFailed  ? 'bg-danger/5 border-danger/30' :
-                      'bg-surface border-border'
-        }`}>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-white flex items-center gap-2">
-              {isRunning && <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />}
-              {isDone && <span className="text-success">✓</span>}
-              {isFailed && <span className="text-danger">✗</span>}
-              {isRunning ? 'Génération en cours…' : isDone ? 'Génération terminée' : 'Génération échouée'}
-            </h4>
-            <span className="text-sm text-muted">
-              {progress.completed + progress.skipped + progress.errors} / {progress.total}
-            </span>
+      {/* ── Progression détaillée ── */}
+      {progress && progress.status !== 'idle' && progress.log && progress.log.length > 0 && (
+        <div className="bg-surface border border-border rounded-xl p-4">
+          <h4 className="text-sm font-semibold text-white mb-3">Dernières générations</h4>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {[...progress.log].reverse().slice(0, 20).map((entry, i) => (
+              <div key={i} className={`text-xs flex items-start gap-2 ${
+                entry.type === 'success' ? 'text-success' :
+                entry.type === 'skip'   ? 'text-muted' : 'text-danger'
+              }`}>
+                <span className="shrink-0 mt-0.5">{entry.type === 'success' ? '✓' : entry.type === 'skip' ? '–' : '✗'}</span>
+                <span className="flex-1 min-w-0">
+                  {entry.type === 'success' && entry.optimized_title && entry.optimized_title !== entry.title ? (
+                    <><span className="line-through opacity-40">{entry.title}</span> → <span className="text-white">{entry.optimized_title}</span></>
+                  ) : entry.title}
+                  {entry.reason && <span className="opacity-50 ml-1">({entry.reason})</span>}
+                </span>
+              </div>
+            ))}
           </div>
-
-          {/* Barre de progression */}
-          <div className="w-full h-2 bg-surface2 rounded-full overflow-hidden mb-3">
-            <div className={`h-full rounded-full transition-all duration-500 ${
-              isDone ? 'bg-success' : isFailed ? 'bg-danger' : 'bg-blue-500'
-            }`} style={{ width: `${pct}%` }} />
-          </div>
-
-          {/* Stats progression */}
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div className="text-center">
-              <div className="text-xl font-bold text-success">{progress.completed}</div>
-              <div className="text-xs text-muted">Publiées</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-muted">{progress.skipped}</div>
-              <div className="text-xs text-muted">Ignorées</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-danger">{progress.errors}</div>
-              <div className="text-xs text-muted">Erreurs</div>
-            </div>
-          </div>
-
-          {/* Question en cours */}
-          {progress.current_title && (
-            <p className="text-xs text-muted truncate">
-              ⟳ <span className="text-blue-400">{progress.current_title}</span>
-            </p>
-          )}
-
-          {/* Log (10 derniers) */}
-          {progress.log && progress.log.length > 0 && (
-            <div className="mt-3 max-h-40 overflow-y-auto space-y-1">
-              {[...progress.log].reverse().slice(0, 10).map((entry, i) => (
-                <div key={i} className={`text-xs flex items-start gap-2 ${
-                  entry.type === 'success' ? 'text-success' :
-                  entry.type === 'skip'    ? 'text-muted' : 'text-danger'
-                }`}>
-                  <span className="shrink-0">{entry.type === 'success' ? '✓' : entry.type === 'skip' ? '–' : '✗'}</span>
-                  <span className="truncate">
-                    {entry.type === 'success' && entry.optimized_title
-                      ? <><span className="line-through opacity-50">{entry.title}</span> → {entry.optimized_title}</>
-                      : entry.title}
-                    {entry.reason && <span className="opacity-60"> ({entry.reason})</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── Base de questions ── */}
-      <div className="bg-surface border border-border rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <h3 className="font-semibold text-white">
-            Base de questions forum
-            <span className="ml-2 text-sm text-muted font-normal">({qTotal.toLocaleString('fr-FR')} total)</span>
-          </h3>
-          <div className="flex gap-2 flex-wrap">
-            {/* Recherche */}
-            <input type="text" value={qSearch} placeholder="Rechercher…"
-              onChange={e => { setQSearch(e.target.value); setQPage(1); }}
-              className={inputClass + ' w-48'} />
-            {/* Filtre statut */}
-            <select value={qStatus} onChange={e => { setQStatus(e.target.value); setQPage(1); }}
-              className={inputClass}>
-              <option value="">Tous</option>
-              <option value="opportunity">Disponibles</option>
-              <option value="writing">En cours</option>
-              <option value="published">Publiées</option>
-              <option value="skipped">Ignorées</option>
-              <option value="covered">Traitées</option>
-            </select>
+      {/* ── Programmation quotidienne ── */}
+      <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-bold text-white">Programmation automatique</h3>
+            <p className="text-xs text-muted mt-0.5">Lance automatiquement chaque jour à 07:00 UTC</p>
           </div>
+          {schedule?.last_run_at && (
+            <span className="text-xs text-muted">
+              Dernier run : {new Date(schedule.last_run_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-xs text-muted font-medium">Question source</th>
-                <th className="px-4 py-3 text-xs text-muted font-medium w-24">Pays</th>
-                <th className="px-4 py-3 text-xs text-muted font-medium w-20 text-right">Vues</th>
-                <th className="px-4 py-3 text-xs text-muted font-medium w-28">Statut</th>
-                <th className="px-4 py-3 text-xs text-muted font-medium w-24">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {qLoading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i} className="border-b border-border/50">
-                    <td colSpan={5} className="px-4 py-3">
-                      <div className="animate-pulse bg-surface2 h-4 rounded w-full" />
-                    </td>
-                  </tr>
-                ))
-              ) : questions.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted">Aucune question trouvée</td></tr>
-              ) : (
-                questions.map(q => (
-                  <tr key={q.id} className="border-b border-border/50 hover:bg-surface2/50 transition-colors">
-                    <td className="px-4 py-3">
-                      {editingId === q.id ? (
-                        <div className="flex items-center gap-2">
-                          <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(q.id); if (e.key === 'Escape') setEditingId(null); }}
-                            className={inputClass + ' flex-1 text-xs'} autoFocus />
-                          <button onClick={() => saveEdit(q.id)} disabled={savingId === q.id}
-                            className="text-xs px-2 py-1 bg-success/20 text-success rounded hover:bg-success/30">
-                            {savingId === q.id ? '…' : '✓'}
-                          </button>
-                          <button onClick={() => setEditingId(null)}
-                            className="text-xs px-2 py-1 bg-surface2 text-muted rounded hover:bg-surface">
-                            ✗
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-white text-xs leading-snug line-clamp-2">{q.title}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-muted uppercase">{q.country ?? '—'}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="text-xs text-muted">{q.views?.toLocaleString('fr-FR')}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${STATUS_BADGE[q.article_status] ?? 'bg-muted/20 text-muted'}`}>
-                        {STATUS_LABEL[q.article_status] ?? q.article_status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {/* Modifier le titre */}
-                        {q.article_status === 'opportunity' && editingId !== q.id && (
-                          <button onClick={() => startEdit(q)}
-                            title="Modifier le titre avant génération"
-                            className="text-xs px-1.5 py-1 bg-surface2 text-muted rounded hover:text-white hover:bg-surface transition-colors">
-                            ✏
-                          </button>
-                        )}
-                        {/* Ignorer */}
-                        {q.article_status === 'opportunity' && (
-                          <button onClick={() => updateStatus(q.id, 'skipped')}
-                            title="Ignorer cette question"
-                            className="text-xs px-1.5 py-1 bg-surface2 text-muted rounded hover:text-amber hover:bg-amber/10 transition-colors">
-                            —
-                          </button>
-                        )}
-                        {/* Remettre en file d'attente */}
-                        {(q.article_status === 'skipped' || q.article_status === 'published') && (
-                          <button onClick={() => updateStatus(q.id, 'opportunity')}
-                            title="Remettre en file d'attente"
-                            className="text-xs px-1.5 py-1 bg-surface2 text-muted rounded hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
-                            ↺
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {schedLoading ? (
+          <div className="animate-pulse bg-surface2 h-24 rounded-lg" />
+        ) : (
+          <div className="space-y-4">
+            {/* Toggle actif */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div className="relative">
+                <input type="checkbox" checked={schedActive} onChange={e => setSchedActive(e.target.checked)} className="sr-only" />
+                <div className={`w-11 h-6 rounded-full transition-colors ${schedActive ? 'bg-success' : 'bg-surface2'}`} />
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${schedActive ? 'translate-x-5' : 'translate-x-0'}`} />
+              </div>
+              <span className="text-sm text-white font-medium">
+                {schedActive ? 'Programmation active' : 'Programmation désactivée'}
+              </span>
+            </label>
 
-        {/* Pagination */}
-        {qTotal > 20 && (
-          <div className="p-4 border-t border-border flex items-center justify-between">
-            <span className="text-xs text-muted">Page {qPage} · {qTotal.toLocaleString('fr-FR')} questions</span>
-            <div className="flex gap-2">
-              <button onClick={() => setQPage(p => Math.max(1, p - 1))} disabled={qPage === 1}
-                className="px-3 py-1.5 text-xs bg-surface2 text-muted rounded hover:text-white disabled:opacity-40">
-                ← Préc.
-              </button>
-              <button onClick={() => setQPage(p => p + 1)} disabled={qPage * 20 >= qTotal}
-                className="px-3 py-1.5 text-xs bg-surface2 text-muted rounded hover:text-white disabled:opacity-40">
-                Suiv. →
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-muted mb-1">Q/R par jour</label>
+                <input type="number" min={1} max={200} value={schedLimit}
+                  onChange={e => setSchedLimit(Math.min(200, Math.max(1, +e.target.value)))}
+                  disabled={!schedActive} className={inputClass + ' w-full'} />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1">Pays (optionnel)</label>
+                <input value={schedCountry} placeholder="Tous pays…"
+                  onChange={e => setSchedCountry(e.target.value)}
+                  disabled={!schedActive} className={inputClass + ' w-full'} />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1">Catégorie (optionnel)</label>
+                <select value={schedCategory} onChange={e => setSchedCategory(e.target.value)}
+                  disabled={!schedActive} className={inputClass + ' w-full'}>
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
             </div>
+
+            {schedActive && (
+              <p className="text-xs text-muted">
+                ≈ {schedLimit} Q/R/jour · ~${(schedLimit * 0.023).toFixed(2)}/jour · ~${(schedLimit * 0.023 * 30).toFixed(0)}/mois
+              </p>
+            )}
+
+            <button onClick={handleSaveSchedule} disabled={schedSaving}
+              className="px-4 py-2 text-sm bg-surface2 hover:bg-surface text-white rounded transition font-medium disabled:opacity-50">
+              {schedSaving ? 'Enregistrement…' : '💾 Enregistrer la programmation'}
+            </button>
           </div>
         )}
       </div>
-
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tab Contenus générés
+// ─────────────────────────────────────────────────────────────
+function TabGenerated() {
+  const [articles, setArticles] = useState<Array<Record<string, unknown>>>([]);
+  const [loading, setLoading]   = useState(false);
+  const [search, setSearch]     = useState('');
+  const [lang, setLang]         = useState('fr');
+  const [page, setPage]         = useState(1);
+  const [total, setTotal]       = useState(0);
+  const [error, setError]       = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params: Record<string, unknown> = { per_page: 20, page, language: lang };
+      if (search) params.search = search;
+      const res  = await fetchQrGenerated(params);
+      const data = res.data as { data: Array<Record<string, unknown>>; total: number; current_page?: number };
+      setArticles(data.data ?? []);
+      setTotal(data.total ?? 0);
+    } catch (e) {
+      setError(errMsg(e));
+    }
+    finally { setLoading(false); }
+  }, [page, lang, search]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const LANGS = ['fr','en','es','de','pt','ru','zh','hi','ar'];
+
+  return (
+    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+
+      {/* Toolbar */}
+      <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <span className="text-sm font-semibold text-white">
+          Contenus générés
+          <span className="ml-1.5 text-muted font-normal text-xs">({total.toLocaleString('fr-FR')} articles Q/R)</span>
+        </span>
+        <div className="flex gap-2 flex-wrap">
+          <select value={lang} onChange={e => { setLang(e.target.value); setPage(1); }} className={inputClass + ' text-xs'}>
+            {LANGS.map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+          </select>
+          <input value={search} placeholder="Rechercher…"
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            className={inputClass + ' w-44 text-xs'} />
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-danger/10 text-danger text-sm">{error}</div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left bg-surface2/30">
+              <th className="px-4 py-2.5 text-xs text-muted font-medium">Titre</th>
+              <th className="px-4 py-2.5 text-xs text-muted font-medium w-20">Langue</th>
+              <th className="px-4 py-2.5 text-xs text-muted font-medium w-32">Publié le</th>
+              <th className="px-4 py-2.5 text-xs text-muted font-medium w-24">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              [...Array(8)].map((_, i) => (
+                <tr key={i} className="border-b border-border/40">
+                  <td colSpan={4} className="px-4 py-2.5"><div className="animate-pulse bg-surface2 h-3.5 rounded w-full" /></td>
+                </tr>
+              ))
+            ) : articles.length === 0 ? (
+              <tr><td colSpan={4} className="px-4 py-10 text-center text-muted text-sm">
+                {error ? 'Erreur de chargement' : 'Aucun contenu Q/R publié pour l\'instant'}
+              </td></tr>
+            ) : articles.map(a => {
+              // Extraire la traduction dans la langue sélectionnée
+              const translations = (a.translations as Array<Record<string, unknown>>) ?? [];
+              const tr = translations.find(t => t.language_code === lang) ?? translations[0];
+              const title     = String(tr?.title ?? a.title ?? '—');
+              const slug      = String(tr?.slug ?? '');
+              const pubDate   = String(a.published_at ?? tr?.created_at ?? '');
+              const extId     = String(a.external_article_id ?? '');
+              return (
+                <tr key={String(a.id)} className="border-b border-border/40 hover:bg-surface2/40 transition-colors">
+                  <td className="px-4 py-2.5">
+                    <span className="text-white text-xs line-clamp-2">{title}</span>
+                    {extId && extId !== 'undefined' && (
+                      <span className="block text-[10px] text-muted">{extId}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className="text-xs font-mono uppercase text-muted">{String(tr?.language_code ?? lang)}</span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className="text-xs text-muted">
+                      {pubDate ? new Date(pubDate).toLocaleDateString('fr-FR') : '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {slug && (
+                      <a href={`https://blog.sos-expat.com/${lang}/vie-a-letranger/${slug}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:text-blue-300 transition">
+                        Voir ↗
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {total > 20 && (
+        <div className="p-3 border-t border-border flex items-center justify-between">
+          <span className="text-xs text-muted">Page {page} · {total.toLocaleString('fr-FR')} articles</span>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 text-xs bg-surface2 text-muted rounded hover:text-white disabled:opacity-40">← Préc.</button>
+            <button onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}
+              className="px-3 py-1.5 text-xs bg-surface2 text-muted rounded hover:text-white disabled:opacity-40">Suiv. →</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ActionBtn helper
+// ─────────────────────────────────────────────────────────────
+function ActionBtn({ children, title, onClick, hover = 'hover:text-white' }: {
+  children: React.ReactNode; title: string; onClick: () => void; hover?: string;
+}) {
+  return (
+    <button onClick={onClick} title={title}
+      className={`text-xs px-1.5 py-1 bg-surface2 text-muted rounded transition-colors ${hover} hover:bg-surface`}>
+      {children}
+    </button>
   );
 }

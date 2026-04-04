@@ -32,3 +32,6 @@ Schedule::job(new ProcessSequencesJob)->everyFifteenMinutes()->withoutOverlappin
 
 // Run daily content generation at 6:00 AM
 Schedule::job(new RunDailyContentJob)->dailyAt('06:00')->withoutOverlapping(14400);
+
+// Q/R Blog auto-generation at 7:00 AM UTC (if active in settings)
+Schedule::command('qr:daily-generate')->dailyAt('07:00')->withoutOverlapping(7200);

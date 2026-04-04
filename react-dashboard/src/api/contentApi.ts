@@ -624,9 +624,44 @@ export interface QrBlogProgress {
   current_title: string | null;
   started_at: string | null;
   finished_at: string | null;
+  triggered_by?: string;
   log: Array<{ type: 'success' | 'skip' | 'error'; id: number; title: string; optimized_title?: string; reason?: string }>;
 }
 
+export interface QrSource {
+  id: number;
+  title: string;
+  country: string | null;
+  country_slug: string | null;
+  language: string;
+  views: number;
+  replies: number;
+  article_status: string;
+  article_notes: string | null;
+  url: string | null;
+  created_at: string;
+}
+
+export interface QrSchedule {
+  active: boolean;
+  daily_limit: number;
+  country: string;
+  category: string;
+  last_run_at: string | null;
+}
+
+export interface QrGeneratedArticle {
+  id: number;
+  title: string;
+  slug: string;
+  language_code: string;
+  published_at: string | null;
+  created_at: string;
+  mc_uuid: string | null;
+  category?: { name: string; slug: string };
+}
+
+// Stats & génération
 export const fetchQrBlogStats = () =>
   api.get<QrBlogStats>('/content-gen/qr-blog/stats');
 
@@ -638,3 +673,27 @@ export const launchQrBlogGeneration = (params: { limit?: number; country?: strin
 
 export const resetQrBlogWriting = () =>
   api.post('/content-gen/qr-blog/reset');
+
+// Sources
+export const fetchQrSources = (params: Record<string, unknown>) =>
+  api.get('/content-gen/qr-blog/sources', { params });
+
+export const addQrSource = (data: { title: string; country?: string; language?: string; notes?: string }) =>
+  api.post('/content-gen/qr-blog/sources', data);
+
+export const updateQrSource = (id: number, data: Partial<{ title: string; article_status: string; article_notes: string }>) =>
+  api.put(`/content-gen/qr-blog/sources/${id}`, data);
+
+export const deleteQrSource = (id: number) =>
+  api.delete(`/content-gen/qr-blog/sources/${id}`);
+
+// Programmation
+export const fetchQrSchedule = () =>
+  api.get<QrSchedule>('/content-gen/qr-blog/schedule');
+
+export const saveQrSchedule = (data: QrSchedule) =>
+  api.put('/content-gen/qr-blog/schedule', data);
+
+// Contenus générés
+export const fetchQrGenerated = (params: Record<string, unknown>) =>
+  api.get('/content-gen/qr-blog/generated', { params });
