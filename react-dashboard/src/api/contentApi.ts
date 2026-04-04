@@ -647,7 +647,13 @@ export interface QrSchedule {
   daily_limit: number;
   country: string;
   category: string;
+  duration_type: 'unlimited' | 'days' | 'total';
+  max_days: number | null;
+  total_goal: number | null;
+  start_date: string | null;
+  total_generated: number;
   last_run_at: string | null;
+  sources_available?: number;
 }
 
 export interface QrGeneratedArticle {

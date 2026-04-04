@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -144,6 +145,28 @@ class GenerateQrBlogJob implements ShouldQueue
             'finished_at'   => now()->toIso8601String(),
             'log'           => array_slice($log, -50),
         ]);
+
+        // Mettre à jour total_generated dans le schedule
+        if ($completed > 0) {
+            try {
+                $raw = DB::table('settings')->where('key', 'qr_schedule')->value('value');
+                $sched = $raw ? json_decode($raw, true) : [];
+                $sched['total_generated'] = ($sched['total_generated'] ?? 0) + $completed;
+                // Auto-désactiver si objectif total atteint
+                if (($sched['duration_type'] ?? '') === 'total' && isset($sched['total_goal'])) {
+                    if ($sched['total_generated'] >= (int) $sched['total_goal']) {
+                        $sched['active'] = false;
+                        Log::info('QrBlogJob: total_goal atteint → schedule désactivé.', ['total' => $sched['total_generated']]);
+                    }
+                }
+                DB::table('settings')->updateOrInsert(
+                    ['key' => 'qr_schedule'],
+                    ['value' => json_encode($sched), 'updated_at' => now()]
+                );
+            } catch (\Throwable $e) {
+                Log::warning('QrBlogJob: impossible de mettre à jour total_generated', ['error' => $e->getMessage()]);
+            }
+        }
     }
 
     // ─────────────────────────────────────────

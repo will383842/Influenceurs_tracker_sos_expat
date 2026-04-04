@@ -481,13 +481,16 @@ function TabGeneration({
   const [resetting, setResetting] = useState(false);
 
   // Programmation
-  const [schedule, setSchedule]   = useState<QrSchedule | null>(null);
+  const [schedule, setSchedule]         = useState<QrSchedule | null>(null);
   const [schedLoading, setSchedLoading] = useState(true);
   const [schedSaving, setSchedSaving]   = useState(false);
   const [schedActive, setSchedActive]   = useState(false);
   const [schedLimit, setSchedLimit]     = useState(20);
   const [schedCountry, setSchedCountry] = useState('');
   const [schedCategory, setSchedCategory] = useState('');
+  const [schedDurationType, setSchedDurationType] = useState<'unlimited'|'days'|'total'>('unlimited');
+  const [schedMaxDays, setSchedMaxDays]   = useState(30);
+  const [schedTotalGoal, setSchedTotalGoal] = useState(500);
 
   useEffect(() => {
     fetchQrSchedule().then(res => {
@@ -497,6 +500,9 @@ function TabGeneration({
       setSchedLimit(d.daily_limit);
       setSchedCountry(d.country ?? '');
       setSchedCategory(d.category ?? '');
+      setSchedDurationType(d.duration_type ?? 'unlimited');
+      setSchedMaxDays(d.max_days ?? 30);
+      setSchedTotalGoal(d.total_goal ?? 500);
     }).catch(() => {/* silent */}).finally(() => setSchedLoading(false));
   }, []);
 
@@ -528,7 +534,20 @@ function TabGeneration({
   const handleSaveSchedule = async () => {
     setSchedSaving(true);
     try {
-      await saveQrSchedule({ active: schedActive, daily_limit: schedLimit, country: schedCountry, category: schedCategory, last_run_at: schedule?.last_run_at ?? null });
+      const payload: QrSchedule = {
+        active:          schedActive,
+        daily_limit:     schedLimit,
+        country:         schedCountry,
+        category:        schedCategory,
+        duration_type:   schedDurationType,
+        max_days:        schedDurationType === 'days'  ? schedMaxDays   : null,
+        total_goal:      schedDurationType === 'total' ? schedTotalGoal : null,
+        start_date:      schedule?.start_date ?? null,
+        total_generated: schedule?.total_generated ?? 0,
+        last_run_at:     schedule?.last_run_at ?? null,
+      };
+      const res = await saveQrSchedule(payload);
+      setSchedule((res.data as { config: QrSchedule }).config ?? payload);
       toast('success', 'Programmation enregistrée.');
     } catch (e) { toast('error', errMsg(e)); }
     finally { setSchedSaving(false); }
@@ -619,56 +638,160 @@ function TabGeneration({
             <h3 className="text-base font-bold text-white">Programmation automatique</h3>
             <p className="text-xs text-muted mt-0.5">Lance automatiquement chaque jour à 07:00 UTC</p>
           </div>
-          {schedule?.last_run_at && (
-            <span className="text-xs text-muted">
-              Dernier run : {new Date(schedule.last_run_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
+          <div className="text-right text-xs text-muted space-y-0.5">
+            {schedule?.last_run_at && (
+              <div>Dernier run : {new Date(schedule.last_run_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
+            )}
+            {(schedule?.total_generated ?? 0) > 0 && (
+              <div className="text-success">{(schedule!.total_generated).toLocaleString('fr-FR')} Q/R générées au total</div>
+            )}
+          </div>
         </div>
 
         {schedLoading ? (
           <div className="animate-pulse bg-surface2 h-24 rounded-lg" />
         ) : (
-          <div className="space-y-4">
-            {/* Toggle actif */}
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div className="relative">
-                <input type="checkbox" checked={schedActive} onChange={e => setSchedActive(e.target.checked)} className="sr-only" />
-                <div className={`w-11 h-6 rounded-full transition-colors ${schedActive ? 'bg-success' : 'bg-surface2'}`} />
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${schedActive ? 'translate-x-5' : 'translate-x-0'}`} />
-              </div>
-              <span className="text-sm text-white font-medium">
-                {schedActive ? 'Programmation active' : 'Programmation désactivée'}
-              </span>
-            </label>
+          <div className="space-y-5">
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs text-muted mb-1">Q/R par jour</label>
-                <input type="number" min={1} max={200} value={schedLimit}
-                  onChange={e => setSchedLimit(Math.min(200, Math.max(1, +e.target.value)))}
-                  disabled={!schedActive} className={inputClass + ' w-full'} />
-              </div>
-              <div>
-                <label className="block text-xs text-muted mb-1">Pays (optionnel)</label>
-                <input value={schedCountry} placeholder="Tous pays…"
-                  onChange={e => setSchedCountry(e.target.value)}
-                  disabled={!schedActive} className={inputClass + ' w-full'} />
-              </div>
-              <div>
-                <label className="block text-xs text-muted mb-1">Catégorie (optionnel)</label>
-                <select value={schedCategory} onChange={e => setSchedCategory(e.target.value)}
-                  disabled={!schedActive} className={inputClass + ' w-full'}>
-                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+            {/* Toggle + rythme */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div className="relative shrink-0">
+                  <input type="checkbox" checked={schedActive} onChange={e => setSchedActive(e.target.checked)} className="sr-only" />
+                  <div className={`w-11 h-6 rounded-full transition-colors ${schedActive ? 'bg-success' : 'bg-surface2'}`} />
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${schedActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                </div>
+                <span className="text-sm text-white font-medium whitespace-nowrap">
+                  {schedActive ? 'Active' : 'Désactivée'}
+                </span>
+              </label>
+
+              <div className="flex gap-3 flex-1 flex-wrap">
+                <div>
+                  <label className="block text-xs text-muted mb-1">Q/R par jour</label>
+                  <input type="number" min={1} max={200} value={schedLimit}
+                    onChange={e => setSchedLimit(Math.min(200, Math.max(1, +e.target.value)))}
+                    disabled={!schedActive} className={inputClass + ' w-24'} />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted mb-1">Pays</label>
+                  <input value={schedCountry} placeholder="Tous…"
+                    onChange={e => setSchedCountry(e.target.value)}
+                    disabled={!schedActive} className={inputClass + ' w-32'} />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted mb-1">Catégorie</label>
+                  <select value={schedCategory} onChange={e => setSchedCategory(e.target.value)}
+                    disabled={!schedActive} className={inputClass}>
+                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
 
-            {schedActive && (
-              <p className="text-xs text-muted">
-                ≈ {schedLimit} Q/R/jour · ~${(schedLimit * 0.023).toFixed(2)}/jour · ~${(schedLimit * 0.023 * 30).toFixed(0)}/mois
-              </p>
-            )}
+            {/* Durée */}
+            <div>
+              <p className="text-xs text-muted mb-2 font-medium">Durée de la programmation</p>
+              <div className="flex gap-2 flex-wrap">
+                {([
+                  { v: 'unlimited', label: '♾ Illimité' },
+                  { v: 'days',      label: '📅 N jours' },
+                  { v: 'total',     label: '🎯 Objectif total' },
+                ] as const).map(opt => (
+                  <button key={opt.v} onClick={() => setSchedDurationType(opt.v)}
+                    disabled={!schedActive}
+                    className={`px-3 py-1.5 text-xs rounded border transition ${
+                      schedDurationType === opt.v
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-surface2 border-border text-muted hover:text-white'
+                    } disabled:opacity-50`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {schedActive && schedDurationType === 'days' && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div>
+                    <label className="block text-xs text-muted mb-1">Nombre de jours</label>
+                    <input type="number" min={1} max={3650} value={schedMaxDays}
+                      onChange={e => setSchedMaxDays(Math.max(1, +e.target.value))}
+                      className={inputClass + ' w-28'} />
+                  </div>
+                  <div className="text-xs text-muted mt-4">
+                    = {(schedLimit * schedMaxDays).toLocaleString('fr-FR')} Q/R max · ~${(schedLimit * schedMaxDays * 0.023).toFixed(0)} USD
+                  </div>
+                </div>
+              )}
+
+              {schedActive && schedDurationType === 'total' && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div>
+                    <label className="block text-xs text-muted mb-1">Objectif Q/R au total</label>
+                    <input type="number" min={1} max={100000} value={schedTotalGoal}
+                      onChange={e => setSchedTotalGoal(Math.max(1, +e.target.value))}
+                      className={inputClass + ' w-32'} />
+                  </div>
+                  <div className="text-xs text-muted mt-4">
+                    = ~{Math.ceil(schedTotalGoal / schedLimit)} jours · ~${(schedTotalGoal * 0.023).toFixed(0)} USD
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Projection */}
+            {schedActive && (() => {
+              const available = schedule?.sources_available ?? stats?.available ?? 0;
+              const daysOfStock = schedLimit > 0 ? Math.floor(available / schedLimit) : 0;
+              const costPerDay  = schedLimit * 0.023;
+              const costPerMonth = costPerDay * 30;
+              const remaining = schedDurationType === 'total'
+                ? Math.max(0, schedTotalGoal - (schedule?.total_generated ?? 0))
+                : null;
+              return (
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 text-xs space-y-1">
+                  <p className="font-semibold text-white text-xs mb-1.5">📊 Projection</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div>
+                      <span className="text-muted block">Stock disponible</span>
+                      <span className="text-blue-400 font-bold">{available.toLocaleString('fr-FR')} Q/R</span>
+                    </div>
+                    <div>
+                      <span className="text-muted block">Durée du stock</span>
+                      <span className={`font-bold ${daysOfStock > 60 ? 'text-success' : daysOfStock > 14 ? 'text-amber' : 'text-danger'}`}>
+                        {daysOfStock > 0 ? `${daysOfStock} jours` : '< 1 jour'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted block">Coût / jour</span>
+                      <span className="text-white font-bold">~${costPerDay.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted block">Coût / mois</span>
+                      <span className="text-white font-bold">~${costPerMonth.toFixed(0)}</span>
+                    </div>
+                  </div>
+                  {schedDurationType === 'total' && remaining !== null && (
+                    <div className="mt-1 pt-1 border-t border-blue-500/20">
+                      <span className="text-muted">Progression objectif : </span>
+                      <span className="text-white font-bold">{(schedule?.total_generated ?? 0).toLocaleString('fr-FR')} / {schedTotalGoal.toLocaleString('fr-FR')}</span>
+                      <span className="text-muted ml-1">({remaining.toLocaleString('fr-FR')} restantes · ~{Math.ceil(remaining / schedLimit)} jours)</span>
+                    </div>
+                  )}
+                  {schedDurationType === 'days' && schedule?.start_date && (
+                    <div className="mt-1 pt-1 border-t border-blue-500/20">
+                      <span className="text-muted">Démarrage : </span>
+                      <span className="text-white">{new Date(schedule.start_date).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-muted ml-2">Fin prévue : </span>
+                      <span className="text-white">{new Date(new Date(schedule.start_date).getTime() + schedMaxDays * 86400000).toLocaleDateString('fr-FR')}</span>
+                    </div>
+                  )}
+                  {daysOfStock < schedLimit && (
+                    <p className="text-amber mt-1">⚠ Stock insuffisant pour {schedLimit} Q/R/jour — ajoutez des sources ou réduisez le rythme.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             <button onClick={handleSaveSchedule} disabled={schedSaving}
               className="px-4 py-2 text-sm bg-surface2 hover:bg-surface text-white rounded transition font-medium disabled:opacity-50">

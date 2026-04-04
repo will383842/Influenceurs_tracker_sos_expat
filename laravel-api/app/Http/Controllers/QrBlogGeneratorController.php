@@ -187,36 +187,62 @@ class QrBlogGeneratorController extends Controller
     /** GET /content-gen/qr-blog/schedule */
     public function getSchedule(): JsonResponse
     {
-        $raw     = DB::table('settings')->where('key', self::SCHEDULE_KEY)->value('value');
-        $config  = $raw ? json_decode($raw, true) : null;
+        $raw    = DB::table('settings')->where('key', self::SCHEDULE_KEY)->value('value');
+        $config = $raw ? json_decode($raw, true) : null;
 
-        return response()->json($config ?? [
-            'active'      => false,
-            'daily_limit' => 20,
-            'country'     => '',
-            'category'    => '',
-            'last_run_at' => null,
-        ]);
+        // Calculer available pour projection
+        $available = ContentQuestion::where('article_status', 'opportunity')->count();
+
+        $defaults = [
+            'active'          => false,
+            'daily_limit'     => 20,
+            'country'         => '',
+            'category'        => '',
+            'duration_type'   => 'unlimited', // unlimited | days | total
+            'max_days'        => null,
+            'total_goal'      => null,
+            'start_date'      => null,
+            'total_generated' => 0,
+            'last_run_at'     => null,
+        ];
+
+        return response()->json(array_merge($defaults, $config ?? [], ['sources_available' => $available]));
     }
 
     /** PUT /content-gen/qr-blog/schedule */
     public function saveSchedule(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'active'      => 'required|boolean',
-            'daily_limit' => 'required|integer|min:1|max:200',
-            'country'     => 'nullable|string|max:100',
-            'category'    => 'nullable|string|max:50',
+            'active'        => 'required|boolean',
+            'daily_limit'   => 'required|integer|min:1|max:200',
+            'country'       => 'nullable|string|max:100',
+            'category'      => 'nullable|string|max:50',
+            'duration_type' => 'nullable|in:unlimited,days,total',
+            'max_days'      => 'nullable|integer|min:1|max:3650',
+            'total_goal'    => 'nullable|integer|min:1|max:100000',
         ]);
 
         $existing = DB::table('settings')->where('key', self::SCHEDULE_KEY)->value('value');
         $prev     = $existing ? json_decode($existing, true) : [];
 
+        $durationType = $data['duration_type'] ?? 'unlimited';
+
+        // Réinitialiser start_date si on active une nouvelle programmation
+        $startDate = $prev['start_date'] ?? null;
+        if ($data['active'] && ! ($prev['active'] ?? false)) {
+            $startDate = now()->toDateString(); // Nouvelle activation
+        }
+
         $config = array_merge($prev, [
-            'active'      => $data['active'],
-            'daily_limit' => $data['daily_limit'],
-            'country'     => $data['country'] ?? '',
-            'category'    => $data['category'] ?? '',
+            'active'          => $data['active'],
+            'daily_limit'     => $data['daily_limit'],
+            'country'         => $data['country'] ?? '',
+            'category'        => $data['category'] ?? '',
+            'duration_type'   => $durationType,
+            'max_days'        => $durationType === 'days'  ? $data['max_days']   : null,
+            'total_goal'      => $durationType === 'total' ? $data['total_goal'] : null,
+            'start_date'      => $startDate,
+            'total_generated' => $prev['total_generated'] ?? 0,
         ]);
 
         DB::table('settings')->updateOrInsert(
