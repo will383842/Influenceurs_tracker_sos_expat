@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Influenceur;
 use App\Models\User;
 use App\Services\AI\PerplexityService;
+use App\Services\AI\ClaudeService;
 use App\Services\YouTubeChannelScraperService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -72,10 +73,22 @@ class ScrapeYoutubersFrancophones extends Command
 
     // =========================================================================
 
-    public function handle(PerplexityService $perplexity, YouTubeChannelScraperService $ytScraper): int
+    public function handle(PerplexityService $perplexity, ClaudeService $claude, YouTubeChannelScraperService $ytScraper): int
     {
-        if (!$perplexity->isConfigured()) {
-            $this->error('PERPLEXITY_API_KEY non configurée dans .env');
+        $ai = null;
+        if ($perplexity->isConfigured()) {
+            $ping = $perplexity->search('test');
+            if ($ping['success'] || !str_contains($ping['error'] ?? '', '401')) {
+                $ai = $perplexity;
+                $this->info('🔍 Moteur IA : Perplexity Sonar');
+            }
+        }
+        if (!$ai && $claude->isConfigured()) {
+            $ai = $claude;
+            $this->info('🤖 Moteur IA : Claude Haiku');
+        }
+        if (!$ai) {
+            $this->error('Aucune clé API disponible');
             return 1;
         }
 
@@ -108,7 +121,7 @@ class ScrapeYoutubersFrancophones extends Command
             $this->line("🔍 <fg=yellow>{$pays}</>");
 
             // --- Phase 1 : Perplexity découverte ---
-            $channels = $this->discoverWithPerplexity($perplexity, $pays);
+            $channels = $this->discoverWithPerplexity($ai, $pays);
 
             if (empty($channels)) {
                 $this->line("  → Aucune chaîne trouvée");
@@ -154,7 +167,7 @@ class ScrapeYoutubersFrancophones extends Command
 
                 // --- Phase 3 : Perplexity ciblé si toujours pas d'email ---
                 if (!$email && $name) {
-                    $email = $this->findEmailWithPerplexity($perplexity, $name, $pays);
+                    $email = $this->findEmailWithPerplexity($ai, $name, $pays);
                     if ($email) {
                         usleep(500_000);
                     }
@@ -214,7 +227,7 @@ class ScrapeYoutubersFrancophones extends Command
     // PERPLEXITY — 3 requêtes de découverte par pays (angles différents)
     // =========================================================================
 
-    private function discoverWithPerplexity(PerplexityService $perplexity, string $pays): array
+    private function discoverWithPerplexity(PerplexityService|ClaudeService $perplexity, string $pays): array
     {
         $systemPrompt = <<<SYS
 Tu es un expert en veille YouTube. Tu réponds UNIQUEMENT en JSON valide, sans texte autour.
@@ -275,7 +288,7 @@ SYS;
     // PERPLEXITY — Recherche ciblée d'email pour une chaîne spécifique
     // =========================================================================
 
-    private function findEmailWithPerplexity(PerplexityService $perplexity, string $channelName, string $pays): ?string
+    private function findEmailWithPerplexity(PerplexityService|ClaudeService $perplexity, string $channelName, string $pays): ?string
     {
         $query = "Quelle est l'adresse email de contact publique de la chaîne YouTube \"{$channelName}\" ({$pays}) ? "
                . "Cherche dans la description YouTube, le site officiel, les réseaux sociaux et les articles de presse. "

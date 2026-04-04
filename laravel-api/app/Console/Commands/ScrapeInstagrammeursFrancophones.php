@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Influenceur;
 use App\Models\User;
 use App\Services\AI\PerplexityService;
+use App\Services\AI\ClaudeService;
 use App\Services\InstagramProfileScraperService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -71,10 +72,23 @@ class ScrapeInstagrammeursFrancophones extends Command
         ],
     ];
 
-    public function handle(PerplexityService $perplexity, InstagramProfileScraperService $igScraper): int
+    public function handle(PerplexityService $perplexity, ClaudeService $claude, InstagramProfileScraperService $igScraper): int
     {
-        if (!$perplexity->isConfigured()) {
-            $this->error('PERPLEXITY_API_KEY non configurée dans .env');
+        // Choisir le service IA : Perplexity si quota OK, Claude sinon
+        $ai = null;
+        if ($perplexity->isConfigured()) {
+            $ping = $perplexity->search('test');
+            if ($ping['success'] || !str_contains($ping['error'] ?? '', '401')) {
+                $ai = $perplexity;
+                $this->info('🔍 Moteur IA : Perplexity Sonar (recherche web temps réel)');
+            }
+        }
+        if (!$ai && $claude->isConfigured()) {
+            $ai = $claude;
+            $this->info('🤖 Moteur IA : Claude Haiku (connaissances entraînement)');
+        }
+        if (!$ai) {
+            $this->error('Aucune clé API disponible (PERPLEXITY_API_KEY quota épuisé, ANTHROPIC_API_KEY absent)');
             return 1;
         }
 
@@ -104,7 +118,7 @@ class ScrapeInstagrammeursFrancophones extends Command
         foreach ($countries as $pays) {
             $this->line("🔍 <fg=yellow>{$pays}</>");
 
-            $profiles = $this->discoverWithPerplexity($perplexity, $pays);
+            $profiles = $this->discoverWithPerplexity($ai, $pays);
 
             if (empty($profiles)) {
                 $this->line("  → Aucun profil trouvé");
@@ -152,7 +166,7 @@ class ScrapeInstagrammeursFrancophones extends Command
 
                 // Phase 3 : Perplexity ciblé si toujours pas d'email
                 if (!$email && $name) {
-                    $email = $this->findEmailWithPerplexity($perplexity, $name, $handle, $pays);
+                    $email = $this->findEmailWithPerplexity($ai, $name, $handle, $pays);
                     if ($email) usleep(500_000);
                 }
 
@@ -208,7 +222,7 @@ class ScrapeInstagrammeursFrancophones extends Command
     // PERPLEXITY — 3 requêtes par pays
     // =========================================================================
 
-    private function discoverWithPerplexity(PerplexityService $perplexity, string $pays): array
+    private function discoverWithPerplexity(PerplexityService|ClaudeService $perplexity, string $pays): array
     {
         $systemPrompt = <<<SYS
 Tu es un expert en veille Instagram. Tu réponds UNIQUEMENT en JSON valide, sans texte autour.
@@ -216,23 +230,21 @@ Le JSON doit être un tableau d'objets. Ne jamais inventer des données. Si tu n
 SYS;
 
         $queries = [
-            // Angle 1 : expatriés francophones vivant dans le pays
-            "Recherche les comptes Instagram tenus par des francophones (français, belges, suisses, québécois) qui vivent ou ont vécu en {$pays}. "
-            . "Contenu sur l'expatriation, le voyage, le lifestyle, la culture de {$pays}. "
-            . "Pour chaque compte : nom_compte, handle (ex: @moncompte), url_instagram, email (si public dans la bio ou le site lié), abonnes, langue, sujet. "
-            . "Réponse UNIQUEMENT en JSON : [{...}]",
+            // Angle 1 : micro-influenceurs expat avec email public
+            "Liste des comptes Instagram de francophones (français/belges/suisses/québécois) vivant en {$pays}, "
+            . "de taille moyenne (1k-100k abonnés), spécialisés expatriation/voyage/lifestyle. "
+            . "IMPORTANT : inclure uniquement ceux dont l'email de contact professionnel est connu et public (dans bio, linktree, site perso). "
+            . "Format JSON strict : [{\"nom_compte\":\"...\",\"handle\":\"@...\",\"url_instagram\":\"https://instagram.com/...\",\"email\":\"contact@...\",\"abonnes\":\"5000\",\"langue\":\"fr\",\"sujet\":\"...\"}]",
 
-            // Angle 2 : créateurs lifestyle/voyage/expat
-            "Quels sont les créateurs Instagram francophones spécialisés dans l'expatriation, le voyage et le lifestyle en {$pays} ? "
-            . "Inclure les influenceurs locaux, les couples mixtes, les digital nomads. "
-            . "Pour chaque compte : nom_compte, handle, url_instagram, email (cherche sur leur linktree ou site officiel), abonnes, langue, sujet. "
-            . "Réponse UNIQUEMENT en JSON : [{...}]",
+            // Angle 2 : blogueurs/créateurs de contenu expat
+            "Instagrammeurs francophones actifs sur le thème 'vivre en {$pays}', expat, digital nomad, couples mixtes. "
+            . "Préférer les créateurs qui ont un blog ou site web avec un email de contact visible. "
+            . "JSON uniquement : [{\"nom_compte\":\"...\",\"handle\":\"@...\",\"url_instagram\":\"...\",\"email\":\"...\",\"abonnes\":\"...\",\"langue\":\"fr\",\"sujet\":\"...\"}]",
 
-            // Angle 3 : food, photo, culture locale
-            "Cherche les Instagrammeurs francophones qui parlent de {$pays} — food, photographie, culture, tourisme, business. "
-            . "Recherche aussi 'expat {$pays} instagram', 'français en {$pays}', 'vivre en {$pays} instagram'. "
-            . "Pour chaque compte : nom_compte, handle, url_instagram, email (si disponible publiquement), abonnes, langue, sujet. "
-            . "Réponse UNIQUEMENT en JSON : [{...}]",
+            // Angle 3 : comptes avec email vérifié
+            "Quels créateurs Instagram francophones parlent de {$pays} (tourisme, food, culture, business, immobilier expat) "
+            . "et ont un email professionnel public accessible (email dans bio Instagram ou sur leur site/linktree) ? "
+            . "JSON : [{\"nom_compte\":\"...\",\"handle\":\"@...\",\"url_instagram\":\"...\",\"email\":\"contact@...\",\"abonnes\":\"...\",\"langue\":\"fr\",\"sujet\":\"...\"}]",
         ];
 
         $allProfiles = [];
@@ -271,7 +283,7 @@ SYS;
     // PERPLEXITY — Recherche ciblée d'email
     // =========================================================================
 
-    private function findEmailWithPerplexity(PerplexityService $perplexity, string $name, string $handle, string $pays): ?string
+    private function findEmailWithPerplexity(PerplexityService|ClaudeService $perplexity, string $name, string $handle, string $pays): ?string
     {
         $handleStr = $handle ? " (@{$handle})" : '';
         $query = "Quelle est l'adresse email de contact publique de l'Instagrammeur \"{$name}\"{$handleStr} basé en {$pays} ? "

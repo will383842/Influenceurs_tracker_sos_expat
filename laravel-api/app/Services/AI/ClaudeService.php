@@ -127,6 +127,65 @@ class ClaudeService
     }
 
     /**
+     * Simple text search — same interface as PerplexityService::search().
+     * Uses Claude's training knowledge (no real-time web search).
+     */
+    public function search(string $query, string $systemPrompt = ''): array
+    {
+        $system = $systemPrompt ?: 'Tu es un expert en veille et recherche d\'informations. Réponds de façon précise et factuelle en te basant sur tes connaissances.';
+        $result = $this->complete($system, $query, [
+            'model'       => 'claude-haiku-4-5-20251001',
+            'temperature' => 0.3,
+            'max_tokens'  => 500,
+        ]);
+        return [
+            'success' => $result['success'],
+            'content' => $result['content'] ?? '',
+            'error'   => $result['error'] ?? null,
+        ];
+    }
+
+    /**
+     * JSON search — same interface as PerplexityService::searchJson().
+     * Parses JSON from Claude's response (handles markdown code blocks).
+     */
+    public function searchJson(string $query, string $systemPrompt = ''): array
+    {
+        $system = $systemPrompt ?: 'Tu réponds UNIQUEMENT en JSON valide, sans texte autour. Tableau d\'objets JSON.';
+        $result = $this->complete($system, $query, [
+            'model'       => 'claude-haiku-4-5-20251001',
+            'temperature' => 0.2,
+            'max_tokens'  => 4000,
+        ]);
+
+        if (!$result['success']) {
+            return ['success' => false, 'error' => $result['error'] ?? 'Claude error', 'data' => null];
+        }
+
+        $content = trim($result['content']);
+
+        // Extraire JSON d'un bloc markdown si présent
+        if (preg_match('/```(?:json)?\s*([\s\S]+?)\s*```/i', $content, $m)) {
+            $content = $m[1];
+        }
+
+        $decoded = json_decode($content, true);
+        if ($decoded !== null) {
+            return ['success' => true, 'data' => $decoded, 'raw' => $content];
+        }
+
+        // Tentative d'extraction d'un tableau JSON partiel
+        if (preg_match('/\[[\s\S]*\]/s', $content, $m)) {
+            $decoded = json_decode($m[0], true);
+            if ($decoded !== null) {
+                return ['success' => true, 'data' => $decoded, 'raw' => $content];
+            }
+        }
+
+        return ['success' => false, 'error' => 'JSON parse error', 'data' => null, 'raw' => $content];
+    }
+
+    /**
      * Translate text preserving HTML structure.
      * Same signature as OpenAiService::translate().
      */
