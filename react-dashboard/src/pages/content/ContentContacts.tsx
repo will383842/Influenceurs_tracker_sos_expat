@@ -42,7 +42,7 @@ export default function ContentContacts() {
       const params: Record<string, string> = { page: String(page), per_page: '50' };
       if (search) params.search = search;
       if (filterSector) params.sector = filterSector;
-      const res = await api.get('/contacts', { params, signal: controller.signal });
+      const res = await api.get('/content-contacts', { params, signal: controller.signal });
       if (!controller.signal.aborted) {
         setContacts(res.data.data);
         setLastPage(res.data.last_page);
@@ -63,7 +63,7 @@ export default function ContentContacts() {
       const params: Record<string, string> = {};
       if (filterSector) params.sector = filterSector;
       if (search) params.search = search;
-      const res = await api.get('/contacts/export', { params, responseType: 'blob' });
+      const res = await api.get('/content-contacts/export', { params, responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;

@@ -434,9 +434,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ============================================================
-    // CONTACTS (scraped people & partners)
+    // CONTACTS WEB (scraped people & partners) — préfixe distinct pour ne pas
+    // entrer en collision avec /api/contacts → InfluenceurController
     // ============================================================
-    Route::prefix('contacts')->middleware('role:admin')->group(function () {
+    Route::prefix('content-contacts')->middleware('role:admin')->group(function () {
         Route::get('/', [ContentContactController::class, 'index']);
         Route::get('/stats', [ContentContactController::class, 'stats']);
         Route::get('/export', [ContentContactController::class, 'export']);
