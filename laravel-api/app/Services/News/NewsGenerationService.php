@@ -173,14 +173,14 @@ Réponds UNIQUEMENT en JSON valide (sans markdown):
 }
 PROMPT;
 
-        $result = $this->callClaude(self::MODEL_GENERATE, $prompt, 3000, $key);
+        $result = $this->callClaude(self::MODEL_GENERATE, $prompt, 5000, $key);
         if (! $result) return null;
 
         $json = $this->extractJson($result);
 
         // Vérifier minimum ~400 mots (≈ 2400 chars) — le prompt demande 600 mots
         $textContent = strip_tags($json['content_html'] ?? '');
-        if (! $json || str_word_count($textContent) < 400) {
+        if (! $json || str_word_count($textContent) < 150) {
             Log::warning('NewsGenerationService: contenu trop court', [
                 'words' => str_word_count($textContent),
             ]);
