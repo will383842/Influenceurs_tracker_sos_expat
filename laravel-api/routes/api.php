@@ -101,6 +101,21 @@ Route::prefix('public/country-directory')->group(function () {
     Route::get('/country/{countryCode}', [\App\Http\Controllers\CountryDirectoryController::class, 'country']);
 });
 
+// ============================================================
+// MACHINE API — Scripts automatisés (générateur Q/R, etc.)
+// Token statique Bearer → MACHINE_API_TOKEN dans .env
+// ============================================================
+Route::middleware(\App\Http\Middleware\MachineTokenAuth::class)
+    ->prefix('machine')
+    ->group(function () {
+
+    // Lire les questions non traitées (status = new)
+    Route::get('/questions', [ContentQuestionController::class, 'index']);
+
+    // Marquer une question comme traitée
+    Route::put('/questions/{id}/status', [ContentQuestionController::class, 'updateStatus']);
+});
+
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -421,6 +436,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', [\App\Http\Controllers\LawyerDirectoryController::class, 'show'])->where('id', '[0-9]+');
         Route::post('/scrape/{sourceSlug}', [\App\Http\Controllers\LawyerDirectoryController::class, 'scrape']);
         Route::post('/scrape-all', [\App\Http\Controllers\LawyerDirectoryController::class, 'scrapeAll']);
+    });
+
+    // ============================================================
+    // Q/R BLOG GENERATOR — Génération Q/R vers Blog SSR
+    // ============================================================
+    Route::prefix('content-gen/qr-blog')->middleware('role:admin')->group(function () {
+        Route::get('/stats',    [\App\Http\Controllers\QrBlogGeneratorController::class, 'stats']);
+        Route::post('/generate',[\App\Http\Controllers\QrBlogGeneratorController::class, 'generate']);
+        Route::get('/progress', [\App\Http\Controllers\QrBlogGeneratorController::class, 'progress']);
+        Route::post('/reset',   [\App\Http\Controllers\QrBlogGeneratorController::class, 'reset']);
     });
 
     // ============================================================

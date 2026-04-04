@@ -600,3 +600,41 @@ export const rejectArticle = (id: number, reason?: string) =>
 
 export const approveArticle = (id: number) =>
   api.post(`/content-gen/articles/${id}/approve`);
+
+
+// ============================================================
+// Q/R BLOG GENERATOR
+// ============================================================
+
+export interface QrBlogStats {
+  available: number;
+  writing: number;
+  published: number;
+  skipped: number;
+  total: number;
+  progress: QrBlogProgress | null;
+}
+
+export interface QrBlogProgress {
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  total: number;
+  completed: number;
+  skipped: number;
+  errors: number;
+  current_title: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  log: Array<{ type: 'success' | 'skip' | 'error'; id: number; title: string; optimized_title?: string; reason?: string }>;
+}
+
+export const fetchQrBlogStats = () =>
+  api.get<QrBlogStats>('/content-gen/qr-blog/stats');
+
+export const fetchQrBlogProgress = () =>
+  api.get<QrBlogProgress>('/content-gen/qr-blog/progress');
+
+export const launchQrBlogGeneration = (params: { limit?: number; country?: string; category?: string }) =>
+  api.post('/content-gen/qr-blog/generate', params);
+
+export const resetQrBlogWriting = () =>
+  api.post('/content-gen/qr-blog/reset');

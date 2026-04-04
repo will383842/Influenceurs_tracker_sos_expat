@@ -52,6 +52,7 @@ import { ToastContainer } from './components/Toast';
 
 // Content Engine pages (lazy loaded)
 const ContentOverview = React.lazy(() => import('./pages/content/ContentOverview'));
+const GenerateQr = React.lazy(() => import('./pages/content/GenerateQr'));
 const ArticlesList = React.lazy(() => import('./pages/content/ArticlesList'));
 const ArticleCreate = React.lazy(() => import('./pages/content/ArticleCreate'));
 const ArticleDetail = React.lazy(() => import('./pages/content/ArticleDetail'));
@@ -266,6 +267,7 @@ export default function App() {
             <Route path="content/qa" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><QaList /></React.Suspense></AdminRoute>} />
             <Route path="content/qa/:id" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><QaDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/question-clusters" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><QuestionClustersList /></React.Suspense></AdminRoute>} />
+            <Route path="content/generate-qr" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><GenerateQr /></React.Suspense></AdminRoute>} />
             <Route path="content/question-clusters/:id" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><QuestionClusterDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/landings" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><LandingsList /></React.Suspense></AdminRoute>} />
             <Route path="content/landings/new" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><LandingCreate /></React.Suspense></AdminRoute>} />

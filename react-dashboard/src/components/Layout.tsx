@@ -505,6 +505,9 @@ export default function Layout() {
                     <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
                       ⚖️ Comparatifs
                     </NavLink>
+                    <NavLink to="/content/generate-qr" className={subNavClass} onClick={handleNavClick}>
+                      ❓ Générer Q/R
+                    </NavLink>
                     <NavLink to="/content/qa" className={subNavClass} onClick={handleNavClick}>
                       ❓ Q&A générés
                     </NavLink>

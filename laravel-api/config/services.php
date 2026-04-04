@@ -102,4 +102,7 @@ return [
         'site_url' => env('BLOG_SITE_URL', 'https://sos-expat.com'),
     ],
 
+    // Machine-to-machine token for automated scripts (Q/R generator, etc.)
+    'machine_api_token' => env('MACHINE_API_TOKEN', ''),
+
 ];
