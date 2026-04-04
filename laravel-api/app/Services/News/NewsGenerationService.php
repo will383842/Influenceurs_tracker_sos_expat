@@ -121,9 +121,15 @@ PROMPT;
 
     private function rewriteContent(RssFeedItem $item, array $facts, string $key, bool $retry = false): ?array
     {
-        $factsJson = json_encode($facts['facts'] ?? [], JSON_UNESCAPED_UNICODE);
-        $country   = $facts['country'] ?? $item->country ?? 'null';
-        $category  = $item->relevance_category ?? $item->feed?->category ?? 'autre';
+        $factsJson   = json_encode($facts['facts'] ?? [], JSON_UNESCAPED_UNICODE);
+        $country     = $facts['country'] ?? $item->country ?? 'null';
+        $category    = $item->relevance_category ?? $item->feed?->category ?? 'autre';
+        $lang        = $item->language ?? 'fr';
+        $faqSegments = ['fr'=>'vie-a-letranger','en'=>'living-abroad','es'=>'vivir-en-el-extranjero','de'=>'leben-im-ausland','pt'=>'viver-no-estrangeiro','ru'=>'zhizn-za-rubezhom','zh'=>'haiwai-shenghuo','hi'=>'videsh-mein-jeevan','ar'=>'alhayat-fi-alkhaarij'];
+        $artSegments = ['fr'=>'articles','en'=>'articles','es'=>'articulos','de'=>'artikel','pt'=>'artigos','ru'=>'stati','zh'=>'wenzhang','hi'=>'lekh','ar'=>'maqalat'];
+        $defCountry  = ['fr'=>'fr','en'=>'us','es'=>'es','de'=>'de','pt'=>'pt','ru'=>'ru','zh'=>'cn','hi'=>'in','ar'=>'sa'];
+        $faqUrl  = "https://sos-expat.com/{$lang}-" . ($defCountry[$lang]??'fr') . "/" . ($faqSegments[$lang]??'living-abroad');
+        $artUrl  = "https://sos-expat.com/{$lang}-" . ($defCountry[$lang]??'fr') . "/" . ($artSegments[$lang]??'articles');
 
         $retryNote = $retry
             ? "\nATTENTION: le précédent résultat était trop similaire à la source. Reformule entièrement avec d'autres formulations."
@@ -141,10 +147,12 @@ INTERDICTIONS ABSOLUES:
 - Pas de contenu générique qui pourrait être copié-collé d'ailleurs
 OBLIGATIONS:
 - Minimum 600 mots, HTML avec <h2>, <h3>, <ul>, <strong>, <p> (pas de <h1>)
-- Premier paragraphe: réponse directe et utile pour le lecteur cible (expatrié/voyageur/vacancier selon le sujet)
+- Structure: inverted pyramid — réponse directe d'abord, contexte ensuite, détails en dernier
+- Premier paragraphe: réponse directe et utile pour le lecteur cible (expatrié/voyageur/vacancier)
 - Angle pratique: "Que signifie cette actualité concrètement pour vous ?"
-- 4 à 6 sous-sections thématiques pertinentes
-- 5 FAQ en fin d'article (sous-questions pratiques + réponses 80-150 mots)
+- 4 à 6 sous-sections thématiques pertinentes (H2), avec sous-titres H3 si nécessaire
+- 1 à 2 liens contextuels internes quand c'est naturellement pertinent: <a href="{$faqUrl}">...</a> ou <a href="{$artUrl}">...</a>
+- 5 FAQ en fin d'article (sous-questions pratiques + réponses 80-150 mots chacune)
 - Ton: informatif, pratique, accessible (pas juridique/jargon)
 
 Faits à utiliser comme base: {$factsJson}
