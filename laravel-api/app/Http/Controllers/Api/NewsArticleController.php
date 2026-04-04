@@ -10,6 +10,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class NewsArticleController extends Controller
 {
@@ -155,6 +157,65 @@ class NewsArticleController extends Controller
         $progress = Cache::get('news_generation_progress', []);
 
         return response()->json(['data' => $progress]);
+    }
+
+    // ─────────────────────────────────────────
+    // UNPUBLISH
+    // ─────────────────────────────────────────
+
+    /**
+     * Dépublier un article news — retire de sos-expat.com immédiatement.
+     * Appelle le Blog via webhook pour passer l'article en 'draft',
+     * puis marque l'item local comme 'skipped'.
+     */
+    public function unpublishItem(RssFeedItem $item): JsonResponse
+    {
+        if ($item->status !== 'published') {
+            return response()->json(['error' => 'Seuls les articles publiés peuvent être dépubliés.'], 422);
+        }
+
+        if (! $item->blog_article_uuid) {
+            return response()->json(['error' => 'UUID Blog manquant pour cet article.'], 422);
+        }
+
+        $blogUrl = rtrim(config('services.blog.url', ''), '/');
+        $blogKey = config('services.blog.api_key', '');
+
+        if (! $blogUrl || ! $blogKey) {
+            return response()->json(['error' => 'Configuration Blog manquante (BLOG_API_URL / BLOG_API_KEY).'], 500);
+        }
+
+        try {
+            $response = Http::withToken($blogKey)->timeout(20)
+                ->post("{$blogUrl}/api/v1/webhook/unpublish-news/{$item->blog_article_uuid}");
+
+            if (! $response->successful()) {
+                Log::warning('NewsArticleController: Blog unpublish failed', [
+                    'status'  => $response->status(),
+                    'uuid'    => $item->blog_article_uuid,
+                    'item_id' => $item->id,
+                ]);
+                return response()->json([
+                    'error' => 'Le Blog a retourné une erreur : ' . $response->status(),
+                ], 502);
+            }
+        } catch (\Throwable $e) {
+            Log::error('NewsArticleController: Blog unpublish exception', [
+                'error'   => $e->getMessage(),
+                'item_id' => $item->id,
+            ]);
+            return response()->json(['error' => 'Impossible de joindre le Blog.'], 503);
+        }
+
+        $item->update([
+            'status'        => 'skipped',
+            'error_message' => 'Dépublié manuellement le ' . now()->toDateTimeString(),
+        ]);
+
+        return response()->json([
+            'message' => 'Article dépublié avec succès.',
+            'item_id' => $item->id,
+        ]);
     }
 
     // ─────────────────────────────────────────

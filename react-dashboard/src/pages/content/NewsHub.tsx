@@ -10,6 +10,7 @@ import {
   getNewsItems,
   generateItem,
   skipItem,
+  unpublishItem,
   generateBatch,
   getNewsStats,
   getNewsProgress,
@@ -1094,6 +1095,8 @@ function GeneratedTab() {
   const [items, setItems] = useState<RssFeedItem[]>([]);
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [confirmUnpublish, setConfirmUnpublish] = useState<{ id: number; title: string } | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterFeedId, setFilterFeedId] = useState<number | ''>('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
@@ -1133,8 +1136,31 @@ function GeneratedTab() {
   useEffect(() => { loadFeeds(); }, [loadFeeds]);
   useEffect(() => { loadItems(1); }, [loadItems]);
 
+  const handleUnpublish = async (id: number) => {
+    setConfirmUnpublish(null);
+    setActionLoading(id);
+    try {
+      await unpublishItem(id);
+      toast('success', 'Article dépublié — retiré de sos-expat.com');
+      loadItems(pagination.current_page);
+    } catch (err) {
+      toast('error', errMsg(err));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Modale confirmation dépublication */}
+      {confirmUnpublish && (
+        <ConfirmModal
+          title="Dépublier cet article ?"
+          message={`"${confirmUnpublish.title}" sera retiré de sos-expat.com immédiatement. L'action est réversible depuis le Blog admin.`}
+          onConfirm={() => handleUnpublish(confirmUnpublish.id)}
+          onCancel={() => setConfirmUnpublish(null)}
+        />
+      )}
       {/* Filtres */}
       <div className="flex items-center gap-2 flex-wrap">
         <select
@@ -1229,17 +1255,29 @@ function GeneratedTab() {
                         <span className="text-xs text-muted">{timeAgo(item.generated_at)}</span>
                       </td>
                       <td className="px-3 py-2.5 text-right">
-                        {item.blog_article_uuid && (
-                          <a
-                            href={`https://sos-expat.com/${item.language ?? 'fr'}-fr/actualites-expats`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={`UUID: ${item.blog_article_uuid}`}
-                            className="text-xs text-violet hover:text-violet/80 transition-colors"
-                          >
-                            Voir →
-                          </a>
-                        )}
+                        <div className="flex items-center gap-1 justify-end">
+                          {item.blog_article_uuid && (
+                            <a
+                              href={`https://sos-expat.com/${item.language ?? 'fr'}-fr/actualites-expats`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`UUID: ${item.blog_article_uuid}`}
+                              className="text-xs text-violet hover:text-violet/80 transition-colors"
+                            >
+                              Voir →
+                            </a>
+                          )}
+                          {item.status === 'published' && (
+                            <button
+                              onClick={() => setConfirmUnpublish({ id: item.id, title: item.title })}
+                              disabled={actionLoading === item.id}
+                              title="Retirer de sos-expat.com"
+                              className="px-2 py-0.5 bg-red-600/20 hover:bg-red-600/50 text-red-400 text-xs rounded transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === item.id ? '...' : 'Dépublier'}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

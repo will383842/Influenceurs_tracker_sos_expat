@@ -781,6 +781,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/items',                              [NewsArticleController::class, 'items']);
         Route::post('/items/{item}/generate',             [NewsArticleController::class, 'generateItem'])->middleware('throttle:5,1');
         Route::post('/items/{item}/skip',                 [NewsArticleController::class, 'skipItem']);
+        Route::post('/items/{item}/unpublish',            [NewsArticleController::class, 'unpublishItem'])->middleware('throttle:10,1');
         Route::post('/generate-batch',                    [NewsArticleController::class, 'generateBatch'])->middleware('throttle:2,5');
         Route::get('/stats',                              [NewsArticleController::class, 'stats']);
         Route::get('/progress',                           [NewsArticleController::class, 'progress']);

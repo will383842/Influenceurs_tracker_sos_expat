@@ -138,6 +138,9 @@ export const generateItem = (id: number) =>
 export const skipItem = (id: number) =>
   api.post<{ message: string }>(`/news/items/${id}/skip`);
 
+export const unpublishItem = (id: number) =>
+  api.post<{ message: string; item_id: number }>(`/news/items/${id}/unpublish`);
+
 export const generateBatch = (params: { limit?: number; feed_id?: number; min_relevance?: number }) =>
   api.post<{ dispatched: number; remaining_quota: number }>('/news/items/generate-batch', params);
 
