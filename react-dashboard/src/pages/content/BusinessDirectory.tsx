@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../../api/client';
 import { LANGUAGES, getCountryFlag, getLanguageFlag } from '../../lib/constants';
+import { usePersistentFilter } from '../../lib/usePersistentFilter';
 
 interface Business {
   id: number;
@@ -51,14 +52,14 @@ export default function BusinessDirectory() {
   const [total, setTotal] = useState(0);
   const [scraping, setScraping] = useState(false);
 
-  // Filters
+  // Filters (persistés dans localStorage)
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [filterCountry, setFilterCountry] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterEmail, setFilterEmail] = useState('');
-  const [filterLanguage, setFilterLanguage] = useState('');
-  const [tab, setTab] = useState<'list' | 'countries' | 'stats'>('list');
+  const [filterCountry, setFilterCountry]   = usePersistentFilter('biz_country', '');
+  const [filterCategory, setFilterCategory] = usePersistentFilter('biz_category', '');
+  const [filterEmail, setFilterEmail]       = usePersistentFilter('biz_email', '');
+  const [filterLanguage, setFilterLanguage] = usePersistentFilter('biz_language', '');
+  const [tab, setTab]                       = usePersistentFilter<'list' | 'countries' | 'stats'>('biz_tab', 'list');
   const [exporting, setExporting] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);

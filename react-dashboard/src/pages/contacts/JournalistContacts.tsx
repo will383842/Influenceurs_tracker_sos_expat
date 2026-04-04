@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { FormEvent } from 'react';
 import api from '../../api/client';
+import { usePersistentFilter } from '../../lib/usePersistentFilter';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -116,7 +117,7 @@ const CATEGORIES: Record<string, { label: string; icon: string; color: string }>
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function JournalistContacts() {
-  const [tab, setTab] = useState<'contacts' | 'publications'>('contacts');
+  const [tab, setTab] = usePersistentFilter<'contacts' | 'publications'>('jour_tab', 'contacts');
 
   // — Contacts state
   const [contacts, setContacts] = useState<JournalistContact[]>([]);
@@ -126,11 +127,11 @@ export default function JournalistContacts() {
   const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [filterMedia, setFilterMedia] = useState('');
-  const [filterTopic, setFilterTopic] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterLanguage, setFilterLanguage] = useState('');
-  const [withEmail, setWithEmail] = useState(false);
+  const [filterMedia, setFilterMedia]       = usePersistentFilter('jour_media', '');
+  const [filterTopic, setFilterTopic]       = usePersistentFilter('jour_topic', '');
+  const [filterStatus, setFilterStatus]     = usePersistentFilter('jour_status', '');
+  const [filterLanguage, setFilterLanguage] = usePersistentFilter('jour_language', '');
+  const [withEmail, setWithEmail]           = usePersistentFilter('jour_email', false);
   const [exporting, setExporting] = useState(false);
 
   // — Publications state

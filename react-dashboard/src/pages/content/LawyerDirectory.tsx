@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../../api/client';
 import { toast } from '../../components/Toast';
 import { getLanguageLabel, getLanguageFlag, getCountryFlag } from '../../lib/constants';
+import { usePersistentFilter } from '../../lib/usePersistentFilter';
 
 interface LawyerRecord {
   id: number;
@@ -55,15 +56,15 @@ export default function LawyerDirectory() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  // Filters
+  // Filters (persistés dans localStorage)
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [filterCountry, setFilterCountry] = useState('');
-  const [filterLanguage, setFilterLanguage] = useState('');
-  const [filterSpecialty, setFilterSpecialty] = useState('');
-  const [filterSource, setFilterSource] = useState('');
-  const [filterImmigration, setFilterImmigration] = useState(false);
-  const [tab, setTab] = useState<'list' | 'countries' | 'languages' | 'stats'>('list');
+  const [filterCountry, setFilterCountry]       = usePersistentFilter('law_country', '');
+  const [filterLanguage, setFilterLanguage]     = usePersistentFilter('law_language', '');
+  const [filterSpecialty, setFilterSpecialty]   = usePersistentFilter('law_specialty', '');
+  const [filterSource, setFilterSource]         = usePersistentFilter('law_source', '');
+  const [filterImmigration, setFilterImmigration] = usePersistentFilter('law_immigration', false);
+  const [tab, setTab]                           = usePersistentFilter<'list' | 'countries' | 'languages' | 'stats'>('law_tab', 'list');
   const [exporting, setExporting] = useState(false);
   const [scraping, setScraping] = useState<string | null>(null);
 

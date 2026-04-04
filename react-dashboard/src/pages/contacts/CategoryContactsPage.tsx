@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useContext } from 'react';
+import React, { useEffect, useRef, useState, useContext, useMemo } from 'react';
 import api from '../../api/client';
 import { useContacts } from '../../hooks/useContacts';
 import { getLanguageFlag, getCountryFlag } from '../../lib/constants';
@@ -105,7 +105,17 @@ export default function CategoryContactsPage({ category, contactType }: Props) {
   }, [hasMore, loading, loadMore]);
 
   // ── Filtres additionnels (catégorie toujours verrouillée) ─────────────────
+  const STORAGE_KEY = `cat_filters_${category}${contactType ? '_' + contactType : ''}`;
+
+  // Filtres additionnels sauvegardés (sans category/contact_type qui sont structurels)
+  const savedFilters = useMemo<InfluenceurFilters>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}'); } catch { return {}; }
+  }, [STORAGE_KEY]);
+
   const handleFilterChange = (newFilters: InfluenceurFilters) => {
+    // Sauvegarder les filtres additionnels (sans les clés structurelles)
+    const { category: _c, contact_type: _t, ...extra } = newFilters as InfluenceurFilters & { category?: string; contact_type?: string };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(extra)); } catch { /* */ }
     load({
       ...newFilters,
       category,
@@ -274,7 +284,7 @@ export default function CategoryContactsPage({ category, contactType }: Props) {
       {/* ── Barre de filtres (catégorie verrouillée) ── */}
       <FilterBar
         key={`${category}-${contactType ?? ''}`}
-        initialFilters={{ category, ...(contactType ? { contact_type: contactType } : {}) }}
+        initialFilters={{ category, ...(contactType ? { contact_type: contactType } : {}), ...savedFilters }}
         onFilterChange={handleFilterChange}
         lockedCategory={category}
         total={contacts.length}

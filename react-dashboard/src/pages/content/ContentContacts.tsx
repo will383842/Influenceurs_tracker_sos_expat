@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../../api/client';
 import { getCountryFlag } from '../../lib/constants';
+import { usePersistentFilter } from '../../lib/usePersistentFilter';
 
 interface Contact {
   id: number;
@@ -30,9 +31,9 @@ export default function ContentContacts() {
   const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [filterSector, setFilterSector] = useState('');
-  const [filterCountry, setFilterCountry] = useState('');
-  const [filterEmail, setFilterEmail] = useState(false);
+  const [filterSector, setFilterSector]   = usePersistentFilter('cc_sector', '');
+  const [filterCountry, setFilterCountry] = usePersistentFilter('cc_country', '');
+  const [filterEmail, setFilterEmail]     = usePersistentFilter('cc_email', false);
   const [exporting, setExporting] = useState(false);
   const [stats, setStats] = useState<ContactStats | null>(null);
 
