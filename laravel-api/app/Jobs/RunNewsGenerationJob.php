@@ -1,0 +1,92 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\RssFeedItem;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class RunNewsGenerationJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $timeout = 120;
+    public int $tries   = 1;
+
+    public function handle(): array
+    {
+        // ── Quota journalier ──
+        $quotaInfo    = $this->getQuotaInfo();
+        $quotaLimit   = $quotaInfo['quota'];
+        $generatedToday = $quotaInfo['generated_today'];
+        $remaining    = max(0, $quotaLimit - $generatedToday);
+
+        if ($remaining <= 0) {
+            Log::info('RunNewsGenerationJob: quota journalier atteint, aucun dispatch');
+            return ['dispatched' => 0, 'remaining_quota' => 0];
+        }
+
+        // ── Récupérer les items pending pertinents ──
+        $items = RssFeedItem::where('status', 'pending')
+            ->whereNotNull('relevance_score')
+            ->orderByDesc('relevance_score')
+            ->orderByDesc('published_at')
+            ->limit($remaining)
+            ->get();
+
+        $dispatched = 0;
+
+        foreach ($items as $item) {
+            GenerateNewsArticleJob::dispatch($item->id);
+            $dispatched++;
+        }
+
+        Log::info("RunNewsGenerationJob: {$dispatched} jobs dispatchés, quota restant: " . ($remaining - $dispatched));
+
+        return [
+            'dispatched'      => $dispatched,
+            'remaining_quota' => $remaining - $dispatched,
+        ];
+    }
+
+    // ─────────────────────────────────────────
+    // QUOTA
+    // ─────────────────────────────────────────
+
+    private function getQuotaInfo(): array
+    {
+        try {
+            $raw   = DB::table('settings')->where('key', 'news_daily_quota')->value('value');
+            $quota = $raw ? json_decode($raw, true) : [];
+
+            $quotaLimit     = (int) ($quota['quota'] ?? 15);
+            $generatedToday = (int) ($quota['generated_today'] ?? 0);
+            $lastResetDate  = $quota['last_reset_date'] ?? '';
+            $today          = now()->toDateString();
+
+            // Reset si nouveau jour
+            if ($lastResetDate !== $today) {
+                $generatedToday = 0;
+                // Persister le reset
+                $quota['generated_today'] = 0;
+                $quota['last_reset_date'] = $today;
+                $quota['quota']           = $quotaLimit;
+                DB::table('settings')->updateOrInsert(
+                    ['key' => 'news_daily_quota'],
+                    ['value' => json_encode($quota), 'updated_at' => now()]
+                );
+            }
+
+            return ['quota' => $quotaLimit, 'generated_today' => $generatedToday];
+
+        } catch (\Throwable $e) {
+            Log::warning('RunNewsGenerationJob: erreur lecture quota', ['error' => $e->getMessage()]);
+            return ['quota' => 15, 'generated_today' => 0];
+        }
+    }
+}

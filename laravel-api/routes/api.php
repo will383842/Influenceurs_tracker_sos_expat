@@ -47,6 +47,8 @@ use App\Http\Controllers\ContentQualityController;
 use App\Http\Controllers\QuestionClusterController;
 use App\Http\Controllers\DailyScheduleController;
 use App\Http\Controllers\TranslationBatchController;
+use App\Http\Controllers\Api\RssFeedController;
+use App\Http\Controllers\Api\NewsArticleController;
 use Illuminate\Support\Facades\Route;
 
 // Tracking & Unsubscribe (public, no auth)
@@ -759,5 +761,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{sondage}',          [SondageController::class, 'destroy'])->middleware('throttle:10,1');
         Route::post('/{sondage}/sync',       [SondageController::class, 'syncToBlog'])->middleware('throttle:3,1');
         Route::get('/{sondage}/resultats',   [SondageController::class, 'resultats']);
+    });
+
+    // ── News RSS ────────────────────────────────────────────────────────────
+    Route::middleware('role:admin')->prefix('news')->group(function () {
+        // Feeds RSS
+        Route::get('/feeds',                              [RssFeedController::class, 'index']);
+        Route::post('/feeds',                             [RssFeedController::class, 'store']);
+        Route::get('/feeds/{feed}',                       [RssFeedController::class, 'show']);
+        Route::put('/feeds/{feed}',                       [RssFeedController::class, 'update']);
+        Route::delete('/feeds/{feed}',                    [RssFeedController::class, 'destroy']);
+        Route::post('/feeds/{feed}/fetch-now',            [RssFeedController::class, 'fetchNow'])->middleware('throttle:3,1');
+
+        // Settings quota
+        Route::get('/settings',                           [RssFeedController::class, 'getSettings']);
+        Route::put('/settings',                           [RssFeedController::class, 'updateSettings']);
+
+        // Articles
+        Route::get('/items',                              [NewsArticleController::class, 'items']);
+        Route::post('/items/{item}/generate',             [NewsArticleController::class, 'generateItem'])->middleware('throttle:5,1');
+        Route::post('/items/{item}/skip',                 [NewsArticleController::class, 'skipItem']);
+        Route::post('/generate-batch',                    [NewsArticleController::class, 'generateBatch'])->middleware('throttle:2,5');
+        Route::get('/stats',                              [NewsArticleController::class, 'stats']);
+        Route::get('/progress',                           [NewsArticleController::class, 'progress']);
     });
 });

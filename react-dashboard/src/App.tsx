@@ -96,6 +96,7 @@ const SondagesList = React.lazy(() => import('./pages/content/SondagesList'));
 const SondagesResultats = React.lazy(() => import('./pages/content/SondagesResultats'));
 const PromoToolsAdmin = React.lazy(() => import('./pages/content/PromoToolsAdmin'));
 const OutilsVisiteursAdmin = React.lazy(() => import('./pages/content/OutilsVisiteursAdmin'));
+const NewsHub = React.lazy(() => import('./pages/content/NewsHub'));
 
 // ── Shared fallback ────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -277,6 +278,7 @@ export default function App() {
             <Route path="content/sondages/resultats" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><SondagesResultats /></React.Suspense></AdminRoute>} />
             <Route path="content/outils" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><PromoToolsAdmin /></React.Suspense></AdminRoute>} />
             <Route path="content/outils-visiteurs" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><OutilsVisiteursAdmin /></React.Suspense></AdminRoute>} />
+            <Route path="content/news" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><NewsHub /></React.Suspense></AdminRoute>} />
             <Route path="content/press/releases/:id" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><PressDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/press/dossiers/:id" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><DossierDetail /></React.Suspense></AdminRoute>} />
             <Route path="seo/keywords" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><KeywordTracker /></React.Suspense></AdminRoute>} />

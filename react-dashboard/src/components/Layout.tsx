@@ -532,6 +532,9 @@ export default function Layout() {
                     <NavLink to="/content/outils-visiteurs" className={subNavClass} onClick={handleNavClick}>
                       🌐 Outils Visiteurs
                     </NavLink>
+                    <NavLink to="/content/news" className={subNavClass} onClick={handleNavClick}>
+                      📰 News RSS
+                    </NavLink>
                   </NavSubGroup>
 
                   <NavSubGroup label="Optimiser & Publier" isOpen={openSubGroups.content_publish} onToggle={() => toggleSubGroup('content_publish')}>
