@@ -131,7 +131,8 @@ PROMPT;
 
         $prompt = <<<PROMPT
 Tu es rédacteur expert pour SOS-Expat.com, service d'assistance aux expatriés dans 197 pays.
-Public cible: expatriés, voyageurs longue durée, vacanciers, nomades numériques, toutes nationalités.
+Public cible: expatriés, voyageurs longue durée, vacanciers, touristes, nomades numériques, toutes nationalités.
+Adapte l'angle au sujet: visa/admin → expatrié, destination/culture → vacancier/voyageur, crise/sécurité → voyageurs et résidents.
 
 MISSION: Rédiger un article ENTIÈREMENT ORIGINAL à partir de ces faits.
 INTERDICTIONS ABSOLUES:
@@ -140,8 +141,8 @@ INTERDICTIONS ABSOLUES:
 - Pas de contenu générique qui pourrait être copié-collé d'ailleurs
 OBLIGATIONS:
 - Minimum 600 mots, HTML avec <h2>, <h3>, <ul>, <strong>, <p> (pas de <h1>)
-- Premier paragraphe: réponse directe et utile pour un expatrié/voyageur
-- Angle pratique: "Que signifie cette actualité concrètement pour vous en tant qu'expatrié ?"
+- Premier paragraphe: réponse directe et utile pour le lecteur cible (expatrié/voyageur/vacancier selon le sujet)
+- Angle pratique: "Que signifie cette actualité concrètement pour vous ?"
 - 4 à 6 sous-sections thématiques pertinentes
 - 5 FAQ en fin d'article (sous-questions pratiques + réponses 80-150 mots)
 - Ton: informatif, pratique, accessible (pas juridique/jargon)
@@ -152,7 +153,7 @@ Catégorie: {$category}{$retryNote}
 
 Réponds UNIQUEMENT en JSON valide (sans markdown):
 {
-  "title": "titre accrocheur 65-90 chars, angle expatrié clair",
+  "title": "titre accrocheur 65-90 chars, angle expatrié / voyageur / vacancier selon le sujet",
   "meta_title": "max 60 chars, mot-clé principal au début",
   "meta_description": "140-155 chars, incitative",
   "excerpt": "2-3 phrases d'accroche max 180 chars",
