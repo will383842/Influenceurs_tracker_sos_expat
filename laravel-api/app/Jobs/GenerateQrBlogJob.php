@@ -101,7 +101,7 @@ class GenerateQrBlogJob implements ShouldQueue
                     // Continue anyway — just log the warning, don't block
                 }
 
-                // 3. Envoyer FR au Blog
+                // 3. Envoyer FR au Blog (le Blog traduit automatiquement en 8 langues via TranslateArticleJob)
                 $uuid = "mc_question_{$qId}";
                 $sentFr = $this->sendToBlog($uuid, 'fr', $country, $frContent, $blogApiUrl, $blogApiKey);
 
@@ -110,15 +110,6 @@ class GenerateQrBlogJob implements ShouldQueue
                     $question->update(['article_status' => 'opportunity']);
                     $errors++;
                     continue;
-                }
-
-                // 4. Traduire + envoyer les 8 autres langues
-                foreach (array_filter(self::LANGUAGES, fn($l) => $l !== 'fr') as $lang) {
-                    $translated = $this->translateContent($frContent, $lang, $country, $anthropicKey);
-                    if ($translated) {
-                        $this->sendToBlog($uuid, $lang, $country, $translated, $blogApiUrl, $blogApiKey);
-                    }
-                    usleep(200_000); // 200ms
                 }
 
                 // 5. Marquer publiée
