@@ -506,10 +506,19 @@ export default function Layout() {
                       ⚖️ Comparatifs
                     </NavLink>
                     <NavLink to="/content/generate-qr" className={subNavClass} onClick={handleNavClick}>
-                      ❓ Générer Q/R
+                      ❓ Q/R
                     </NavLink>
                     <NavLink to="/content/news" className={subNavClass} onClick={handleNavClick}>
                       📰 News RSS
+                    </NavLink>
+                    <NavLink to="/content/fiches-general" className={subNavClass} onClick={handleNavClick}>
+                      🌍 Fiches Pays
+                    </NavLink>
+                    <NavLink to="/content/fiches-expatriation" className={subNavClass} onClick={handleNavClick}>
+                      ✈️ Fiches Expat
+                    </NavLink>
+                    <NavLink to="/content/fiches-vacances" className={subNavClass} onClick={handleNavClick}>
+                      🏖️ Fiches Vacances
                     </NavLink>
                     <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
                       🎯 Campagnes

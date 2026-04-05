@@ -703,3 +703,42 @@ export const saveQrSchedule = (data: QrSchedule) =>
 // Contenus générés
 export const fetchQrGenerated = (params: Record<string, unknown>) =>
   api.get('/content-gen/qr-blog/generated', { params });
+
+// ─── FICHES PAYS ─────────────────────────────────────────────
+export interface FichesStats {
+  covered: number;
+  total: number;
+  progress: number;
+}
+export interface FicheArticle {
+  id: number;
+  status: string;
+  title: string;
+  country_code: string;
+  country_name: string;
+  lang_count: number;
+  published_at: string | null;
+  updated_at: string | null;
+}
+export interface FichesMissingCountry {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+export const fetchFichesStats = (type: string) =>
+  api.get<FichesStats>(`/content-gen/fiches/${type}/stats`);
+
+export const fetchFichesArticles = (type: string, page = 1) =>
+  api.get<{ data: FicheArticle[]; current_page: number; last_page: number; total: number }>(
+    `/content-gen/fiches/${type}/articles`, { params: { page } }
+  );
+
+export const fetchFichesMissing = (type: string) =>
+  api.get<{ countries: FichesMissingCountry[] }>(`/content-gen/fiches/${type}/missing`);
+
+export const launchFicheGeneration = (type: string, country: string, draft = false) =>
+  api.post(`/content-gen/fiches/${type}/generate`, { country, draft });
+
+export const fetchFichesProgress = (type: string) =>
+  api.get(`/content-gen/fiches/${type}/progress`);

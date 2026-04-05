@@ -462,6 +462,20 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ============================================================
+    // FICHES PAYS — Proxy vers Blog SSR (3 types: general, expatriation, vacances)
+    // ============================================================
+    Route::prefix('content-gen/fiches/{type}')
+        ->where('type', 'general|expatriation|vacances')
+        ->middleware('role:admin')
+        ->group(function () {
+            Route::get('/stats',    [\App\Http\Controllers\FichesPaysController::class, 'stats']);
+            Route::get('/articles', [\App\Http\Controllers\FichesPaysController::class, 'articles']);
+            Route::get('/missing',  [\App\Http\Controllers\FichesPaysController::class, 'missing']);
+            Route::post('/generate',[\App\Http\Controllers\FichesPaysController::class, 'generate']);
+            Route::get('/progress', [\App\Http\Controllers\FichesPaysController::class, 'progress']);
+        });
+
+    // ============================================================
     // Q&A (forum questions scraped from expat sites)
     // ============================================================
     Route::prefix('questions')->middleware('role:admin')->group(function () {

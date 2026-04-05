@@ -56,6 +56,7 @@ const GenerateQr = React.lazy(() => import('./pages/content/GenerateQr'));
 const ArticlesList = React.lazy(() => import('./pages/content/ArticlesList'));
 const ArticleCreate = React.lazy(() => import('./pages/content/ArticleCreate'));
 const ArticleDetail = React.lazy(() => import('./pages/content/ArticleDetail'));
+const FichesPays = React.lazy(() => import('./pages/content/FichesPays'));
 const ComparativesList = React.lazy(() => import('./pages/content/ComparativesList'));
 const ComparativeCreate = React.lazy(() => import('./pages/content/ComparativeCreate'));
 const ComparativeDetail = React.lazy(() => import('./pages/content/ComparativeDetail'));
@@ -275,6 +276,9 @@ export default function App() {
             <Route path="content/outils" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><PromoToolsAdmin /></React.Suspense></AdminRoute>} />
             <Route path="content/outils-visiteurs" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><OutilsVisiteursAdmin /></React.Suspense></AdminRoute>} />
             <Route path="content/news" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><NewsHub /></React.Suspense></AdminRoute>} />
+            <Route path="content/fiches-general" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><FichesPays type="general" /></React.Suspense></AdminRoute>} />
+            <Route path="content/fiches-expatriation" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><FichesPays type="expatriation" /></React.Suspense></AdminRoute>} />
+            <Route path="content/fiches-vacances" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><FichesPays type="vacances" /></React.Suspense></AdminRoute>} />
             <Route path="content/press/releases/:id" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><PressDetail /></React.Suspense></AdminRoute>} />
             <Route path="content/press/dossiers/:id" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><DossierDetail /></React.Suspense></AdminRoute>} />
             <Route path="seo/keywords" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><KeywordTracker /></React.Suspense></AdminRoute>} />
