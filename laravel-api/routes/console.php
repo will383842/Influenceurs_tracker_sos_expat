@@ -17,11 +17,20 @@ Schedule::job(new CheckRemindersJob)->hourly();
 // Daily database backup at 3:00 AM UTC
 Schedule::command('backup:database')->dailyAt('03:00')->withoutOverlapping();
 
-// Web scraper: dispatch batch of contacts to scrape every hour
-Schedule::job(new RunScraperBatchJob)->hourly()->withoutOverlapping();
+// ── SCRAPING DESACTIVE ──
+// Web scraper Expat.com: DESACTIVE (donnees existantes gardees en base)
+// Schedule::job(new RunScraperBatchJob)->hourly()->withoutOverlapping();
+
+// ── GENERATION AUTO DESACTIVE ──
+// Pipeline 14 sources: DESACTIVE (toute generation via onglets UI)
+// Schedule::job(new RunDailyContentJob)->dailyAt('06:00')->withoutOverlapping(14400);
+
+// Q/R Blog auto: DESACTIVE (generation via onglet Q/R)
+// Schedule::command('qr:daily-generate')->dailyAt('07:00')->withoutOverlapping(7200);
+
+// ── ACTIFS ──
 
 // Auto campaigns: check for next task to process every minute
-// The job itself handles rate limiting (default 5min between tasks)
 Schedule::job(new ProcessAutoCampaignJob)->everyMinute()->withoutOverlapping();
 
 // Quality verification: run full pipeline every hour
@@ -33,16 +42,10 @@ Schedule::job(new ProcessEmailQueueJob)->everyFiveMinutes()->withoutOverlapping(
 // Outreach: advance sequences (generate next step) every 15 minutes
 Schedule::job(new ProcessSequencesJob)->everyFifteenMinutes()->withoutOverlapping();
 
-// Run daily content generation at 6:00 AM
-Schedule::job(new RunDailyContentJob)->dailyAt('06:00')->withoutOverlapping(14400);
-
-// Q/R Blog auto-generation at 7:00 AM UTC (if active in settings)
-Schedule::command('qr:daily-generate')->dailyAt('07:00')->withoutOverlapping(7200);
-
-// Fetch RSS feeds every 4 hours
+// RSS: fetch feeds every 4 hours (SEULE source de scraping active)
 Schedule::job(new FetchRssFeedsJob)->everyFourHours()->withoutOverlapping(3600);
 
-// Auto-generate news articles at 8:00 AM UTC
+// News: auto-generate from RSS at 8:00 AM UTC
 Schedule::job(new RunNewsGenerationJob)->dailyAt('08:00')->withoutOverlapping(7200);
 
 // News stale recovery: remettre en pending les items bloqués en 'generating' depuis >30 min
