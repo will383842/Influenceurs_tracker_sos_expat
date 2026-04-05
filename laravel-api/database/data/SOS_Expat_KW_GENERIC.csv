@@ -1,0 +1,563 @@
+#,Cluster,Sous-cluster,Mot-cle principal,Mots-cles secondaires,Nb KW,Intention,Onglet cible
+1,1. Vacanciers & Touristes,Argent & Finance,smartphone volé vacances que faire,portefeuille volé en vacances|téléphone volé en vacances|argent liquide volé vacances|vol sac à main vacances,5,informationnel,Templates
+2,1. Vacanciers & Touristes,Argent & Finance,carte bancaire bloquée à l'étranger,fraude carte bancaire en voyage|carte de débit bloquée étranger,3,transactionnel,Templates
+3,1. Vacanciers & Touristes,Argent & Finance,plus d'argent en vacances que faire,,1,informationnel,Templates
+4,1. Vacanciers & Touristes,Argent & Finance,virement urgence à l'étranger,,1,urgence,Templates
+5,1. Vacanciers & Touristes,Argent & Finance,distributeur ne fonctionne pas vacances,,1,transactionnel,Templates
+6,1. Vacanciers & Touristes,Argent & Finance,arnaque change de monnaie touriste,remboursement arnaque touriste,2,transactionnel,Templates
+7,1. Vacanciers & Touristes,Argent & Finance,téléphone cassé à l'étranger,,1,transactionnel,Templates
+8,1. Vacanciers & Touristes,Argent & Finance,ordinateur volé voyage touriste,,1,transactionnel,Templates
+9,1. Vacanciers & Touristes,Argent & Finance,western union urgence touriste,,1,urgence,Templates
+10,1. Vacanciers & Touristes,Argent & Finance,PayPal Wise bloqué à l'étranger,,1,transactionnel,Templates
+11,1. Vacanciers & Touristes,Argent & Finance,MoneyGram urgence voyage,,1,urgence,Templates
+12,1. Vacanciers & Touristes,Argent & Finance,frais bancaires abusifs étranger,,1,transactionnel,Templates
+13,1. Vacanciers & Touristes,Argent & Finance,chèque voyage perdu,,1,urgence,Templates
+14,1. Vacanciers & Touristes,Argent & Finance,porte-monnaie électronique bloqué,,1,transactionnel,Templates
+15,1. Vacanciers & Touristes,Argent & Finance,cryptomonnaie accès bloqué étranger,,1,transactionnel,Templates
+16,1. Vacanciers & Touristes,Argent & Finance,pickpocket touriste réagir,,1,transactionnel,Templates
+17,1. Vacanciers & Touristes,Argent & Finance,sac volé voiture location,,1,transactionnel,Templates
+18,1. Vacanciers & Touristes,Argent & Finance,montre bijoux volés vacances,,1,transactionnel,Templates
+19,1. Vacanciers & Touristes,Argent & Finance,caméra appareil photo volé voyage,,1,transactionnel,Templates
+20,1. Vacanciers & Touristes,Argent & Finance,bagage à main volé avion,,1,transactionnel,Templates
+21,1. Vacanciers & Touristes,Catastrophes & Crises,catastrophe naturelle touriste aide,typhon cyclone touriste aide|ouragan touriste aide,3,transactionnel,Templates
+22,1. Vacanciers & Touristes,Catastrophes & Crises,incendie forêt touriste évacuation,évacuation touriste urgence|inondation touriste urgence,3,urgence,Templates
+23,1. Vacanciers & Touristes,Catastrophes & Crises,tremblement de terre touriste,,1,transactionnel,Templates
+24,1. Vacanciers & Touristes,Catastrophes & Crises,tsunami alerte touriste,,1,transactionnel,Templates
+25,1. Vacanciers & Touristes,Catastrophes & Crises,volcan éruption touriste,,1,transactionnel,Templates
+26,1. Vacanciers & Touristes,Catastrophes & Crises,glissement terrain touriste,,1,transactionnel,Templates
+27,1. Vacanciers & Touristes,Catastrophes & Crises,tempête de neige touriste bloqué,tempête violente touriste|mousson touriste bloqué,3,transactionnel,Templates
+28,1. Vacanciers & Touristes,Catastrophes & Crises,canicule extrême touriste,,1,transactionnel,Templates
+29,1. Vacanciers & Touristes,Catastrophes & Crises,sécheresse eau potable touriste,,1,transactionnel,Templates
+30,1. Vacanciers & Touristes,Communication & Langue,application traduction urgence étranger,barrière de la langue urgence étranger|internet connexion urgence étranger|VPN gratuit urgence étranger|interprète médical urgence étranger|WiFi gratuit urgence étranger,6,urgence,Templates
+31,1. Vacanciers & Touristes,Communication & Langue,traducteur d'urgence à l'étranger,,1,urgence,Templates
+32,1. Vacanciers & Touristes,Communication & Langue,SIM locale comment acheter à l'étranger,,1,informationnel,Templates
+33,1. Vacanciers & Touristes,Communication & Langue,roaming bloqué à l'étranger,,1,transactionnel,Templates
+34,1. Vacanciers & Touristes,Communication & Langue,numéro ambassade France urgence,numéro urgence local par pays,2,urgence,Templates
+35,1. Vacanciers & Touristes,Communication & Langue,appeler en France depuis l'étranger,,1,transactionnel,Templates
+36,1. Vacanciers & Touristes,Communication & Langue,WhatsApp bloqué pays étranger,,1,transactionnel,Templates
+37,1. Vacanciers & Touristes,Communication & Langue,téléphone satellite urgence vacances,,1,urgence,Templates
+38,1. Vacanciers & Touristes,Communication & Langue,traduction médicale urgence,,1,urgence,Templates
+39,1. Vacanciers & Touristes,Communication & Langue,dictionnaire médical voyage,,1,transactionnel,Templates
+40,1. Vacanciers & Touristes,Communication & Langue,eSIM internationale touriste,,1,transactionnel,Templates
+41,1. Vacanciers & Touristes,Communication & Langue,forfait international urgence,,1,urgence,Templates
+42,1. Vacanciers & Touristes,Documents & Identité,document d'assurance perdu vacances,passeport perdu en vacances|passeport expiré en vacances,3,urgence,Templates
+43,1. Vacanciers & Touristes,Documents & Identité,passeport volé à l'étranger,,1,transactionnel,Templates
+44,1. Vacanciers & Touristes,Documents & Identité,carte d'identité perdue à l'étranger,,1,urgence,Templates
+45,1. Vacanciers & Touristes,Documents & Identité,assurance voyage papier perdu,visa perdu en voyage,2,urgence,Templates
+46,1. Vacanciers & Touristes,Documents & Identité,billet d'avion perdu à l'étranger,,1,urgence,Templates
+47,1. Vacanciers & Touristes,Documents & Identité,titre de voyage urgence touriste,consulat urgence touriste|ambassade urgence touriste,3,urgence,Templates
+48,1. Vacanciers & Touristes,Documents & Identité,remplacement passeport urgence étranger,,1,urgence,Templates
+49,1. Vacanciers & Touristes,Documents & Identité,laissez-passer consulaire urgence,,1,urgence,Templates
+50,1. Vacanciers & Touristes,Documents & Identité,documents volés vacances recours,,1,transactionnel,Templates
+51,1. Vacanciers & Touristes,Documents & Identité,permis de conduire perdu étranger,,1,urgence,Templates
+52,1. Vacanciers & Touristes,Documents & Identité,carte vitale perdue vacances étranger,carte bleue identité perdue vacances,2,urgence,Templates
+53,1. Vacanciers & Touristes,Documents & Identité,acte naissance touriste étranger,,1,transactionnel,Templates
+54,1. Vacanciers & Touristes,Documents & Identité,visa touriste refusé aéroport,,1,transactionnel,Templates
+55,1. Vacanciers & Touristes,Documents & Identité,entrée pays refusée touriste,,1,transactionnel,Templates
+56,1. Vacanciers & Touristes,Documents & Identité,dépôt de plainte document volé,,1,transactionnel,Templates
+57,1. Vacanciers & Touristes,Hébergement,problème hôtel à l'étranger,,1,transactionnel,Templates
+58,1. Vacanciers & Touristes,Hébergement,chambre hôtel non conforme vacances,surréservation hôtel vacances|incendie hôtel vacances que faire|inondation chambre hôtel vacances|bruit voisins hôtel nuit vacances|piscine hôtel fermée vacances,6,informationnel,Templates
+59,1. Vacanciers & Touristes,Hébergement,hôtel fermé à l'arrivée,,1,transactionnel,Templates
+60,1. Vacanciers & Touristes,Hébergement,punaises de lit hôtel voyage,,1,transactionnel,Templates
+61,1. Vacanciers & Touristes,Hébergement,camping problème vacances étranger,problème Airbnb en vacances|location villa problème vacances,3,transactionnel,Templates
+62,1. Vacanciers & Touristes,Hébergement,clé chambre hôtel perdue,vol objet chambre hôtel,2,urgence,Templates
+63,1. Vacanciers & Touristes,Hébergement,hôtel insalubre touriste,arnaque hôtel touriste,2,transactionnel,Templates
+64,1. Vacanciers & Touristes,Hébergement,différence photos hôtel réalité,,1,transactionnel,Templates
+65,1. Vacanciers & Touristes,Hébergement,air climatisé panne hôtel chaleur,,1,transactionnel,Templates
+66,1. Vacanciers & Touristes,Hébergement,caution hôtel non remboursée,service hôtel non conforme,2,transactionnel,Templates
+67,1. Vacanciers & Touristes,Hébergement,chambre double simple erreur hôtel,,1,transactionnel,Templates
+68,1. Vacanciers & Touristes,Hébergement,nourriture empoisonnée hôtel,,1,transactionnel,Templates
+69,1. Vacanciers & Touristes,Hébergement,Booking.com problème réservation,,1,transactionnel,Templates
+70,1. Vacanciers & Touristes,Hébergement,appartement location arnaque vacances,,1,transactionnel,Templates
+71,1. Vacanciers & Touristes,Juridique & Sécurité,avocat urgence touriste à l'étranger,arnaque touriste à l'étranger|agression touriste à l'étranger,3,urgence,Templates
+72,1. Vacanciers & Touristes,Juridique & Sécurité,arnaques courantes touristes monde,,1,transactionnel,Templates
+73,1. Vacanciers & Touristes,Juridique & Sécurité,volé en vacances que faire,,1,informationnel,Templates
+74,1. Vacanciers & Touristes,Juridique & Sécurité,arrêté par la police en vacances,,1,transactionnel,Templates
+75,1. Vacanciers & Touristes,Juridique & Sécurité,porter plainte police à l'étranger,,1,transactionnel,Templates
+76,1. Vacanciers & Touristes,Juridique & Sécurité,droits du touriste si arrêté,,1,informationnel,Templates
+77,1. Vacanciers & Touristes,Juridique & Sécurité,amende injuste touriste,,1,transactionnel,Templates
+78,1. Vacanciers & Touristes,Juridique & Sécurité,confiscation douane touriste,corruption douane touriste,2,transactionnel,Templates
+79,1. Vacanciers & Touristes,Juridique & Sécurité,harcèlement sexuel touriste étranger,violence police touriste étranger|drogue piégé touriste étranger|tribunal touriste étranger|enlèvement touriste étranger,5,transactionnel,Templates
+80,1. Vacanciers & Touristes,Juridique & Sécurité,viol agression sexuelle vacances,,1,transactionnel,Templates
+81,1. Vacanciers & Touristes,Juridique & Sécurité,caution libération touriste emprisonné,emprisonné innocent touriste,2,transactionnel,Templates
+82,1. Vacanciers & Touristes,Juridique & Sécurité,racket policier touriste,,1,transactionnel,Templates
+83,1. Vacanciers & Touristes,Juridique & Sécurité,interprète juridique urgence touriste,,1,urgence,Templates
+84,1. Vacanciers & Touristes,Juridique & Sécurité,expulsion hôtel touriste,,1,transactionnel,Templates
+85,1. Vacanciers & Touristes,Juridique & Sécurité,manifestation touriste bloqué,,1,transactionnel,Templates
+86,1. Vacanciers & Touristes,Juridique & Sécurité,terrorisme attentat touriste,,1,transactionnel,Templates
+87,1. Vacanciers & Touristes,Juridique & Sécurité,kidnapping touriste,,1,transactionnel,Templates
+88,1. Vacanciers & Touristes,Juridique & Sécurité,rançon touriste kidnappé,,1,transactionnel,Templates
+89,1. Vacanciers & Touristes,Juridique & Sécurité,trafic humain touriste piégé,,1,transactionnel,Templates
+90,1. Vacanciers & Touristes,Juridique & Sécurité,traite d'êtres humains touriste,,1,transactionnel,Templates
+91,1. Vacanciers & Touristes,Juridique & Sécurité,pédophilie touriste dénonciation,,1,transactionnel,Templates
+92,1. Vacanciers & Touristes,Profils spécifiques,famille urgence vacances à l'étranger,enfant perdu vacances à l'étranger|voyageur solo urgence à l'étranger|femme seule urgence en vacances|senior touriste urgence à l'étranger|backpacker urgence à l'étranger,8,urgence,Templates
+93,1. Vacanciers & Touristes,Profils spécifiques,voyageur avec animal urgence étranger,touriste handicapé PMR urgence|croisière urgence touriste|touriste âgé seul urgence|touriste autiste urgence étranger|touriste sourd aveugle urgence,7,urgence,Templates
+94,1. Vacanciers & Touristes,Profils spécifiques,tourisme médical problème à l'étranger,,1,transactionnel,Templates
+95,1. Vacanciers & Touristes,Profils spécifiques,voyage scolaire urgence étranger,routard urgence étranger,2,urgence,Templates
+96,1. Vacanciers & Touristes,Profils spécifiques,voyageur LGBTQ arrestation pays hostile,,1,transactionnel,Templates
+97,1. Vacanciers & Touristes,Profils spécifiques,mineur non accompagné urgence étranger,,1,urgence,Templates
+98,1. Vacanciers & Touristes,Profils spécifiques,enfant seul perdu aéroport,,1,urgence,Templates
+99,1. Vacanciers & Touristes,Rapatriement & Décès,rapatriement sanitaire vacancier,,1,urgence,Templates
+100,1. Vacanciers & Touristes,Rapatriement & Décès,rapatriement corps décès à l'étranger,décès en vacances à l'étranger|assurance rapatriement décès,3,urgence,Templates
+101,1. Vacanciers & Touristes,Rapatriement & Décès,rentrer en urgence pendant vacances,prolonger séjour urgence vacances,2,urgence,Templates
+102,1. Vacanciers & Touristes,Rapatriement & Décès,organisation obsèques étranger,,1,transactionnel,Templates
+103,1. Vacanciers & Touristes,Rapatriement & Décès,cercueil rapatriement France,,1,urgence,Templates
+104,1. Vacanciers & Touristes,Rapatriement & Décès,pompes funèbres étranger urgence,,1,urgence,Templates
+105,1. Vacanciers & Touristes,Rapatriement & Décès,succession vacancier décédé étranger,acte de décès étranger obtenir|apostille décès étranger,3,informationnel,Templates
+106,1. Vacanciers & Touristes,Santé & Médical,médecin vacances à l'étranger,,1,transactionnel,Templates
+107,1. Vacanciers & Touristes,Santé & Médical,ambulance pour touriste,hôpital pour touriste|leptospirose touriste,3,transactionnel,Templates
+108,1. Vacanciers & Touristes,Santé & Médical,intoxication alcool vacances urgence,urgence médicale en vacances|bébé urgence médicale voyage|traduction médicale urgence voyage,4,urgence,Templates
+109,1. Vacanciers & Touristes,Santé & Médical,rage morsure vacances que faire,malade en vacances que faire|insolation vacances que faire|enfant malade en vacances,4,informationnel,Templates
+110,1. Vacanciers & Touristes,Santé & Médical,pharmacie urgence à l'étranger,allergie urgence à l'étranger,2,urgence,Templates
+111,1. Vacanciers & Touristes,Santé & Médical,femme enceinte urgence en voyage,dentiste urgence en voyage,2,urgence,Templates
+112,1. Vacanciers & Touristes,Santé & Médical,intoxication alimentaire vacances,,1,transactionnel,Templates
+113,1. Vacanciers & Touristes,Santé & Médical,déshydratation chaleur touriste,coup de chaleur touriste plage,2,transactionnel,Templates
+114,1. Vacanciers & Touristes,Santé & Médical,médicament perdu en vacances,,1,urgence,Templates
+115,1. Vacanciers & Touristes,Santé & Médical,ordonnance perdue à l'étranger,,1,urgence,Templates
+116,1. Vacanciers & Touristes,Santé & Médical,évacuation médicale touriste,,1,transactionnel,Templates
+117,1. Vacanciers & Touristes,Santé & Médical,rapatriement sanitaire vacancier,,1,urgence,Templates
+118,1. Vacanciers & Touristes,Santé & Médical,diarrhée touriste voyage,hépatite touriste voyage,2,transactionnel,Templates
+119,1. Vacanciers & Touristes,Santé & Médical,fièvre touriste pays tropical,,1,transactionnel,Templates
+120,1. Vacanciers & Touristes,Santé & Médical,paludisme symptômes touriste,dengue touriste symptômes,2,transactionnel,Templates
+121,1. Vacanciers & Touristes,Santé & Médical,coupure infection plage vacances,,1,transactionnel,Templates
+122,1. Vacanciers & Touristes,Santé & Médical,brûlure soleil grave vacances,,1,transactionnel,Templates
+123,1. Vacanciers & Touristes,Santé & Médical,piqûre insecte allergique vacances,,1,transactionnel,Templates
+124,1. Vacanciers & Touristes,Santé & Médical,diabète insuline touriste étranger,crise cardiaque touriste étranger|épilepsie crise touriste étranger|asthme crise vacances étranger,4,transactionnel,Templates
+125,1. Vacanciers & Touristes,Santé & Médical,santé mentale crise en voyage,,1,transactionnel,Templates
+126,1. Vacanciers & Touristes,Santé & Médical,dépression vacances étranger,,1,transactionnel,Templates
+127,1. Vacanciers & Touristes,Santé & Médical,fracture os touriste à l'étranger,AVC touriste à l'étranger|dialyse touriste à l'étranger|appendicite touriste à l'étranger,4,transactionnel,Templates
+128,1. Vacanciers & Touristes,Santé & Médical,urgence ophtalmologique touriste,,1,urgence,Templates
+129,1. Vacanciers & Touristes,Santé & Médical,maladie tropicale touriste,,1,transactionnel,Templates
+130,1. Vacanciers & Touristes,Santé & Médical,overdose médicament touriste,,1,transactionnel,Templates
+131,1. Vacanciers & Touristes,Sports & Activités,accident plongée sous-marine vacances,accident ski vacances urgence|accident quad vacances étranger|blessure sport nautique vacances|accident randonnée montagne vacances|accident surf planche vacances,16,urgence,Templates
+132,1. Vacanciers & Touristes,Sports & Activités,accident scooter moto location vacances,,1,urgence,Templates
+133,1. Vacanciers & Touristes,Sports & Activités,noyade plage touriste secours,,1,urgence,Templates
+134,1. Vacanciers & Touristes,Sports & Activités,morsure serpent animal vacances,,1,transactionnel,Templates
+135,1. Vacanciers & Touristes,Sports & Activités,morsure chien étranger que faire,,1,informationnel,Templates
+136,1. Vacanciers & Touristes,Sports & Activités,excursion annulée remboursement,,1,transactionnel,Templates
+137,1. Vacanciers & Touristes,Sports & Activités,guide touristique arnaque,,1,transactionnel,Templates
+138,1. Vacanciers & Touristes,Sports & Activités,accident bungee jumping,,1,urgence,Templates
+139,1. Vacanciers & Touristes,Sports & Activités,avalanche skieur vacances,,1,transactionnel,Templates
+140,1. Vacanciers & Touristes,Sports & Activités,morsure requin touriste,,1,transactionnel,Templates
+141,1. Vacanciers & Touristes,Sports & Activités,morsure méduse grave plage,,1,transactionnel,Templates
+142,1. Vacanciers & Touristes,Sports & Activités,piqûre oursin mer vacances,,1,transactionnel,Templates
+143,1. Vacanciers & Touristes,Sports & Activités,coupure corail plongée vacances,,1,transactionnel,Templates
+144,1. Vacanciers & Touristes,Sports & Activités,altitude mal des montagnes touriste,,1,transactionnel,Templates
+145,1. Vacanciers & Touristes,Sports & Activités,coup de soleil 3e degré touriste,,1,transactionnel,Templates
+146,1. Vacanciers & Touristes,Sports & Activités,hypothermie touriste montagne,,1,transactionnel,Templates
+147,1. Vacanciers & Touristes,Sports & Activités,noyade piscine hôtel vacances,,1,transactionnel,Templates
+148,1. Vacanciers & Touristes,Transport,vol annulé vacances que faire,vol raté en vacances|bus raté vacances étranger,3,informationnel,Templates
+149,1. Vacanciers & Touristes,Transport,vol surbooking indemnisation,retard vol indemnisation,2,transactionnel,Templates
+150,1. Vacanciers & Touristes,Transport,bagages perdus aéroport,aéroport grève bagages,2,urgence,Templates
+151,1. Vacanciers & Touristes,Transport,valise endommagée compagnie aérienne,,1,transactionnel,Templates
+152,1. Vacanciers & Touristes,Transport,bloqué à l'aéroport à l'étranger,,1,transactionnel,Templates
+153,1. Vacanciers & Touristes,Transport,correspondance manquée aéroport,,1,transactionnel,Templates
+154,1. Vacanciers & Touristes,Transport,grève transport vacances,,1,transactionnel,Templates
+155,1. Vacanciers & Touristes,Transport,ferry manqué vacances,,1,transactionnel,Templates
+156,1. Vacanciers & Touristes,Transport,train annulé vacances,,1,transactionnel,Templates
+157,1. Vacanciers & Touristes,Transport,accident voiture location étranger,panne voiture location étranger|amende voiture location étranger|voiture location volée étranger|essence panne route étranger|clé voiture location perdue,9,urgence,Templates
+158,1. Vacanciers & Touristes,Transport,arnaque taxi touriste,,1,transactionnel,Templates
+159,1. Vacanciers & Touristes,Transport,Uber Bolt problème à l'étranger,,1,transactionnel,Templates
+160,1. Vacanciers & Touristes,Transport,billet train perdu étranger,,1,urgence,Templates
+161,1. Vacanciers & Touristes,Transport,retour impossible frontière fermée,,1,transactionnel,Templates
+162,1. Vacanciers & Touristes,Transport,transit aéroport bloqué,,1,transactionnel,Templates
+163,1. Vacanciers & Touristes,Urgence générale,touriste sans aide à l'étranger,urgence touriste à l'étranger|aide vacancier urgente|hotline touriste urgence|vacancier bloqué à l'étranger|numéro urgence touriste,9,urgence,Templates
+164,1. Vacanciers & Touristes,Urgence générale,SOS voyageur international,SOS touriste|assistance touriste 24h|touriste en danger,4,urgence,Templates
+165,1. Vacanciers & Touristes,Urgence générale,besoin d'aide en vacances,,1,transactionnel,Templates
+166,1. Vacanciers & Touristes,Urgence générale,service SOS voyage,,1,urgence,Templates
+167,1. Vacanciers & Touristes,Urgence générale,joindre un local en urgence vacances,que faire urgence vacances étranger|que faire si problème en vacances,3,urgence,Templates
+168,1. Vacanciers & Touristes,Urgence générale,appel expert local vacances,,1,transactionnel,Templates
+169,1. Vacanciers & Touristes,Urgence générale,assistance immédiate vacancier,,1,transactionnel,Templates
+170,1. Vacanciers & Touristes,Urgence générale,touriste en détresse étranger,,1,transactionnel,Templates
+171,1. Vacanciers & Touristes,Urgence générale,aide rapide touriste monde,,1,transactionnel,Templates
+172,1. Vacanciers & Touristes,Urgence générale,urgence voyage comment réagir,,1,urgence,Templates
+173,10. Réfugiés & Demandeurs d'Asile,Droits & Urgences,demande d'asile urgence à l'étranger,réfugié urgence aide à l'étranger,2,urgence,Templates
+174,10. Réfugiés & Demandeurs d'Asile,Droits & Urgences,protection subsidiaire demandeur asile,demandeur asile droits France|recours CNDA demandeur asile|avocat demandeur asile urgence|hébergement urgence demandeur asile|CADA centre demandeur asile,10,urgence,Templates
+175,10. Réfugiés & Demandeurs d'Asile,Droits & Urgences,statut réfugié UNHCR obtenir,,1,informationnel,Templates
+176,10. Réfugiés & Demandeurs d'Asile,Droits & Urgences,famille réfugiée regroupement familial,regroupement familial réfugié délai,2,transactionnel,Templates
+177,2. Expatriés,Administratif & Visa,permis de travail à l'étranger,,1,transactionnel,Templates
+178,2. Expatriés,Administratif & Visa,visa long séjour comment obtenir,,1,informationnel,Templates
+179,2. Expatriés,Administratif & Visa,renouvellement visa expatrié urgent,visa refusé expatrié recours,2,transactionnel,Templates
+180,2. Expatriés,Administratif & Visa,titre de séjour à l'étranger,,1,transactionnel,Templates
+181,2. Expatriés,Administratif & Visa,résidence permanente à l'étranger,,1,transactionnel,Templates
+182,2. Expatriés,Administratif & Visa,carte verte green card expatrié,carte consulaire expatrié,2,transactionnel,Templates
+183,2. Expatriés,Administratif & Visa,inscription consulaire française,,1,transactionnel,Templates
+184,2. Expatriés,Administratif & Visa,nationalité double expatrié,,1,transactionnel,Templates
+185,2. Expatriés,Administratif & Visa,naturalisation à l'étranger démarches,PACS à l'étranger démarches,2,transactionnel,Templates
+186,2. Expatriés,Administratif & Visa,homologation permis conduire étranger,permis de conduire étranger valide|mariage étranger valide en France|divorce étranger valide France,4,transactionnel,Templates
+187,2. Expatriés,Administratif & Visa,casier judiciaire expatrié étranger,,1,transactionnel,Templates
+188,2. Expatriés,Administratif & Visa,expulsion territoire expatrié,,1,transactionnel,Templates
+189,2. Expatriés,Administratif & Visa,contrat VIE volontariat international,,1,transactionnel,Templates
+190,2. Expatriés,Administratif & Visa,état civil étranger reconnaissance France,,1,transactionnel,Templates
+191,2. Expatriés,Administratif & Visa,acte naissance étranger apostille,acte mariage étranger apostille,2,transactionnel,Templates
+192,2. Expatriés,Administratif & Visa,procuration notariale expatrié,,1,transactionnel,Templates
+193,2. Expatriés,Administratif & Visa,mandat à distance expatrié,,1,transactionnel,Templates
+194,2. Expatriés,Administratif & Visa,vote expatrié à l'étranger,,1,transactionnel,Templates
+195,2. Expatriés,Administratif & Visa,inscription listes électorales expatrié,,1,transactionnel,Templates
+196,2. Expatriés,Administratif & Visa,imprimé consulaire expatrié,,1,transactionnel,Templates
+197,2. Expatriés,Administratif & Visa,formulaire consulat France étranger,,1,transactionnel,Templates
+198,2. Expatriés,Administratif & Visa,rendez-vous consulat expatrié,,1,transactionnel,Templates
+199,2. Expatriés,Crises & Urgences,catastrophe naturelle expatrié,,1,transactionnel,Templates
+200,2. Expatriés,Crises & Urgences,évacuation urgence expatrié,,1,urgence,Templates
+201,2. Expatriés,Crises & Urgences,instabilité politique expatrié,,1,transactionnel,Templates
+202,2. Expatriés,Crises & Urgences,guerre conflit expatrié zone,coup d'état expatrié zone,2,transactionnel,Templates
+203,2. Expatriés,Crises & Urgences,accident grave expatrié étranger,couvre-feu expatrié étranger,2,urgence,Templates
+204,2. Expatriés,Crises & Urgences,emprisonné injustement expatrié,,1,transactionnel,Templates
+205,2. Expatriés,Crises & Urgences,disparition expatrié à l'étranger,,1,urgence,Templates
+206,2. Expatriés,Crises & Urgences,enlèvement expatrié,,1,transactionnel,Templates
+207,2. Expatriés,Crises & Urgences,grève générale pays expatrié,,1,transactionnel,Templates
+208,2. Expatriés,Crises & Urgences,manifestation violence expatrié,,1,transactionnel,Templates
+209,2. Expatriés,Famille,périscolaire activités enfant expatrié,scolarisation enfant expatrié|garde enfant expatrié|garde alternée enfant expatrié|inscription école enfant expatrié|école internationale expatrié,10,transactionnel,Templates
+210,2. Expatriés,Famille,école française à l'étranger,,1,transactionnel,Templates
+211,2. Expatriés,Famille,lycée français étranger inscription,,1,transactionnel,Templates
+212,2. Expatriés,Famille,divorce expatrié loi applicable,,1,transactionnel,Templates
+213,2. Expatriés,Famille,naissance enfant étranger nationalité,,1,transactionnel,Templates
+214,2. Expatriés,Famille,mariage mixte expatrié étranger,,1,transactionnel,Templates
+215,2. Expatriés,Famille,violence conjugale expatrié à l'étranger,,1,transactionnel,Templates
+216,2. Expatriés,Famille,homeschooling expatrié légal,,1,transactionnel,Templates
+217,2. Expatriés,Famille,enlèvement parental international expatrié,baccalauréat international expatrié,2,transactionnel,Templates
+218,2. Expatriés,Famille,aide scolaire expatrié,,1,transactionnel,Templates
+219,2. Expatriés,Famille,baby-sitter au pair expatrié,,1,transactionnel,Templates
+220,2. Expatriés,Famille,crèche garderie expatrié,,1,transactionnel,Templates
+221,2. Expatriés,Famille,allocation familiale expatrié France,,1,transactionnel,Templates
+222,2. Expatriés,Famille,CAF expatrié droits,,1,informationnel,Templates
+223,2. Expatriés,Famille,pension alimentaire expatrié,,1,transactionnel,Templates
+224,2. Expatriés,Famille,adoption internationale expatrié,,1,transactionnel,Templates
+225,2. Expatriés,Famille,tutelle pupille expatrié,,1,transactionnel,Templates
+226,2. Expatriés,Fiscalité,déclaration impôts expatrié non-résident,fiscalité expatrié impôts France|impôts revenus étrangers France|numéro fiscal non-résident France|impôts locaux expatrié|taxe foncière expatrié France,9,transactionnel,Templates
+227,2. Expatriés,Fiscalité,double imposition expatrié éviter,,1,transactionnel,Templates
+228,2. Expatriés,Fiscalité,optimisation fiscale légale expatrié,résidence fiscale expatrié changer|régularisation fiscale expatrié,3,transactionnel,Templates
+229,2. Expatriés,Fiscalité,convention fiscale bilatérale France,,1,transactionnel,Templates
+230,2. Expatriés,Fiscalité,plus-value immobilière expatrié non-résident,IFI expatrié non-résident,2,transactionnel,Templates
+231,2. Expatriés,Fiscalité,TVA exportation expatrié entrepreneur,,1,transactionnel,Templates
+232,2. Expatriés,Fiscalité,déclaration revenus étranger formulaire,,1,transactionnel,Templates
+233,2. Expatriés,Fiscalité,CFE auto-entrepreneur expatrié,,1,transactionnel,Templates
+234,2. Expatriés,Fiscalité,RSI cotisation expatrié indépendant,,1,transactionnel,Templates
+235,2. Expatriés,Fiscalité,URSSAF expatrié freelance,,1,transactionnel,Templates
+236,2. Expatriés,Logement,réparations urgentes logement expatrié,louer appartement expatrié étranger|expulsion logement expatrié urgence|hypothèque étranger expatrié|logement meublé expatrié durée,5,urgence,Templates
+237,2. Expatriés,Logement,acheter maison expatrié à l'étranger,,1,transactionnel,Templates
+238,2. Expatriés,Logement,litige bailleur expatrié,,1,transactionnel,Templates
+239,2. Expatriés,Logement,dépôt garantie loyer étranger récupérer,,1,transactionnel,Templates
+240,2. Expatriés,Logement,assurance habitation expatrié,,1,transactionnel,Templates
+241,2. Expatriés,Logement,sous-location légale expatrié,,1,transactionnel,Templates
+242,2. Expatriés,Logement,colocation expatrié règles,,1,transactionnel,Templates
+243,2. Expatriés,Logement,SCI immobilier expatrié France,viager expatrié France,2,transactionnel,Templates
+244,2. Expatriés,Logement,défiscalisation immobilier expatrié,,1,transactionnel,Templates
+245,2. Expatriés,Logement,prêt immobilier non-résident,,1,transactionnel,Templates
+246,2. Expatriés,Logement,syndic copropriété expatrié,,1,transactionnel,Templates
+247,2. Expatriés,Logement,gestion locative distance expatrié,état des lieux expatrié distance,2,transactionnel,Templates
+248,2. Expatriés,Logement,bail mobilité expatrié,,1,transactionnel,Templates
+249,2. Expatriés,Logement,résidence principale expatrié statut,résidence secondaire expatrié,2,informationnel,Templates
+250,2. Expatriés,Retour en France,médecin généraliste retour France expatrié,retour en France expatrié démarches|scolarisation enfants retour France|logement retour France expatrié|carte grise retour expatrié|mutuelle santé retour expatrié,11,transactionnel,Templates
+251,2. Expatriés,Retour en France,réinscription sécurité sociale retour,,1,transactionnel,Templates
+252,2. Expatriés,Retour en France,chômage retour France après expatriation,,1,transactionnel,Templates
+253,2. Expatriés,Retour en France,banque rouvrir compte France retour,,1,transactionnel,Templates
+254,2. Expatriés,Retour en France,permis conduire français retour expatrié,,1,transactionnel,Templates
+255,2. Expatriés,Retour en France,immatriculation voiture retour,,1,transactionnel,Templates
+256,2. Expatriés,Retour en France,reintegration professionnelle expatrié,,1,transactionnel,Templates
+257,2. Expatriés,Retraite & Prévoyance,pension retraite française à l'étranger,retraite à l'étranger cotisations,2,transactionnel,Templates
+258,2. Expatriés,Retraite & Prévoyance,rachat trimestres retraite expatrié,pension de réversion expatrié|retraite minimum garanti expatrié|calcul retraite expatrié simulateur|départ retraite anticipé expatrié|retraite progressive expatrié,7,transactionnel,Templates
+259,2. Expatriés,Retraite & Prévoyance,Caisse des Français de l'Étranger CFE,,1,transactionnel,Templates
+260,2. Expatriés,Retraite & Prévoyance,prévoyance décès expatrié,,1,transactionnel,Templates
+261,2. Expatriés,Retraite & Prévoyance,assurance vie expatrié,,1,transactionnel,Templates
+262,2. Expatriés,Retraite & Prévoyance,retraite complémentaire expatrié AGIRC ARRCO,,1,transactionnel,Templates
+263,2. Expatriés,Retraite & Prévoyance,allocation chômage expatrié ARE,ARE chômage retour expatrié,2,transactionnel,Templates
+264,2. Expatriés,Santé,urgence médicale expatrié,,1,urgence,Templates
+265,2. Expatriés,Santé,hospitalisation longue durée étranger,,1,transactionnel,Templates
+266,2. Expatriés,Santé,rapatriement sanitaire expatrié,rapatriement corps expatrié,2,urgence,Templates
+267,2. Expatriés,Santé,burn-out expatrié arrêt travail,dépression expatrié burn-out,2,transactionnel,Templates
+268,2. Expatriés,Santé,psychiatre expatrié francophone,,1,transactionnel,Templates
+269,2. Expatriés,Santé,maladie chronique expatrié traitement,cancer traitement expatrié|alzheimer expatrié traitement,3,transactionnel,Templates
+270,2. Expatriés,Santé,vaccination expatrié obligatoire,,1,transactionnel,Templates
+271,2. Expatriés,Santé,médecin spécialiste expatrié,,1,transactionnel,Templates
+272,2. Expatriés,Santé,santé femme expatriée gynécologue,,1,transactionnel,Templates
+273,2. Expatriés,Santé,maternité accouchement expatrié,,1,transactionnel,Templates
+274,2. Expatriés,Santé,contraception expatriée à l'étranger,IVG expatriée à l'étranger,2,transactionnel,Templates
+275,2. Expatriés,Santé,chimiothérapie expatrié,,1,transactionnel,Templates
+276,2. Expatriés,Santé,greffe organe expatrié,,1,transactionnel,Templates
+277,2. Expatriés,Santé,dialyse rein expatrié,,1,transactionnel,Templates
+278,2. Expatriés,Santé,parkinson expatrié soins,handicap soins expatrié,2,transactionnel,Templates
+279,2. Expatriés,Santé,addictologie alcool drogues expatrié,,1,transactionnel,Templates
+280,2. Expatriés,Santé,sevrage addiction expatrié,,1,transactionnel,Templates
+281,2. Expatriés,Santé,dépendance médicament expatrié,,1,transactionnel,Templates
+282,2. Expatriés,Travail & Emploi,trouver emploi à l'étranger,,1,transactionnel,Templates
+283,2. Expatriés,Travail & Emploi,harcèlement travail expatrié étranger,contrat de travail local étranger|accident travail expatrié étranger,3,urgence,Templates
+284,2. Expatriés,Travail & Emploi,licenciement expatrié à l'étranger,intérim expatrié à l'étranger|stage expatrié à l'étranger,3,transactionnel,Templates
+285,2. Expatriés,Travail & Emploi,rupture contrat expatrié,,1,transactionnel,Templates
+286,2. Expatriés,Travail & Emploi,droit du travail expatrié,,1,transactionnel,Templates
+287,2. Expatriés,Travail & Emploi,auto-entrepreneur expatrié France,chômage expatrié retour France|assurance chômage expatrié privée,3,transactionnel,Templates
+288,2. Expatriés,Travail & Emploi,portage salarial expatrié,,1,transactionnel,Templates
+289,2. Expatriés,Travail & Emploi,télétravail étranger employeur français,,1,transactionnel,Templates
+290,2. Expatriés,Travail & Emploi,freelance expatrié statut juridique,,1,informationnel,Templates
+291,2. Expatriés,Travail & Emploi,apprentissage étranger expatrié,syndicat expatrié étranger,2,transactionnel,Templates
+292,2. Expatriés,Travail & Emploi,prud'hommes expatrié litige,,1,transactionnel,Templates
+293,2. Expatriés,Travail & Emploi,négociation salaire expatrié,,1,transactionnel,Templates
+294,2. Expatriés,Travail & Emploi,prime expatriation avantages,,1,transactionnel,Templates
+295,2. Expatriés,Travail & Emploi,logement de fonction expatrié,,1,transactionnel,Templates
+296,2. Expatriés,Travail & Emploi,voiture de société expatrié,,1,transactionnel,Templates
+297,2. Expatriés,Travail & Emploi,avantages en nature expatrié imposition,bonus expatrié imposition,2,transactionnel,Templates
+298,2. Expatriés,Travail & Emploi,13e mois expatrié,,1,transactionnel,Templates
+299,2. Expatriés,Travail & Emploi,stock options expatrié fiscalité,,1,transactionnel,Templates
+300,2. Expatriés,Travail & Emploi,retraite chapeau expatrié,,1,transactionnel,Templates
+301,2. Expatriés,Urgence,aide urgente expatrié à l'étranger,urgence expatrié que faire|expatrié en danger à l'étranger|expatrié sans aide à l'étranger|expatrié isolé urgence|service urgence expatrié mondial,6,urgence,Templates
+302,2. Expatriés,Urgence,SOS expatrié,,1,urgence,Templates
+303,2. Expatriés,Urgence,assistance expatriés 24h,,1,transactionnel,Templates
+304,2. Expatriés,Urgence,accident grave expatrié étranger,,1,urgence,Templates
+305,2. Expatriés,Vie quotidienne,ouvrir compte bancaire à l'étranger,,1,transactionnel,Templates
+306,2. Expatriés,Vie quotidienne,trouver médecin généraliste expatrié,trouver appartement expatrié|trouver avocat expatrié à l'étranger|trouver comptable expatrié|trouver plombier urgence expatrié|ami local expatrié trouver,6,urgence,Templates
+307,2. Expatriés,Vie quotidienne,assurance maladie expatrié,mutuelle santé expatrié,2,transactionnel,Templates
+308,2. Expatriés,Vie quotidienne,trouver psychologue francophone étranger,trouver électricien urgence étranger,2,urgence,Templates
+309,2. Expatriés,Vie quotidienne,communauté française à l'étranger,,1,transactionnel,Templates
+310,2. Expatriés,Vie quotidienne,association expatriés français,,1,transactionnel,Templates
+311,2. Expatriés,Vie quotidienne,vie quotidienne expatrié conseils,,1,transactionnel,Templates
+312,2. Expatriés,Vie quotidienne,s'intégrer à l'étranger conseils,,1,transactionnel,Templates
+313,2. Expatriés,Vie quotidienne,choc culturel expatrié gestion,,1,transactionnel,Templates
+314,2. Expatriés,Vie quotidienne,solitude isolement expatrié,,1,transactionnel,Templates
+315,2. Expatriés,Vie quotidienne,apprendre langue locale expatrié,cours langue locale expatrié,2,transactionnel,Templates
+316,2. Expatriés,Vie quotidienne,conduire à l'étranger expatrié règles,acheter voiture à l'étranger expatrié|règles voisinage étranger expatrié,3,transactionnel,Templates
+317,2. Expatriés,Vie quotidienne,animaux de compagnie expatrié réglementation,,1,transactionnel,Templates
+318,2. Expatriés,Vie quotidienne,garde-meuble international déménagement,déménagement international famille|container déménagement international,3,transactionnel,Templates
+319,2. Expatriés,Vie quotidienne,déménager à l'étranger démarches,,1,transactionnel,Templates
+320,2. Expatriés,Vie quotidienne,expatrié premiers jours installation,checklist installation expatrié,2,transactionnel,Templates
+321,2. Expatriés,Vie quotidienne,supermarché alimentation expatrié,,1,transactionnel,Templates
+322,2. Expatriés,Vie quotidienne,barbecue jardin appartement étranger,,1,transactionnel,Templates
+323,2. Expatriés,Vie quotidienne,bruit plainte voisins étranger,,1,transactionnel,Templates
+324,2. Expatriés,Vie quotidienne,poubelles tri sélectif expatrié,,1,transactionnel,Templates
+325,2. Expatriés,Vie quotidienne,eau potable robinet étranger,,1,transactionnel,Templates
+326,2. Expatriés,Vie quotidienne,coupure électricité expatrié urgence,coupure eau expatrié urgence,2,urgence,Templates
+327,2. Expatriés,Vie quotidienne,chauffage panne expatrié hiver,,1,transactionnel,Templates
+328,2. Expatriés,Vie quotidienne,internet fibre installer expatrié,,1,transactionnel,Templates
+329,3. Digital Nomads,Assurance,assurance voyage longue durée digital nomad,assurance digital nomad meilleure|assurance matériel digital nomad|assurance cyber piratage digital nomad|assurance annulation voyage digital nomad|SafetyWing digital nomad avis,7,transactionnel,Templates
+330,3. Digital Nomads,Assurance,assurance responsabilité civile nomade,assurance santé nomade numérique|assurance rapatriement nomade|couverture médicale nomade numérique,4,urgence,Templates
+331,3. Digital Nomads,Assurance,World Nomads assurance avis,,1,transactionnel,Templates
+332,3. Digital Nomads,Finance & Fiscalité,cryptomonnaie digital nomad fiscalité,banque en ligne digital nomad|Wise digital nomad problème|Revolut bloqué digital nomad|optimisation fiscale digital nomad|société Estonie digital nomad,13,transactionnel,Templates
+333,3. Digital Nomads,Finance & Fiscalité,compte bloqué Wise Revolut étranger,,1,transactionnel,Templates
+334,3. Digital Nomads,Finance & Fiscalité,impôts digital nomad statut fiscal,payer impôts digital nomad France,2,informationnel,Templates
+335,3. Digital Nomads,Finance & Fiscalité,résidence fiscale nomade numérique,,1,transactionnel,Templates
+336,3. Digital Nomads,Finance & Fiscalité,société offshore digital nomad légal,,1,transactionnel,Templates
+337,3. Digital Nomads,Finance & Fiscalité,facturer client étranger digital nomad,,1,transactionnel,Templates
+338,3. Digital Nomads,Finance & Fiscalité,numéro SIRET nomade numérique France,,1,transactionnel,Templates
+339,3. Digital Nomads,Finance & Fiscalité,cotisations sociales digital nomad France,,1,transactionnel,Templates
+340,3. Digital Nomads,Lifestyle & Destinations,meilleur pays digital nomad 2025,digital nomad Bali Canggu|digital nomad Lisbonne Portugal|digital nomad Medellín Colombie|digital nomad coût de la vie|burnout digital nomad isolement,18,transactionnel,Templates
+341,3. Digital Nomads,Lifestyle & Destinations,digital nomad Thaïlande Chiang Mai,,1,transactionnel,Templates
+342,3. Digital Nomads,Lifestyle & Destinations,relation longue distance digital nomad,,1,transactionnel,Templates
+343,3. Digital Nomads,Lifestyle & Destinations,digital nomad végétarien vegan alimentation,,1,transactionnel,Templates
+344,3. Digital Nomads,Lifestyle & Destinations,digital nomad sport fitness étranger,,1,transactionnel,Templates
+345,3. Digital Nomads,Lifestyle & Destinations,digital nomad appartement court terme,digital nomad Airbnb long terme,2,transactionnel,Templates
+346,3. Digital Nomads,Lifestyle & Destinations,digital nomad communauté Facebook Slack,,1,transactionnel,Templates
+347,3. Digital Nomads,Travail & Outils,statut juridique freelance étranger,litige contrat freelance étranger,2,informationnel,Templates
+348,3. Digital Nomads,Travail & Outils,facturation internationale digital nomad,contrat client digital nomad|ordinateur volé digital nomad|routeur portable digital nomad|cybersécurité digital nomad conseils|arnaque client digital nomad,7,transactionnel,Templates
+349,3. Digital Nomads,Travail & Outils,coworking espace travail à l'étranger,,1,transactionnel,Templates
+350,3. Digital Nomads,Travail & Outils,internet connexion lente digital nomad,,1,transactionnel,Templates
+351,3. Digital Nomads,Travail & Outils,propriété intellectuelle étranger digital nomad,VPN digital nomad bloqué étranger,2,transactionnel,Templates
+352,3. Digital Nomads,Travail & Outils,données confidentielles volées étranger,,1,transactionnel,Templates
+353,3. Digital Nomads,Travail & Outils,panne matériel informatique étranger,,1,transactionnel,Templates
+354,3. Digital Nomads,Travail & Outils,carte SIM internationale nomade,,1,transactionnel,Templates
+355,3. Digital Nomads,Travail & Outils,disque dur externe voyage digital nomad,,1,transactionnel,Templates
+356,3. Digital Nomads,Travail & Outils,cloud stockage digital nomad sécurisé,,1,transactionnel,Templates
+357,3. Digital Nomads,Travail & Outils,résolution dispute client international,,1,transactionnel,Templates
+358,3. Digital Nomads,Travail & Outils,tribunal commerce international freelance,,1,transactionnel,Templates
+359,3. Digital Nomads,Urgence,digital nomad urgence à l'étranger,digital nomad assistance mondiale|digital nomad arrêté police|digital nomad sans argent étranger,4,urgence,Templates
+360,3. Digital Nomads,Urgence,nomade numérique bloqué à l'étranger,nomade numérique malade urgence,2,urgence,Templates
+361,3. Digital Nomads,Visa & Séjour,visa touriste travail digital nomad légal,visa digital nomad comment obtenir|visa digital nomad Portugal|visa digital nomad Thaïlande|visa digital nomad Bali Indonésie|visa digital nomad Géorgie,23,urgence,Templates
+362,3. Digital Nomads,Visa & Séjour,visa nomade numérique pays liste,,1,transactionnel,Templates
+363,4. Étudiants à l'étranger,Finance,bourse étude à l'étranger problème,,1,transactionnel,Templates
+364,4. Étudiants à l'étranger,Finance,bourses Erasmus problème paiement,,1,transactionnel,Templates
+365,4. Étudiants à l'étranger,Finance,virement parents étudiant étranger,manque d'argent étudiant étranger|aides sociales étudiant étranger|APL étudiant étranger France|budget mensuel étudiant étranger,5,transactionnel,Templates
+366,4. Étudiants à l'étranger,Finance,compte bancaire étudiant à l'étranger,job étudiant à l'étranger légal|compte étudiant banque en ligne,3,transactionnel,Templates
+367,4. Étudiants à l'étranger,Finance,travailler légalement étudiant visa,,1,transactionnel,Templates
+368,4. Étudiants à l'étranger,Finance,coût vie étudiant étranger budget,,1,transactionnel,Templates
+369,4. Étudiants à l'étranger,Finance,économies étudiant Erasmus conseils,,1,transactionnel,Templates
+370,4. Étudiants à l'étranger,Finance,remboursement Erasmus délai,,1,transactionnel,Templates
+371,4. Étudiants à l'étranger,Finance,aide urgence étudiant étranger CROUS,,1,urgence,Templates
+372,4. Étudiants à l'étranger,Logement & Quotidien,logement étudiant à l'étranger urgence,colocation étudiant à l'étranger|expulsé logement étudiant urgence|CROUS logement étudiant retour|garant logement étudiant étranger|assurance logement étudiant étranger,7,urgence,Templates
+373,4. Étudiants à l'étranger,Logement & Quotidien,résidence universitaire étranger,,1,transactionnel,Templates
+374,4. Étudiants à l'étranger,Logement & Quotidien,litige propriétaire étudiant étranger,dossier location étudiant étranger|charges locatives étudiant étranger,3,transactionnel,Templates
+375,4. Étudiants à l'étranger,Logement & Quotidien,cité universitaire internationale Paris,,1,transactionnel,Templates
+376,4. Étudiants à l'étranger,Logement & Quotidien,foyer étudiant international,,1,transactionnel,Templates
+377,4. Étudiants à l'étranger,Logement & Quotidien,AirBnB logement étudiant long terme,,1,transactionnel,Templates
+378,4. Étudiants à l'étranger,Logement & Quotidien,sous-location légale étudiant,,1,transactionnel,Templates
+379,4. Étudiants à l'étranger,Programmes & Visa,visa étudiant urgence renouvellement,visa étudiant refusé recours|visa étudiant comment obtenir|visa working holiday étudiant,4,urgence,Templates
+380,4. Étudiants à l'étranger,Programmes & Visa,carte de séjour étudiant étranger,,1,transactionnel,Templates
+381,4. Étudiants à l'étranger,Programmes & Visa,Erasmus comment partir étapes,,1,informationnel,Templates
+382,4. Étudiants à l'étranger,Programmes & Visa,Erasmus+ financement bourse,,1,transactionnel,Templates
+383,4. Étudiants à l'étranger,Programmes & Visa,campus France inscription,,1,transactionnel,Templates
+384,4. Étudiants à l'étranger,Programmes & Visa,PVT programme vacances travail,,1,transactionnel,Templates
+385,4. Étudiants à l'étranger,Programmes & Visa,bourse Eiffel comment obtenir,,1,informationnel,Templates
+386,4. Étudiants à l'étranger,Programmes & Visa,bourses gouvernementales étrangères,,1,transactionnel,Templates
+387,4. Étudiants à l'étranger,Programmes & Visa,PHC partenariat Hubert Curien,,1,transactionnel,Templates
+388,4. Étudiants à l'étranger,Programmes & Visa,programme bilatéral étudiant France,CIDEF programme étudiant,2,transactionnel,Templates
+389,4. Étudiants à l'étranger,Programmes & Visa,DAAD bourse Allemagne étudiant,bourse ambassade étudiant,2,transactionnel,Templates
+390,4. Étudiants à l'étranger,Programmes & Visa,Fulbright étudiant français,,1,transactionnel,Templates
+391,4. Étudiants à l'étranger,Programmes & Visa,aide mobilité internationale étudiant,,1,transactionnel,Templates
+392,4. Étudiants à l'étranger,Programmes & Visa,OFAJ franco-allemand étudiant,,1,transactionnel,Templates
+393,4. Étudiants à l'étranger,Programmes & Visa,convention université partenariat,,1,transactionnel,Templates
+394,4. Étudiants à l'étranger,Santé & Bien-être,contraception pilule étudiant étranger,couverture santé étudiant étranger|médecin étudiant étranger trouver|dépression anxiété étudiant étranger|psy psychologue étudiant étranger|burn-out étudiant étranger,11,urgence,Templates
+395,4. Étudiants à l'étranger,Santé & Bien-être,sécurité sociale étudiant Erasmus,,1,transactionnel,Templates
+396,4. Étudiants à l'étranger,Santé & Bien-être,EHIC carte européenne assurance maladie,,1,transactionnel,Templates
+397,4. Étudiants à l'étranger,Santé & Bien-être,solitude choc culturel étudiant Erasmus,,1,transactionnel,Templates
+398,4. Étudiants à l'étranger,Santé & Bien-être,harcèlement sexuel étudiant campus étranger,,1,transactionnel,Templates
+399,4. Étudiants à l'étranger,Santé & Bien-être,mal du pays étudiant,,1,transactionnel,Templates
+400,4. Étudiants à l'étranger,Santé & Bien-être,IST MST étudiant voyage,,1,transactionnel,Templates
+401,4. Étudiants à l'étranger,Urgence,parents contacter étudiant Erasmus urgence,étudiant à l'étranger urgence|urgence étudiant Erasmus|étudiant étranger malade urgence|étudiant bloqué à l'étranger|étudiant seul urgence étranger,6,urgence,Templates
+402,4. Étudiants à l'étranger,Urgence,famille cherche étudiant étranger,étudiant en danger étranger,2,urgence,Templates
+403,4. Étudiants à l'étranger,Études & Droits,reconnaissance diplôme étranger France,équivalence diplôme étranger,2,transactionnel,Templates
+404,4. Étudiants à l'étranger,Études & Droits,stage à l'étranger droits protection,,1,informationnel,Templates
+405,4. Étudiants à l'étranger,Études & Droits,harcèlement université à l'étranger,,1,transactionnel,Templates
+406,4. Étudiants à l'étranger,Études & Droits,exclusion université étudiant étranger,discrimination étudiant étranger|plagiat accusation étudiant étranger|triche examen étudiant étranger|droits étudiant étranger université,5,informationnel,Templates
+407,4. Étudiants à l'étranger,Études & Droits,famille séjour linguistique enfant urgence,séjour linguistique problème urgence,2,urgence,Templates
+408,4. Étudiants à l'étranger,Études & Droits,abandon études étranger démarches,,1,transactionnel,Templates
+409,4. Étudiants à l'étranger,Études & Droits,résultats universitaires contestation étranger,,1,transactionnel,Templates
+410,4. Étudiants à l'étranger,Études & Droits,règlement intérieur université internationale,,1,transactionnel,Templates
+411,4. Étudiants à l'étranger,Études & Droits,changer université Erasmus,,1,transactionnel,Templates
+412,4. Étudiants à l'étranger,Études & Droits,programme Erasmus annulé recours,,1,transactionnel,Templates
+413,4. Étudiants à l'étranger,Études & Droits,validation ECTS crédits Erasmus,,1,transactionnel,Templates
+414,4. Étudiants à l'étranger,Études & Droits,équivalences modules universitaires,,1,transactionnel,Templates
+415,5. Retraités à l'étranger,Installation & Lifestyle,retraite active à l'étranger activités,retraite à l'étranger conseils|retraite Thaïlande conseils expatrié,3,transactionnel,Templates
+416,5. Retraités à l'étranger,Installation & Lifestyle,logement retraité expatrié acheter louer,meilleur pays pour retraite expatrié|retraite Mexique expatrié français|retraite Île Maurice expatrié|retraite Tunisie expatrié français|retraite Maroc expatrié français,19,transactionnel,Templates
+417,5. Retraités à l'étranger,Installation & Lifestyle,retraite Portugal Espagne Maroc,,1,transactionnel,Templates
+418,5. Retraités à l'étranger,Installation & Lifestyle,coût vie retraite étranger,,1,transactionnel,Templates
+419,5. Retraités à l'étranger,Installation & Lifestyle,EHPAD équivalent à l'étranger,,1,transactionnel,Templates
+420,5. Retraités à l'étranger,Installation & Lifestyle,voyages organisés retraités expatriés,club retraités expatriés,2,transactionnel,Templates
+421,5. Retraités à l'étranger,Pension & Finance,pension retraite française versée étranger,retraite française à l'étranger montant|sécurité sociale retraité étranger|succession retraité expatrié étranger|tutelle curatelle retraité étranger,5,transactionnel,Templates
+422,5. Retraités à l'étranger,Pension & Finance,mandataire protection retraité expatrié,caisse retraite expatrié démarches|fiscalité retraité expatrié impôts|double imposition retraite expatrié|testament retraité expatrié|assurance vie retraité expatrié,12,transactionnel,Templates
+423,5. Retraités à l'étranger,Pension & Finance,héritage bien immobilier étranger retraité,,1,transactionnel,Templates
+424,5. Retraités à l'étranger,Pension & Finance,procuration bancaire retraité,,1,transactionnel,Templates
+425,5. Retraités à l'étranger,Pension & Finance,allocation adulte handicapé expatrié,,1,transactionnel,Templates
+426,5. Retraités à l'étranger,Pension & Finance,minimum vieillesse ASPA expatrié,,1,transactionnel,Templates
+427,5. Retraités à l'étranger,Pension & Finance,rachat rente viagère retraité,,1,transactionnel,Templates
+428,5. Retraités à l'étranger,Santé,médicament retraité expatrié approvisionnement,assurance santé retraité expatrié|mutuelle senior expatrié|urgence médicale retraité expatrié|rapatriement retraité expatrié|aide à domicile retraité expatrié,20,urgence,Templates
+429,5. Retraités à l'étranger,Santé,Alzheimer démence expatrié étranger,,1,transactionnel,Templates
+430,5. Retraités à l'étranger,Santé,soins palliatifs fin de vie expatrié,,1,transactionnel,Templates
+431,5. Retraités à l'étranger,Santé,euthanasie pays autorisés expatrié,,1,transactionnel,Templates
+432,5. Retraités à l'étranger,Santé,maison médicalisée retraité étranger,,1,transactionnel,Templates
+433,5. Retraités à l'étranger,Sécurité & Protection,protection juridique retraité expatrié,escroquerie retraité expatrié|vol cambriolage retraité expatrié|isolement solitude retraité expatrié|réseau d'entraide retraité expatrié|abus financier retraité expatrié,7,transactionnel,Templates
+434,5. Retraités à l'étranger,Sécurité & Protection,arnaque immobilière retraité étranger,,1,transactionnel,Templates
+435,5. Retraités à l'étranger,Sécurité & Protection,association retraités expatriés,,1,transactionnel,Templates
+436,5. Retraités à l'étranger,Sécurité & Protection,maltraitance personne âgée étranger,,1,transactionnel,Templates
+437,5. Retraités à l'étranger,Sécurité & Protection,signalement maltraitance expatrié,,1,transactionnel,Templates
+438,5. Retraités à l'étranger,Sécurité & Protection,alerte urgence retraité seul,,1,urgence,Templates
+439,5. Retraités à l'étranger,Visa & Admin,visa retraité Portugal D7,visa retraité Thaïlande|visa retraité Mexique|visa retraité Maroc|visa retraité Grèce|visa retraité Cambodge,8,transactionnel,Templates
+440,5. Retraités à l'étranger,Visa & Admin,résidence fiscale retraité étranger,,1,transactionnel,Templates
+441,5. Retraités à l'étranger,Visa & Admin,retour France retraité expatrié démarches,,1,transactionnel,Templates
+442,5. Retraités à l'étranger,Visa & Admin,inscription liste électorale retraité expatrié,,1,transactionnel,Templates
+443,5. Retraités à l'étranger,Visa & Admin,vote consulaire retraité,,1,transactionnel,Templates
+444,5. Retraités à l'étranger,Visa & Admin,renouvellement carte identité retraité expatrié,renouvellement passeport retraité expatrié,2,transactionnel,Templates
+445,6. Investisseurs & Entrepreneurs,Création d'entreprise,rachat entreprise à l'étranger,créer entreprise à l'étranger,2,transactionnel,Templates
+446,6. Investisseurs & Entrepreneurs,Création d'entreprise,ouvrir société à l'étranger,,1,transactionnel,Templates
+447,6. Investisseurs & Entrepreneurs,Création d'entreprise,société offshore légale expatrié,,1,transactionnel,Templates
+448,6. Investisseurs & Entrepreneurs,Création d'entreprise,holding internationale expatrié,,1,transactionnel,Templates
+449,6. Investisseurs & Entrepreneurs,Création d'entreprise,franchise à l'étranger comment,,1,informationnel,Templates
+450,6. Investisseurs & Entrepreneurs,Création d'entreprise,joint-venture partenariat étranger,,1,transactionnel,Templates
+451,6. Investisseurs & Entrepreneurs,Création d'entreprise,succursale filiale étranger,,1,transactionnel,Templates
+452,6. Investisseurs & Entrepreneurs,Création d'entreprise,représentant commercial étranger,,1,transactionnel,Templates
+453,6. Investisseurs & Entrepreneurs,Création d'entreprise,enregistrement marque étranger,,1,transactionnel,Templates
+454,6. Investisseurs & Entrepreneurs,Création d'entreprise,brevet international dépôt,,1,transactionnel,Templates
+455,6. Investisseurs & Entrepreneurs,Création d'entreprise,propriété intellectuelle étranger,,1,transactionnel,Templates
+456,6. Investisseurs & Entrepreneurs,Création d'entreprise,levée de fonds startup étranger,startup incubateur étranger,2,transactionnel,Templates
+457,6. Investisseurs & Entrepreneurs,Création d'entreprise,business plan étranger,,1,transactionnel,Templates
+458,6. Investisseurs & Entrepreneurs,Création d'entreprise,étude marché étranger,,1,transactionnel,Templates
+459,6. Investisseurs & Entrepreneurs,Création d'entreprise,plan marketing international,,1,transactionnel,Templates
+460,6. Investisseurs & Entrepreneurs,Création d'entreprise,e-commerce international création,,1,transactionnel,Templates
+461,6. Investisseurs & Entrepreneurs,Création d'entreprise,dropshipping légal étranger,,1,transactionnel,Templates
+462,6. Investisseurs & Entrepreneurs,Création d'entreprise,marketplace internationale vente,,1,transactionnel,Templates
+463,6. Investisseurs & Entrepreneurs,Création d'entreprise,Amazon FBA étranger expatrié,,1,transactionnel,Templates
+464,6. Investisseurs & Entrepreneurs,Immobilier,acheter immobilier à l'étranger,,1,transactionnel,Templates
+465,6. Investisseurs & Entrepreneurs,Immobilier,investissement immobilier étranger piège,promoteur immobilier arnaque étranger|notaire urgence immobilier étranger|hypothèque emprunt immobilier étranger|rénovation bien immobilier étranger|vente immobilier étranger impôts,6,urgence,Templates
+466,6. Investisseurs & Entrepreneurs,Immobilier,arnaque immobilière à l'étranger,,1,transactionnel,Templates
+467,6. Investisseurs & Entrepreneurs,Immobilier,escroquerie achat terrain étranger,,1,transactionnel,Templates
+468,6. Investisseurs & Entrepreneurs,Immobilier,titre foncier terrain étranger vérification,,1,transactionnel,Templates
+469,6. Investisseurs & Entrepreneurs,Immobilier,gestion locative à distance étranger,syndic distance propriété étranger,2,transactionnel,Templates
+470,6. Investisseurs & Entrepreneurs,Immobilier,SCI immobilier international,,1,transactionnel,Templates
+471,6. Investisseurs & Entrepreneurs,Immobilier,fiscalité loyers étrangers France,,1,transactionnel,Templates
+472,6. Investisseurs & Entrepreneurs,Immobilier,imposition revenus locatifs étrangers,,1,transactionnel,Templates
+473,6. Investisseurs & Entrepreneurs,Immobilier,taxe foncière propriété étranger,,1,transactionnel,Templates
+474,6. Investisseurs & Entrepreneurs,Immobilier,copropriété règles étranger,,1,transactionnel,Templates
+475,6. Investisseurs & Entrepreneurs,Immobilier,artisan travaux étranger trouver,,1,transactionnel,Templates
+476,6. Investisseurs & Entrepreneurs,Immobilier,assurance propriétaire non-occupant étranger,,1,transactionnel,Templates
+477,6. Investisseurs & Entrepreneurs,Immobilier,plus-value immobilière étranger,,1,transactionnel,Templates
+478,6. Investisseurs & Entrepreneurs,Juridique & Finance,avocat affaires étranger urgence,,1,urgence,Templates
+479,6. Investisseurs & Entrepreneurs,Juridique & Finance,litige commercial international urgence,arbitrage international litige|tribunal commercial international,3,urgence,Templates
+480,6. Investisseurs & Entrepreneurs,Juridique & Finance,contrat commercial étranger problème,,1,transactionnel,Templates
+481,6. Investisseurs & Entrepreneurs,Juridique & Finance,escroquerie affaires à l'étranger,,1,transactionnel,Templates
+482,6. Investisseurs & Entrepreneurs,Juridique & Finance,recouvrement créance internationale,,1,transactionnel,Templates
+483,6. Investisseurs & Entrepreneurs,Juridique & Finance,protection juridique investisseur étranger,,1,transactionnel,Templates
+484,6. Investisseurs & Entrepreneurs,Juridique & Finance,douane importation exportation problème,,1,transactionnel,Templates
+485,6. Investisseurs & Entrepreneurs,Juridique & Finance,contrefaçon produit étranger,,1,transactionnel,Templates
+486,6. Investisseurs & Entrepreneurs,Juridique & Finance,médiation commerciale internationale,,1,transactionnel,Templates
+487,6. Investisseurs & Entrepreneurs,Juridique & Finance,exécution jugement étranger France,,1,transactionnel,Templates
+488,6. Investisseurs & Entrepreneurs,Juridique & Finance,transfert dividendes société étrangère,fiscalité société étrangère expatrié,2,transactionnel,Templates
+489,6. Investisseurs & Entrepreneurs,Juridique & Finance,TVA internationale entrepreneur,,1,transactionnel,Templates
+490,6. Investisseurs & Entrepreneurs,Juridique & Finance,financement bancaire étranger entrepreneur,,1,transactionnel,Templates
+491,6. Investisseurs & Entrepreneurs,Juridique & Finance,subvention aide entreprise étranger,,1,transactionnel,Templates
+492,6. Investisseurs & Entrepreneurs,Juridique & Finance,garantie COFACE exportateur,,1,transactionnel,Templates
+493,6. Investisseurs & Entrepreneurs,Juridique & Finance,assurance crédit export,,1,transactionnel,Templates
+494,6. Investisseurs & Entrepreneurs,Juridique & Finance,change devise risque entreprise,couverture risque change export,2,transactionnel,Templates
+495,6. Investisseurs & Entrepreneurs,Visa Investisseur,golden visa comment obtenir,,1,informationnel,Templates
+496,6. Investisseurs & Entrepreneurs,Visa Investisseur,golden visa Portugal Espagne Grèce,,1,transactionnel,Templates
+497,6. Investisseurs & Entrepreneurs,Visa Investisseur,visa long séjour entrepreneur France,visa entrepreneur à l'étranger|visa investisseur à l'étranger|visa Singapour entrepreneur,4,transactionnel,Templates
+498,6. Investisseurs & Entrepreneurs,Visa Investisseur,visa travailleur qualifié étranger,visa startup founder étranger|visa talent étranger,3,transactionnel,Templates
+499,6. Investisseurs & Entrepreneurs,Visa Investisseur,visa EB-5 investisseur USA,visa O-1 USA talent,2,transactionnel,Templates
+500,6. Investisseurs & Entrepreneurs,Visa Investisseur,visa Malaisie MM2H,,1,transactionnel,Templates
+501,6. Investisseurs & Entrepreneurs,Visa Investisseur,visa Emirats investisseur,,1,transactionnel,Templates
+502,6. Investisseurs & Entrepreneurs,Visa Investisseur,carte de résident investisseur Maroc,,1,transactionnel,Templates
+503,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,travailleur détaché à l'étranger droits,travailleur frontalier droits|couverture sociale travailleur détaché|congés payés travailleur détaché,4,informationnel,Templates
+504,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,détachement professionnel étranger,,1,transactionnel,Templates
+505,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,travailleur frontalier Allemagne France,travailleur frontalier Suisse France|travailleur frontalier Luxembourg|travailleur frontalier Belgique France|travailleur frontalier Andorre,5,transactionnel,Templates
+506,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,salaire minimum pays détachement,,1,transactionnel,Templates
+507,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,durée légale travail pays détachement,,1,transactionnel,Templates
+508,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,heures supplémentaires détachement,,1,transactionnel,Templates
+509,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,licenciement pendant détachement,,1,transactionnel,Templates
+510,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,clause de mobilité contrat,,1,transactionnel,Templates
+511,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,prime détachement imposition,,1,transactionnel,Templates
+512,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,indemnité expatriation imposition,,1,transactionnel,Templates
+513,7. Travailleurs Détachés & Frontaliers,Droits & Réglementation,logement fourni détaché imposition,,1,transactionnel,Templates
+514,7. Travailleurs Détachés & Frontaliers,Finance & Admin,remboursement soins travailleur détaché,impôts travailleur détaché étranger|retraite travailleur détaché|mutuelle santé travailleur détaché|forfait jour travailleur détaché,5,transactionnel,Templates
+515,7. Travailleurs Détachés & Frontaliers,Finance & Admin,cotisations sociales détachement,,1,transactionnel,Templates
+516,7. Travailleurs Détachés & Frontaliers,Finance & Admin,assurance responsabilité professionnelle étranger,,1,transactionnel,Templates
+517,7. Travailleurs Détachés & Frontaliers,Finance & Admin,autorisation travail étranger urgence,contrat travail détachement étranger,2,urgence,Templates
+518,7. Travailleurs Détachés & Frontaliers,Finance & Admin,formulaire A1 sécurité sociale détaché,,1,transactionnel,Templates
+519,7. Travailleurs Détachés & Frontaliers,Finance & Admin,carte européenne assurance maladie détaché,,1,transactionnel,Templates
+520,7. Travailleurs Détachés & Frontaliers,Finance & Admin,note de frais détachement,,1,transactionnel,Templates
+521,7. Travailleurs Détachés & Frontaliers,Urgences & Problèmes,maladie professionnelle détaché étranger,accident travail détaché étranger|harcèlement moral détaché étranger|syndicat travailleur détaché étranger|inspection travail détaché étranger|plainte employeur détaché étranger,6,urgence,Templates
+522,7. Travailleurs Détachés & Frontaliers,Urgences & Problèmes,litige employeur détachement étranger,,1,transactionnel,Templates
+523,7. Travailleurs Détachés & Frontaliers,Urgences & Problèmes,rapatriement travailleur détaché urgence,licenciement travailleur détaché|burn-out travailleur détaché|discrimination travailleur détaché|grève droit travailleur détaché étranger,5,urgence,Templates
+524,8. Voyageurs d'Affaires,Admin & Visa,invitation lettre affaires visa,visa affaires urgent,2,transactionnel,Templates
+525,8. Voyageurs d'Affaires,Admin & Visa,visa business pays comment obtenir,,1,informationnel,Templates
+526,8. Voyageurs d'Affaires,Admin & Visa,assurance voyage affaires professionnelle,,1,transactionnel,Templates
+527,8. Voyageurs d'Affaires,Admin & Visa,chambre de commerce invitation visa,,1,transactionnel,Templates
+528,8. Voyageurs d'Affaires,Admin & Visa,protocole affaires culture étranger,nota bene affaires étranger,2,transactionnel,Templates
+529,8. Voyageurs d'Affaires,Admin & Visa,carte de visite culture asiatique affaires,,1,transactionnel,Templates
+530,8. Voyageurs d'Affaires,Admin & Visa,dress code affaires culture étranger,,1,transactionnel,Templates
+531,8. Voyageurs d'Affaires,Juridique & Finance,litige contrat affaires à l'étranger,,1,transactionnel,Templates
+532,8. Voyageurs d'Affaires,Juridique & Finance,corruption pot-de-vin étranger que faire,,1,informationnel,Templates
+533,8. Voyageurs d'Affaires,Juridique & Finance,note de frais voyage affaires problème,,1,transactionnel,Templates
+534,8. Voyageurs d'Affaires,Juridique & Finance,traducteur interprète urgence réunion,,1,urgence,Templates
+535,8. Voyageurs d'Affaires,Juridique & Finance,avocat affaires urgence déplacement,,1,urgence,Templates
+536,8. Voyageurs d'Affaires,Juridique & Finance,contrat signé étranger valable France,,1,transactionnel,Templates
+537,8. Voyageurs d'Affaires,Juridique & Finance,remboursement frais voyages affaires,,1,transactionnel,Templates
+538,8. Voyageurs d'Affaires,Juridique & Finance,TVA récupération déplacement professionnel,,1,transactionnel,Templates
+539,8. Voyageurs d'Affaires,Juridique & Finance,per diem voyage affaires,,1,transactionnel,Templates
+540,8. Voyageurs d'Affaires,Juridique & Finance,assurance annulation voyage professionnel,,1,transactionnel,Templates
+541,8. Voyageurs d'Affaires,Juridique & Finance,responsabilité civile professionnelle étranger,,1,transactionnel,Templates
+542,8. Voyageurs d'Affaires,Sécurité & Logistique,vol données confidentielles voyage affaires,,1,transactionnel,Templates
+543,8. Voyageurs d'Affaires,Sécurité & Logistique,ordinateur portable volé voyage professionnel,,1,transactionnel,Templates
+544,8. Voyageurs d'Affaires,Sécurité & Logistique,espionnage industriel voyage affaires,sécurité executive voyage affaires|sécurité téléphone voyage affaires|VPN professionnel voyage affaires,4,transactionnel,Templates
+545,8. Voyageurs d'Affaires,Sécurité & Logistique,piratage WiFi hôtel voyage affaires,,1,transactionnel,Templates
+546,8. Voyageurs d'Affaires,Sécurité & Logistique,clé USB chiffrée voyage affaires,,1,transactionnel,Templates
+547,8. Voyageurs d'Affaires,Sécurité & Logistique,sauvegarde données voyage professionnel,,1,transactionnel,Templates
+548,8. Voyageurs d'Affaires,Urgences,voyage affaires urgence à l'étranger,voyageur affaires malade urgence,2,urgence,Templates
+549,8. Voyageurs d'Affaires,Urgences,accident voyage professionnel étranger,,1,urgence,Templates
+550,8. Voyageurs d'Affaires,Urgences,déplacement professionnel urgence médicale,,1,urgence,Templates
+551,8. Voyageurs d'Affaires,Urgences,voyageur affaires arrêté police,voyageur affaires vol documents,2,transactionnel,Templates
+552,9. Soignants & Missionnaires,Admin & Statut,statut volontaire international humanitaire,droit volontaire humanitaire international,2,informationnel,Templates
+553,9. Soignants & Missionnaires,Admin & Statut,assurance humanitaire étranger,,1,transactionnel,Templates
+554,9. Soignants & Missionnaires,Admin & Statut,visa humanitaire obtenir,,1,informationnel,Templates
+555,9. Soignants & Missionnaires,Admin & Statut,reconnaissance engagement humanitaire,,1,transactionnel,Templates
+556,9. Soignants & Missionnaires,Admin & Statut,retraite bénévole humanitaire,,1,urgence,Templates
+557,9. Soignants & Missionnaires,Admin & Statut,couverture sociale volontaire ONG,,1,transactionnel,Templates
+558,9. Soignants & Missionnaires,Admin & Statut,contrat VSI volontariat solidarité international,,1,transactionnel,Templates
+559,9. Soignants & Missionnaires,Urgences & Vie,soignant humanitaire urgence à l'étranger,infirmière humanitaire urgence étranger|missionnaire urgence à l'étranger|bénévole humanitaire urgence|coopérant urgence à l'étranger|aide humanitaire urgence terrain,6,urgence,Templates
+560,9. Soignants & Missionnaires,Urgences & Vie,médecin sans frontière problème étranger,médecin ONG urgence étranger|volontaire ONG urgence étranger|CICR urgence étranger,4,urgence,Templates
+561,9. Soignants & Missionnaires,Urgences & Vie,personnel MSF urgence,,1,urgence,Templates
+562,9. Soignants & Missionnaires,Urgences & Vie,volontaire international urgence,,1,urgence,Templates
