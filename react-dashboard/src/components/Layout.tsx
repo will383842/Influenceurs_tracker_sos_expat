@@ -502,9 +502,6 @@ export default function Layout() {
                     <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
                       📝 Articles
                     </NavLink>
-                    <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
-                      ⚖️ Comparatifs
-                    </NavLink>
                     <NavLink to="/content/generate-qr" className={subNavClass} onClick={handleNavClick}>
                       ❓ Q/R
                     </NavLink>
@@ -520,26 +517,20 @@ export default function Layout() {
                     <NavLink to="/content/fiches-vacances" className={subNavClass} onClick={handleNavClick}>
                       🏖️ Fiches Vacances
                     </NavLink>
-                    <NavLink to="/content/campaigns" className={subNavClass} onClick={handleNavClick}>
-                      🎯 Campagnes
+                    <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
+                      ⚖️ Comparatifs
+                    </NavLink>
+                    <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
+                      📊 Sondages
+                    </NavLink>
+                    <NavLink to="/content/outils-visiteurs" className={subNavClass} onClick={handleNavClick}>
+                      🌐 Outils Visiteurs
                     </NavLink>
                     <NavLink to="/content/clusters" className={subNavClass} onClick={handleNavClick}>
                       🔵 Clusters
                     </NavLink>
                     <NavLink to="/content/landings" className={subNavClass} onClick={handleNavClick}>
                       🛬 Landings
-                    </NavLink>
-                    <NavLink to="/content/press" className={subNavClass} onClick={handleNavClick}>
-                      📰 Presse
-                    </NavLink>
-                    <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
-                      📊 Sondages
-                    </NavLink>
-                    <NavLink to="/content/outils" className={subNavClass} onClick={handleNavClick}>
-                      🛠️ Outils promo
-                    </NavLink>
-                    <NavLink to="/content/outils-visiteurs" className={subNavClass} onClick={handleNavClick}>
-                      🌐 Outils Visiteurs
                     </NavLink>
                   </NavSubGroup>
 
