@@ -13,9 +13,9 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const FICHE_LABELS: Record<string, { title: string; emoji: string }> = {
-  general:       { title: 'Fiches Pays Generales',   emoji: '🌍' },
-  expatriation:  { title: 'Fiches Expatriation',     emoji: '✈️' },
-  vacances:      { title: 'Fiches Vacances',          emoji: '🏖️' },
+  general:       { title: 'Fiches Pays',              emoji: '🌍' },
+  expatriation:  { title: 'Fiches Pays Expat',        emoji: '✈️' },
+  vacances:      { title: 'Fiches Pays Vacances',     emoji: '🏖️' },
 };
 
 interface Props {

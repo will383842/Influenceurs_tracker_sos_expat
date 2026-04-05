@@ -499,9 +499,6 @@ export default function Layout() {
                   </NavSubGroup>
 
                   <NavSubGroup label="Contenu" isOpen={openSubGroups.content_contenu} onToggle={() => toggleSubGroup('content_contenu')}>
-                    <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
-                      📝 Articles
-                    </NavLink>
                     <NavLink to="/content/generate-qr" className={subNavClass} onClick={handleNavClick}>
                       ❓ Q/R
                     </NavLink>
@@ -512,10 +509,13 @@ export default function Layout() {
                       🌍 Fiches Pays
                     </NavLink>
                     <NavLink to="/content/fiches-expatriation" className={subNavClass} onClick={handleNavClick}>
-                      ✈️ Fiches Expat
+                      ✈️ Fiches Pays Expat
                     </NavLink>
                     <NavLink to="/content/fiches-vacances" className={subNavClass} onClick={handleNavClick}>
-                      🏖️ Fiches Vacances
+                      🏖️ Fiches Pays Vacances
+                    </NavLink>
+                    <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
+                      📝 Articles
                     </NavLink>
                     <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
                       ⚖️ Comparatifs
