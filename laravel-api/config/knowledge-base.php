@@ -582,7 +582,7 @@ return [
     'tools' => [
         'total' => 24,
         'access' => 'Gratuit, sans inscription',
-        'url' => 'https://blog.life-expat.com/outils/',
+        'url' => 'https://sos-expat.com/fr-fr/outils',
         'categories' => [
             'calculate' => [
                 'visa-calculator' => 'Calculateur d\'eligibilite visa',
