@@ -109,14 +109,15 @@ const LS_GROUPS    = 'mc_nav_groups';
 const LS_SUBGROUPS = 'mc_nav_subgroups';
 
 const DEFAULT_SUBGROUPS: Record<string, boolean> = {
-  sourcing_ia       : true,
-  sourcing_contacts : true,
-  sourcing_content  : true,
-  sourcing_config   : true,
-  content_piloter   : true,
-  content_contenu   : true,
-  content_landing   : true,
-  content_publish   : true,
+  sourcing_ia        : true,
+  sourcing_contacts  : true,
+  sourcing_content   : true,
+  sourcing_config    : true,
+  content_piloter    : true,
+  content_contenu    : true,
+  content_affiliation: true,
+  content_landing    : true,
+  content_publish    : true,
 };
 
 function loadLS<T extends Record<string, boolean>>(key: string, defaults: T): T {

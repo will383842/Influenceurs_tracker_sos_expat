@@ -2,6 +2,7 @@
 
 namespace App\Services\Content;
 
+use App\Models\Comparative;
 use App\Models\GeneratedArticle;
 use Illuminate\Support\Facades\Log;
 
@@ -149,15 +150,14 @@ class GenerationGuardService
         sort($entities);
         $entitiesKey = implode(' vs ', $entities);
 
-        // Check if same comparative exists
-        $existing = GeneratedArticle::where('language', $language)
-            ->where('content_type', 'comparative')
+        // Check if same comparative exists in comparatives table
+        $existing = Comparative::where('language', $language)
             ->whereIn('status', ['draft', 'review', 'published'])
-            ->whereNull('parent_article_id')
+            ->whereNull('parent_id')
             ->get();
 
         foreach ($existing as $article) {
-            $existingEntities = json_decode($article->entities ?? '[]', true);
+            $existingEntities = is_array($article->entities) ? $article->entities : json_decode($article->entities ?? '[]', true);
             if (is_array($existingEntities)) {
                 sort($existingEntities);
                 $existingKey = implode(' vs ', $existingEntities);
