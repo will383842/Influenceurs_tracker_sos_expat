@@ -558,12 +558,6 @@ export default function Layout() {
                     <NavLink to="/content/temoignages" className={subNavClass} onClick={handleNavClick}>
                       💬 Temoignages
                     </NavLink>
-                    <NavLink to="/content/part-avocats" className={subNavClass} onClick={handleNavClick}>
-                      🤝 Part. Avocats
-                    </NavLink>
-                    <NavLink to="/content/part-expats" className={subNavClass} onClick={handleNavClick}>
-                      🌐 Part. Expats
-                    </NavLink>
                     <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
                       📊 Sondages
                     </NavLink>
