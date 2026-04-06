@@ -31,7 +31,6 @@ return [
         'tagline_fr' => 'Parlez a un avocat ou expert local dans votre langue en moins de 5 minutes',
         'tagline_en' => 'Talk to a lawyer or local expert in your language in under 5 minutes',
         'website' => 'https://sos-expat.com',
-        'blog' => 'https://blog.life-expat.com',
         'founded' => 2026,
         'type' => 'Plateforme de mise en relation telephonique internationale',
 
