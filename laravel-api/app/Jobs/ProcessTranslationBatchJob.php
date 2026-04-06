@@ -190,7 +190,7 @@ class ProcessTranslationBatchJob implements ShouldQueue
             'category' => $original->category,
             'slug' => $slug,
             'meta_title' => mb_substr($translatedMetaTitle, 0, 60),
-            'meta_description' => mb_substr($translatedMetaDesc, 0, 160),
+            'meta_description' => mb_substr($translatedMetaDesc, 0, 155),
             'json_ld' => $adaptedJsonLd,
             'keywords_primary' => $original->keywords_primary,
             'source_type' => $original->source_type,

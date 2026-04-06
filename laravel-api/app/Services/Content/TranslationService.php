@@ -5,6 +5,7 @@ namespace App\Services\Content;
 use App\Models\Comparative;
 use App\Models\GeneratedArticle;
 use App\Models\GeneratedArticleFaq;
+use App\Services\AI\ClaudeService;
 use App\Services\AI\OpenAiService;
 use App\Services\Seo\HreflangService;
 use App\Services\Seo\SeoAnalysisService;
@@ -20,6 +21,7 @@ class TranslationService
 {
     public function __construct(
         private OpenAiService $openAi,
+        private ClaudeService $claude,
         private SlugService $slugService,
         private HreflangService $hreflang,
         private SeoAnalysisService $seoAnalysis,
@@ -60,6 +62,14 @@ class TranslationService
             // Determine parent: use the root article (not a translation of a translation)
             $parentId = $original->parent_article_id ?? $original->id;
 
+            // Adapt JSON-LD: replace language prefix in URLs (same pattern as QA translations)
+            $adaptedJsonLd = $original->json_ld;
+            if ($adaptedJsonLd) {
+                $jsonLdStr = json_encode($adaptedJsonLd);
+                $jsonLdStr = str_replace("/{$fromLang}-", "/{$targetLanguage}-", $jsonLdStr);
+                $adaptedJsonLd = json_decode($jsonLdStr, true);
+            }
+
             // Create the translated article
             $translatedArticle = GeneratedArticle::create([
                 'uuid' => (string) Str::uuid(),
@@ -72,8 +82,8 @@ class TranslationService
                 'content_html' => $translatedContent,
                 'excerpt' => $translatedExcerpt,
                 'meta_title' => mb_substr($translatedMetaTitle, 0, 60),
-                'meta_description' => mb_substr($translatedMetaDescription, 0, 160),
-                'keywords_primary' => $original->keywords_primary, // Keywords stay same or could be translated
+                'meta_description' => mb_substr($translatedMetaDescription, 0, 155),
+                'keywords_primary' => $original->keywords_primary,
                 'keywords_secondary' => $original->keywords_secondary,
                 'language' => $targetLanguage,
                 'country' => $original->country,
@@ -82,6 +92,24 @@ class TranslationService
                 'word_count' => $this->seoAnalysis->countWords($translatedContent),
                 'reading_time_minutes' => max(1, (int) ceil($this->seoAnalysis->countWords($translatedContent) / 250)),
                 'created_by' => $original->created_by,
+                // Inherit images from parent (og_image_url is the same across all languages)
+                'featured_image_url' => $original->featured_image_url,
+                'featured_image_alt' => $original->featured_image_alt,
+                'featured_image_attribution' => $original->featured_image_attribution,
+                'featured_image_srcset' => $original->featured_image_srcset,
+                'photographer_name' => $original->photographer_name,
+                'photographer_url' => $original->photographer_url,
+                'unsplash_photographer_name' => $original->unsplash_photographer_name,
+                'unsplash_photographer_url' => $original->unsplash_photographer_url,
+                'image_width' => $original->image_width,
+                'image_height' => $original->image_height,
+                // Inherit geo meta (same country = same geo data)
+                'geo_region' => $original->geo_region,
+                'geo_placename' => $original->geo_placename,
+                'geo_position' => $original->geo_position,
+                'icbm' => $original->icbm,
+                // Adapted JSON-LD with localized URLs
+                'json_ld' => $adaptedJsonLd,
             ]);
 
             // Translate FAQs
@@ -159,7 +187,7 @@ class TranslationService
                 'content_html' => $translatedContent,
                 'excerpt' => $translatedExcerpt,
                 'meta_title' => mb_substr($translatedMetaTitle, 0, 60),
-                'meta_description' => mb_substr($translatedMetaDescription, 0, 160),
+                'meta_description' => mb_substr($translatedMetaDescription, 0, 155),
                 'language' => $targetLanguage,
                 'country' => $original->country,
                 'entities' => $original->entities,
@@ -189,7 +217,8 @@ class TranslationService
     }
 
     /**
-     * Translate a text string using OpenAI, preserving HTML structure.
+     * Translate a text string — gpt-4o-mini primary, Claude Haiku fallback.
+     * Preserves HTML structure.
      */
     private function translateText(string $text, string $from, string $to): string
     {
@@ -197,6 +226,7 @@ class TranslationService
             return '';
         }
 
+        // Primary: OpenAI gpt-4o-mini
         $result = $this->openAi->translate($text, $from, $to);
 
         if ($result['success']) {
@@ -218,8 +248,24 @@ class TranslationService
             return $translated;
         }
 
-        Log::warning('Translation failed, returning original text', [
+        // Fallback: Claude Haiku (cheaper, reliable for translations)
+        Log::warning('OpenAI translation failed — falling back to Claude Haiku', [
             'error' => $result['error'] ?? 'unknown',
+            'from' => $from,
+            'to' => $to,
+        ]);
+
+        if ($this->claude->isConfigured()) {
+            $fallback = $this->claude->translate($text, $from, $to);
+
+            if ($fallback['success']) {
+                Log::info('Claude Haiku fallback translation succeeded', ['from' => $from, 'to' => $to]);
+                return trim($fallback['content']);
+            }
+        }
+
+        // Last resort: return original text untranslated
+        Log::error('Both translation providers failed, returning original text', [
             'from' => $from,
             'to' => $to,
         ]);
