@@ -48,11 +48,14 @@ jobs:
             # Wait for app container to be ready
             sleep 5
 
-            # Regenerate Composer autoloader (discover new classes after git pull)
-            docker exec inf-app composer dump-autoload --optimize --no-dev
-
-            # Clear Laravel caches
+            # Clear ALL caches first (stale classmap, config, routes, views)
             docker exec inf-app php artisan optimize:clear
+            docker exec inf-app php artisan clear-compiled 2>/dev/null || true
+
+            # Regenerate Composer autoloader (discover new classes after git pull)
+            docker exec inf-app composer dump-autoload --optimize --no-dev 2>/dev/null || docker exec inf-app composer dump-autoload --no-dev
+
+            # Re-cache Laravel (config, routes, events, views)
             docker exec inf-app php artisan optimize
 
             # Run migrations (safe — only runs pending)
