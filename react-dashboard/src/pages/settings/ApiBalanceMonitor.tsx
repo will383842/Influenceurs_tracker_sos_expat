@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import api from '../../services/api';
+import api from '../../api/client';
 
 /**
  * API Balance Monitor — Check health of all AI API keys.
