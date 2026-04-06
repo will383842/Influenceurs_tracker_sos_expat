@@ -13,6 +13,41 @@ class ContentTypeConfig
         return match ($type) {
             // PILLAR ARTICLES (fiches pays, guides complets)
             // Maximum quality: GPT-4o for content + Perplexity for research + longest format
+            // CITY GUIDES — PILLAR CONTENT (fiches villes — articles piliers comme les fiches pays)
+            'guide_city' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.6,
+                'min_words' => 4000,
+                'max_words' => 7000,
+                'target_words' => 5000,
+                'target_words_range' => '4000-7000',
+                'length' => 'extra_long',
+                'faq_count' => 10,
+                'max_tokens_content' => 16384,
+                'max_tokens_title' => 100,
+                'internal_links' => 8,
+                'external_links' => 5,
+                'images_count' => 4,
+                'featured_snippet' => true,
+                'comparison_table' => true,
+                'numbered_steps' => true,
+                'research_depth' => 'deep',
+                'quality_threshold' => 90,
+                'h2_count' => [8, 12],
+                'include_charts_data' => true,
+                'include_key_figures' => true,
+                'eeat_signals' => true,
+                'prompt_suffix' => "ARTICLE PILIER specifique a la VILLE — doit etre la REFERENCE MONDIALE sur cette ville pour les expatries. "
+                    . "Mentionner les QUARTIERS par nom, les prix LOCAUX en devise locale + EUR/USD, "
+                    . "les transports LOCAUX (metro, bus, taxi, VTC), les adresses PRECISES. "
+                    . "Inclure un tableau comparatif des quartiers (prix, securite, ambiance, transport). "
+                    . "S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais. "
+                    . "Lier vers la fiche pays correspondante pour le contexte national (visa, fiscalite, sante). "
+                    . "Cet article est un PILIER — les articles satellites (logement, coworking, ecoles) viendront apres.",
+            ],
+
+            // PILLAR ARTICLES (fiches pays, guides complets)
             'guide', 'pillar' => [
                 'model' => 'gpt-4o',
                 'research_model' => 'sonar',

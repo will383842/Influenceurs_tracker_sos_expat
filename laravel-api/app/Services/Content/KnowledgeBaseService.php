@@ -565,6 +565,7 @@ BLOCK;
         $typeMap = [
             'qa' => 'qr',
             'guide' => 'fiches_pays',
+            'guide_city' => 'fiches_villes',
             'article' => 'art_mots_cles',
             'outreach' => 'chatters',
             'comparative' => 'comparatifs',

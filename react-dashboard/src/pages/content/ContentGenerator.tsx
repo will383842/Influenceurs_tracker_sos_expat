@@ -93,6 +93,15 @@ const TYPE_CONFIG: Record<string, {
     titleTemplate: 'Expatrie en {pays} ? Aidez d\'autres expatries et gagnez un revenu complementaire',
     instructions: 'Article pour attirer des expatries experimentes comme aidants. Avantages: partager son experience, revenu complementaire, flexibilite, aider la communaute. Missions: assistance telephonique, conseils pratiques. CTA vers inscription expat aidant.',
   },
+  'guide-city': {
+    emoji: '🏙️', title: 'Fiches Villes', slug: 'villes',
+    description: 'Guides par ville — quartiers, cout de vie, logement, transport, communaute expatriee',
+    gradient: 'from-sky/20 to-sky/5',
+    contentType: 'guide_city',
+    autoExpand: true,
+    titleTemplate: 'Vivre a {ville} en tant qu\'expatrie : guide complet',
+    instructions: 'Guide specifique a la VILLE (pas au pays). Quartiers par nom, prix locaux en devise locale + EUR/USD, transports locaux, adresses precises. S\'adresser a TOUTE nationalite. Lier vers la fiche pays pour le contexte national. CTA vers SOS-Expat.com.',
+  },
   testimonial: {
     emoji: '💬', title: 'Temoignages', slug: 'temoignages',
     description: 'Temoignages d\'expatries par pays — recits personnels et conseils vecus',

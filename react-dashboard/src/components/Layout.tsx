@@ -519,6 +519,9 @@ export default function Layout() {
                     <NavLink to="/content/fiches-vacances" className={subNavClass} onClick={handleNavClick}>
                       🏖️ Fiches Pays Vacances
                     </NavLink>
+                    <NavLink to="/content/fiches-villes" className={subNavClass} onClick={handleNavClick}>
+                      🏙️ Fiches Villes
+                    </NavLink>
                     <NavLink to="/content/chatters" className={subNavClass} onClick={handleNavClick}>
                       💬 Chatters
                     </NavLink>
