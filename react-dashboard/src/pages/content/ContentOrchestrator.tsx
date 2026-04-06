@@ -11,14 +11,40 @@ import api from '../../services/api';
 
 interface OrchestratorConfig {
   daily_target: number;
+  rss_daily_target: number;
   auto_pilot: boolean;
+  rss_auto_pilot: boolean;
   type_distribution: Record<string, number>;
   priority_countries: string[];
   status: 'running' | 'paused' | 'stopped';
   last_run_at: string | null;
   today_generated: number;
+  today_rss_generated: number;
   today_cost_cents: number;
+  telegram_alerts: boolean;
   type_labels: Record<string, string>;
+}
+
+interface LogDay {
+  date: string;
+  generated: number;
+  published: number;
+  translated: number;
+  errors: number;
+  duplicates_blocked: number;
+  cost_cents: number;
+  by_type: Array<{ type: string; label: string; generated: number; errors: number }>;
+}
+
+interface LogsData {
+  days: LogDay[];
+  month_totals: { generated: number; errors: number; duplicates_blocked: number; cost_cents: number };
+}
+
+interface AlertStatus {
+  errors_today:    { value: number; alert: boolean; threshold: number };
+  quota_unmet:     { value: number; alert: boolean; threshold: number };
+  duplicates:      { value: number; alert: boolean; threshold: number | null };
 }
 
 interface DailyPlan {
@@ -60,18 +86,23 @@ export default function ContentOrchestrator() {
   const [config, setConfig] = useState<OrchestratorConfig | null>(null);
   const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [logs, setLogs] = useState<LogsData | null>(null);
+  const [alerts, setAlerts] = useState<AlertStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editTarget, setEditTarget] = useState(20);
   const [editDist, setEditDist] = useState<Record<string, number>>({});
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfgRes, planRes, queueRes] = await Promise.all([
+      const [cfgRes, planRes, queueRes, logsRes, alertsRes] = await Promise.all([
         api.get('/content/orchestrator/config').catch(() => ({ data: null })),
         api.get('/content/orchestrator/daily-plan').catch(() => ({ data: null })),
         api.get('/content/scheduler/next-batch?limit=10').catch(() => ({ data: [] })),
+        api.get('/content/orchestrator/logs?days=7').catch(() => ({ data: null })),
+        api.get('/content/orchestrator/alerts').catch(() => ({ data: null })),
       ]);
       if (cfgRes.data) {
         setConfig(cfgRes.data);
@@ -80,6 +111,8 @@ export default function ContentOrchestrator() {
       }
       if (planRes.data) setPlan(planRes.data);
       if (queueRes.data) setQueue(Array.isArray(queueRes.data) ? queueRes.data : []);
+      if (logsRes.data) setLogs(logsRes.data);
+      if (alertsRes.data) setAlerts(alertsRes.data);
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, []);
@@ -315,6 +348,129 @@ export default function ContentOrchestrator() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── SECTION 4 — ALERTES ─────────────────────────────────────────── */}
+      {alerts && (
+        <div className="bg-surface/60 border border-border/20 rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">🔔 Alertes</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Errors today */}
+            <div className={`rounded-xl p-4 border ${alerts.errors_today.alert ? 'bg-red-500/10 border-red-500/30' : 'bg-bg border-border/20'}`}>
+              <p className="text-xs text-muted mb-1">Erreurs aujourd'hui</p>
+              <p className={`text-2xl font-bold ${alerts.errors_today.alert ? 'text-red-400' : 'text-white'}`}>
+                {alerts.errors_today.value}
+                <span className="text-xs text-muted font-normal ml-1">/ seuil {alerts.errors_today.threshold}</span>
+              </p>
+              {alerts.errors_today.alert && <p className="text-xs text-red-400 mt-1">⚠️ Seuil depasse</p>}
+            </div>
+
+            {/* Quota */}
+            <div className={`rounded-xl p-4 border ${alerts.quota_unmet.alert ? 'bg-amber-500/10 border-amber-500/30' : 'bg-bg border-border/20'}`}>
+              <p className="text-xs text-muted mb-1">Quota journalier</p>
+              <p className={`text-2xl font-bold ${alerts.quota_unmet.alert ? 'text-amber-400' : 'text-emerald-400'}`}>
+                {Math.round(alerts.quota_unmet.value)}%
+              </p>
+              {alerts.quota_unmet.alert && <p className="text-xs text-amber-400 mt-1">⚠️ Quota non atteint</p>}
+              {!alerts.quota_unmet.alert && <p className="text-xs text-emerald-400 mt-1">✅ Objectif atteint</p>}
+            </div>
+
+            {/* Duplicates blocked */}
+            <div className="rounded-xl p-4 border bg-bg border-border/20">
+              <p className="text-xs text-muted mb-1">Doublons bloques aujourd'hui</p>
+              <p className="text-2xl font-bold text-violet-light">{alerts.duplicates.value}</p>
+              <p className="text-xs text-muted mt-1">Guard anti-duplicate actif</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SECTION 5 — INDEXATION INTELLIGENTE ────────────────────────── */}
+      <div className="bg-surface/60 border border-border/20 rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-white mb-4">⚡ Indexation intelligente</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-bg rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-violet-light">3-15s</p>
+            <p className="text-xs text-muted mt-1">Espacement entre articles</p>
+          </div>
+          <div className="bg-bg rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-violet-light">06–22h</p>
+            <p className="text-xs text-muted mt-1">Fenetre active (UTC)</p>
+          </div>
+          <div className="bg-bg rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-violet-light">15 min</p>
+            <p className="text-xs text-muted mt-1">Cycle orchestrator</p>
+          </div>
+          <div className="bg-bg rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-violet-light">×9</p>
+            <p className="text-xs text-muted mt-1">Langues par article</p>
+          </div>
+        </div>
+        <div className="mt-4 p-3 rounded-lg bg-violet/10 border border-violet/20">
+          <p className="text-xs text-violet-light">
+            💡 Impact : {config ? config.daily_target : '—'} articles × 9 langues = <strong>{config ? config.daily_target * 9 : '—'} pages/jour</strong> indexees sur sos-expat.com
+          </p>
+        </div>
+      </div>
+
+      {/* ── SECTION 6 — HISTORIQUE 7 JOURS ─────────────────────────────── */}
+      <div className="bg-surface/60 border border-border/20 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">📊 Historique 7 jours</h2>
+          {logs?.month_totals && (
+            <div className="flex gap-4 text-xs text-muted">
+              <span>Mois : <strong className="text-white">{logs.month_totals.generated}</strong> articles</span>
+              <span>Erreurs : <strong className="text-red-400">{logs.month_totals.errors}</strong></span>
+              <span>Doublons bloques : <strong className="text-violet-light">{logs.month_totals.duplicates_blocked}</strong></span>
+              <span>Cout : <strong className="text-white">${((logs.month_totals.cost_cents ?? 0) / 100).toFixed(2)}</strong></span>
+            </div>
+          )}
+        </div>
+
+        {logs && logs.days.length > 0 ? (
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="grid grid-cols-7 gap-2 text-xs text-muted px-3 pb-1 border-b border-border/20">
+              <span className="col-span-2">Date</span>
+              <span className="text-right">Generes</span>
+              <span className="text-right">Traduits</span>
+              <span className="text-right">Erreurs</span>
+              <span className="text-right">Doublons</span>
+              <span className="text-right">Cout</span>
+            </div>
+            {logs.days.map(day => (
+              <div key={day.date}>
+                <button
+                  onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}
+                  className="w-full grid grid-cols-7 gap-2 text-sm px-3 py-2 rounded-lg hover:bg-bg/60 transition-colors text-left"
+                >
+                  <span className="col-span-2 text-white font-medium">
+                    {new Date(day.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </span>
+                  <span className="text-right text-emerald-400 font-semibold">{day.generated}</span>
+                  <span className="text-right text-blue-400">{day.translated}</span>
+                  <span className={`text-right ${day.errors > 0 ? 'text-red-400' : 'text-muted'}`}>{day.errors}</span>
+                  <span className="text-right text-violet-light">{day.duplicates_blocked}</span>
+                  <span className="text-right text-muted">${((day.cost_cents ?? 0) / 100).toFixed(2)}</span>
+                </button>
+                {expandedDay === day.date && day.by_type.length > 0 && (
+                  <div className="ml-4 mb-2 space-y-1">
+                    {day.by_type.map(t => (
+                      <div key={t.type} className="flex items-center gap-3 px-3 py-1 rounded bg-bg/40 text-xs">
+                        <span>{TYPE_ICONS[t.type] ?? '📄'}</span>
+                        <span className="text-muted flex-1">{t.label}</span>
+                        <span className="text-emerald-400">{t.generated} gen</span>
+                        {t.errors > 0 && <span className="text-red-400">{t.errors} err</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted text-sm text-center py-8">Aucune donnee disponible — les logs se rempliront apres le premier cycle automatique.</p>
+        )}
       </div>
     </div>
   );

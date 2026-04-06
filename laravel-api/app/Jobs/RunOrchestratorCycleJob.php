@@ -105,12 +105,14 @@ class RunOrchestratorCycleJob implements ShouldQueue
 
                 if ($success) {
                     $orchestrator->recordGeneration(0);
+                    $orchestrator->updateDailyLog($typeInfo['type'], 1, 0, 0, 0);
                     $generated++;
                     Log::info("Orchestrator: generated {$typeInfo['type']}", ['label' => $typeInfo['label']]);
                 }
             } catch (\Throwable $e) {
                 $errorMsg = $e->getMessage();
                 $errors[] = "{$typeInfo['label']}: {$errorMsg}";
+                $orchestrator->updateDailyLog($typeInfo['type'], 0, 1, 0, 0);
                 Log::error("Orchestrator: error generating {$typeInfo['type']}", ['error' => $errorMsg]);
 
                 // Detect API credit/quota errors → block that provider for this cycle

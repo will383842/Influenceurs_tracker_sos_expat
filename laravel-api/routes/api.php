@@ -430,6 +430,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/daily-plan', function () {
             return response()->json(app(\App\Services\Content\ContentOrchestratorService::class)->getDailyPlan());
         });
+        Route::get('/logs', function (\Illuminate\Http\Request $request) {
+            $days = min(30, max(1, (int) $request->query('days', 7)));
+            return response()->json(app(\App\Services\Content\ContentOrchestratorService::class)->getLogs($days));
+        });
+        Route::get('/alerts', function () {
+            return response()->json(app(\App\Services\Content\ContentOrchestratorService::class)->getAlerts());
+        });
     });
 
     // ============================================================

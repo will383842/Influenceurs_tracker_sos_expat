@@ -139,6 +139,123 @@ class ContentOrchestratorService
     }
 
     /**
+     * Upsert a log row for today (called after each successful generation cycle).
+     */
+    public function updateDailyLog(string $contentType, int $generated = 1, int $errors = 0, int $duplicatesBlocked = 0, int $costCents = 0): void
+    {
+        $today = now()->toDateString();
+
+        DB::table('content_orchestrator_logs')
+            ->upsert(
+                [[
+                    'log_date'          => $today,
+                    'content_type'      => $contentType,
+                    'generated'         => $generated,
+                    'published'         => $generated,
+                    'translated'        => $generated, // translation dispatched immediately
+                    'errors'            => $errors,
+                    'duplicates_blocked' => $duplicatesBlocked,
+                    'avg_seo_score'     => 0,
+                    'avg_aeo_score'     => 0,
+                    'cost_cents'        => $costCents,
+                    'created_at'        => now(),
+                    'updated_at'        => now(),
+                ]],
+                ['log_date', 'content_type'],
+                [
+                    'generated'          => DB::raw('content_orchestrator_logs.generated + ' . $generated),
+                    'published'          => DB::raw('content_orchestrator_logs.published + ' . $generated),
+                    'translated'         => DB::raw('content_orchestrator_logs.translated + ' . $generated),
+                    'errors'             => DB::raw('content_orchestrator_logs.errors + ' . $errors),
+                    'duplicates_blocked' => DB::raw('content_orchestrator_logs.duplicates_blocked + ' . $duplicatesBlocked),
+                    'cost_cents'         => DB::raw('content_orchestrator_logs.cost_cents + ' . $costCents),
+                    'updated_at'         => now(),
+                ]
+            );
+    }
+
+    /**
+     * Get historical logs for the last N days, aggregated by date.
+     */
+    public function getLogs(int $days = 7): array
+    {
+        $from = now()->subDays($days - 1)->toDateString();
+
+        $rows = DB::table('content_orchestrator_logs')
+            ->where('log_date', '>=', $from)
+            ->orderBy('log_date', 'desc')
+            ->get();
+
+        // Aggregate by date
+        $byDate = [];
+        foreach ($rows as $row) {
+            $d = $row->log_date;
+            if (!isset($byDate[$d])) {
+                $byDate[$d] = [
+                    'date'               => $d,
+                    'generated'          => 0,
+                    'published'          => 0,
+                    'translated'         => 0,
+                    'errors'             => 0,
+                    'duplicates_blocked' => 0,
+                    'avg_seo_score'      => 0,
+                    'avg_aeo_score'      => 0,
+                    'cost_cents'         => 0,
+                    'by_type'            => [],
+                ];
+            }
+            $byDate[$d]['generated']          += $row->generated;
+            $byDate[$d]['published']          += $row->published;
+            $byDate[$d]['translated']         += $row->translated;
+            $byDate[$d]['errors']             += $row->errors;
+            $byDate[$d]['duplicates_blocked'] += $row->duplicates_blocked;
+            $byDate[$d]['cost_cents']         += $row->cost_cents;
+            $byDate[$d]['by_type'][] = [
+                'type'      => $row->content_type,
+                'label'     => self::TYPE_LABELS[$row->content_type] ?? $row->content_type,
+                'generated' => $row->generated,
+                'errors'    => $row->errors,
+            ];
+        }
+
+        // Monthly totals
+        $monthFrom = now()->startOfMonth()->toDateString();
+        $monthTotals = DB::table('content_orchestrator_logs')
+            ->where('log_date', '>=', $monthFrom)
+            ->selectRaw('SUM(generated) as generated, SUM(errors) as errors, SUM(duplicates_blocked) as duplicates_blocked, SUM(cost_cents) as cost_cents')
+            ->first();
+
+        return [
+            'days'          => array_values($byDate),
+            'month_totals'  => $monthTotals ? (array) $monthTotals : ['generated' => 0, 'errors' => 0, 'duplicates_blocked' => 0, 'cost_cents' => 0],
+        ];
+    }
+
+    /**
+     * Check alert thresholds and return current alert states.
+     */
+    public function getAlerts(): array
+    {
+        $config = $this->getConfig();
+        $today = now()->toDateString();
+
+        $todayTotals = DB::table('content_orchestrator_logs')
+            ->where('log_date', $today)
+            ->selectRaw('SUM(errors) as errors, SUM(duplicates_blocked) as duplicates_blocked')
+            ->first();
+
+        $errors = (int) ($todayTotals->errors ?? 0);
+        $quotaReached = $config['today_generated'] >= $config['daily_target'];
+        $quotaPct = $config['daily_target'] > 0 ? ($config['today_generated'] / $config['daily_target'] * 100) : 0;
+
+        return [
+            'errors_today'    => ['value' => $errors,    'alert' => $errors > 5,       'threshold' => 5],
+            'quota_unmet'     => ['value' => $quotaPct,  'alert' => !$quotaReached && $config['status'] === 'running', 'threshold' => 100],
+            'duplicates'      => ['value' => (int) ($todayTotals->duplicates_blocked ?? 0), 'alert' => false, 'threshold' => null],
+        ];
+    }
+
+    /**
      * Reset daily counters (called by daily cron at midnight).
      */
     public function resetDaily(): void
