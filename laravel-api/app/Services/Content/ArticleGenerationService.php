@@ -485,19 +485,31 @@ class ArticleGenerationService
                 'quality_score' => $article->quality_score,
             ]);
 
-            // Post-generation quality check
+            // Post-generation quality check + auto-optimization
             try {
-                $qualityReport = $this->qualityGuard->check($article->fresh());
-                if (!$qualityReport['passed']) {
-                    Log::warning('QualityGuard: article failed quality checks', [
-                        'article_id' => $article->id,
-                        'score' => $qualityReport['score'],
-                        'issues' => $qualityReport['issues'],
-                        'warnings' => $qualityReport['warnings'],
-                    ]);
-                }
+                $autoOptimizer = app(AutoOptimizeService::class);
+                $optimResult = $autoOptimizer->evaluateAndOptimize($article->fresh());
+
+                // Store optimization metadata
+                $article->refresh();
+                $article->update([
+                    'quality_score' => $optimResult['final_score'],
+                    'generation_notes' => json_encode([
+                        'action' => $optimResult['action'],
+                        'original_score' => $optimResult['original_score'],
+                        'final_score' => $optimResult['final_score'],
+                        'passes' => $optimResult['passes'],
+                        'improvements' => $optimResult['improvements'],
+                    ]),
+                ]);
+
+                Log::info("AutoOptimize result: {$optimResult['action']}", [
+                    'article_id' => $article->id,
+                    'score' => "{$optimResult['original_score']}→{$optimResult['final_score']}",
+                    'passes' => $optimResult['passes'],
+                ]);
             } catch (\Throwable $e) {
-                Log::error('QualityGuard check failed', ['error' => $e->getMessage()]);
+                Log::error('AutoOptimize failed', ['error' => $e->getMessage()]);
             }
 
             // Record generation for rate limiting
