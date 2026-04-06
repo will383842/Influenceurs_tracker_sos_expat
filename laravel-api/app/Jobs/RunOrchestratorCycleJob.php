@@ -79,8 +79,24 @@ class RunOrchestratorCycleJob implements ShouldQueue
 
         $generated = 0;
         $errors = [];
+        $blockedApis = []; // Track which AI providers are down
 
         foreach ($typesToGenerate as $typeInfo) {
+            // Skip types whose AI provider is known to be down
+            $provider = $this->getAiProvider($typeInfo['type']);
+            if (in_array($provider, $blockedApis, true)) {
+                Log::info("Orchestrator: skipping {$typeInfo['type']} — {$provider} is down, trying fallback");
+
+                // Try a fallback type that uses a different AI
+                $fallbackType = $this->getFallbackType($typeInfo['type'], $blockedApis, $config);
+                if ($fallbackType) {
+                    $typeInfo = $fallbackType;
+                    Log::info("Orchestrator: fallback to {$typeInfo['type']}");
+                } else {
+                    continue; // No fallback available
+                }
+            }
+
             try {
                 $success = $this->generateOne($typeInfo['type'], $config);
 
@@ -90,8 +106,15 @@ class RunOrchestratorCycleJob implements ShouldQueue
                     Log::info("Orchestrator: generated {$typeInfo['type']}", ['label' => $typeInfo['label']]);
                 }
             } catch (\Throwable $e) {
-                $errors[] = "{$typeInfo['label']}: {$e->getMessage()}";
-                Log::error("Orchestrator: error generating {$typeInfo['type']}", ['error' => $e->getMessage()]);
+                $errorMsg = $e->getMessage();
+                $errors[] = "{$typeInfo['label']}: {$errorMsg}";
+                Log::error("Orchestrator: error generating {$typeInfo['type']}", ['error' => $errorMsg]);
+
+                // Detect API credit/quota errors → block that provider for this cycle
+                if ($this->isApiCreditError($errorMsg)) {
+                    $blockedApis[] = $provider;
+                    Log::warning("Orchestrator: {$provider} blocked for this cycle (credit/quota issue)");
+                }
             }
 
             // Pause between generations (natural spacing)
@@ -103,7 +126,8 @@ class RunOrchestratorCycleJob implements ShouldQueue
         // Send Telegram alerts
         if (!empty($errors)) {
             $orchestrator->sendTelegramAlert(
-                "Erreur(s) pendant la generation :\n" . implode("\n", array_map(fn($e) => "• {$e}", $errors)),
+                "Erreur(s) pendant la generation :\n" . implode("\n", array_map(fn($e) => "• {$e}", $errors))
+                . (!empty($blockedApis) ? "\n\n🚨 API bloquees : " . implode(', ', $blockedApis) . "\n→ Recharger ces comptes" : ''),
                 'error'
             );
         }
@@ -266,6 +290,67 @@ class RunOrchestratorCycleJob implements ShouldQueue
             Log::error("Orchestrator fiches trigger failed: {$type}/{$country}", ['error' => $e->getMessage()]);
             throw $e;
         }
+    }
+
+    /**
+     * Map content type → AI provider used.
+     */
+    private function getAiProvider(string $type): string
+    {
+        return match ($type) {
+            // Claude (Anthropic) — used for Q/R, News, Fiches Pays, Auto Q/R, Testimonials
+            'qa', 'testimonial' => 'anthropic',
+            // Fiches pays use Claude (Blog-side) + Tavily
+            'guide', 'guide_expat', 'guide_vacances' => 'anthropic+tavily',
+            // GPT-4o (OpenAI) — used for Articles, Comparatives, City guides
+            'art_mots_cles', 'art_longues_traines', 'guide_city', 'comparative', 'affiliation', 'brand_content' => 'openai',
+            // Outreach types — use GPT-4o via ArticleGenerationService
+            'outreach_chatters', 'outreach_influenceurs', 'outreach_admin_groupes', 'outreach_avocats', 'outreach_expats' => 'openai',
+            default => 'openai',
+        };
+    }
+
+    /**
+     * Find a fallback content type that uses a different AI provider.
+     */
+    private function getFallbackType(string $failedType, array $blockedApis, array $config): ?array
+    {
+        $distribution = $config['type_distribution'] ?? [];
+        $labels = $config['type_labels'] ?? [];
+
+        foreach ($distribution as $type => $pct) {
+            if ($pct <= 0) continue;
+            if ($type === $failedType) continue;
+
+            $provider = $this->getAiProvider($type);
+            $isBlocked = false;
+            foreach ($blockedApis as $blocked) {
+                if (str_contains($provider, $blocked)) {
+                    $isBlocked = true;
+                    break;
+                }
+            }
+
+            if (!$isBlocked) {
+                return ['type' => $type, 'label' => $labels[$type] ?? $type, 'pct' => $pct];
+            }
+        }
+
+        return null; // All providers down
+    }
+
+    /**
+     * Detect if error is a credit/quota API error.
+     */
+    private function isApiCreditError(string $message): bool
+    {
+        $lower = strtolower($message);
+        return str_contains($lower, 'credit balance')
+            || str_contains($lower, 'quota')
+            || str_contains($lower, 'exceeded')
+            || str_contains($lower, 'billing')
+            || str_contains($lower, 'insufficient')
+            || str_contains($lower, 'rate limit');
     }
 
     private function formatCents(int $cents): string
