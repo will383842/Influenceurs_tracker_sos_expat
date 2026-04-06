@@ -18,6 +18,9 @@ const SOURCE_META: Record<string, { label: string; icon: string; description: st
   'avocats':        { label: 'Avocats',         icon: '⚖️', description: 'Recrutement avocats prestataires', accentColor: 'text-slate-300' },
   'expats-aidants': { label: 'Expats Aidants',  icon: '🧳', description: 'Recrutement expats aidants prestataires', accentColor: 'text-sky-400' },
   'besoins-reels':  { label: 'Besoins Réels',   icon: '🎯', description: 'Longues traînes, intentions de recherche', accentColor: 'text-lime-400' },
+  'art-mots-cles':  { label: 'Art Mots Clés',   icon: '🔑', description: 'Articles mots-clés fort volume', accentColor: 'text-violet-400' },
+  'longues-traines':{ label: 'Longues Traînes', icon: '📐', description: 'Articles longue traîne qualifiés', accentColor: 'text-lime-400' },
+  'brand-content':  { label: 'Brand Content',   icon: '🏷️', description: 'Contenus de marque SOS-Expat', accentColor: 'text-amber-400' },
 };
 
 // ── Types ──────────────────────────────────────────────────

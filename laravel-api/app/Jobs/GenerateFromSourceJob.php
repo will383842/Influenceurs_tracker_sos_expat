@@ -47,6 +47,9 @@ class GenerateFromSourceJob implements ShouldQueue
         'avocats',         // → Avocats outreach tab
         'expats-aidants',  // → Expats Aidants outreach tab
         'besoins-reels',   // → Templates longues traines
+        'art-mots-cles',   // → Art Mots Clés tab
+        'longues-traines', // → Art Longues Traînes tab
+        'brand-content',   // → Brand Content tab
     ];
 
     public function __construct(
