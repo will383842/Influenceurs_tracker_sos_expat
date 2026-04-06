@@ -794,7 +794,8 @@ class ArticleGenerationService
         // Force country name in title for country/city guide articles (anti-duplicate content)
         if ($country && in_array($contentType, ['guide', 'pillar', 'guide_city'], true)) {
             $countryName = $this->geoMeta->getGeoPlacename($country, $language);
-            $userPrompt .= "\n\nOBLIGATOIRE : Le titre DOIT contenir explicitement le nom du pays ou de la ville '{$countryName}'. Exemple : 'Visa pour {$countryName} : Guide Complet {$year}'. Sans ce nom géographique le titre sera REJETÉ.";
+            $userPrompt .= "\n\nOBLIGATOIRE : Le titre DOIT contenir explicitement le nom du pays ou de la ville '{$countryName}'. Exemple : 'Visa pour {$countryName} : Guide Complet {$year}'. Sans ce nom géographique le titre sera REJETÉ."
+                . "\nGRAMMAIRE : Utiliser la BONNE préposition devant le nom de pays (en français : 'au Portugal', 'en France', 'aux États-Unis', 'à Singapour'). Le titre DOIT sonner 100% naturel et natif — JAMAIS de formulation maladroite.";
         }
 
         $result = $this->openAi->complete($systemPrompt, $userPrompt, [
