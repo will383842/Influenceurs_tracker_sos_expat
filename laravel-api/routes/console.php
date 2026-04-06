@@ -45,6 +45,9 @@ Schedule::job(new ProcessSequencesJob)->everyFifteenMinutes()->withoutOverlappin
 // Orchestrator: auto-pilot cycle every 15 minutes (06:00-22:00 UTC)
 Schedule::job(new \App\Jobs\RunOrchestratorCycleJob)->everyFifteenMinutes()->withoutOverlapping(900);
 
+// Orchestrator: warm-up scaling every Monday at 06:00 UTC
+Schedule::command('orchestrator:warmup-scale')->weeklyOn(1, '06:00')->withoutOverlapping();
+
 // Orchestrator: reset daily counters at midnight UTC
 Schedule::call(function () {
     app(\App\Services\Content\ContentOrchestratorService::class)->resetDaily();
