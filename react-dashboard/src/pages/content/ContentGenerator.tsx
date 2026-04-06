@@ -114,7 +114,7 @@ const TYPE_CONFIG: Record<string, {
   tutorial: {
     emoji: '📖', title: 'Tutoriels', slug: 'tutoriels',
     description: 'Guides pratiques pas-a-pas pour les demarches des expatries',
-    gradient: 'from-teal-500/20 to-teal-500/5',
+    gradient: 'from-success/20 to-success/5',
     contentType: 'tutorial',
     autoExpand: true,
     titleTemplate: 'Comment {demarche} en {pays} : guide complet etape par etape',

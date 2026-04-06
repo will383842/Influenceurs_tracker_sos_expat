@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
+import { toast } from '../../components/Toast';
 
 /**
  * Content Orchestrator — Full auto-pilot content generation dashboard.
@@ -132,7 +133,7 @@ export default function ContentOrchestrator() {
   const handleSaveDistribution = () => {
     const total = Object.values(editDist).reduce((s, v) => s + v, 0);
     if (total !== 100) {
-      alert(`Le total des pourcentages doit faire 100% (actuellement ${total}%)`);
+      toast.error(`Total distribution : ${total}% (doit faire exactement 100%)`);
       return;
     }
     saveConfig({ daily_target: editTarget, type_distribution: editDist });
