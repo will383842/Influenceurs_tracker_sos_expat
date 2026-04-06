@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../../api/client';
+import { toast } from '../../components/Toast';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -972,7 +973,7 @@ function ImportsTab() {
       await api.post('/country-directory/imports/launch-all');
       await reloadImports();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Erreur lors du lancement');
+      toast.error(err?.response?.data?.message || 'Erreur lors du lancement');
     } finally {
       setLaunchingAll(false);
     }

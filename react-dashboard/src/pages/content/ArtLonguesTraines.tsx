@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api/client';
+import { generateArticle } from '../../api/contentApi';
 import UnifiedContentTab from '../../components/UnifiedContentTab';
-import { formatDate, truncate, errMsg } from './helpers';
+import { toast } from '../../components/Toast';
+import { truncate, errMsg } from './helpers';
 
 /**
  * Art Longues Traînes — Long-tail keyword article management.
@@ -50,7 +52,7 @@ export default function ArtLonguesTraines() {
   const fetchKeywords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/keywords', { params: { type: 'long_tail', per_page: 500 } });
+      const res = await api.get('/content-gen/keywords', { params: { type: 'long_tail', per_page: 500 } });
       setKeywords(Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : []);
     } catch {
       setKeywords([]);
@@ -89,19 +91,19 @@ export default function ArtLonguesTraines() {
     try {
       const items = keywords.filter(k => selected.has(k.id));
       for (const kw of items) {
-        await api.post('/content/generate-article', {
+        await generateArticle({
           topic: kw.keyword,
           content_type: 'article',
           language: kw.language || 'fr',
-          country: kw.country,
-          search_intent: kw.search_intent,
+          country: kw.country ?? undefined,
           keywords: [kw.keyword],
         });
       }
       setSelected(new Set());
+      toast.success(`${items.length} article(s) en generation`);
       fetchKeywords();
     } catch (e) {
-      alert(errMsg(e));
+      toast.error(errMsg(e));
     } finally {
       setGenerating(false);
     }
@@ -110,7 +112,7 @@ export default function ArtLonguesTraines() {
   const handleDiscover = async () => {
     setDiscoverResult('Decouverte en cours...');
     try {
-      const res = await api.post('/content/keywords/discover', { limit: 20 });
+      const res = await api.post('/content-gen/keywords/discover', { limit: 20 });
       setDiscoverResult(`Decouverte terminee : ${res.data?.inserted ?? 0} nouveaux mots-cles.`);
       fetchKeywords();
     } catch (e) {

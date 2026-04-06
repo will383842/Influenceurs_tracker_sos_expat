@@ -1,35 +1,47 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../../api/client';
-import { generateArticle, fetchArticles } from '../../api/contentApi';
-import type { GenerateArticleParams, GeneratedArticle } from '../../types/content';
+import { generateArticle } from '../../api/contentApi';
+import type { GenerateArticleParams } from '../../types/content';
 import { toast } from '../../components/Toast';
 
 interface KeywordItem {
   id: number;
   keyword: string;
-  cluster: string;
-  sub_cluster: string;
-  secondary: string;
-  intent: string;
-  status: 'pending' | 'generating' | 'published' | 'failed';
-  article_id?: number;
+  cluster: string;      // maps to keyword_tracking.category
+  search_intent: string; // maps to keyword_tracking.search_intent
+  articles_using_count: number;
+  // session-only (not persisted)
+  _status?: 'generating' | 'failed';
 }
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  pending:    { bg: 'bg-muted/10', text: 'text-muted', label: 'En attente' },
-  generating: { bg: 'bg-amber/10', text: 'text-amber', label: 'En cours' },
-  published:  { bg: 'bg-success/10', text: 'text-success', label: 'Genere' },
-  failed:     { bg: 'bg-danger/10', text: 'text-danger', label: 'Echec' },
+// Map intent values (French CSV → English stored, English display labels)
+const INTENT_MAP: Record<string, string> = {
+  transactionnel: 'transactional',
+  urgence: 'urgency',
+  informationnel: 'informational',
 };
 
-const INTENT_STYLES: Record<string, string> = {
-  transactionnel: 'bg-violet/10 text-violet-light',
-  urgence: 'bg-danger/10 text-danger',
-  informationnel: 'bg-cyan/10 text-cyan',
+const INTENT_STYLES: Record<string, { cls: string; label: string }> = {
+  transactional:  { cls: 'bg-violet/10 text-violet-light', label: 'Transactionnel' },
+  urgency:        { cls: 'bg-danger/10 text-danger',       label: 'Urgence' },
+  informational:  { cls: 'bg-cyan/10 text-cyan',           label: 'Informationnel' },
 };
 
 const TABS = ['items', 'import', 'generer'] as const;
 type Tab = typeof TABS[number];
+
+function deriveStatus(kw: KeywordItem): 'pending' | 'generating' | 'published' | 'failed' {
+  if (kw._status === 'generating') return 'generating';
+  if (kw._status === 'failed')     return 'failed';
+  return kw.articles_using_count > 0 ? 'published' : 'pending';
+}
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  pending:    { bg: 'bg-muted/10',    text: 'text-muted',    label: 'En attente' },
+  generating: { bg: 'bg-amber/10',   text: 'text-amber',    label: 'En cours' },
+  published:  { bg: 'bg-success/10', text: 'text-success',  label: 'Genere' },
+  failed:     { bg: 'bg-danger/10',  text: 'text-danger',   label: 'Echec' },
+};
 
 export default function ArtMotsCles() {
   const [tab, setTab] = useState<Tab>('items');
@@ -39,105 +51,117 @@ export default function ArtMotsCles() {
   const [filterIntent, setFilterIntent] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchQ, setSearchQ] = useState('');
-  const [generating, setGenerating] = useState<number | null>(null);
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [csvInput, setCsvInput] = useState('');
   const [bulkInput, setBulkInput] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Load keywords from localStorage (until backend API is ready)
-  const loadKeywords = useCallback(() => {
-    const stored = localStorage.getItem('sos_art_mots_cles');
-    if (stored) {
-      try { setKeywords(JSON.parse(stored)); } catch { setKeywords([]); }
+  const loadKeywords = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/content-gen/keywords', { params: { type: 'art_mots_cles', per_page: 1000 } });
+      const raw: any[] = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+      // Map API field names to KeywordItem interface (category → cluster)
+      const data: KeywordItem[] = raw.map(kw => ({
+        id: kw.id,
+        keyword: kw.keyword,
+        cluster: kw.category ?? '',
+        search_intent: kw.search_intent ?? '',
+        articles_using_count: kw.articles_using_count ?? 0,
+      }));
+      setKeywords(data);
+    } catch {
+      toast.error('Erreur lors du chargement des mots-cles');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => { loadKeywords(); }, [loadKeywords]);
 
-  const saveKeywords = (kws: KeywordItem[]) => {
-    setKeywords(kws);
-    localStorage.setItem('sos_art_mots_cles', JSON.stringify(kws));
+  // Save batch of new keywords to API
+  const persistKeywords = async (items: { keyword: string; cluster: string; intent: string }[]) => {
+    if (items.length === 0) return 0;
+    const payload = items.map(i => ({
+      keyword:       i.keyword,
+      type:          'art_mots_cles',
+      language:      'fr',
+      category:      i.cluster || null,
+      search_intent: INTENT_MAP[i.intent] ?? i.intent ?? null,
+    }));
+    const res = await api.post('/content-gen/keywords', { keywords: payload });
+    return res.data?.inserted ?? 0;
   };
 
-  // Import CSV
-  const handleCsvImport = (text: string) => {
+  // Import CSV (format: #, Cluster, Sous-cluster, Mot-cle, Secondaires, Nb KW, Intention)
+  const handleCsvImport = async (text: string) => {
     const lines = text.split('\n').filter(l => l.trim());
     if (lines.length < 2) { toast.error('CSV vide ou invalide'); return; }
 
-    const existing = new Set(keywords.map(k => k.keyword));
-    let added = 0;
-    const newKws = [...keywords];
+    const existingSet = new Set(keywords.map(k => k.keyword.toLowerCase()));
+    const toInsert: { keyword: string; cluster: string; intent: string }[] = [];
 
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(',');
       if (cols.length < 4) continue;
-
       const keyword = (cols[3] || '').trim().replace(/^"|"$/g, '');
-      if (!keyword || existing.has(keyword)) continue;
-
-      newKws.push({
-        id: Date.now() + i,
+      if (!keyword || existingSet.has(keyword.toLowerCase())) continue;
+      toInsert.push({
         keyword,
         cluster: (cols[1] || '').trim().replace(/^"|"$/g, ''),
-        sub_cluster: (cols[2] || '').trim().replace(/^"|"$/g, ''),
-        secondary: (cols[4] || '').trim().replace(/^"|"$/g, ''),
-        intent: (cols[6] || 'transactionnel').trim().replace(/^"|"$/g, ''),
-        status: 'pending',
+        intent:  (cols[6] || 'transactionnel').trim().replace(/^"|"$/g, ''),
       });
-      existing.add(keyword);
-      added++;
+      existingSet.add(keyword.toLowerCase());
     }
 
-    saveKeywords(newKws);
-    toast.success(`${added} mots-cles importes (${newKws.length} total)`);
-    setCsvInput('');
+    if (toInsert.length === 0) { toast.error('Aucun nouveau mot-cle a importer'); return; }
+
+    try {
+      const inserted = await persistKeywords(toInsert);
+      toast.success(`${inserted} mots-cles importes`);
+      setCsvInput('');
+      await loadKeywords();
+    } catch {
+      toast.error('Erreur lors de l\'import');
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      handleCsvImport(ev.target?.result as string);
-    };
+    reader.onload = (ev) => { handleCsvImport(ev.target?.result as string); };
     reader.readAsText(file, 'utf-8');
+    e.target.value = '';
   };
 
   // Bulk add (one keyword per line)
-  const handleBulkAdd = () => {
+  const handleBulkAdd = async () => {
     const lines = bulkInput.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) return;
 
-    const existing = new Set(keywords.map(k => k.keyword));
-    let added = 0;
-    const newKws = [...keywords];
+    const existingSet = new Set(keywords.map(k => k.keyword.toLowerCase()));
+    const toInsert = lines
+      .filter(l => !existingSet.has(l.toLowerCase()))
+      .map(l => ({ keyword: l, cluster: '', intent: 'transactional' }));
 
-    for (const line of lines) {
-      if (existing.has(line)) continue;
-      newKws.push({
-        id: Date.now() + added,
-        keyword: line,
-        cluster: '',
-        sub_cluster: '',
-        secondary: '',
-        intent: 'transactionnel',
-        status: 'pending',
-      });
-      existing.add(line);
-      added++;
+    if (toInsert.length === 0) { toast.error('Tous ces mots-cles existent deja'); return; }
+
+    try {
+      const inserted = await persistKeywords(toInsert);
+      toast.success(`${inserted} mots-cles ajoutes`);
+      setBulkInput('');
+      await loadKeywords();
+    } catch {
+      toast.error('Erreur lors de l\'ajout');
     }
-
-    saveKeywords(newKws);
-    toast.success(`${added} mots-cles ajoutes`);
-    setBulkInput('');
   };
 
-  // Generate one
+  // Generate one article from keyword
   const handleGenerateOne = async (kw: KeywordItem) => {
-    setGenerating(kw.id);
-    const updated = keywords.map(k => k.id === kw.id ? { ...k, status: 'generating' as const } : k);
-    saveKeywords(updated);
+    setGeneratingId(kw.id);
+    setKeywords(prev => prev.map(k => k.id === kw.id ? { ...k, _status: 'generating' } : k));
 
     try {
       const params: GenerateArticleParams = {
@@ -150,24 +174,22 @@ export default function ArtMotsCles() {
         research_sources: true,
         auto_internal_links: true,
         auto_affiliate_links: true,
-        keywords: kw.secondary ? kw.secondary.split('|').filter(Boolean) : [kw.keyword],
+        keywords: [kw.keyword],
       };
       await generateArticle(params);
-      const done = keywords.map(k => k.id === kw.id ? { ...k, status: 'published' as const } : k);
-      saveKeywords(done);
+      setKeywords(prev => prev.map(k => k.id === kw.id ? { ...k, _status: undefined, articles_using_count: 1 } : k));
       toast.success(`Generation lancee: ${kw.keyword}`);
     } catch (e: any) {
-      const failed = keywords.map(k => k.id === kw.id ? { ...k, status: 'failed' as const } : k);
-      saveKeywords(failed);
+      setKeywords(prev => prev.map(k => k.id === kw.id ? { ...k, _status: 'failed' } : k));
       toast.error(e?.response?.data?.message || 'Erreur generation');
     } finally {
-      setGenerating(null);
+      setGeneratingId(null);
     }
   };
 
-  // Generate batch
+  // Batch generate pending keywords
   const handleBatchGenerate = async (limit: number) => {
-    const pending = filtered.filter(k => k.status === 'pending');
+    const pending = filtered.filter(k => deriveStatus(k) === 'pending');
     if (pending.length === 0) { toast.error('Aucun mot-cle en attente'); return; }
     if (!confirm(`Generer ${Math.min(pending.length, limit)} articles ?`)) return;
 
@@ -182,29 +204,29 @@ export default function ArtMotsCles() {
     toast.success(`${count} articles lances`);
   };
 
-  // Delete
-  const handleDelete = (id: number) => {
-    saveKeywords(keywords.filter(k => k.id !== id));
+  // Delete a keyword
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/content-gen/keywords/${id}`);
+      setKeywords(prev => prev.filter(k => k.id !== id));
+    } catch {
+      toast.error('Erreur lors de la suppression');
+    }
   };
 
-  // Clear all
-  const handleClearAll = () => {
-    if (!confirm('Supprimer TOUS les mots-cles ?')) return;
-    saveKeywords([]);
-  };
-
-  // Filters
+  // Derived values
   const clusters = [...new Set(keywords.map(k => k.cluster).filter(Boolean))].sort();
   const filtered = keywords.filter(k => {
+    const st = deriveStatus(k);
     if (filterCluster && k.cluster !== filterCluster) return false;
-    if (filterIntent && k.intent !== filterIntent) return false;
-    if (filterStatus && k.status !== filterStatus) return false;
+    if (filterIntent && k.search_intent !== filterIntent) return false;
+    if (filterStatus && st !== filterStatus) return false;
     if (searchQ && !k.keyword.toLowerCase().includes(searchQ.toLowerCase())) return false;
     return true;
   });
 
-  const pendingCount = keywords.filter(k => k.status === 'pending').length;
-  const generatedCount = keywords.filter(k => k.status === 'published').length;
+  const pendingCount   = keywords.filter(k => deriveStatus(k) === 'pending').length;
+  const generatedCount = keywords.filter(k => deriveStatus(k) === 'published').length;
 
   return (
     <div className="space-y-6">
@@ -217,25 +239,22 @@ export default function ArtMotsCles() {
           </h1>
           <p className="text-sm text-muted mt-1">Generation d'articles a partir de mots-cles SEO</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={loadKeywords} className="text-xs text-muted hover:text-white px-3 py-1.5 bg-surface2/50 rounded-lg transition-colors">
-            Rafraichir
-          </button>
-          {keywords.length > 0 && (
-            <button onClick={handleClearAll} className="text-xs text-danger/60 hover:text-danger px-3 py-1.5 bg-surface2/50 rounded-lg transition-colors">
-              Tout supprimer
-            </button>
-          )}
-        </div>
+        <button
+          onClick={loadKeywords}
+          disabled={loading}
+          className="text-xs text-muted hover:text-white px-3 py-1.5 bg-surface2/50 rounded-lg transition-colors disabled:opacity-40"
+        >
+          {loading ? '⏳' : '🔄'} Rafraichir
+        </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: keywords.length, color: 'text-white' },
-          { label: 'En attente', value: pendingCount, color: 'text-muted' },
-          { label: 'Generes', value: generatedCount, color: 'text-success' },
-          { label: 'Clusters', value: clusters.length, color: 'text-violet-light' },
+          { label: 'Total',      value: keywords.length, color: 'text-white' },
+          { label: 'En attente', value: pendingCount,     color: 'text-muted' },
+          { label: 'Generes',    value: generatedCount,   color: 'text-success' },
+          { label: 'Clusters',   value: clusters.length,  color: 'text-violet-light' },
         ].map(s => (
           <div key={s.label} className="bg-surface/60 backdrop-blur border border-border/30 rounded-xl p-3 text-center">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -277,13 +296,13 @@ export default function ArtMotsCles() {
             <select value={filterIntent} onChange={e => setFilterIntent(e.target.value)}
               className="bg-bg/60 border border-border/40 rounded-xl px-3 py-2 text-white text-sm">
               <option value="">Toutes intentions</option>
-              <option value="transactionnel">Transactionnel</option>
-              <option value="urgence">Urgence</option>
-              <option value="informationnel">Informationnel</option>
+              {Object.entries(INTENT_STYLES).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
             </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
               className="bg-bg/60 border border-border/40 rounded-xl px-3 py-2 text-white text-sm">
-              <option value="">Tous status</option>
+              <option value="">Tous statuts</option>
               <option value="pending">En attente</option>
               <option value="published">Genere</option>
               <option value="failed">Echec</option>
@@ -294,33 +313,46 @@ export default function ArtMotsCles() {
 
           {/* List */}
           <div className="bg-surface/40 backdrop-blur border border-border/20 rounded-2xl overflow-hidden">
-            {filtered.length > 0 ? (
+            {loading ? (
+              <div className="px-5 py-12 text-center">
+                <p className="text-3xl mb-2 animate-pulse">🔑</p>
+                <p className="text-sm text-muted">Chargement...</p>
+              </div>
+            ) : filtered.length > 0 ? (
               <div className="divide-y divide-border/10 max-h-[600px] overflow-y-auto">
                 {filtered.map(kw => {
-                  const st = STATUS_STYLES[kw.status] || STATUS_STYLES.pending;
+                  const st = STATUS_STYLES[deriveStatus(kw)];
+                  const intent = INTENT_STYLES[kw.search_intent];
                   return (
                     <div key={kw.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-surface2/20 transition-colors group">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-white truncate">{kw.keyword}</p>
-                        {kw.cluster && <p className="text-[10px] text-muted truncate">{kw.cluster.replace(/^\d+\.\s*/, '')} &gt; {kw.sub_cluster}</p>}
+                        {kw.cluster && <p className="text-[10px] text-muted truncate">{kw.cluster.replace(/^\d+\.\s*/, '')}</p>}
                       </div>
-                      {kw.intent && (
-                        <span className={`shrink-0 px-2 py-0.5 rounded text-[9px] font-medium uppercase ${INTENT_STYLES[kw.intent] || ''}`}>
-                          {kw.intent.slice(0, 5)}
+                      {intent && (
+                        <span className={`shrink-0 px-2 py-0.5 rounded text-[9px] font-medium uppercase ${intent.cls}`}>
+                          {intent.label.slice(0, 5)}
                         </span>
                       )}
-                      <span className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-semibold ${st.bg} ${st.text} ${kw.status === 'generating' ? 'animate-pulse' : ''}`}>
+                      <span className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-semibold ${st.bg} ${st.text} ${deriveStatus(kw) === 'generating' ? 'animate-pulse' : ''}`}>
                         {st.label}
                       </span>
                       <div className="shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {kw.status === 'pending' && (
-                          <button onClick={() => handleGenerateOne(kw)} disabled={generating === kw.id}
-                            className="px-2 py-1 text-[10px] bg-violet/20 text-violet-light rounded-lg hover:bg-violet/30">
+                        {deriveStatus(kw) === 'pending' && (
+                          <button
+                            onClick={() => handleGenerateOne(kw)}
+                            disabled={generatingId === kw.id}
+                            className="px-2 py-1 text-[10px] bg-violet/20 text-violet-light rounded-lg hover:bg-violet/30"
+                          >
                             Generer
                           </button>
                         )}
-                        <button onClick={() => handleDelete(kw.id)}
-                          className="px-2 py-1 text-[10px] text-danger/60 hover:text-danger">x</button>
+                        <button
+                          onClick={() => handleDelete(kw.id)}
+                          className="px-2 py-1 text-[10px] text-danger/60 hover:text-danger"
+                        >
+                          ×
+                        </button>
                       </div>
                     </div>
                   );
@@ -344,8 +376,10 @@ export default function ArtMotsCles() {
             <h3 className="text-sm font-bold text-white mb-2">📥 Importer un fichier CSV</h3>
             <p className="text-xs text-muted mb-4">Format attendu : #, Cluster, Sous-cluster, Mot-cle, Secondaires, Nb KW, Intention</p>
             <input ref={fileRef} type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-            <button onClick={() => fileRef.current?.click()}
-              className="px-5 py-2.5 bg-gradient-to-r from-violet to-violet-light text-white text-sm font-semibold rounded-xl shadow-lg shadow-violet/20 hover:shadow-violet/40 transition-all">
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="px-5 py-2.5 bg-gradient-to-r from-violet to-violet-light text-white text-sm font-semibold rounded-xl shadow-lg shadow-violet/20 hover:shadow-violet/40 transition-all"
+            >
               Choisir un fichier CSV
             </button>
           </div>
@@ -353,13 +387,17 @@ export default function ArtMotsCles() {
           {/* Paste CSV */}
           <div className="bg-surface/40 border border-border/20 rounded-2xl p-6">
             <h3 className="text-sm font-bold text-white mb-2">📋 Coller un CSV</h3>
-            <textarea value={csvInput} onChange={e => setCsvInput(e.target.value)} rows={8}
-              placeholder="#,Cluster,Sous-cluster,Mot cle,Secondaires,Nb,Intention&#10;1,Expatries,Visa,visa travail allemagne,,1,informationnel"
-              className="w-full bg-bg/60 border border-border/40 rounded-xl px-4 py-3 text-white text-sm font-mono focus:outline-none focus:border-violet/50 transition-all resize-none" />
+            <textarea
+              value={csvInput} onChange={e => setCsvInput(e.target.value)} rows={8}
+              placeholder="#,Cluster,Sous-cluster,Mot cle,Secondaires,Nb,Intention&#10;1,Expatries,Visa,visa travail allemagne,,1,transactionnel"
+              className="w-full bg-bg/60 border border-border/40 rounded-xl px-4 py-3 text-white text-sm font-mono focus:outline-none focus:border-violet/50 transition-all resize-none"
+            />
             {csvInput && (
-              <button onClick={() => handleCsvImport(csvInput)}
-                className="mt-3 px-4 py-2 bg-violet/20 text-violet-light text-sm rounded-xl border border-violet/20 hover:bg-violet/30">
-                Importer {csvInput.split('\n').filter(l => l.trim()).length - 1} lignes
+              <button
+                onClick={() => handleCsvImport(csvInput)}
+                className="mt-3 px-4 py-2 bg-violet/20 text-violet-light text-sm rounded-xl border border-violet/20 hover:bg-violet/30"
+              >
+                Importer {Math.max(0, csvInput.split('\n').filter(l => l.trim()).length - 1)} lignes
               </button>
             )}
           </div>
@@ -367,12 +405,16 @@ export default function ArtMotsCles() {
           {/* Bulk text */}
           <div className="bg-surface/40 border border-border/20 rounded-2xl p-6">
             <h3 className="text-sm font-bold text-white mb-2">✏️ Ajouter en vrac (un mot-cle par ligne)</h3>
-            <textarea value={bulkInput} onChange={e => setBulkInput(e.target.value)} rows={6}
+            <textarea
+              value={bulkInput} onChange={e => setBulkInput(e.target.value)} rows={6}
               placeholder="visa travail allemagne&#10;cout de la vie portugal&#10;avocat francophone barcelone"
-              className="w-full bg-bg/60 border border-border/40 rounded-xl px-4 py-3 text-white text-sm font-mono focus:outline-none focus:border-violet/50 transition-all resize-none" />
+              className="w-full bg-bg/60 border border-border/40 rounded-xl px-4 py-3 text-white text-sm font-mono focus:outline-none focus:border-violet/50 transition-all resize-none"
+            />
             {bulkInput && (
-              <button onClick={handleBulkAdd}
-                className="mt-3 px-4 py-2 bg-violet/20 text-violet-light text-sm rounded-xl border border-violet/20 hover:bg-violet/30">
+              <button
+                onClick={handleBulkAdd}
+                className="mt-3 px-4 py-2 bg-violet/20 text-violet-light text-sm rounded-xl border border-violet/20 hover:bg-violet/30"
+              >
                 Ajouter {bulkInput.split('\n').filter(l => l.trim()).length} mots-cles
               </button>
             )}
@@ -388,16 +430,25 @@ export default function ArtMotsCles() {
               <h3 className="text-sm font-bold text-white mb-2">⚡ Generation par lot</h3>
               <p className="text-xs text-muted mb-4">{pendingCount} mots-cles en attente de generation.</p>
               <div className="flex gap-3">
-                <button onClick={() => handleBatchGenerate(5)} disabled={batchGenerating}
-                  className="px-4 py-2 bg-violet/20 text-violet-light text-sm font-medium rounded-xl border border-violet/20 hover:bg-violet/30 disabled:opacity-50">
+                <button
+                  onClick={() => handleBatchGenerate(5)}
+                  disabled={batchGenerating}
+                  className="px-4 py-2 bg-violet/20 text-violet-light text-sm font-medium rounded-xl border border-violet/20 hover:bg-violet/30 disabled:opacity-50"
+                >
                   {batchGenerating ? 'En cours...' : 'Generer 5'}
                 </button>
-                <button onClick={() => handleBatchGenerate(20)} disabled={batchGenerating}
-                  className="px-4 py-2 bg-violet/20 text-violet-light text-sm font-medium rounded-xl border border-violet/20 hover:bg-violet/30 disabled:opacity-50">
+                <button
+                  onClick={() => handleBatchGenerate(20)}
+                  disabled={batchGenerating}
+                  className="px-4 py-2 bg-violet/20 text-violet-light text-sm font-medium rounded-xl border border-violet/20 hover:bg-violet/30 disabled:opacity-50"
+                >
                   Generer 20
                 </button>
-                <button onClick={() => handleBatchGenerate(pendingCount)} disabled={batchGenerating}
-                  className="px-4 py-2 bg-amber/20 text-amber text-sm font-medium rounded-xl border border-amber/20 hover:bg-amber/30 disabled:opacity-50">
+                <button
+                  onClick={() => handleBatchGenerate(pendingCount)}
+                  disabled={batchGenerating}
+                  className="px-4 py-2 bg-amber/20 text-amber text-sm font-medium rounded-xl border border-amber/20 hover:bg-amber/30 disabled:opacity-50"
+                >
                   Generer tout ({pendingCount})
                 </button>
               </div>
@@ -420,7 +471,7 @@ export default function ArtMotsCles() {
               <li>2. Chaque mot-cle devient le sujet d'un article</li>
               <li>3. L'IA genere un article complet (15 phases : recherche, contenu, SEO, FAQ, images)</li>
               <li>4. L'article est publie sur sos-expat.com et traduit en 9 langues</li>
-              <li>5. Les mots-cles secondaires sont utilises pour le SEO on-page</li>
+              <li>5. Les mots-cles sont persistés en base de données</li>
             </ul>
           </div>
         </div>

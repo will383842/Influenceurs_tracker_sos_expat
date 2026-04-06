@@ -7,6 +7,7 @@ use App\Models\KeywordTracking;
 use App\Services\Content\KeywordTrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class KeywordTrackingController extends Controller
@@ -21,11 +22,11 @@ class KeywordTrackingController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'type'     => 'nullable|string|in:primary,secondary,long_tail,lsi,trending',
+            'type'     => 'nullable|string|max:30',
             'language' => 'nullable|string|max:5',
             'country'  => 'nullable|string|max:100',
             'search'   => 'nullable|string|max:200',
-            'per_page' => 'nullable|integer|min:1|max:100',
+            'per_page' => 'nullable|integer|min:1|max:1000',
         ]);
 
         $query = KeywordTracking::query();
@@ -111,6 +112,98 @@ class KeywordTrackingController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Discover long-tail keywords from recently published articles.
+     */
+    public function discover(Request $request): JsonResponse
+    {
+        $limit = min((int) $request->input('limit', 20), 100);
+
+        // Pull secondary keywords from recently published articles
+        $articles = DB::table('generated_articles')
+            ->whereNotNull('keywords_secondary')
+            ->latest()
+            ->limit(100)
+            ->get(['id', 'language', 'country', 'content_type', 'keywords_secondary']);
+
+        $now      = now();
+        $inserted = 0;
+
+        foreach ($articles as $article) {
+            $rawKws = is_string($article->keywords_secondary)
+                ? json_decode($article->keywords_secondary, true)
+                : (array) $article->keywords_secondary;
+
+            if (empty($rawKws) || !is_array($rawKws)) continue;
+
+            // Keep keywords with 3+ words (long-tail heuristic)
+            $longTail = array_filter($rawKws, fn ($kw) => str_word_count((string) $kw) >= 3);
+
+            foreach (array_values($longTail) as $kw) {
+                if (empty(trim($kw))) continue;
+                $rows = DB::table('keyword_tracking')->insertOrIgnore([[
+                    'keyword'              => mb_strtolower(trim($kw)),
+                    'type'                 => 'long_tail',
+                    'language'             => $article->language ?? 'fr',
+                    'country'              => $article->country ?? null,
+                    'category'             => $article->content_type ?? null,
+                    'articles_using_count' => 1,
+                    'first_used_at'        => $now,
+                    'created_at'           => $now,
+                    'updated_at'           => $now,
+                ]]);
+                $inserted += $rows;
+                if ($inserted >= $limit) break 2;
+            }
+        }
+
+        return response()->json(['inserted' => $inserted]);
+    }
+
+    /**
+     * Bulk-insert keywords (used by Art Mots Cles page).
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $request->validate([
+            'keywords'                  => 'required|array|min:1|max:500',
+            'keywords.*.keyword'        => 'required|string|max:300',
+            'keywords.*.language'       => 'nullable|string|max:5',
+            'keywords.*.category'       => 'nullable|string|max:100',
+            'keywords.*.search_intent'  => 'nullable|string|max:30',
+            'keywords.*.type'           => 'nullable|string|max:30',
+        ]);
+
+        $now      = now();
+        $inserted = 0;
+
+        foreach ($request->input('keywords') as $kw) {
+            $rows = DB::table('keyword_tracking')->insertOrIgnore([[
+                'keyword'        => trim($kw['keyword']),
+                'type'           => $kw['type'] ?? 'art_mots_cles',
+                'language'       => $kw['language'] ?? 'fr',
+                'category'       => $kw['category'] ?? null,
+                'search_intent'  => $kw['search_intent'] ?? null,
+                'articles_using_count' => 0,
+                'created_at'     => $now,
+                'updated_at'     => $now,
+            ]]);
+            $inserted += $rows;
+        }
+
+        return response()->json(['inserted' => $inserted, 'total' => count($request->input('keywords'))]);
+    }
+
+    /**
+     * Delete a keyword by id.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $deleted = DB::table('keyword_tracking')->where('id', $id)->delete();
+
+        return response()->json(['deleted' => $deleted > 0]);
     }
 
     /**

@@ -747,11 +747,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/qa/generate-from-paa', [QaEntryController::class, 'generateFromPaa']);
         Route::post('/qa/bulk-publish', [QaEntryController::class, 'bulkPublish']);
 
-        // Keywords
+        // Keywords (static routes before parametric to avoid conflicts)
         Route::get('/keywords', [KeywordTrackingController::class, 'index']);
+        Route::post('/keywords', [KeywordTrackingController::class, 'store']);
+        Route::post('/keywords/discover', [KeywordTrackingController::class, 'discover']);
         Route::get('/keywords/gaps', [KeywordTrackingController::class, 'gaps']);
         Route::get('/keywords/cannibalization', [KeywordTrackingController::class, 'cannibalization']);
         Route::get('/keywords/article/{article}', [KeywordTrackingController::class, 'articleKeywords']);
+        Route::delete('/keywords/{id}', [KeywordTrackingController::class, 'destroy'])->where('id', '[0-9]+');
 
         // Translation Batches
         Route::get('/translations', [TranslationBatchController::class, 'index']);
