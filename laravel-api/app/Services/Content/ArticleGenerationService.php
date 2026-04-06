@@ -515,6 +515,17 @@ class ArticleGenerationService
             // Record generation for rate limiting
             $this->scheduler->recordGeneration($contentType, $article->generation_cost_cents ?? 0);
 
+            // Auto-generate Q/R satellites (3 questions per article for topical clustering)
+            // Dispatched async — doesn't block the current generation
+            if (!in_array($contentType, ['qa', 'news'], true)) {
+                try {
+                    \App\Jobs\GenerateQrSatellitesJob::dispatch($article->id)->onQueue('content-worker')->delay(now()->addMinutes(2));
+                    Log::info('Q/R satellites dispatched', ['article_id' => $article->id]);
+                } catch (\Throwable $e) {
+                    Log::warning('Q/R satellites dispatch failed (non-blocking)', ['error' => $e->getMessage()]);
+                }
+            }
+
             // Send Telegram success notification
             $this->sendTelegramSuccess($article);
 
