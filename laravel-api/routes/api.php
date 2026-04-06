@@ -419,6 +419,19 @@ Route::middleware('auth:sanctum')->group(function () {
         });
     });
 
+    // Orchestrator config (daily target, % distribution, auto-pilot)
+    Route::prefix('content/orchestrator')->middleware('role:admin')->group(function () {
+        Route::get('/config', function () {
+            return response()->json(app(\App\Services\Content\ContentOrchestratorService::class)->getConfig());
+        });
+        Route::put('/config', function (\Illuminate\Http\Request $request) {
+            return response()->json(app(\App\Services\Content\ContentOrchestratorService::class)->updateConfig($request->all()));
+        });
+        Route::get('/daily-plan', function () {
+            return response()->json(app(\App\Services\Content\ContentOrchestratorService::class)->getDailyPlan());
+        });
+    });
+
     // ============================================================
     // COUNTRY DIRECTORY (Annuaire pays — liens officiels expatries)
     // ============================================================

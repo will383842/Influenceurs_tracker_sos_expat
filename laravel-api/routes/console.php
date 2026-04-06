@@ -42,6 +42,11 @@ Schedule::job(new ProcessEmailQueueJob)->everyFiveMinutes()->withoutOverlapping(
 // Outreach: advance sequences (generate next step) every 15 minutes
 Schedule::job(new ProcessSequencesJob)->everyFifteenMinutes()->withoutOverlapping();
 
+// Orchestrator: reset daily counters at midnight UTC
+Schedule::call(function () {
+    app(\App\Services\Content\ContentOrchestratorService::class)->resetDaily();
+})->dailyAt('00:00');
+
 // API Health Check: daily at 08:00 UTC — Telegram alert if any account is empty
 Schedule::command('api:health-check')->dailyAt('08:00')->withoutOverlapping();
 

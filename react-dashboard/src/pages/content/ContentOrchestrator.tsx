@@ -1,24 +1,33 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 /**
- * Content Orchestrator — Global content generation dashboard.
+ * Content Orchestrator — Full auto-pilot content generation dashboard.
  *
- * Single page to pilot ALL content generation:
- * - Daily quota tracking (20/day limit)
- * - Content type distribution
- * - Priority country queue
- * - Real-time generation status
- * - Quick actions for each content type
+ * Configure: daily target, % distribution per type, auto-pilot on/off.
+ * Monitor: real-time progress, daily plan, priority queue.
+ * Control: start/pause/stop generation.
  */
 
-interface DailyStats {
-  total: number;
-  limit: number;
-  by_type: Record<string, number>;
-  cost_cents: number;
-  last_at: string | null;
+interface OrchestratorConfig {
+  daily_target: number;
+  auto_pilot: boolean;
+  type_distribution: Record<string, number>;
+  priority_countries: string[];
+  status: 'running' | 'paused' | 'stopped';
+  last_run_at: string | null;
+  today_generated: number;
+  today_cost_cents: number;
+  type_labels: Record<string, string>;
+}
+
+interface DailyPlan {
+  target: number;
+  generated: number;
+  remaining: number;
+  plan: Array<{ type: string; label: string; count: number; pct: number }>;
+  auto_pilot: boolean;
+  status: string;
 }
 
 interface QueueItem {
@@ -29,217 +38,243 @@ interface QueueItem {
   priority_score: number;
 }
 
-const TYPE_CONFIG: Record<string, { label: string; icon: string; limit: number; route: string; color: string }> = {
-  qa:           { label: 'Q/R',           icon: '❓', limit: 8,  route: '/content/generate-qr',       color: 'from-blue-500 to-blue-600' },
-  news:         { label: 'News RSS',      icon: '📰', limit: 5,  route: '/content/news',              color: 'from-emerald-500 to-emerald-600' },
-  article:      { label: 'Articles',      icon: '📝', limit: 4,  route: '/content/art-mots-cles',     color: 'from-violet-500 to-violet-600' },
-  guide:        { label: 'Fiches Pays',   icon: '🌍', limit: 2,  route: '/content/fiches-general',    color: 'from-amber-500 to-amber-600' },
-  comparative:  { label: 'Comparatifs',   icon: '⚖️', limit: 3,  route: '/content/comparatives',      color: 'from-rose-500 to-rose-600' },
+const TYPE_ICONS: Record<string, string> = {
+  qa: '❓', news: '📰', article: '📝', guide: '🌍', guide_city: '🏙️',
+  comparative: '⚖️', outreach: '📢', testimonial: '💬',
 };
 
-const PRIORITY_COUNTRIES = [
-  { code: 'FR', name: 'France', tier: 1 },
-  { code: 'US', name: 'USA', tier: 1 },
-  { code: 'GB', name: 'UK', tier: 1 },
-  { code: 'ES', name: 'Espagne', tier: 1 },
-  { code: 'DE', name: 'Allemagne', tier: 1 },
-  { code: 'TH', name: 'Thaïlande', tier: 1 },
-  { code: 'PT', name: 'Portugal', tier: 1 },
-  { code: 'CA', name: 'Canada', tier: 2 },
-  { code: 'AU', name: 'Australie', tier: 2 },
-  { code: 'IT', name: 'Italie', tier: 2 },
-  { code: 'AE', name: 'Dubai/EAU', tier: 2 },
-  { code: 'JP', name: 'Japon', tier: 2 },
-  { code: 'SG', name: 'Singapour', tier: 2 },
-  { code: 'MA', name: 'Maroc', tier: 2 },
-];
+const TYPE_COLORS: Record<string, string> = {
+  qa: 'bg-blue-500', news: 'bg-emerald-500', article: 'bg-violet-500', guide: 'bg-amber-500',
+  guide_city: 'bg-sky-500', comparative: 'bg-rose-500', outreach: 'bg-cyan-500', testimonial: 'bg-pink-500',
+};
 
 export default function ContentOrchestrator() {
-  const navigate = useNavigate();
-  const [stats, setStats] = useState<DailyStats | null>(null);
+  const [config, setConfig] = useState<OrchestratorConfig | null>(null);
+  const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editTarget, setEditTarget] = useState(20);
+  const [editDist, setEditDist] = useState<Record<string, number>>({});
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [statsRes, queueRes] = await Promise.all([
-        api.get('/content/scheduler/today').catch(() => ({ data: null })),
+      const [cfgRes, planRes, queueRes] = await Promise.all([
+        api.get('/content/orchestrator/config').catch(() => ({ data: null })),
+        api.get('/content/orchestrator/daily-plan').catch(() => ({ data: null })),
         api.get('/content/scheduler/next-batch?limit=10').catch(() => ({ data: [] })),
       ]);
-      if (statsRes.data) setStats(statsRes.data);
+      if (cfgRes.data) {
+        setConfig(cfgRes.data);
+        setEditTarget(cfgRes.data.daily_target);
+        setEditDist(cfgRes.data.type_distribution);
+      }
+      if (planRes.data) setPlan(planRes.data);
       if (queueRes.data) setQueue(Array.isArray(queueRes.data) ? queueRes.data : []);
-    } catch {
-      // Silent fail — show empty state
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const dailyTotal = stats?.total ?? 0;
-  const dailyLimit = stats?.limit ?? 20;
-  const dailyPct = Math.min(100, Math.round((dailyTotal / dailyLimit) * 100));
-  const dailyCost = ((stats?.cost_cents ?? 0) / 100).toFixed(2);
+  const saveConfig = async (partial: Partial<OrchestratorConfig>) => {
+    setSaving(true);
+    try {
+      const res = await api.put('/content/orchestrator/config', partial);
+      setConfig(res.data);
+      fetchData();
+    } catch { /* silent */ }
+    finally { setSaving(false); }
+  };
+
+  const handleSaveDistribution = () => {
+    const total = Object.values(editDist).reduce((s, v) => s + v, 0);
+    if (total !== 100) {
+      alert(`Le total des pourcentages doit faire 100% (actuellement ${total}%)`);
+      return;
+    }
+    saveConfig({ daily_target: editTarget, type_distribution: editDist });
+  };
+
+  const handleToggleAutoPilot = () => {
+    if (!config) return;
+    const newStatus = config.status === 'running' ? 'paused' : 'running';
+    saveConfig({ auto_pilot: newStatus === 'running', status: newStatus });
+  };
+
+  const handleStop = () => saveConfig({ auto_pilot: false, status: 'stopped' });
+
+  if (loading || !config) {
+    return <div className="flex items-center justify-center h-64 text-muted">Chargement...</div>;
+  }
+
+  const pct = config.daily_target > 0 ? Math.round((config.today_generated / config.daily_target) * 100) : 0;
+  const distTotal = Object.values(editDist).reduce((s, v) => s + v, 0);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Content Orchestrator</h1>
-          <p className="text-muted text-sm mt-1">Pilotage global de la génération de contenu SOS-Expat.com</p>
+          <h1 className="text-2xl font-bold text-white">🎯 Content Orchestrator</h1>
+          <p className="text-muted text-sm mt-1">Pilotage automatique de la generation de contenu SOS-Expat.com</p>
         </div>
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="px-4 py-2 rounded-lg bg-surface border border-border/30 text-sm text-muted hover:text-white transition-all"
-        >
-          {loading ? '⏳' : '🔄'} Rafraîchir
-        </button>
-      </div>
-
-      {/* Daily Quota Bar */}
-      <div className="bg-surface/60 backdrop-blur border border-border/20 rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-white">Quota journalier</h2>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-muted">Coût : <span className="text-white font-medium">${dailyCost}</span></span>
-            <span className={`font-bold ${dailyPct >= 90 ? 'text-red-400' : dailyPct >= 60 ? 'text-amber-400' : 'text-emerald-400'}`}>
-              {dailyTotal} / {dailyLimit}
-            </span>
-          </div>
-        </div>
-        <div className="w-full h-3 bg-bg rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              dailyPct >= 90 ? 'bg-red-500' : dailyPct >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
-            }`}
-            style={{ width: `${dailyPct}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Content Type Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {Object.entries(TYPE_CONFIG).map(([type, config]) => {
-          const count = stats?.by_type?.[type] ?? 0;
-          const pct = Math.min(100, Math.round((count / config.limit) * 100));
-          return (
-            <button
-              key={type}
-              onClick={() => navigate(config.route)}
-              className="bg-surface/60 backdrop-blur border border-border/20 rounded-xl p-4 text-left hover:border-violet/30 transition-all group"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">{config.icon}</span>
-                <span className="text-sm font-medium text-white group-hover:text-violet-light transition-colors">
-                  {config.label}
-                </span>
-              </div>
-              <div className="text-2xl font-bold text-white mb-1">{count}</div>
-              <div className="w-full h-1.5 bg-bg rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full bg-gradient-to-r ${config.color}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <div className="text-[11px] text-muted mt-1">
-                {count}/{config.limit} aujourd'hui
-              </div>
+        <div className="flex gap-2">
+          <button onClick={handleToggleAutoPilot} disabled={saving}
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+              config.status === 'running'
+                ? 'bg-amber-500 text-black hover:bg-amber-400'
+                : 'bg-emerald-500 text-white hover:bg-emerald-400'
+            }`}>
+            {config.status === 'running' ? '⏸️ Pause' : '▶️ Lancer Auto-Pilot'}
+          </button>
+          {config.status === 'running' && (
+            <button onClick={handleStop} className="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-500">
+              ⏹️ Stop
             </button>
-          );
-        })}
+          )}
+          <button onClick={fetchData} className="px-4 py-2.5 rounded-xl bg-surface border border-border/30 text-sm text-muted hover:text-white">
+            🔄
+          </button>
+        </div>
       </div>
 
-      {/* Two-column: Priority Queue + Priority Countries */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Next in Queue */}
-        <div className="bg-surface/60 backdrop-blur border border-border/20 rounded-2xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">🎯 Prochains à générer</h2>
-          {queue.length === 0 ? (
-            <p className="text-muted text-sm">Aucun article en attente.</p>
-          ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {queue.map((item, i) => (
-                <div
-                  key={`${item.type}-${item.id}`}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-bg/50 hover:bg-bg/80 transition-colors"
-                >
-                  <span className="text-lg">{TYPE_CONFIG[item.type]?.icon ?? '📄'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{item.title}</p>
-                    <p className="text-[11px] text-muted">
-                      {item.country && <span className="mr-2">🏳️ {item.country}</span>}
-                      Score: {item.priority_score}
-                    </p>
-                  </div>
-                  <span className="text-[10px] text-muted font-mono">#{i + 1}</span>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Status Banner */}
+      <div className={`rounded-xl p-4 flex items-center gap-4 ${
+        config.status === 'running' ? 'bg-emerald-500/10 border border-emerald-500/30' :
+        config.status === 'paused' ? 'bg-amber-500/10 border border-amber-500/30' :
+        'bg-red-500/10 border border-red-500/30'
+      }`}>
+        <span className="text-3xl">{config.status === 'running' ? '🟢' : config.status === 'paused' ? '🟡' : '🔴'}</span>
+        <div>
+          <p className="text-white font-semibold">
+            {config.status === 'running' ? 'Auto-Pilot ACTIF — Generation automatique en cours' :
+             config.status === 'paused' ? 'En pause — La generation est suspendue' :
+             'Arrete — Aucune generation automatique'}
+          </p>
+          <p className="text-muted text-sm">
+            {config.today_generated}/{config.daily_target} articles aujourd'hui — ${(config.today_cost_cents / 100).toFixed(2)} depense
+            {config.last_run_at && ` — Derniere gen: ${new Date(config.last_run_at).toLocaleTimeString('fr-FR')}`}
+          </p>
         </div>
+      </div>
 
-        {/* Priority Countries */}
-        <div className="bg-surface/60 backdrop-blur border border-border/20 rounded-2xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">🌍 Pays prioritaires</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {PRIORITY_COUNTRIES.map((c) => (
-              <div
-                key={c.code}
-                className={`flex items-center gap-2 p-2.5 rounded-lg text-sm ${
-                  c.tier === 1
-                    ? 'bg-violet/10 border border-violet/20 text-violet-light'
-                    : 'bg-bg/50 border border-border/10 text-muted'
-                }`}
-              >
-                <span className="font-mono text-[11px] font-bold">{c.code}</span>
-                <span className="truncate">{c.name}</span>
-                {c.tier === 1 && <span className="ml-auto text-[10px]">⭐</span>}
+      {/* Progress Bar */}
+      <div className="bg-surface/60 border border-border/20 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-white">Progression journaliere</h2>
+          <span className={`text-2xl font-bold ${pct >= 90 ? 'text-red-400' : pct >= 60 ? 'text-amber-400' : 'text-emerald-400'}`}>
+            {config.today_generated} / {config.daily_target}
+          </span>
+        </div>
+        <div className="w-full h-4 bg-bg rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-700 ${
+            pct >= 90 ? 'bg-red-500' : pct >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
+          }`} style={{ width: `${Math.min(100, pct)}%` }} />
+        </div>
+        {/* Type breakdown */}
+        {plan && plan.plan.length > 0 && (
+          <div className="flex gap-1 mt-3 h-2 rounded-full overflow-hidden bg-bg">
+            {plan.plan.map(p => (
+              <div key={p.type} className={`${TYPE_COLORS[p.type] ?? 'bg-muted'} transition-all`}
+                style={{ width: `${p.pct}%` }} title={`${p.label}: ${p.count} articles (${p.pct}%)`} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Configuration */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Daily Target + Distribution */}
+        <div className="bg-surface/60 border border-border/20 rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">Configuration</h2>
+
+          {/* Daily Target */}
+          <div className="mb-6">
+            <label className="text-sm text-muted mb-2 block">Articles par jour</label>
+            <div className="flex items-center gap-3">
+              <input type="range" min="1" max="200" value={editTarget}
+                onChange={e => setEditTarget(parseInt(e.target.value))}
+                className="flex-1 accent-violet" />
+              <input type="number" min="1" max="1000" value={editTarget}
+                onChange={e => setEditTarget(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-20 bg-bg border border-border rounded-lg px-3 py-2 text-white text-center text-sm" />
+            </div>
+          </div>
+
+          {/* Type Distribution */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <label className="text-sm text-muted">Repartition par type (%)</label>
+              <span className={`text-xs font-bold ${distTotal === 100 ? 'text-emerald-400' : 'text-red-400'}`}>
+                Total: {distTotal}%
+              </span>
+            </div>
+            {Object.entries(config.type_labels).map(([type, label]) => (
+              <div key={type} className="flex items-center gap-3">
+                <span className="text-lg w-6">{TYPE_ICONS[type] ?? '📄'}</span>
+                <span className="text-sm text-white w-36 truncate">{label}</span>
+                <input type="range" min="0" max="50" value={editDist[type] ?? 0}
+                  onChange={e => setEditDist(d => ({ ...d, [type]: parseInt(e.target.value) }))}
+                  className="flex-1 accent-violet" />
+                <input type="number" min="0" max="100" value={editDist[type] ?? 0}
+                  onChange={e => setEditDist(d => ({ ...d, [type]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                  className="w-14 bg-bg border border-border rounded-lg px-2 py-1.5 text-white text-center text-xs" />
+                <span className="text-xs text-muted w-8">%</span>
               </div>
             ))}
           </div>
-        </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="bg-surface/60 backdrop-blur border border-border/20 rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">⚡ Actions rapides</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <button
-            onClick={() => navigate('/content/generate-qr')}
-            className="p-4 rounded-xl bg-bg/50 border border-border/20 hover:border-violet/30 transition-all text-left"
-          >
-            <span className="text-2xl">❓</span>
-            <p className="text-sm font-medium text-white mt-2">Générer Q/R</p>
-            <p className="text-[11px] text-muted">Depuis stock questions</p>
+          <button onClick={handleSaveDistribution} disabled={saving || distTotal !== 100}
+            className="mt-4 w-full px-4 py-2.5 rounded-xl bg-violet text-white font-semibold text-sm hover:bg-violet/80 transition-all disabled:opacity-40">
+            {saving ? '⏳' : '💾'} Sauvegarder la configuration
           </button>
-          <button
-            onClick={() => navigate('/content/news')}
-            className="p-4 rounded-xl bg-bg/50 border border-border/20 hover:border-violet/30 transition-all text-left"
-          >
-            <span className="text-2xl">📰</span>
-            <p className="text-sm font-medium text-white mt-2">Flux RSS</p>
-            <p className="text-[11px] text-muted">Actualités auto</p>
-          </button>
-          <button
-            onClick={() => navigate('/content/fiches-general')}
-            className="p-4 rounded-xl bg-bg/50 border border-border/20 hover:border-violet/30 transition-all text-left"
-          >
-            <span className="text-2xl">🌍</span>
-            <p className="text-sm font-medium text-white mt-2">Fiches Pays</p>
-            <p className="text-[11px] text-muted">197 pays × 3 types</p>
-          </button>
-          <button
-            onClick={() => navigate('/content/articles')}
-            className="p-4 rounded-xl bg-bg/50 border border-border/20 hover:border-violet/30 transition-all text-left"
-          >
-            <span className="text-2xl">✍️</span>
-            <p className="text-sm font-medium text-white mt-2">Article Manuel</p>
-            <p className="text-[11px] text-muted">Titre libre</p>
-          </button>
+        </div>
+
+        {/* Daily Plan + Queue */}
+        <div className="space-y-6">
+          {/* Today's Plan */}
+          <div className="bg-surface/60 border border-border/20 rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-3">Plan du jour</h2>
+            {plan && plan.plan.length > 0 ? (
+              <div className="space-y-2">
+                {plan.plan.map(p => (
+                  <div key={p.type} className="flex items-center gap-3 p-2 rounded-lg bg-bg/50">
+                    <span className="text-lg">{TYPE_ICONS[p.type] ?? '📄'}</span>
+                    <span className="text-sm text-white flex-1">{p.label}</span>
+                    <span className="text-sm font-bold text-violet-light">{p.count}</span>
+                    <span className="text-xs text-muted">{p.pct}%</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-2 border-t border-border/20 mt-2">
+                  <span className="text-sm text-muted">Restant aujourd'hui</span>
+                  <span className="text-sm font-bold text-white">{plan.remaining} articles</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted text-sm">Objectif journalier atteint ou pas de plan configure.</p>
+            )}
+          </div>
+
+          {/* Priority Queue */}
+          <div className="bg-surface/60 border border-border/20 rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-3">Prochains a generer</h2>
+            {queue.length > 0 ? (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {queue.map((item, i) => (
+                  <div key={`${item.type}-${item.id}`} className="flex items-center gap-3 p-2 rounded-lg bg-bg/50">
+                    <span className="text-xs text-muted font-mono w-5">#{i + 1}</span>
+                    <span>{TYPE_ICONS[item.type] ?? '📄'}</span>
+                    <span className="text-sm text-white flex-1 truncate">{item.title}</span>
+                    {item.country && <span className="text-xs text-muted">{item.country}</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted text-sm">File d'attente vide.</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
