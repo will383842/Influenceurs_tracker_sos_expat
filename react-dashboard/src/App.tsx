@@ -97,6 +97,7 @@ const ContentCommandCenter = React.lazy(() => import('./pages/content/ContentCom
 const ContentOrchestrator = React.lazy(() => import('./pages/content/ContentOrchestrator'));
 const ArtLonguesTraines = React.lazy(() => import('./pages/content/ArtLonguesTraines'));
 const BrandContent = React.lazy(() => import('./pages/content/BrandContent'));
+const ApiBalanceMonitor = React.lazy(() => import('./pages/settings/ApiBalanceMonitor'));
 const CountryDirectoryPage = React.lazy(() => import('./pages/content/CountryDirectoryPage'));
 const SondagesList = React.lazy(() => import('./pages/content/SondagesList'));
 const SondagesResultats = React.lazy(() => import('./pages/content/SondagesResultats'));
@@ -333,6 +334,7 @@ export default function App() {
             <Route path="admin/campaigns" element={<AdminRoute><AutoCampaign /></AdminRoute>} />
             <Route path="admin/avancement" element={<AdminRoute><CoverageMatrix /></AdminRoute>} />
             <Route path="equipe" element={<AdminRoute><Equipe /></AdminRoute>} />
+            <Route path="settings/api-balance" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ApiBalanceMonitor /></React.Suspense></AdminRoute>} />
 
             {/* Legacy redirects — old routes redirect to new locations */}
             <Route path="statistiques" element={<Navigate to="/" replace />} />

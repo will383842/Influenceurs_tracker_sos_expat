@@ -385,6 +385,20 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ============================================================
+    // API HEALTH MONITOR (AI billing status)
+    // ============================================================
+    Route::prefix('settings')->middleware('role:admin')->group(function () {
+        Route::get('/api-health', function () {
+            $checker = app(\App\Console\Commands\CheckApiHealthCommand::class);
+            return response()->json(['results' => $checker->checkAll()]);
+        });
+        Route::post('/api-health/telegram-test', function () {
+            \Illuminate\Support\Facades\Artisan::call('api:health-check');
+            return response()->json(['sent' => true]);
+        });
+    });
+
+    // ============================================================
     // CONTENT SCHEDULER / ORCHESTRATOR
     // ============================================================
     Route::prefix('content/scheduler')->middleware('role:admin')->group(function () {

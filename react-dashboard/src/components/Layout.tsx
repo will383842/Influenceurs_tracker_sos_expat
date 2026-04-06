@@ -661,6 +661,9 @@ export default function Layout() {
                   <NavLink to="/journal" className={subNavClass} onClick={handleNavClick}>
                     Journal
                   </NavLink>
+                  <NavLink to="/settings/api-balance" className={subNavClass} onClick={handleNavClick}>
+                    💳 Soldes API IA
+                  </NavLink>
                 </NavGroup>
               )}
 

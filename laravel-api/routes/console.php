@@ -42,6 +42,9 @@ Schedule::job(new ProcessEmailQueueJob)->everyFiveMinutes()->withoutOverlapping(
 // Outreach: advance sequences (generate next step) every 15 minutes
 Schedule::job(new ProcessSequencesJob)->everyFifteenMinutes()->withoutOverlapping();
 
+// API Health Check: daily at 08:00 UTC — Telegram alert if any account is empty
+Schedule::command('api:health-check')->dailyAt('08:00')->withoutOverlapping();
+
 // RSS: fetch feeds every 4 hours (SEULE source de scraping active)
 Schedule::job(new FetchRssFeedsJob)->everyFourHours()->withoutOverlapping(3600);
 
