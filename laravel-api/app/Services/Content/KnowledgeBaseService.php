@@ -116,6 +116,9 @@ PROMPT;
 
 {$seoRules}
 {$countryContext}{$langContext}
+
+{$this->getHtmlTemplatesBlock()}
+
 === FIN KB ===
 
 Ne JAMAIS inventer de donnees. Toujours ecrire "SOS-Expat" avec tiret.
