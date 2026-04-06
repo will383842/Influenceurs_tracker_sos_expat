@@ -27,6 +27,7 @@ class GenerationSourceCategoriesSeeder extends Seeder
             ['slug' => 'avocats',                 'name' => 'Partenaires Avocats',     'icon' => '⚖️', 'description' => 'Recrutement avocats prestataires'],
             ['slug' => 'expats-aidants',          'name' => 'Partenaires Expats',      'icon' => '🧳', 'description' => 'Recrutement expatries aidants'],
             ['slug' => 'temoignages',             'name' => 'Temoignages',             'icon' => '💬', 'description' => 'Temoignages expatries par pays'],
+            ['slug' => 'tutoriels',               'name' => 'Tutoriels',               'icon' => '📖', 'description' => 'Guides pratiques pas-a-pas pour demarches expatries'],
             ['slug' => 'brand-content',           'name' => 'Brand Content',           'icon' => '🏷️', 'description' => 'Articles de marque scores et optimises'],
         ];
 

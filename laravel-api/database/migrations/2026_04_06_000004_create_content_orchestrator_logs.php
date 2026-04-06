@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('content_orchestrator_logs')) {
+            return;
+        }
+
         Schema::create('content_orchestrator_logs', function (Blueprint $table) {
             $table->id();
             $table->date('log_date');

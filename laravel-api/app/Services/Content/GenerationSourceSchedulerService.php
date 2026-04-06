@@ -39,6 +39,7 @@ class GenerationSourceSchedulerService
         'admin-groups'     => 5,
         'avocats'          => 3,
         'expats-aidants'   => 3,
+        'tutoriels'        => 4,
         'art-mots-cles'    => 10,
         'longues-traines'  => 10,
         'brand-content'    => 5,

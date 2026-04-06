@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('content_orchestrator_config')) {
+            return;
+        }
+
         Schema::create('content_orchestrator_config', function (Blueprint $table) {
             $table->id();
             $table->integer('daily_target')->default(20)->comment('Total articles per day (excluding RSS)');
