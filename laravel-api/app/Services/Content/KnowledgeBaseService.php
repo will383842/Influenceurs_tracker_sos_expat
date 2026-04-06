@@ -67,6 +67,9 @@ class KnowledgeBaseService
 
 {$seoRules}
 {$intentBlock}{$countryContext}{$langContext}
+
+{$this->getHtmlTemplatesBlock()}
+
 === FIN KNOWLEDGE BASE ===
 
 REGLES CRITIQUES :
@@ -504,6 +507,11 @@ BLOCK;
         }
 
         return implode("\n", $lines);
+    }
+
+    private function getHtmlTemplatesBlock(): string
+    {
+        return config('html-templates.prompt_instructions', '');
     }
 
     private function getIntentBlock(string $intent): string
