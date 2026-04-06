@@ -536,11 +536,8 @@ export default function Layout() {
                     <NavLink to="/content/articles" className={subNavClass} onClick={handleNavClick}>
                       📝 Art Titre Manuel
                     </NavLink>
-                    <NavLink to="/content/templates" className={subNavClass} onClick={handleNavClick}>
-                      🧩 Templates
-                    </NavLink>
                     <NavLink to="/content/comparatives" className={subNavClass} onClick={handleNavClick}>
-                      ⚖️ Comparatifs
+                      ⚖️ Comparatifs SEO
                     </NavLink>
                     <NavLink to="/content/sondages" className={subNavClass} onClick={handleNavClick}>
                       📊 Sondages
@@ -550,6 +547,15 @@ export default function Layout() {
                     </NavLink>
                     <NavLink to="/content/clusters" className={subNavClass} onClick={handleNavClick}>
                       🔵 Clusters
+                    </NavLink>
+                  </NavSubGroup>
+
+                  <NavSubGroup label="Affiliation" isOpen={openSubGroups.content_affiliation} onToggle={() => toggleSubGroup('content_affiliation')}>
+                    <NavLink to="/content/affiliate-comparatives" className={subNavClass} onClick={handleNavClick}>
+                      💰 Comparatifs Affilies
+                    </NavLink>
+                    <NavLink to="/content/affiliate-programs" className={subNavClass} onClick={handleNavClick}>
+                      🤝 Programmes
                     </NavLink>
                   </NavSubGroup>
 
@@ -583,6 +589,9 @@ export default function Layout() {
                     </NavLink>
                     <NavLink to="/costs" className={subNavClass} onClick={handleNavClick}>
                       💰 Coûts IA
+                    </NavLink>
+                    <NavLink to="/content/templates" className={subNavClass} onClick={handleNavClick}>
+                      🧩 Templates
                     </NavLink>
                   </NavSubGroup>
                 </NavGroup>

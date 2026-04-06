@@ -1,0 +1,256 @@
+<?php
+
+namespace App\Services\Content;
+
+use App\Models\GeneratedArticle;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * Phase 4 — Post-generation quality guard.
+ *
+ * Validates articles AFTER generation against strict quality criteria:
+ * - Anti-cannibalization (no duplicate angles)
+ * - Maillage interne (internal linking density)
+ * - E-E-A-T signals (sources, dates, expertise markers)
+ * - Featured snippet optimization (first paragraph format)
+ * - AEO readiness (ai_summary, concise answers)
+ * - Speakable markup readiness
+ *
+ * Returns a QualityReport with pass/fail + actionable issues.
+ */
+class QualityGuardService
+{
+    // Minimum thresholds
+    private const MIN_WORD_COUNT = [
+        'qr' => 300,
+        'news' => 600,
+        'article' => 1200,
+        'guide' => 2000,
+        'comparative' => 1500,
+        'fiches_pays' => 2000,
+        'fiches_expat' => 1500,
+        'fiches_vacances' => 1200,
+        'chatters' => 800,
+        'influenceurs' => 800,
+        'admin_groupes' => 800,
+        'avocats' => 800,
+        'expats_aidants' => 800,
+        'affiliation' => 1000,
+    ];
+
+    private const MIN_INTERNAL_LINKS = 2;
+    private const MIN_H2_COUNT = 3;
+    private const MIN_FAQ_COUNT = 3;
+    private const FEATURED_SNIPPET_MIN_WORDS = 35;
+    private const FEATURED_SNIPPET_MAX_WORDS = 65;
+
+    /**
+     * Run full quality check on a generated article.
+     *
+     * @return array{passed: bool, score: int, issues: array, warnings: array}
+     */
+    public function check(GeneratedArticle $article): array
+    {
+        $issues = [];
+        $warnings = [];
+        $checks = [];
+
+        $html = $article->content_html ?? '';
+        $text = strip_tags($html);
+        $wordCount = str_word_count($text);
+        $contentType = $article->content_type ?? 'article';
+
+        // ── 1. WORD COUNT ──
+        $minWords = self::MIN_WORD_COUNT[$contentType] ?? 800;
+        $checks['word_count'] = $wordCount >= $minWords;
+        if (!$checks['word_count']) {
+            $issues[] = "Contenu trop court: {$wordCount} mots (minimum {$minWords} pour {$contentType})";
+        }
+
+        // ── 2. H2 STRUCTURE ──
+        $h2Count = preg_match_all('/<h2[^>]*>/i', $html);
+        $checks['h2_structure'] = $h2Count >= self::MIN_H2_COUNT;
+        if (!$checks['h2_structure']) {
+            $issues[] = "Structure H2 insuffisante: {$h2Count} (minimum " . self::MIN_H2_COUNT . ")";
+        }
+
+        // ── 3. FEATURED SNIPPET (first paragraph) ──
+        $checks['featured_snippet'] = $this->checkFeaturedSnippet($html);
+        if (!$checks['featured_snippet']) {
+            $warnings[] = "Featured snippet non optimal: le 1er paragraphe doit faire 35-65 mots et repondre directement a l'intention";
+        }
+
+        // ── 4. INTERNAL LINKS ──
+        $internalLinkCount = preg_match_all('/href=["\']https?:\/\/(sos-expat\.com|blog\.life-expat\.com)/i', $html);
+        $checks['internal_links'] = $internalLinkCount >= self::MIN_INTERNAL_LINKS;
+        if (!$checks['internal_links']) {
+            $warnings[] = "Maillage interne faible: {$internalLinkCount} liens (recommande " . self::MIN_INTERNAL_LINKS . "+)";
+        }
+
+        // ── 5. FAQ COUNT ──
+        $faqCount = $article->faqs()->count();
+        $checks['faq_count'] = $faqCount >= self::MIN_FAQ_COUNT;
+        if (!$checks['faq_count']) {
+            $warnings[] = "FAQ insuffisantes: {$faqCount} (recommande " . self::MIN_FAQ_COUNT . "+)";
+        }
+
+        // ── 6. E-E-A-T SIGNALS ──
+        $eeatResult = $this->checkEEAT($html, $text, $article);
+        $checks['eeat'] = $eeatResult['passed'];
+        if (!$eeatResult['passed']) {
+            foreach ($eeatResult['issues'] as $issue) {
+                $warnings[] = "E-E-A-T: {$issue}";
+            }
+        }
+
+        // ── 7. ANTI-CANNIBALIZATION ──
+        $cannibResult = $this->checkCannibalization($article);
+        $checks['anti_cannib'] = $cannibResult['passed'];
+        if (!$cannibResult['passed']) {
+            $issues[] = "Cannibalisation detectee: {$cannibResult['reason']}";
+        }
+
+        // ── 8. AEO READINESS ──
+        $checks['aeo'] = !empty($article->ai_summary) && mb_strlen($article->ai_summary) <= 120;
+        if (!$checks['aeo']) {
+            $warnings[] = "AEO: ai_summary manquant ou trop long (max 100 caracteres)";
+        }
+
+        // ── 9. META TAGS ──
+        $metaTitleLen = mb_strlen($article->meta_title ?? '');
+        $metaDescLen = mb_strlen($article->meta_description ?? '');
+        $checks['meta_title'] = $metaTitleLen >= 30 && $metaTitleLen <= 65;
+        $checks['meta_desc'] = $metaDescLen >= 120 && $metaDescLen <= 160;
+        if (!$checks['meta_title']) {
+            $warnings[] = "Meta title: {$metaTitleLen} chars (optimal 30-65)";
+        }
+        if (!$checks['meta_desc']) {
+            $warnings[] = "Meta description: {$metaDescLen} chars (optimal 120-160)";
+        }
+
+        // ── 10. BRAND COMPLIANCE ──
+        $checks['brand'] = $this->checkBrandCompliance($text);
+        if (!$checks['brand']) {
+            $issues[] = "Brand compliance: mentions incorrectes de SOS-Expat detectees";
+        }
+
+        // Calculate score
+        $passedChecks = count(array_filter($checks));
+        $totalChecks = count($checks);
+        $score = (int) round(($passedChecks / $totalChecks) * 100);
+
+        // Pass if no critical issues and score >= 60
+        $passed = empty($issues) && $score >= 60;
+
+        return [
+            'passed' => $passed,
+            'score' => $score,
+            'checks' => $checks,
+            'issues' => $issues,
+            'warnings' => $warnings,
+        ];
+    }
+
+    private function checkFeaturedSnippet(string $html): bool
+    {
+        // Extract first <p> tag content
+        if (preg_match('/<p[^>]*>(.*?)<\/p>/is', $html, $match)) {
+            $firstP = strip_tags($match[1]);
+            $words = str_word_count($firstP);
+            return $words >= self::FEATURED_SNIPPET_MIN_WORDS && $words <= self::FEATURED_SNIPPET_MAX_WORDS;
+        }
+        return false;
+    }
+
+    private function checkEEAT(string $html, string $text, GeneratedArticle $article): array
+    {
+        $issues = [];
+
+        // Experience: check for concrete examples, case studies
+        $hasExamples = preg_match('/exemple|temoignage|cas concret|experience|vecu/iu', $text);
+        if (!$hasExamples) {
+            $issues[] = "Manque de temoignages/exemples concrets (Experience)";
+        }
+
+        // Expertise: check for data, numbers, year mentions
+        $hasData = preg_match('/\d{4}|\d+[\s]?(%|EUR|USD|\$|€)/u', $text);
+        if (!$hasData) {
+            $issues[] = "Manque de donnees chiffrees/annee (Expertise)";
+        }
+
+        // Authoritativeness: check for source citations
+        $hasSources = preg_match('/source|selon|d\'apres|ministere|gouvernement|officiel/iu', $text);
+        $sourceCount = $article->sources()->count();
+        if (!$hasSources && $sourceCount < 1) {
+            $issues[] = "Manque de sources officielles citees (Authoritativeness)";
+        }
+
+        // Trustworthiness: check date mention
+        $hasDate = preg_match('/20[2-3]\d|mise a jour|derniere modification/iu', $text);
+        if (!$hasDate) {
+            $issues[] = "Manque de date de mise a jour (Trustworthiness)";
+        }
+
+        return [
+            'passed' => count($issues) <= 1, // Allow 1 minor gap
+            'issues' => $issues,
+        ];
+    }
+
+    private function checkCannibalization(GeneratedArticle $article): array
+    {
+        if (!$article->country || !$article->language) {
+            return ['passed' => true, 'reason' => null];
+        }
+
+        // Check for same keyword + same country + same content_type
+        $similar = GeneratedArticle::where('country', $article->country)
+            ->where('language', $article->language)
+            ->where('content_type', $article->content_type)
+            ->where('id', '!=', $article->id)
+            ->whereNull('parent_article_id')
+            ->whereIn('status', ['review', 'published'])
+            ->select('id', 'title', 'keywords_primary')
+            ->get();
+
+        foreach ($similar as $existing) {
+            // Compare primary keywords
+            if ($article->keywords_primary && $existing->keywords_primary) {
+                $articleKw = mb_strtolower($article->keywords_primary);
+                $existingKw = mb_strtolower($existing->keywords_primary);
+
+                if ($articleKw === $existingKw) {
+                    return [
+                        'passed' => false,
+                        'reason' => "Meme mot-cle principal \"{$articleKw}\" que article #{$existing->id} \"{$existing->title}\"",
+                    ];
+                }
+            }
+        }
+
+        return ['passed' => true, 'reason' => null];
+    }
+
+    private function checkBrandCompliance(string $text): bool
+    {
+        $lower = mb_strtolower($text);
+
+        // Must NOT say "SOS Expat" without hyphen (except in URLs)
+        if (preg_match('/sos\s+expat(?!\.\w)/iu', $text) && !str_contains($lower, 'sos-expat')) {
+            return false;
+        }
+
+        // Must NOT say it's free
+        if (preg_match('/sos[- ]?expat.{0,30}(gratuit|free|gratis)/iu', $text)) {
+            return false;
+        }
+
+        // Must NOT say it provides legal advice directly
+        if (preg_match('/sos[- ]?expat.{0,30}(fournit|donne|offre).{0,20}(conseil|avis) juridique/iu', $text)) {
+            return false;
+        }
+
+        return true;
+    }
+}
