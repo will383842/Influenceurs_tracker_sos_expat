@@ -37,6 +37,8 @@ class GenerationSourceSchedulerService
         'chatters'         => 5,
         'bloggeurs'        => 5,
         'admin-groups'     => 5,
+        'avocats'          => 3,
+        'expats-aidants'   => 3,
         'affiliation'      => 5,
         'annuaires'        => 0,
     ];

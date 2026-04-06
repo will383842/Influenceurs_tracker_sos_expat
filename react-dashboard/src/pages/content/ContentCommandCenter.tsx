@@ -15,6 +15,8 @@ const SOURCE_DEFS = [
   { slug: 'chatters',         label: 'Chatters',         icon: '💭', accent: 'text-teal-400',     contentType: 'outreach',      blogCategory: '/programme',          inputQuality: 'title_only'  as const,  defaultWeight: 5  },
   { slug: 'admin-groups',     label: 'Admin Groups',     icon: '👥', accent: 'text-indigo-400',   contentType: 'outreach',      blogCategory: '/programme',          inputQuality: 'title_only'  as const,  defaultWeight: 5  },
   { slug: 'bloggeurs',        label: 'Bloggeurs',        icon: '✍️', accent: 'text-rose-400',     contentType: 'outreach',      blogCategory: '/programme',          inputQuality: 'title_only'  as const,  defaultWeight: 5  },
+  { slug: 'avocats',          label: 'Avocats',          icon: '⚖️', accent: 'text-slate-300',    contentType: 'outreach',      blogCategory: '/programme',          inputQuality: 'title_only'  as const,  defaultWeight: 3  },
+  { slug: 'expats-aidants',   label: 'Expats Aidants',   icon: '🧳', accent: 'text-sky-400',      contentType: 'outreach',      blogCategory: '/programme',          inputQuality: 'title_only'  as const,  defaultWeight: 3  },
   { slug: 'affiliation',      label: 'Affiliation',      icon: '🔗', accent: 'text-yellow-400',   contentType: 'affiliation',   blogCategory: '/affiliation',        inputQuality: 'title_only'  as const,  defaultWeight: 5  },
   { slug: 'annuaires',        label: 'Annuaires',        icon: '📚', accent: 'text-amber-400',    contentType: 'directory',     blogCategory: 'Section dédiée',      inputQuality: 'structured'  as const,  defaultWeight: 0  },
 ] as const;

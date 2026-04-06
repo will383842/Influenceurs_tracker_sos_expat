@@ -44,6 +44,8 @@ class GenerateFromSourceJob implements ShouldQueue
         'chatters',        // → Chatters tab
         'bloggeurs',       // → Influenceurs tab
         'admin-groups',    // → Admin Groupes tab
+        'avocats',         // → Avocats outreach tab
+        'expats-aidants',  // → Expats Aidants outreach tab
         'besoins-reels',   // → Templates longues traines
     ];
 
@@ -211,6 +213,8 @@ class GenerateFromSourceJob implements ShouldQueue
             'chatters'         => ['outreach'],
             'bloggeurs'        => ['outreach'],
             'admin-groups'     => ['outreach'],
+            'avocats'          => ['outreach'],
+            'expats-aidants'   => ['outreach'],
             'affiliation'      => ['affiliation'],
             default            => ['article'],
         };
@@ -291,6 +295,8 @@ class GenerateFromSourceJob implements ShouldQueue
             'chatters'         => ['chatter rémunéré', 'gagner argent téléphone', 'travail flexible domicile'],
             'bloggeurs'        => ['blogueur affilié', 'gagner argent blog', 'revenu passif blog'],
             'admin-groups'     => ['admin WhatsApp rémunéré', 'gérer communauté expat'],
+            'avocats'          => ['avocat expatrié', 'aide juridique', 'conseil juridique international'],
+            'expats-aidants'   => ['services expat', 'assistance expatriation', 'prestataire expat'],
             'affiliation'      => ['affiliation', 'lien partenaire', 'recommandation rémunérée'],
             default            => [],
         };
