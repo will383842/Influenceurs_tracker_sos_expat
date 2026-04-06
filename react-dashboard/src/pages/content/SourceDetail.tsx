@@ -15,8 +15,6 @@ const SOURCE_META: Record<string, { label: string; icon: string; description: st
   'chatters':       { label: 'Chatters',        icon: '💭', description: 'Contenus communautaires chatters', accentColor: 'text-teal-400' },
   'admin-groups':   { label: 'Admin Groups',    icon: '👥', description: 'Sources des groupes administrés', accentColor: 'text-indigo-400' },
   'bloggeurs':      { label: 'Bloggeurs',       icon: '✍️', description: 'Articles bloggeurs partenaires', accentColor: 'text-rose-400' },
-  'part-avocats':   { label: 'Part Avocats',    icon: '🏛️', description: 'Contenus prestataires avocats', accentColor: 'text-slate-300' },
-  'part-expat':     { label: 'Part Expat',      icon: '✈️', description: 'Contenus prestataires expat', accentColor: 'text-sky-400' },
   'besoins-reels':  { label: 'Besoins Réels',   icon: '🎯', description: 'Longues traînes, intentions de recherche', accentColor: 'text-lime-400' },
 };
 

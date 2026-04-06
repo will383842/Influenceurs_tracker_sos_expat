@@ -570,8 +570,6 @@ BLOCK;
             'outreach' => 'chatters',
             'comparative' => 'comparatifs',
             'news' => 'news',
-            'partner_legal' => 'avocats',
-            'partner_expat' => 'expats_aidants',
             'affiliation' => 'affiliation',
         ];
 

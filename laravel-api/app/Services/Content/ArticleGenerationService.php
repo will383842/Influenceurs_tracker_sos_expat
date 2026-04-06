@@ -569,7 +569,7 @@ class ArticleGenerationService
             'guide', 'pillar', 'guide_city',
             'article', 'tutorial', 'news',
             'comparative', 'qa', 'qa_needs',
-            'testimonial', 'partner_legal', 'partner_expat',
+            'testimonial',
             'outreach', 'affiliation',
             'landing', 'press', 'press_release',
         ];

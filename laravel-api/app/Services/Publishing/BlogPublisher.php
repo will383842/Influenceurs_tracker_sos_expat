@@ -81,7 +81,7 @@ class BlogPublisher
         $categorySlug = match ($parentArticle->content_type) {
             'guide', 'pillar'                                         => 'fiches-pays',
             'guide_city'                                              => 'fiches-villes',
-            'article', 'tutorial', 'partner_legal', 'partner_expat'  => 'fiches-pratiques',
+            'article', 'tutorial'                                     => 'fiches-pratiques',
             'qa', 'comparative', 'news', 'testimonial', 'qa_needs',
                 'press', 'press_release'                              => 'fiches-thematiques',
             'outreach'                                                => 'programme',

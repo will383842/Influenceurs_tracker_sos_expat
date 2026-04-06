@@ -44,8 +44,6 @@ class GenerateFromSourceJob implements ShouldQueue
         'chatters',        // → Chatters tab
         'bloggeurs',       // → Influenceurs tab
         'admin-groups',    // → Admin Groupes tab
-        'part-avocats',    // → content expert (future tab)
-        'part-expat',      // → content expert (future tab)
         'besoins-reels',   // → Templates longues traines
     ];
 
@@ -191,7 +189,7 @@ class GenerateFromSourceJob implements ShouldQueue
                                      : null,
             'auto_internal_links' => true,
             'auto_affiliate_links'=> in_array($contentType, [
-                'affiliation', 'partner_legal', 'partner_expat'
+                'affiliation',
             ]),
         ];
     }
@@ -214,8 +212,6 @@ class GenerateFromSourceJob implements ShouldQueue
             'bloggeurs'        => ['outreach'],
             'admin-groups'     => ['outreach'],
             'affiliation'      => ['affiliation'],
-            'part-avocats'     => ['partner_legal'],
-            'part-expat'       => ['partner_expat'],
             default            => ['article'],
         };
     }
@@ -296,8 +292,6 @@ class GenerateFromSourceJob implements ShouldQueue
             'bloggeurs'        => ['blogueur affilié', 'gagner argent blog', 'revenu passif blog'],
             'admin-groups'     => ['admin WhatsApp rémunéré', 'gérer communauté expat'],
             'affiliation'      => ['affiliation', 'lien partenaire', 'recommandation rémunérée'],
-            'part-avocats'     => ['avocat expatrié', 'aide juridique', 'conseil juridique international'],
-            'part-expat'       => ['services expat', 'assistance expatriation', 'prestataire expat'],
             default            => [],
         };
 

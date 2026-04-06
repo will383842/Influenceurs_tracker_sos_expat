@@ -16,8 +16,6 @@ const SOURCE_DEFS = [
   { slug: 'admin-groups',     label: 'Admin Groups',     icon: '👥', accent: 'text-indigo-400',   contentType: 'outreach',      blogCategory: '/programme',          inputQuality: 'title_only'  as const,  defaultWeight: 5  },
   { slug: 'bloggeurs',        label: 'Bloggeurs',        icon: '✍️', accent: 'text-rose-400',     contentType: 'outreach',      blogCategory: '/programme',          inputQuality: 'title_only'  as const,  defaultWeight: 5  },
   { slug: 'affiliation',      label: 'Affiliation',      icon: '🔗', accent: 'text-yellow-400',   contentType: 'affiliation',   blogCategory: '/affiliation',        inputQuality: 'title_only'  as const,  defaultWeight: 5  },
-  { slug: 'part-avocats',     label: 'Part. Avocats',    icon: '🏛️', accent: 'text-slate-300',    contentType: 'partner_legal', blogCategory: '/fiches-pratiques',   inputQuality: 'full_content' as const, defaultWeight: 5  },
-  { slug: 'part-expat',       label: 'Part. Expat',      icon: '✈️', accent: 'text-sky-400',      contentType: 'partner_expat', blogCategory: '/fiches-pratiques',   inputQuality: 'full_content' as const, defaultWeight: 4  },
   { slug: 'annuaires',        label: 'Annuaires',        icon: '📚', accent: 'text-amber-400',    contentType: 'directory',     blogCategory: 'Section dédiée',      inputQuality: 'structured'  as const,  defaultWeight: 0  },
 ] as const;
 

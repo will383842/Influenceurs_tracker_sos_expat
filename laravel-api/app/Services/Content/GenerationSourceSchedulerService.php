@@ -38,8 +38,6 @@ class GenerationSourceSchedulerService
         'bloggeurs'        => 5,
         'admin-groups'     => 5,
         'affiliation'      => 5,
-        'part-avocats'     => 5,
-        'part-expat'       => 5,
         'annuaires'        => 0,
     ];
 
