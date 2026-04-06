@@ -42,6 +42,9 @@ Schedule::job(new ProcessEmailQueueJob)->everyFiveMinutes()->withoutOverlapping(
 // Outreach: advance sequences (generate next step) every 15 minutes
 Schedule::job(new ProcessSequencesJob)->everyFifteenMinutes()->withoutOverlapping();
 
+// Orchestrator: auto-pilot cycle every 15 minutes (06:00-22:00 UTC)
+Schedule::job(new \App\Jobs\RunOrchestratorCycleJob)->everyFifteenMinutes()->withoutOverlapping(900);
+
 // Orchestrator: reset daily counters at midnight UTC
 Schedule::call(function () {
     app(\App\Services\Content\ContentOrchestratorService::class)->resetDaily();
