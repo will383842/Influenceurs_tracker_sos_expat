@@ -520,7 +520,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // FICHES PAYS — Proxy vers Blog SSR (3 types: general, expatriation, vacances)
     // ============================================================
     Route::prefix('content-gen/fiches/{type}')
-        ->where('type', 'general|expatriation|vacances')
+        ->where(['type' => 'general|expatriation|vacances'])
         ->middleware('role:admin')
         ->group(function () {
             Route::get('/stats',    [\App\Http\Controllers\FichesPaysController::class, 'stats']);
