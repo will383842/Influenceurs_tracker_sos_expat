@@ -1,22 +1,22 @@
 <?php
 
 /**
- * SOS-Expat Knowledge Base v2.0 — COMPLETE Source of Truth for ALL AI content generation.
+ * SOS-Expat.com Knowledge Base v2.0 — COMPLETE Source of Truth for ALL AI content generation.
  *
  * This document is injected into EVERY content generation prompt to ensure
  * accuracy and consistency across all articles, Q/R, fiches, comparatives, etc.
  *
- * LAST VERIFIED: 2026-04-05 from SOS-Expat codebase (sos/firebase/functions/src/)
+ * LAST VERIFIED: 2026-04-05 from SOS-Expat.com codebase (sos/firebase/functions/src/)
  *
  * RULES FOR AI:
  * - NEVER invent data not in this document
  * - NEVER change prices, durations, or commission rates
- * - ALWAYS use the exact service name "SOS-Expat" (with hyphen)
+ * - ALWAYS use the exact service name "SOS-Expat.com" (with hyphen)
  * - ALWAYS mention "197 pays" and "9 langues" when relevant
- * - NEVER say SOS-Expat is free (it's a paid service)
- * - NEVER say SOS-Expat provides legal advice (it CONNECTS with lawyers)
+ * - NEVER say SOS-Expat.com is free (it's a paid service)
+ * - NEVER say SOS-Expat.com provides legal advice (it CONNECTS with lawyers)
  * - NEVER confuse lawyer (49EUR/20min) with expat expert (19EUR/30min)
- * - NEVER say SOS-Expat is an insurance or a consulate
+ * - NEVER say SOS-Expat.com is an insurance or a consulate
  * - NEVER promise specific legal outcomes
  */
 
@@ -27,7 +27,7 @@ return [
     // =====================================================================
 
     'identity' => [
-        'name' => 'SOS-Expat',
+        'name' => 'SOS-Expat.com',
         'tagline_fr' => 'Parlez a un avocat ou expert local dans votre langue en moins de 5 minutes',
         'tagline_en' => 'Talk to a lawyer or local expert in your language in under 5 minutes',
         'website' => 'https://sos-expat.com',
@@ -52,8 +52,8 @@ return [
         ],
 
         'what_it_is_NOT' => [
-            'PAS un cabinet d\'avocats — SOS-Expat ne fournit PAS de conseil juridique directement',
-            'PAS une assurance voyage — SOS-Expat ne rembourse rien en cas de sinistre',
+            'PAS un cabinet d\'avocats — SOS-Expat.com ne fournit PAS de conseil juridique directement',
+            'PAS une assurance voyage — SOS-Expat.com ne rembourse rien en cas de sinistre',
             'PAS un consulat ou une ambassade — aucun pouvoir consulaire',
             'PAS un service gratuit — appels payants (avocat 49EUR/55USD, expert 19EUR/25USD)',
             'PAS un chatbot ou une IA — ce sont de VRAIS humains verifies au telephone',
@@ -152,7 +152,7 @@ return [
 
     'how_it_works' => [
         'step_1' => 'L\'utilisateur choisit son besoin (avocat ou expert local), son pays et sa langue',
-        'step_2' => 'SOS-Expat identifie un prestataire disponible dans le pays et la langue',
+        'step_2' => 'SOS-Expat.com identifie un prestataire disponible dans le pays et la langue',
         'step_3' => 'Paiement securise (Stripe, PayPal ou Mobile Money)',
         'step_4' => 'Appel programme avec delai de 4 minutes pour preparation',
         'step_5' => 'Les deux parties recoivent un appel — confirmation DTMF (appuyez sur 1)',
@@ -182,8 +182,8 @@ return [
             'soignants' => 'Soignants et missionnaires humanitaires — visa ONG, assurance, securite',
             'refugies' => 'Refugies et demandeurs d\'asile — droit d\'asile, protection, demarches',
         ],
-        'key_message' => 'SOS-Expat s\'adresse a TOUTE personne de TOUTE nationalite qui se trouve ou va se rendre a l\'etranger et a besoin d\'aide locale professionnelle.',
-        'multi_nationality_rule' => 'CRITIQUE : NE JAMAIS ecrire du contenu uniquement pour les Francais. SOS-Expat est une plateforme MONDIALE. Un article en francais s\'adresse a TOUS les francophones (France, Belgique, Suisse, Canada, Afrique). Un article en anglais s\'adresse a TOUS les anglophones (US, UK, Australie, Inde, Afrique du Sud). Quand on parle d\'ambassade, dire "votre ambassade" ou "l\'ambassade de votre pays", PAS "l\'ambassade de France". Quand on parle de fiscalite, mentionner les conventions fiscales DE PLUSIEURS PAYS, pas uniquement la France.',
+        'key_message' => 'SOS-Expat.com s\'adresse a TOUTE personne de TOUTE nationalite qui se trouve ou va se rendre a l\'etranger et a besoin d\'aide locale professionnelle.',
+        'multi_nationality_rule' => 'CRITIQUE : NE JAMAIS ecrire du contenu uniquement pour les Francais. SOS-Expat.com est une plateforme MONDIALE. Un article en francais s\'adresse a TOUS les francophones (France, Belgique, Suisse, Canada, Afrique). Un article en anglais s\'adresse a TOUS les anglophones (US, UK, Australie, Inde, Afrique du Sud). Quand on parle d\'ambassade, dire "votre ambassade" ou "l\'ambassade de votre pays", PAS "l\'ambassade de France". Quand on parle de fiscalite, mentionner les conventions fiscales DE PLUSIEURS PAYS, pas uniquement la France.',
         'grammar_preposition_rule' => 'CRITIQUE pour les TITRES et CONTENU : utiliser la BONNE preposition devant chaque nom de pays dans CHAQUE langue. En francais : "au Portugal", "en France", "aux Etats-Unis", "a Singapour", "au Japon", "en Thailande". En anglais : "in Portugal", "in France", "in the USA", "in Singapore". En allemand : "in Portugal", "in Frankreich", "in den USA". CHAQUE langue a ses propres regles de preposition et d\'article devant les noms de pays. Le titre et le contenu DOIVENT sonner 100% natifs, comme si un locuteur natif les avait ecrits. JAMAIS de traduction mot-a-mot.',
     ],
 
@@ -206,7 +206,7 @@ return [
         // --- 7.2 CHATTER ---
         'chatter' => [
             'name' => 'Programme Chatter',
-            'description' => 'Partager SOS-Expat sur les reseaux sociaux et gagner des commissions sur chaque appel genere',
+            'description' => 'Partager SOS-Expat.com sur les reseaux sociaux et gagner des commissions sur chaque appel genere',
             'signup_bonus' => 200,              // $2.00
             'client_lawyer_call' => 500,        // $5.00 per call
             'client_expat_call' => 300,         // $3.00 per call
@@ -260,7 +260,7 @@ return [
         // --- 7.4 INFLUENCER ---
         'influencer' => [
             'name' => 'Programme Influenceur',
-            'description' => 'Createurs de contenu : monetisez votre audience avec SOS-Expat',
+            'description' => 'Createurs de contenu : monetisez votre audience avec SOS-Expat.com',
             'signup_bonus' => 200,              // $2.00
             'client_lawyer_call' => 500,        // $5.00
             'client_expat_call' => 300,         // $3.00
@@ -285,7 +285,7 @@ return [
         // --- 7.5 BLOGGER ---
         'blogger' => [
             'name' => 'Programme Blogueur',
-            'description' => 'Integrez le widget SOS-Expat sur votre blog et gagnez des commissions sur chaque appel client',
+            'description' => 'Integrez le widget SOS-Expat.com sur votre blog et gagnez des commissions sur chaque appel client',
             'signup_bonus' => 200,              // $2.00
             'client_lawyer_call' => 500,        // $5.00
             'client_expat_call' => 300,         // $3.00
@@ -309,7 +309,7 @@ return [
         // --- 7.6 GROUP ADMIN ---
         'group_admin' => [
             'name' => 'Programme Admin Groupe',
-            'description' => 'Monetisez vos groupes WhatsApp/Telegram/Facebook avec SOS-Expat',
+            'description' => 'Monetisez vos groupes WhatsApp/Telegram/Facebook avec SOS-Expat.com',
             'signup_bonus' => 200,
             'client_lawyer_call' => 500,        // $5.00
             'client_expat_call' => 300,         // $3.00
@@ -380,7 +380,7 @@ return [
             'type' => 'Carte bancaire (Visa, Mastercard, etc.)',
             'countries' => '44+ pays avec Stripe Express',
             'currencies' => ['EUR', 'USD'],
-            'model' => 'Destination charges — SOS-Expat charge, transfert automatique au prestataire',
+            'model' => 'Destination charges — SOS-Expat.com charge, transfert automatique au prestataire',
             'kyc' => 'Express account avec onboarding link pour verification KYC',
             'fees' => '2.9% + 0.25EUR/0.30USD + 1% FX cross-border',
         ],
@@ -451,17 +451,17 @@ return [
             'after_connection' => 'NON remboursable une fois la connexion etablie',
             'provider_cancels' => 'Remboursement integral + proposition de re-routage vers un autre prestataire',
             'no_connection_possible' => 'Remboursement integral si aucun prestataire disponible apres tentatives',
-            'technical_issue' => 'Remboursement ou re-credit a la discretion de SOS-Expat',
+            'technical_issue' => 'Remboursement ou re-credit a la discretion de SOS-Expat.com',
             'consumer_withdrawal' => 'Droit de retractation perdu une fois le service execute (si execution immediate demandee)',
         ],
 
         'disclaimers' => [
-            'SOS-Expat n\'est PAS un cabinet d\'avocats et ne fournit AUCUN conseil juridique, medical, fiscal ou reglementaire',
-            'SOS-Expat n\'est PAS partie au contrat entre le client et le prestataire (avocat/expert)',
+            'SOS-Expat.com n\'est PAS un cabinet d\'avocats et ne fournit AUCUN conseil juridique, medical, fiscal ou reglementaire',
+            'SOS-Expat.com n\'est PAS partie au contrat entre le client et le prestataire (avocat/expert)',
             'Les avocats restent SEULS responsables de leurs conseils et du respect de la deontologie/lois locales',
             'Les experts locaux fournissent une aide NON reglementee (orientation pratique, contacts, traduction informelle)',
             'AUCUNE garantie sur la qualite, le resultat ou la disponibilite des prestataires',
-            'Responsabilite de SOS-Expat LIMITEE au prix total paye pour la reservation concernee',
+            'Responsabilite de SOS-Expat.com LIMITEE au prix total paye pour la reservation concernee',
             'Ne PAS utiliser pour des urgences medicales ou situations mettant la vie en danger',
         ],
 
@@ -477,9 +477,9 @@ return [
         'tone' => 'Professionnel mais accessible. Comme un ami expert qui donne des conseils pratiques. Bienveillant, rassurant, concret.',
 
         'never_say' => [
-            'Ne jamais dire "SOS Expat" sans le tiret — c\'est TOUJOURS "SOS-Expat"',
-            'Ne jamais dire que SOS-Expat est gratuit (c\'est un service payant)',
-            'Ne jamais dire que SOS-Expat donne des conseils juridiques (il CONNECTE avec des avocats)',
+            'Ne jamais dire "SOS Expat" sans le tiret — c\'est TOUJOURS "SOS-Expat.com"',
+            'Ne jamais dire que SOS-Expat.com est gratuit (c\'est un service payant)',
+            'Ne jamais dire que SOS-Expat.com donne des conseils juridiques (il CONNECTE avec des avocats)',
             'Ne jamais utiliser un ton alarmiste ou anxiogene',
             'Ne jamais denigrer les ambassades, assurances ou concurrents',
             'Ne jamais promettre des resultats specifiques (chaque situation est unique)',
@@ -510,7 +510,7 @@ return [
         'admin_groupes' => 'Article de recrutement admin groupe WhatsApp/Telegram/Facebook. Monetisation communaute existante, commissions, recrutement de prestataires. CTA inscription.',
         'avocats' => 'Article pour attirer des avocats prestataires. Clientele internationale 197 pays, appels remuneres (30EUR par appel), flexibilite 24/7, pas de cout d\'acquisition client. CTA inscription prestataire.',
         'expats_aidants' => 'Article pour attirer des expatries aidants. Partager son experience, revenu complementaire (10EUR par appel), flexibilite totale, aider des compatriotes. CTA inscription.',
-        'comparatifs' => 'Comparaison OBJECTIVE de 2+ services/pays. Tableau comparatif structure (8-12 criteres), pros/cons, verdict argumente. NE PAS etre promotionnel pour SOS-Expat sauf CTA naturel en fin.',
+        'comparatifs' => 'Comparaison OBJECTIVE de 2+ services/pays. Tableau comparatif structure (8-12 criteres), pros/cons, verdict argumente. NE PAS etre promotionnel pour SOS-Expat.com sauf CTA naturel en fin.',
         'affiliation' => 'Comparatif de services avec liens affilies. Banques pour expatries, assurances voyage, transferts d\'argent, VPN, outils. Objectif = conversion affiliation. Objectivite = credibilite.',
         'qr' => 'Reponse courte et directe a une question precise. 300-800 mots. Featured snippet en premier paragraphe (40-60 mots = reponse directe). FAQ 5 questions liees. NE PAS etre un guide long.',
         'news' => 'Actualite expatries/voyageurs. Ton journalistique. Evenement recent avec date, source, impact. NE PAS repeter du contenu evergreen. 800-1200 mots.',
@@ -521,8 +521,8 @@ return [
     // =====================================================================
 
     'seo_rules' => [
-        'cta_max' => 'Maximum 1 CTA vers SOS-Expat par article (naturel, en fin d\'article)',
-        'cta_format' => 'Besoin d\'aide sur place ? Un avocat ou expert local disponible en moins de 5 min via SOS-Expat.',
+        'cta_max' => 'Maximum 1 CTA vers SOS-Expat.com par article (naturel, en fin d\'article)',
+        'cta_format' => 'Besoin d\'aide sur place ? Un avocat ou expert local disponible en moins de 5 min via SOS-Expat.com.',
         'internal_links' => 'Toujours lier vers la fiche pays concernee et les articles thematiques lies. Maillage : fiche pays <-> articles satellites <-> Q/R.',
         'featured_snippet' => 'Premier paragraphe = reponse directe en 40-60 mots (position 0 Google). Commencer par une reformulation du sujet. Structure : definition → chiffre cle → contexte.',
         'no_keyword_stuffing' => 'Densite mot-cle 1-2% maximum, ecrire naturellement',
@@ -558,7 +558,7 @@ return [
     'schema_rules' => [
         'speakable' => 'OBLIGATOIRE sur chaque article : SpeakableSpecification avec cssSelector [".featured-snippet", "h1"]. Optimise pour Google Assistant et assistants vocaux.',
         'faq_schema' => 'FAQPage Schema avec 5-7 questions par article. Questions = vraies requetes Google. Reponses 80-150 mots chacune.',
-        'article_schema' => 'Article Schema avec : headline, datePublished, dateModified, author (Organization: SOS-Expat), publisher, image, inLanguage.',
+        'article_schema' => 'Article Schema avec : headline, datePublished, dateModified, author (Organization: SOS-Expat.com), publisher, image, inLanguage.',
         'breadcrumb_schema' => 'BreadcrumbList Schema sur chaque page : Accueil > Categorie > Pays (si applicable) > Article.',
         'howto_schema' => 'HowTo Schema pour les guides etape par etape (visa, demarches admin). Inclure estimatedCost et totalTime quand applicable.',
         'comparative_schema' => 'ItemList Schema pour les comparatifs avec ListItem pour chaque entite comparee.',
@@ -604,7 +604,7 @@ return [
             ],
             'generate' => [
                 'diploma-recognition' => 'Guide reconnaissance diplomes',
-                'call-planner' => 'Planificateur rendez-vous SOS-Expat',
+                'call-planner' => 'Planificateur rendez-vous SOS-Expat.com',
                 'departure-checklist' => 'Checklist depart expatriation',
                 'admin-checklist' => 'Checklist demarches administratives',
                 'packing-list' => 'Liste de preparation demenagement',
@@ -758,7 +758,7 @@ return [
                     '<strong> pour les termes cles et chiffres importants',
                 ],
                 'faq_count' => 6,
-                'cta' => '1 CTA naturel en fin d\'article vers SOS-Expat',
+                'cta' => '1 CTA naturel en fin d\'article vers SOS-Expat.com',
                 'tone' => 'Pedagogique, structure, progressif (du simple au complexe)',
             ],
         ],
@@ -778,7 +778,7 @@ return [
                     '<blockquote> pour le verdict et les recommandations par profil',
                 ],
                 'faq_count' => 5,
-                'cta' => '1 CTA naturel ("Besoin d\'aide pour choisir ? Un expert SOS-Expat vous guide")',
+                'cta' => '1 CTA naturel ("Besoin d\'aide pour choisir ? Un expert SOS-Expat.com vous guide")',
                 'tone' => 'Objectif, factuel, donnees chiffrees, comparaison honnete',
             ],
         ],
@@ -798,7 +798,7 @@ return [
                     '<blockquote> temoignage ou avis client',
                 ],
                 'faq_count' => 3,
-                'cta' => '2-3 CTA vers SOS-Expat (haut, milieu, fin — l\'utilisateur veut agir)',
+                'cta' => '2-3 CTA vers SOS-Expat.com (haut, milieu, fin — l\'utilisateur veut agir)',
                 'tone' => 'Direct, rassurant, oriente action, zero jargon',
             ],
         ],
@@ -814,10 +814,10 @@ return [
                     '<table> avec colonnes : Nom, Adresse, Contact, Langues, Horaires',
                     '<ul> liens utiles officiels (ambassade, consulat, associations)',
                     '<blockquote> conseil pratique local',
-                    'Mention de SOS-Expat comme alternative rapide (mise en relation en 5 min)',
+                    'Mention de SOS-Expat.com comme alternative rapide (mise en relation en 5 min)',
                 ],
                 'faq_count' => 4,
-                'cta' => '1 CTA ("Pas le temps de chercher ? SOS-Expat vous connecte en 5 min")',
+                'cta' => '1 CTA ("Pas le temps de chercher ? SOS-Expat.com vous connecte en 5 min")',
                 'tone' => 'Pratique, local, concret, avec donnees de contact',
             ],
         ],
@@ -837,16 +837,16 @@ return [
                     'Lien direct vers l\'ambassade du pays',
                 ],
                 'faq_count' => 3,
-                'cta' => '1 CTA urgent ("Besoin d\'un avocat MAINTENANT ? SOS-Expat : mise en relation en moins de 5 minutes, 24h/24")',
+                'cta' => '1 CTA urgent ("Besoin d\'un avocat MAINTENANT ? SOS-Expat.com : mise en relation en moins de 5 minutes, 24h/24")',
                 'tone' => 'Calme, rassurant, DIRECTIF — chaque phrase = une action concrete',
             ],
         ],
         'navigational' => [
             'name' => 'Navigationnelle',
-            'description' => 'L\'utilisateur cherche un SITE ou une PAGE specifique. Ex: "SOS-Expat connexion", "sos-expat.com"',
+            'description' => 'L\'utilisateur cherche un SITE ou une PAGE specifique. Ex: "SOS-Expat.com connexion", "sos-expat.com"',
             'format' => [
                 'generate' => false,
-                'reason' => 'Pas de contenu a generer — ces requetes menent directement a l\'app SOS-Expat',
+                'reason' => 'Pas de contenu a generer — ces requetes menent directement a l\'app SOS-Expat.com',
             ],
         ],
     ],

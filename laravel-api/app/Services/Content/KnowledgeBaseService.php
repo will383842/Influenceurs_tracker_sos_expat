@@ -3,7 +3,7 @@
 namespace App\Services\Content;
 
 /**
- * Injects SOS-Expat Knowledge Base v2.0 into AI generation prompts.
+ * Injects SOS-Expat.com Knowledge Base v2.0 into AI generation prompts.
  *
  * Call getSystemPrompt($contentType) to get the full system prompt
  * with Knowledge Base context for any content type.
@@ -75,8 +75,8 @@ class KnowledgeBaseService
 REGLES CRITIQUES :
 - Ne JAMAIS inventer de donnees non presentes dans ce Knowledge Base.
 - Ne JAMAIS modifier les prix, durees, taux de commission ou informations legales.
-- Si tu n'es pas sur d'une information sur SOS-Expat, ne l'inclus pas.
-- Toujours ecrire "SOS-Expat" avec un tiret.
+- Si tu n'es pas sur d'une information sur SOS-Expat.com, ne l'inclus pas.
+- Toujours ecrire "SOS-Expat.com" avec un tiret.
 PROMPT;
     }
 
@@ -121,7 +121,7 @@ PROMPT;
 
 === FIN KB ===
 
-Ne JAMAIS inventer de donnees. Toujours ecrire "SOS-Expat" avec tiret.
+Ne JAMAIS inventer de donnees. Toujours ecrire "SOS-Expat.com" avec tiret.
 PROMPT;
     }
 
@@ -132,7 +132,7 @@ PROMPT;
     {
         return <<<PROMPT
 === SOS-EXPAT REFERENCE (NE PAS TRADUIRE CES TERMES) ===
-- Nom exact : SOS-Expat (avec tiret, ne PAS traduire)
+- Nom exact : SOS-Expat.com (avec tiret et .com, ne PAS traduire)
 - Service : mise en relation telephonique avec avocats et experts locaux
 - Avocat : 49EUR / 55USD pour 20min | Expert local : 19EUR / 25USD pour 30min
 - Prestataire avocat recoit : 30EUR/30USD | Expert : 10EUR/10USD
