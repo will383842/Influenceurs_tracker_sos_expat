@@ -73,10 +73,17 @@ class GenerateQrSatellitesJob implements ShouldQueue
         $generated = 0;
 
         foreach (array_slice($questions, 0, 5) as $question) {
-            // Guard check — skip if duplicate Q/R exists
+            // Guard check 1 — skip if duplicate Q/R exists
             $guardResult = $guard->checkQa($question, $article->language ?? 'fr');
             if ($guardResult['status'] === 'block') {
                 Log::info("QrSatellites: duplicate Q/R skipped", ['question' => $question]);
+                continue;
+            }
+
+            // Guard check 2 — skip if too similar to an existing ARTICLE (cross-type anti-cannibalization)
+            $crossCheck = $guard->check($question, 'qa', $article->language ?? 'fr', $article->country);
+            if ($crossCheck['status'] === 'block') {
+                Log::info("QrSatellites: cross-type duplicate skipped (article exists)", ['question' => $question]);
                 continue;
             }
 
