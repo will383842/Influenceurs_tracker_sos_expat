@@ -159,6 +159,12 @@ class AutoOptimizeService
             $improvements[] = 'eeat_signals';
         }
 
+        // 9. Ensure CTA is present (ALWAYS — every article must have a CTA)
+        if (!$this->hasCta($article)) {
+            $this->addCta($article);
+            $improvements[] = 'cta_added';
+        }
+
         return $improvements;
     }
 
@@ -294,6 +300,31 @@ class AutoOptimizeService
                 $html = substr($html, 0, $insertAfter) . "\n" . $eeatBlock . "\n" . substr($html, $insertAfter);
                 $article->update(['content_html' => $html]);
             }
+        }
+    }
+
+    private function hasCta(GeneratedArticle $article): bool
+    {
+        $html = $article->content_html ?? '';
+        return str_contains($html, 'cta-box')
+            || str_contains($html, 'sos-expat.com')
+            || str_contains($html, 'SOS-Expat.com');
+    }
+
+    private function addCta(GeneratedArticle $article): void
+    {
+        $cta = <<<'HTML'
+<div class="cta-box">
+<p><strong>Besoin d'aide sur place ?</strong></p>
+<p>Un avocat ou expert local disponible en moins de 5 minutes, 24h/24, dans 197 pays.</p>
+<p><a href="https://sos-expat.com" class="cta-button">Appeler maintenant</a></p>
+</div>
+HTML;
+
+        $html = $article->content_html ?? '';
+        // Don't add if already has a CTA
+        if (!$this->hasCta($article)) {
+            $article->update(['content_html' => $html . "\n" . $cta]);
         }
     }
 

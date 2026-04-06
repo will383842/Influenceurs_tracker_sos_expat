@@ -82,14 +82,15 @@ class WarmupScaleCommand extends Command
             'outreach_avocats' => 3, 'outreach_expats' => 3, 'testimonial' => 5, 'brand_content' => 4,
         ], 'countries' => ['FR', 'US', 'GB', 'ES', 'DE', 'TH', 'PT', 'CA', 'AU', 'IT', 'AE', 'JP', 'SG', 'MA', 'BR', 'MX', 'NL', 'BE']],
 
-        // Phase 7: Vitesse de croisière — 100/jour
+        // Phase 7: Vitesse de croisière — 100/jour — TOUS LES 197 PAYS
+        // La liste countries = [] signifie "tous les pays" (pas de filtre)
         ['week' => 999, 'target' => 100, 'rss' => 30, 'dist' => [
             'qa' => 8, 'art_mots_cles' => 7, 'art_longues_traines' => 7,
             'guide' => 5, 'guide_expat' => 4, 'guide_vacances' => 4,
             'guide_city' => 8, 'comparative' => 7, 'affiliation' => 5,
             'outreach_chatters' => 4, 'outreach_influenceurs' => 4, 'outreach_admin_groupes' => 3,
             'outreach_avocats' => 3, 'outreach_expats' => 3, 'testimonial' => 5, 'brand_content' => 5,
-        ], 'countries' => ['FR', 'US', 'GB', 'ES', 'DE', 'TH', 'PT', 'CA', 'AU', 'IT', 'AE', 'JP', 'SG', 'MA', 'BR', 'MX', 'NL', 'BE', 'CH', 'LU']],
+        ], 'countries' => []],  // Empty = ALL 197 countries
     ];
 
     public function handle(): int

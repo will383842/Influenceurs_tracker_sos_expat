@@ -71,6 +71,7 @@ class GenerateQrSatellitesJob implements ShouldQueue
         }
 
         $generated = 0;
+        $publishedQuestions = [];
 
         foreach (array_slice($questions, 0, 5) as $question) {
             // Guard check 1 — skip if duplicate Q/R exists
@@ -95,10 +96,16 @@ class GenerateQrSatellitesJob implements ShouldQueue
             $sent = $this->sendToBlog($content, $article, $question, $blogUrl, $blogKey);
             if ($sent) {
                 $generated++;
+                $publishedQuestions[] = $question;
                 Log::info("QrSatellites: published Q/R", ['question' => mb_substr($question, 0, 60), 'parent' => $article->id]);
             }
 
             sleep(rand(3, 8)); // Natural spacing
+        }
+
+        // Add internal links FROM parent article TO Q/R satellites
+        if ($generated > 0 && !empty($publishedQuestions)) {
+            $this->addLinksToParent($article, $publishedQuestions, $blogUrl, $blogKey);
         }
 
         Log::info("QrSatellites: {$generated}/5 Q/R generated for article {$article->id}");
@@ -217,5 +224,45 @@ class GenerateQrSatellitesJob implements ShouldQueue
             ->post("{$blogUrl}/api/v1/webhook/article", $payload);
 
         return $response->successful();
+    }
+
+    /**
+     * Add a "Questions fréquentes liées" section at the end of the parent article
+     * with links to the published Q/R satellites.
+     * This creates the bidirectional maillage: parent ↔ satellites.
+     */
+    private function addLinksToParent(GeneratedArticle $article, array $questions, string $blogUrl, string $blogKey): void
+    {
+        if (empty($questions)) return;
+
+        // Build HTML block with links to Q/R pages
+        $linksHtml = "\n<div class=\"summary-box\">\n<p><strong>Questions frequemment posees</strong></p>\n<ul>\n";
+        foreach ($questions as $q) {
+            $slug = \Illuminate\Support\Str::slug(mb_substr($q, 0, 60));
+            $linksHtml .= "<li><a href=\"/vie-a-letranger/{$slug}\">{$q}</a></li>\n";
+        }
+        $linksHtml .= "</ul>\n</div>\n";
+
+        // Append to parent article content (before CTA if present)
+        $html = $article->content_html ?? '';
+        if (str_contains($html, 'cta-box')) {
+            $html = str_replace('<div class="cta-box">', $linksHtml . '<div class="cta-box">', $html);
+        } else {
+            $html .= $linksHtml;
+        }
+
+        $article->update(['content_html' => $html]);
+
+        // Also update on Blog via webhook (update event)
+        try {
+            Http::withToken($blogKey)->timeout(30)
+                ->post("{$blogUrl}/api/v1/webhook/article", [
+                    'uuid' => $article->uuid,
+                    'event' => 'update',
+                    'content_html' => $html,
+                ]);
+        } catch (\Throwable $e) {
+            Log::warning("QrSatellites: failed to update parent on blog", ['error' => $e->getMessage()]);
+        }
     }
 }

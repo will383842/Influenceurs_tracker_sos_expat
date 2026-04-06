@@ -210,7 +210,13 @@ class RunOrchestratorCycleJob implements ShouldQueue
     private function generateOne(string $type, array $config): bool
     {
         $blogUrl = rtrim(config('services.blog.url', ''), '/');
-        $countries = $config['priority_countries'] ?? ['FR'];
+        $countries = $config['priority_countries'] ?? [];
+
+        // Empty countries list = all 197 countries — pick random from DB
+        if (empty($countries)) {
+            $allCountries = \App\Models\ContentCountry::pluck('country_code')->filter()->toArray();
+            $countries = !empty($allCountries) ? $allCountries : ['FR'];
+        }
 
         // Pick a random priority country for country-specific content
         $country = $countries[array_rand($countries)] ?? 'FR';
