@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * City content templates — 15 templates × 991 cities = ~14,865 articles potentiels.
- * Each template uses {ville} and {pays} variables for city-specific content.
+ * City content templates — 20 templates × 1159 cities.
  */
 class CityTemplatesSeeder extends Seeder
 {
@@ -30,7 +29,6 @@ class CityTemplatesSeeder extends Seeder
             ['title' => 'demenager a {ville} : checklist complete pour expatries', 'cluster' => 'Demenagement', 'intent' => 'informational'],
             ['title' => 'visiter {ville} en vacances : itineraire, budget et conseils', 'cluster' => 'Vacances', 'intent' => 'informational'],
             ['title' => 'investir dans l\'immobilier a {ville} : prix, rendement et procedure', 'cluster' => 'Immobilier', 'intent' => 'commercial_investigation'],
-            // VACANCIERS / TOURISTES
             ['title' => 'que faire a {ville} : top activites et visites incontournables', 'cluster' => 'Tourisme', 'intent' => 'informational'],
             ['title' => 'ou dormir a {ville} : meilleurs quartiers et hotels pour touristes', 'cluster' => 'Hebergement', 'intent' => 'commercial_investigation'],
             ['title' => 'budget vacances a {ville} : cout par jour, hotels, restaurants, transports', 'cluster' => 'Budget Vacances', 'intent' => 'informational'],
@@ -40,7 +38,7 @@ class CityTemplatesSeeder extends Seeder
 
         $now = now();
 
-        foreach ($templates as $i => $tpl) {
+        foreach ($templates as $tpl) {
             DB::table('content_templates')->insertOrIgnore([
                 'uuid' => (string) Str::uuid(),
                 'name' => "Ville — {$tpl['cluster']}",
@@ -50,12 +48,12 @@ class CityTemplatesSeeder extends Seeder
                 'variables' => json_encode(['ville', 'pays']),
                 'expansion_mode' => 'custom_list',
                 'expansion_values' => json_encode(['source' => 'content_cities']),
-                'generation_instructions' => "Article sur {$tpl['cluster']} specifique a la VILLE (pas le pays). Intention: {$tpl['intent']}. Donnees locales: quartiers, prix, adresses, transports. S'adresse a TOUTE nationalite.",
+                'generation_instructions' => "Article PILIER sur {$tpl['cluster']} specifique a la VILLE. Intention: {$tpl['intent']}. Donnees locales: quartiers, prix, adresses. S'adresse a TOUTE nationalite.",
                 'tone' => 'professional',
                 'article_length' => 'long',
                 'faq_count' => 5,
                 'generate_faq' => true,
-                'research_sources' => json_encode(['tavily', 'perplexity']),
+                'research_sources' => true,
                 'auto_internal_links' => true,
                 'auto_affiliate_links' => false,
                 'auto_translate' => true,
@@ -70,6 +68,6 @@ class CityTemplatesSeeder extends Seeder
             ]);
         }
 
-        $this->command?->info("Seeded " . count($templates) . " city templates (× 991 cities = ~" . (count($templates) * 991) . " articles potentiels).");
+        $this->command?->info("Seeded " . count($templates) . " city templates.");
     }
 }
