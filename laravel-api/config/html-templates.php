@@ -87,6 +87,7 @@ IMAGE AVEC LEGENDE :
 
 REGLES HTML :
 - JAMAIS de <h1> (le titre H1 est gere par le template de page)
+- TOUJOURS loading="lazy" sur les balises <img> (performance et Core Web Vitals)
 - Utiliser <h2> pour les sections principales, <h3> pour les sous-sections
 - <strong> pour les termes importants et les chiffres
 - <a href="..."> pour les liens (internes et externes)

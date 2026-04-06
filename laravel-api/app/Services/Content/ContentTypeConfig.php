@@ -167,36 +167,6 @@ class ContentTypeConfig
                     . "suivie d'une reponse detaillee structuree.",
             ],
 
-            // CITY GUIDES (fiches villes — sous-type de guide, focus ville spécifique)
-            'guide_city' => [
-                'model' => 'gpt-4o',
-                'research_model' => 'sonar',
-                'temperature' => 0.65,
-                'min_words' => 2500,
-                'max_words' => 4000,
-                'target_words' => 3000,
-                'target_words_range' => '2500-4000',
-                'length' => 'long',
-                'faq_count' => 8,
-                'max_tokens_content' => 10000,
-                'max_tokens_title' => 100,
-                'internal_links' => 6,
-                'external_links' => 3,
-                'images_count' => 3,
-                'featured_snippet' => true,
-                'comparison_table' => true,
-                'numbered_steps' => false,
-                'research_depth' => 'deep',
-                'quality_threshold' => 85,
-                'h2_count' => [6, 10],
-                'include_charts_data' => true,
-                'include_key_figures' => true,
-                'eeat_signals' => true,
-                'prompt_suffix' => "Guide complet sur cette VILLE spécifique pour les expatriés. "
-                    . "Inclure : coût de la vie par quartier, transports, activités, communauté expat locale, "
-                    . "logement, sécurité, comparaison avec d'autres villes du même pays.",
-            ],
-
             // TESTIMONIALS (témoignages d'expatriés, social proof)
             'testimonial' => [
                 'model' => 'gpt-4o',

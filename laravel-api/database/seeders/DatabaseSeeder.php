@@ -32,5 +32,6 @@ class DatabaseSeeder extends Seeder
         $this->call(NativeKeywordsSeeder::class);
         $this->call(LongTailKeywordsSeeder::class);
         $this->call(CityTemplatesSeeder::class);
+        $this->call(GenerationSourceCategoriesSeeder::class);
     }
 }
