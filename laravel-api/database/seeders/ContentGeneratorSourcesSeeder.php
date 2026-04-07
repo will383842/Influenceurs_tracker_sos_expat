@@ -127,25 +127,10 @@ class ContentGeneratorSourcesSeeder extends Seeder
             ['demarche' => 'souscrire une assurance sante',  'theme' => 'sante'],
         ];
 
-        // Top 50 pays (les plus recherchés) pour tutoriels
-        $topCountries = DB::table('content_countries')
-            ->select('name', 'slug')
-            ->whereIn('slug', [
-                'allemagne','angleterre','australie','autriche','belgique','bresil','canada',
-                'chine','coree-du-sud','danemark','emirats-arabes-unis','espagne','etats-unis',
-                'finlande','france','grece','hong-kong','inde','indonesie','irlande','italie',
-                'japon','malaisie','maroc','mexique','norvege','nouvelle-zelande','pays-bas',
-                'pologne','portugal','qatar','republique-dominicaine','republique-tcheque',
-                'roumanie','russie','senegal','singapour','suede','suisse','thailande',
-                'tunisie','turquie','vietnam','colombie','chili','perou','philippines',
-                'afrique-du-sud','costa-rica','panama',
-            ])
-            ->orderBy('name')
-            ->get();
-
+        // TOUS les 223 pays pour tutoriels
         $tutCount = 0;
         foreach ($demarches as $d) {
-            foreach ($topCountries as $country) {
+            foreach ($countries as $country) {
                 $title = "Comment {$d['demarche']} en {$country->name} : guide complet etape par etape";
                 DB::table('generation_source_items')->updateOrInsert(
                     ['category_slug' => 'tutoriels', 'title' => $title],
@@ -169,7 +154,7 @@ class ContentGeneratorSourcesSeeder extends Seeder
             }
         }
         $totalInserted += $tutCount;
-        $this->command?->info("tutoriels: {$tutCount} items (12 demarches x top 50 pays)");
+        $this->command?->info("tutoriels: {$tutCount} items (12 demarches x 223 pays)");
 
         // ── 4. TÉMOIGNAGES — compléter avec les pays manquants ──
         $existingTemoignages = DB::table('generation_source_items')
@@ -204,6 +189,64 @@ class ContentGeneratorSourcesSeeder extends Seeder
         }
         $totalInserted += $temCount;
         $this->command?->info("temoignages: {$temCount} items supplementaires");
+
+        // ── 5. PAIN POINTS — expansion par pays (top 50 pays) ──
+        $painPointTitles = [
+            "J'ai perdu mon passeport en {pays}",
+            "Arnaque location vacances en {pays}",
+            "Accident de voiture en {pays} sans assurance",
+            "Hospitalisation en {pays} sans assurance",
+            "Divorce expatrie en {pays} quel recours",
+            "Licenciement abusif en {pays} expatrie",
+            "Agression physique en {pays} que faire",
+            "Compte bancaire bloque en {pays}",
+            "Refus de visa en {pays} recours",
+            "Harcelement au travail en {pays} expatrie",
+        ];
+
+        // Top 50 pays les plus recherchés pour pain points
+        $topPainCountries = DB::table('content_countries')
+            ->select('name', 'slug')
+            ->whereIn('slug', [
+                'allemagne','angleterre','australie','belgique','bresil','canada',
+                'chine','coree-du-sud','emirats-arabes-unis','espagne','etats-unis',
+                'france','grece','inde','indonesie','irlande','italie','japon',
+                'malaisie','maroc','mexique','norvege','nouvelle-zelande','pays-bas',
+                'pologne','portugal','qatar','republique-dominicaine','roumanie',
+                'russie','senegal','singapour','suede','suisse','thailande',
+                'tunisie','turquie','vietnam','colombie','chili','perou','philippines',
+                'afrique-du-sud','costa-rica','panama','egypte','kenya','nigeria',
+                'argentine','autriche',
+            ])
+            ->orderBy('name')
+            ->get();
+
+        $ppCount = 0;
+        foreach ($painPointTitles as $template) {
+            foreach ($topPainCountries as $country) {
+                $title = str_replace('{pays}', $country->name, $template);
+                DB::table('generation_source_items')->updateOrInsert(
+                    ['category_slug' => 'pain-point', 'title' => $title],
+                    [
+                        'source_type'       => 'pain_point',
+                        'country'           => $country->name,
+                        'country_slug'      => $country->slug,
+                        'theme'             => 'urgence',
+                        'language'          => 'fr',
+                        'processing_status' => 'ready',
+                        'quality_score'     => 85,
+                        'is_cleaned'        => true,
+                        'input_quality'     => 'title_only',
+                        'used_count'        => 0,
+                        'created_at'        => $now,
+                        'updated_at'        => $now,
+                    ]
+                );
+                $ppCount++;
+            }
+        }
+        $totalInserted += $ppCount;
+        $this->command?->info("pain-point: {$ppCount} items par pays supplementaires");
 
         $this->command?->info("\nTotal: {$totalInserted} items inseres/mis a jour.");
     }
