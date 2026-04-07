@@ -37,11 +37,14 @@ class GenerateStatisticsArticleJob implements ShouldQueue
         }
 
         $statsFormatted = collect($dataset->stats)->map(function ($stat) {
-            return "- {$stat['label']}: {$stat['value']} ({$stat['year'] ?? 'N/A'}) — Source: {$stat['source_name'] ?? 'N/A'}";
+            $year = $stat['year'] ?? 'N/A';
+            $source = $stat['source_name'] ?? 'N/A';
+            return "- {$stat['label']}: {$stat['value']} ({$year}) — Source: {$source}";
         })->implode("\n");
 
         $sourcesFormatted = collect($dataset->sources)->map(function ($src) {
-            return "- {$src['name']}: {$src['url'] ?? 'N/A'}";
+            $url = $src['url'] ?? 'N/A';
+            return "- {$src['name']}: {$url}";
         })->implode("\n");
 
         $topic = "Statistical analysis: {$dataset->title}\n\n"

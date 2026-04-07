@@ -419,7 +419,9 @@ class StatisticsController extends Controller
         $dataset->update(['status' => 'generating']);
 
         $statsFormatted = collect($dataset->stats)->map(function ($stat, $i) {
-            return "- {$stat['label']}: {$stat['value']} ({$stat['year'] ?? 'N/A'}) — Source: {$stat['source_name'] ?? 'N/A'}";
+            $year = $stat['year'] ?? 'N/A';
+            $source = $stat['source_name'] ?? 'N/A';
+            return "- {$stat['label']}: {$stat['value']} ({$year}) — Source: {$source}";
         })->implode("\n");
 
         $sourcesFormatted = collect($dataset->sources)->map(function ($src) {
@@ -498,7 +500,8 @@ class StatisticsController extends Controller
             $dataset = StatisticsDataset::find($id);
             if ($dataset && in_array($dataset->status, ['validated', 'draft', 'failed'])) {
                 $dataset->update(['status' => 'generating']);
-                \App\Jobs\GenerateStatisticsArticleJob::dispatch($id, request()->user()->id ?? 0);
+                $userId = request()->user() ? request()->user()->id : 0;
+                \App\Jobs\GenerateStatisticsArticleJob::dispatch($id, $userId);
                 $queued++;
             }
         }
