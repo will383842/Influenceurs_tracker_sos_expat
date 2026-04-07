@@ -58,7 +58,7 @@ const TYPE_CONFIG: Record<string, {
     gradient: 'from-violet/20 to-violet/5',
     contentType: 'outreach',
     autoExpand: true,
-    titleTemplate: 'Gagner de l\'argent en ligne depuis {pays} : missions reseaux sociaux',
+    titleTemplate: 'Gagner de l\'argent en ligne {pays} : missions reseaux sociaux pour expatries',
     instructions: 'Article SEO ciblant les gens qui cherchent a gagner un revenu en ligne. Presenter les missions reseaux sociaux comme opportunite. Avantages: revenus complementaires, flexibilite, communaute. Mentionner SOS-Expat comme plateforme qui propose ces missions. CTA vers inscription.',
   },
   influenceurs: {
@@ -94,7 +94,7 @@ const TYPE_CONFIG: Record<string, {
     gradient: 'from-danger/20 to-danger/5',
     contentType: 'outreach',
     autoExpand: true,
-    titleTemplate: 'Travail a distance depuis {pays} : aider les expatries et gagner un revenu',
+    titleTemplate: 'Revenu complementaire {pays} : aider les expatries a distance',
     instructions: 'Article SEO ciblant les expatries experimentes qui veulent un revenu complementaire. Comment aider d\'autres expatries a distance (assistance telephonique, conseils). Avantages: flexibilite, partage d\'experience. Mentionner SOS-Expat. CTA vers inscription expat aidant.',
   },
   'guide-city': {

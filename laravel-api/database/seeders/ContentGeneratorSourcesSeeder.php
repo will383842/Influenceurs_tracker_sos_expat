@@ -56,7 +56,7 @@ class ContentGeneratorSourcesSeeder extends Seeder
         $outreachTypes = [
             'chatters' => [
                 'source_type' => 'outreach',
-                'template'    => 'Gagner de l\'argent en ligne depuis {prep_pays} : missions reseaux sociaux',
+                'template'    => 'Gagner de l\'argent en ligne {prep_pays} : missions reseaux sociaux pour expatries',
                 'theme'       => 'recrutement',
             ],
             'bloggeurs' => [
@@ -76,7 +76,7 @@ class ContentGeneratorSourcesSeeder extends Seeder
             ],
             'expats-aidants' => [
                 'source_type' => 'outreach',
-                'template'    => 'Travail a distance depuis {prep_pays} : aider les expatries et gagner un revenu',
+                'template'    => 'Revenu complementaire {prep_pays} : aider les expatries a distance',
                 'theme'       => 'recrutement',
             ],
         ];
