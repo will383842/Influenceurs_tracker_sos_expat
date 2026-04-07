@@ -61,7 +61,7 @@ class ArticleGenerationService
     {
         return match ($contentType) {
             'guide', 'guide_city', 'pillar'              => 'informational',
-            'article', 'tutorial', 'statistics'           => 'informational',
+            'article', 'tutorial', 'statistics', 'news'    => 'informational',
             'qa', 'qa_needs'                              => 'informational',
             'comparative', 'affiliation'                  => 'commercial_investigation',
             'testimonial'                                 => 'informational',

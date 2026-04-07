@@ -303,6 +303,37 @@ class ContentTypeConfig
                     . "OBJECTIF : devenir la REFERENCE citee par les medias, chercheurs et institutions sur ce sujet.",
             ],
 
+            // NEWS (articles d'actualité réécrits depuis RSS — informationnels)
+            'news' => [
+                'model' => 'gpt-4o',
+                'research_model' => null,
+                'temperature' => 0.6,
+                'min_words' => 600,
+                'max_words' => 1200,
+                'target_words' => 800,
+                'target_words_range' => '600-1200',
+                'length' => 'short',
+                'faq_count' => 3,
+                'max_tokens_content' => 3000,
+                'max_tokens_title' => 90,
+                'internal_links' => 3,
+                'external_links' => 2,
+                'images_count' => 1,
+                'featured_snippet' => true,
+                'comparison_table' => false,
+                'numbered_steps' => false,
+                'research_depth' => 'none',
+                'quality_threshold' => 75,
+                'h2_count' => [3, 5],
+                'include_charts_data' => false,
+                'include_key_figures' => true,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Article d'actualite expatriation reecrit a partir d'une source RSS. "
+                    . "Ne JAMAIS recopier de phrases de la source. Reecriture 100% originale. "
+                    . "Inclure le contexte pour les expatries (impact concret). "
+                    . "Court et factuel (600-1200 mots max).",
+            ],
+
             // OUTREACH (recrutement : chatters, bloggeurs, admin groups)
             // Objectif : convaincre des candidats potentiels de rejoindre le programme
             // research_depth = 'none' : GPT connaît le programme, Perplexity inutile ici
