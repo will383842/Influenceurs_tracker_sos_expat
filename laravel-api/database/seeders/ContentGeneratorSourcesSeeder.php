@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Helpers\FrenchPreposition;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -51,30 +52,31 @@ class ContentGeneratorSourcesSeeder extends Seeder
         $this->command?->info("Villes: {$villesCount} items (from content_cities)");
 
         // ── 2. TYPES OUTREACH (chatters, influenceurs, admin-groupes, avocats, expats-aidants) ──
+        // Titres = vraies requêtes Google (intention de recherche), PAS des annonces SOS-Expat
         $outreachTypes = [
             'chatters' => [
                 'source_type' => 'outreach',
-                'template'    => 'Devenir Chatter SOS-Expat en {pays} : missions, revenus et avantages',
+                'template'    => 'Gagner de l\'argent en ligne depuis {prep_pays} : missions reseaux sociaux',
                 'theme'       => 'recrutement',
             ],
             'bloggeurs' => [
                 'source_type' => 'outreach',
-                'template'    => 'Devenir Influenceur SOS-Expat en {pays} : monetisez votre audience',
+                'template'    => 'Monetiser son blog expatriation {prep_pays} : programmes d\'affiliation',
                 'theme'       => 'recrutement',
             ],
             'admin-groups' => [
                 'source_type' => 'outreach',
-                'template'    => 'Devenir Admin Groupe SOS-Expat en {pays} : gerez et monetisez votre communaute',
+                'template'    => 'Groupes Facebook expatries {prep_pays} : creer et gerer une communaute',
                 'theme'       => 'recrutement',
             ],
             'avocats' => [
                 'source_type' => 'outreach',
-                'template'    => 'Avocat en {pays} : rejoignez SOS-Expat et developpez votre clientele internationale',
+                'template'    => 'Avocat francophone {prep_pays} : trouver des clients expatries en ligne',
                 'theme'       => 'recrutement',
             ],
             'expats-aidants' => [
                 'source_type' => 'outreach',
-                'template'    => 'Expatrie en {pays} ? Aidez d\'autres expatries et gagnez un revenu complementaire',
+                'template'    => 'Travail a distance depuis {prep_pays} : aider les expatries et gagner un revenu',
                 'theme'       => 'recrutement',
             ],
         ];
@@ -84,10 +86,15 @@ class ContentGeneratorSourcesSeeder extends Seeder
             ->orderBy('name')
             ->get();
 
+        // Supprimer les anciens titres outreach (mauvais format)
+        DB::table('generation_source_items')
+            ->whereIn('category_slug', array_keys($outreachTypes))
+            ->delete();
+
         foreach ($outreachTypes as $slug => $config) {
             $count = 0;
             foreach ($countries as $country) {
-                $title = str_replace('{pays}', $country->name, $config['template']);
+                $title = FrenchPreposition::replace($config['template'], $country->name);
                 DB::table('generation_source_items')->updateOrInsert(
                     ['category_slug' => $slug, 'title' => $title],
                     [
@@ -127,11 +134,14 @@ class ContentGeneratorSourcesSeeder extends Seeder
             ['demarche' => 'souscrire une assurance sante',  'theme' => 'sante'],
         ];
 
-        // TOUS les 223 pays pour tutoriels
+        // Supprimer les anciens tutoriels (mauvaises prépositions)
+        DB::table('generation_source_items')->where('category_slug', 'tutoriels')->delete();
+
         $tutCount = 0;
         foreach ($demarches as $d) {
             foreach ($countries as $country) {
-                $title = "Comment {$d['demarche']} en {$country->name} : guide complet etape par etape";
+                $prep = FrenchPreposition::prep($country->name);
+                $title = "Comment {$d['demarche']} {$prep} : guide complet etape par etape";
                 DB::table('generation_source_items')->updateOrInsert(
                     ['category_slug' => 'tutoriels', 'title' => $title],
                     [
@@ -157,17 +167,13 @@ class ContentGeneratorSourcesSeeder extends Seeder
         $this->command?->info("tutoriels: {$tutCount} items (12 demarches x 223 pays)");
 
         // ── 4. TÉMOIGNAGES — compléter avec les pays manquants ──
-        $existingTemoignages = DB::table('generation_source_items')
-            ->where('category_slug', 'temoignages')
-            ->pluck('country_slug')
-            ->filter()
-            ->toArray();
+        // Supprimer les anciens témoignages (mauvaises prépositions)
+        DB::table('generation_source_items')->where('category_slug', 'temoignages')->delete();
 
         $temCount = 0;
         foreach ($countries as $country) {
-            if (in_array($country->slug, $existingTemoignages)) continue;
-
-            $title = "Temoignage expatrie en {$country->name} : mon experience et mes conseils";
+            $prep = FrenchPreposition::prep($country->name);
+            $title = "Temoignage expatrie {$prep} : mon experience et mes conseils";
             DB::table('generation_source_items')->updateOrInsert(
                 ['category_slug' => 'temoignages', 'title' => $title],
                 [
@@ -190,25 +196,31 @@ class ContentGeneratorSourcesSeeder extends Seeder
         $totalInserted += $temCount;
         $this->command?->info("temoignages: {$temCount} items supplementaires");
 
-        // ── 5. PAIN POINTS — expansion par pays (top 50 pays) ──
+        // ── 5. PAIN POINTS — expansion par pays ──
         $painPointTitles = [
-            "J'ai perdu mon passeport en {pays}",
-            "Arnaque location vacances en {pays}",
-            "Accident de voiture en {pays} sans assurance",
-            "Hospitalisation en {pays} sans assurance",
-            "Divorce expatrie en {pays} quel recours",
-            "Licenciement abusif en {pays} expatrie",
-            "Agression physique en {pays} que faire",
-            "Compte bancaire bloque en {pays}",
-            "Refus de visa en {pays} recours",
-            "Harcelement au travail en {pays} expatrie",
+            "J'ai perdu mon passeport {prep_pays}",
+            "Arnaque location vacances {prep_pays}",
+            "Accident de voiture {prep_pays} sans assurance",
+            "Hospitalisation {prep_pays} sans assurance",
+            "Divorce expatrie {prep_pays} quel recours",
+            "Licenciement abusif {prep_pays} expatrie",
+            "Agression physique {prep_pays} que faire",
+            "Compte bancaire bloque {prep_pays}",
+            "Refus de visa {prep_pays} recours",
+            "Harcelement au travail {prep_pays} expatrie",
         ];
 
-        // TOUS les 223 pays pour pain points
+        // Supprimer anciens pain-points par pays (mauvaises prépositions)
+        DB::table('generation_source_items')
+            ->where('category_slug', 'pain-point')
+            ->whereNotNull('country_slug')
+            ->where('country_slug', '!=', '')
+            ->delete();
+
         $ppCount = 0;
         foreach ($painPointTitles as $template) {
             foreach ($countries as $country) {
-                $title = str_replace('{pays}', $country->name, $template);
+                $title = FrenchPreposition::replace($template, $country->name);
                 DB::table('generation_source_items')->updateOrInsert(
                     ['category_slug' => 'pain-point', 'title' => $title],
                     [
