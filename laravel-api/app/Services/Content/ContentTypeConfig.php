@@ -303,6 +303,45 @@ class ContentTypeConfig
                     . "OBJECTIF : devenir la REFERENCE citee par les medias, chercheurs et institutions sur ce sujet.",
             ],
 
+            // PAIN POINT (souffrances/urgences expatriés — intent urgency)
+            // Cible les gens qui ONT un problème MAINTENANT et cherchent une solution IMMÉDIATE
+            'pain_point' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.6,
+                'min_words' => 800,
+                'max_words' => 1500,
+                'target_words' => 1200,
+                'target_words_range' => '800-1500',
+                'length' => 'short',
+                'faq_count' => 4,
+                'max_tokens_content' => 4000,
+                'max_tokens_title' => 100,
+                'internal_links' => 4,
+                'external_links' => 2,
+                'images_count' => 1,
+                'featured_snippet' => true,
+                'comparison_table' => false,
+                'numbered_steps' => true,
+                'research_depth' => 'standard',
+                'quality_threshold' => 80,
+                'h2_count' => [3, 5],
+                'include_charts_data' => false,
+                'include_key_figures' => true,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Article SOUFFRANCE / URGENCE pour expatrie en detresse.\n"
+                    . "L'utilisateur a un probleme MAINTENANT et cherche une solution IMMEDIATE.\n"
+                    . "Structure OBLIGATOIRE :\n"
+                    . "1) Encadre URGENCE en haut (<div class='emergency-box'>) avec les premiers reflexes (3-5 actions immediates).\n"
+                    . "2) Etapes numerotees en <ol> — chaque etape = 1 action concrete et actionnable.\n"
+                    . "3) Numeros et contacts utiles (ambassade, police locale, numeros d'urgence du pays).\n"
+                    . "4) Section 'Erreurs a ne PAS commettre' avec les pieges courants.\n"
+                    . "5) CTA fort vers SOS-Expat : 'Besoin d'aide MAINTENANT ? SOS-Expat.com : mise en relation avec un expert en 5 min, 24h/24, 197 pays'.\n"
+                    . "Ton empathique mais directif. Phrases courtes. Zero jargon.\n"
+                    . "Chaque paragraphe doit rassurer ET donner une action concrete.\n"
+                    . "S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais.",
+            ],
+
             // NEWS (articles d'actualité réécrits depuis RSS — informationnels)
             'news' => [
                 'model' => 'gpt-4o',

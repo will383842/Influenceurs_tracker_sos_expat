@@ -244,6 +244,8 @@ class RunOrchestratorCycleJob implements ShouldQueue
             'outreach_expats' => $this->triggerGeneration('outreach', 'expats-aidants', $country),
             'testimonial' => $this->triggerGeneration('testimonial', 'temoignages', $country),
             'brand_content' => $this->triggerGeneration('article', 'brand-content', null),
+            'statistiques' => $this->triggerGeneration('statistics', 'statistiques', $country),
+            'pain_point' => $this->triggerGeneration('pain_point', 'pain-point', $country),
             default => false,
         };
     }

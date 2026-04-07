@@ -66,6 +66,7 @@ class ArticleGenerationService
             'comparative', 'affiliation'                  => 'commercial_investigation',
             'testimonial'                                 => 'informational',
             'outreach'                                    => 'transactional',
+            'pain_point'                                  => 'urgency',
             default                                       => 'informational',
         };
     }

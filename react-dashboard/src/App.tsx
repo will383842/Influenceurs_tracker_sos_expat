@@ -297,6 +297,7 @@ export default function App() {
             <Route path="content/avocats" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ContentGenerator type="avocats" /></React.Suspense></AdminRoute>} />
             <Route path="content/expats-aidants" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ContentGenerator type="expats-aidants" /></React.Suspense></AdminRoute>} />
             <Route path="content/temoignages" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ContentGenerator type="testimonial" /></React.Suspense></AdminRoute>} />
+            <Route path="content/souffrances" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ContentGenerator type="pain-point" /></React.Suspense></AdminRoute>} />
             <Route path="content/fiches-villes" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ContentGenerator type="guide-city" /></React.Suspense></AdminRoute>} />
             <Route path="content/tutoriels" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ContentGenerator type="tutorial" /></React.Suspense></AdminRoute>} />
             <Route path="content/longues-traines" element={<AdminRoute><React.Suspense fallback={<LoadingFallback />}><ArtLonguesTraines /></React.Suspense></AdminRoute>} />

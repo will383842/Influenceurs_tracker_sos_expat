@@ -124,6 +124,15 @@ const TYPE_CONFIG: Record<string, {
     titleTemplate: 'Comment {demarche} en {pays} : guide complet etape par etape',
     instructions: 'Guide pratique pas-a-pas sur une demarche administrative ou pratique pour expatrie. Structure: introduction contexte, pre-requis, etapes numerotees avec details concrets, delais, couts, erreurs a eviter, FAQ. Inclure captures/schemas si pertinent. CTA vers SOS-Expat.com pour aide personnalisee.',
   },
+  'pain-point': {
+    emoji: '😔', title: 'Souffrances', slug: 'pain-point',
+    description: 'Articles ciblant les problemes urgents des expatries (passeport perdu, arnaque, urgence medicale)',
+    gradient: 'from-red-500/20 to-red-500/5',
+    contentType: 'pain_point',
+    autoExpand: true,
+    titleTemplate: '{sujet} : que faire quand on est expatrie en {pays}',
+    instructions: 'Article URGENCE/SOUFFRANCE pour expatrie en detresse. Encadre urgence en haut avec premiers reflexes (3-5 actions immediates). Etapes numerotees actions concretes. Numeros et contacts utiles (ambassade, police, urgences du pays). Section erreurs a ne PAS commettre. CTA fort vers SOS-Expat.com (mise en relation expert en 5 min, 24h/24, 197 pays). Ton empathique et directif. S\'adresser a TOUTE nationalite.',
+  },
 };
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {

@@ -28,6 +28,8 @@ class GenerationSchedulerService
         'article' => 4,         // Deep articles
         'guide' => 2,           // Country guides are heavy
         'comparative' => 3,     // Comparatives
+        'pain_point' => 4,      // Pain point — haute conversion
+        'statistics' => 2,      // Statistics — heavy (research)
     ];
 
     // Priority countries (highest search volume first)
@@ -223,10 +225,12 @@ class GenerationSchedulerService
         // Content type bonus (0-20)
         $typeBonus = match ($contentType) {
             'guide', 'fiches_pays' => 20,   // Country guides = pillar content
+            'pain_point' => 18,             // Pain point = highest conversion (urgency)
             'comparative' => 15,            // Comparatives = high conversion
+            'statistics' => 12,             // Statistics = authority (citable by media)
             'article' => 10,                // Deep articles = authority
-            'news' => 5,                    // News = freshness signal
             'qa' => 8,                      // Q/R = featured snippets
+            'news' => 5,                    // News = freshness signal
             default => 5,
         };
         $score += $typeBonus;

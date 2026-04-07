@@ -33,6 +33,8 @@ class ContentOrchestratorService
         'outreach_expats' => 'Partenaires Expats',
         'testimonial' => 'Temoignages',
         'brand_content' => 'Brand Content',
+        'statistiques' => 'Articles Statistiques',
+        'pain_point' => 'Souffrances',
     ];
 
     public function getConfig(): array
@@ -321,12 +323,13 @@ class ContentOrchestratorService
             'auto_pilot' => false,
             'rss_auto_pilot' => true,
             'type_distribution' => [
-                'qa' => 12, 'art_mots_cles' => 10, 'art_longues_traines' => 10,
-                'guide' => 6, 'guide_expat' => 6, 'guide_vacances' => 6, 'guide_city' => 10,
+                'qa' => 12, 'art_mots_cles' => 10, 'art_longues_traines' => 8,
+                'guide' => 6, 'guide_expat' => 6, 'guide_vacances' => 6, 'guide_city' => 9,
                 'comparative' => 8, 'affiliation' => 5,
                 'outreach_chatters' => 4, 'outreach_influenceurs' => 4, 'outreach_admin_groupes' => 3,
                 'outreach_avocats' => 3, 'outreach_expats' => 3,
-                'testimonial' => 5, 'brand_content' => 5,
+                'testimonial' => 5, 'brand_content' => 0,
+                'statistiques' => 3, 'pain_point' => 5,
             ],
             'priority_countries' => ['FR','US','GB','ES','DE','TH','PT'],
             'status' => 'paused',
