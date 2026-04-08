@@ -169,15 +169,28 @@ class PublishContentJob implements ShouldQueue
 
         $now = now();
 
-        // Check active days (0=Sunday, 6=Saturday)
-        if (!empty($schedule->active_days) && !in_array($now->dayOfWeek, $schedule->active_days)) {
-            return false;
+        // Check active days — DB stores names ("monday") or ints (0-6)
+        if (!empty($schedule->active_days)) {
+            $todayName = strtolower($now->format('l'));   // "tuesday"
+            $todayNum  = $now->dayOfWeek;                 // 2
+            $allowed   = false;
+            foreach ($schedule->active_days as $day) {
+                if ($day === $todayNum || $day === $todayName || (int) $day === $todayNum) {
+                    $allowed = true;
+                    break;
+                }
+            }
+            if (!$allowed) {
+                return false;
+            }
         }
 
-        // Check active hours
+        // Check active hours (stored as "HH:MM:SS" or int)
         if ($schedule->active_hours_start !== null && $schedule->active_hours_end !== null) {
             $currentHour = (int) $now->format('H');
-            if ($currentHour < $schedule->active_hours_start || $currentHour >= $schedule->active_hours_end) {
+            $startHour   = (int) $schedule->active_hours_start;
+            $endHour     = (int) $schedule->active_hours_end;
+            if ($currentHour < $startHour || $currentHour >= $endHour) {
                 return false;
             }
         }
