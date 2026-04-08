@@ -47,9 +47,14 @@ class TranslationService
             $translatedTitle = strip_tags($this->translateText($cleanTitle, $fromLang, $targetLanguage));
             $translatedTitle = preg_replace('/^```\w*\s*|\s*```$/m', '', $translatedTitle);
             $translatedTitle = trim($translatedTitle, " \t\n\r\"'");
+            // Fallback: if translation returned empty or identical to source, keep original
+            if (empty($translatedTitle)) {
+                $translatedTitle = $cleanTitle;
+            }
 
             // Translate excerpt (plain text)
             $translatedExcerpt = strip_tags($this->translateText(strip_tags($original->excerpt ?? ''), $fromLang, $targetLanguage));
+            $translatedExcerpt = preg_replace('/^```\w*\s*|\s*```$/m', '', $translatedExcerpt);
             $translatedExcerpt = trim($translatedExcerpt, " \t\n\r\"'");
 
             // Translate content HTML (preserving structure)
