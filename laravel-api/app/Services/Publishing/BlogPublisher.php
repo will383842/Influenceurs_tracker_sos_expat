@@ -104,7 +104,7 @@ class BlogPublisher
             $parentArticle->content_type === 'guide' || $parentArticle->content_type === 'pillar'
                 => 'fiches-pays',
             $parentArticle->content_type === 'guide_city'
-                => 'fiches-pratiques',
+                => 'fiches-villes',
             $parentArticle->content_type === 'outreach'
                 => 'programme',
             in_array($parentArticle->content_type, ['affiliation', 'landing'])
