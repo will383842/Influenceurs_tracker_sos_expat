@@ -34,13 +34,6 @@ const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
 
 const LANGUAGES = ['fr', 'en', 'es', 'de', 'pt', 'ru', 'zh', 'hi', 'ar'];
 
-type SondageTab = 'sources' | 'generation' | 'generated';
-const SONDAGE_TABS: { key: SondageTab; label: string; emoji: string }[] = [
-  { key: 'sources', label: 'Sources', emoji: '📋' },
-  { key: 'generation', label: 'Génération', emoji: '⚡' },
-  { key: 'generated', label: 'Contenus générés', emoji: '✅' },
-];
-
 function formatDate(d: string | null): string {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -75,7 +68,6 @@ export default function SondagesList() {
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<SondageTab>('generated');
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -259,11 +251,6 @@ export default function SondagesList() {
     );
   }
 
-  const activeCount = sondages.filter(s => s.status === 'active').length;
-  const draftCount = sondages.filter(s => s.status === 'draft').length;
-  const closedCount = sondages.filter(s => s.status === 'closed').length;
-  const syncedCount = sondages.filter(s => s.synced_to_blog).length;
-
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -280,75 +267,7 @@ export default function SondagesList() {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-surface/40 backdrop-blur rounded-xl p-1 border border-border/20">
-        {SONDAGE_TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              tab === t.key
-                ? 'bg-violet/20 text-violet-light border border-violet/30'
-                : 'text-muted hover:text-white'
-            }`}
-          >
-            <span>{t.emoji}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ═══ TAB: SOURCES ═══ */}
-      {tab === 'sources' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: 'Total', value: total, color: 'text-white' },
-              { label: 'Actifs', value: activeCount, color: 'text-green-400' },
-              { label: 'Brouillons', value: draftCount, color: 'text-yellow-300' },
-              { label: 'Sync Blog', value: syncedCount, color: 'text-blue-400' },
-            ].map(s => (
-              <div key={s.label} className="bg-surface/40 border border-border/20 rounded-2xl p-4 text-center">
-                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-muted mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="bg-surface/40 border border-border/20 rounded-2xl p-6">
-            <h3 className="text-sm font-bold text-white mb-3">ℹ️ À propos des sondages</h3>
-            <ul className="text-xs text-muted space-y-2">
-              <li>Les sondages sont créés manuellement et publiés sur le Blog SEO.</li>
-              <li>Chaque sondage peut contenir plusieurs questions (choix unique, multiple, libre, échelle).</li>
-              <li>Statuts : <strong>Brouillon</strong> → <strong>Actif</strong> → <strong>Clos</strong>.</li>
-              <li>Synchronisez avec le Blog pour afficher le sondage aux visiteurs.</li>
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ TAB: GÉNÉRATION ═══ */}
-      {tab === 'generation' && (
-        <div className="space-y-4">
-          <div className="bg-surface/40 border border-border/20 rounded-2xl p-6 text-center">
-            <h3 className="text-sm font-bold text-white mb-2">📊 Créer un sondage</h3>
-            <p className="text-xs text-muted mb-4">Créez un nouveau sondage avec des questions personnalisées, puis synchronisez-le avec le Blog.</p>
-            <button
-              onClick={openCreate}
-              className="px-5 py-2.5 bg-gradient-to-r from-violet to-violet-light text-white text-sm font-semibold rounded-xl shadow-lg shadow-violet/20 hover:shadow-violet/40 transition-all"
-            >
-              + Nouveau sondage
-            </button>
-          </div>
-          {draftCount > 0 && (
-            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-4">
-              <p className="text-xs text-yellow-300">⚠️ {draftCount} sondage{draftCount > 1 ? 's' : ''} en brouillon — pensez à les activer et synchroniser avec le Blog.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══ TAB: CONTENUS GÉNÉRÉS ═══ */}
-      {tab === 'generated' && (<>
+      {/* Liste */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -433,7 +352,6 @@ export default function SondagesList() {
           <button onClick={() => setPage(p => Math.min(lastPage, p + 1))} disabled={page === lastPage} className="px-3 py-1.5 text-xs bg-surface2 text-muted hover:text-white rounded-lg disabled:opacity-30 transition-colors">Suivant</button>
         </div>
       )}
-      </>)}
 
       {/* ── Modal formulaire ─────────────────────────────────────── */}
       {showForm && (
