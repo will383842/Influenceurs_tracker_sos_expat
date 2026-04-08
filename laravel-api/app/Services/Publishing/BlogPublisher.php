@@ -206,7 +206,22 @@ class BlogPublisher
         ]);
 
         $externalId  = (string) ($data['data']['id'] ?? $data['id'] ?? $parentArticle->uuid);
-        $externalUrl = $this->buildArticleUrl($parentArticle, $data);
+
+        // Build URLs from Blog API response translations (they have the real slugs)
+        $blogTranslations = $data['data']['translations'] ?? $data['translations'] ?? [];
+        $siteUrl = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
+
+        // Find the parent article's URL from the Blog response
+        $parentLang = $this->normalizeLanguageCode($parentArticle->language) ?? 'fr';
+        $parentBlogSlug = null;
+        foreach ($blogTranslations as $bt) {
+            $btLang = $bt['language_code'] ?? $bt['lang'] ?? null;
+            if ($btLang === $parentLang) {
+                $parentBlogSlug = $bt['slug'] ?? null;
+                break;
+            }
+        }
+        $externalUrl = $this->buildUrlForLanguage($siteUrl, $parentLang, $parentBlogSlug ?? $parentArticle->slug);
 
         // Update Mission Control article with published status + blog URL
         $parentArticle->update([
@@ -218,11 +233,17 @@ class BlogPublisher
 
         // Also update translations with their respective blog URLs
         foreach ($parentArticle->translations ?? [] as $translation) {
-            $translationUrl = str_replace(
-                "/{$parentArticle->language}/",
-                "/{$translation->language}/",
-                $externalUrl
-            );
+            $transLang = $this->normalizeLanguageCode($translation->language) ?? 'fr';
+            // Find slug from Blog API response for this language
+            $transBlogSlug = null;
+            foreach ($blogTranslations as $bt) {
+                $btLang = $bt['language_code'] ?? $bt['lang'] ?? null;
+                if ($btLang === $transLang) {
+                    $transBlogSlug = $bt['slug'] ?? null;
+                    break;
+                }
+            }
+            $translationUrl = $this->buildUrlForLanguage($siteUrl, $transLang, $transBlogSlug ?? $translation->slug);
             $translation->update([
                 'status'       => 'published',
                 'published_at' => now(),
@@ -426,7 +447,19 @@ class BlogPublisher
 
         $data = $response->json();
         $externalId  = (string) ($data['data']['id'] ?? $data['id'] ?? $content->uuid ?? $content->id);
-        $externalUrl = $data['data']['url'] ?? $data['url'] ?? null;
+
+        // Build URL from Blog API response translations
+        $blogTranslations = $data['data']['translations'] ?? $data['translations'] ?? [];
+        $siteUrl = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
+        $contentLang = $this->normalizeLanguageCode($content->language) ?? 'fr';
+        $blogSlug = null;
+        foreach ($blogTranslations as $bt) {
+            if (($bt['language_code'] ?? $bt['lang'] ?? null) === $contentLang) {
+                $blogSlug = $bt['slug'] ?? null;
+                break;
+            }
+        }
+        $externalUrl = $this->buildUrlForLanguage($siteUrl, $contentLang, $blogSlug ?? $content->slug);
 
         $content->update([
             'status'       => 'published',
@@ -444,27 +477,29 @@ class BlogPublisher
     }
 
     /**
-     * Build the public article URL from the blog response or fallback to convention.
+     * Build a public article URL for a given language.
+     * Matches the Blog's route-segments.php convention: /{lang}-{country}/{segment}/{slug}
      */
-    private function buildArticleUrl(GeneratedArticle $article, array $responseData): ?string
+    private function buildUrlForLanguage(string $siteUrl, string $lang, string $slug): string
     {
-        // Prefer the URL returned by the blog API
-        $apiUrl = $responseData['data']['url'] ?? $responseData['url'] ?? null;
-        if ($apiUrl) {
-            return $apiUrl;
-        }
-
-        // Fallback: build from convention
-        $lang = $this->normalizeLanguageCode($article->language) ?? 'fr';
         $countryDefaults = [
             'fr' => 'fr', 'en' => 'us', 'es' => 'es', 'de' => 'de',
             'ru' => 'ru', 'pt' => 'pt', 'zh' => 'cn', 'hi' => 'in',
             'ar' => 'sa',
         ];
-        $country = $countryDefaults[$lang] ?? 'fr';
-        $slug    = $article->slug;
 
-        $siteUrl = config('services.blog.site_url', 'https://blog.sos-expat.com');
-        return rtrim($siteUrl, '/') . "/{$lang}-{$country}/articles/{$slug}";
+        // Localized URL segment for "articles" per language
+        $articleSegments = [
+            'fr' => 'articles',   'en' => 'articles',
+            'es' => 'articulos',  'de' => 'artikel',
+            'pt' => 'artigos',    'ru' => 'stati',
+            'zh' => 'wenzhang',   'hi' => 'lekh',
+            'ar' => 'maqalat',
+        ];
+
+        $country = $countryDefaults[$lang] ?? 'fr';
+        $segment = $articleSegments[$lang] ?? 'articles';
+
+        return "{$siteUrl}/{$lang}-{$country}/{$segment}/{$slug}";
     }
 }
