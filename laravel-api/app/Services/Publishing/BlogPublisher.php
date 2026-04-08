@@ -94,7 +94,7 @@ class BlogPublisher
         // Map content_type → blog category_slug (7-category taxonomy)
         $categorySlug = match ($parentArticle->content_type) {
             'guide', 'pillar'                                         => 'fiches-pays',
-            'guide_city'                                              => 'fiches-villes',
+            'guide_city'                                              => 'fiches-pays',
             'article', 'tutorial'                                     => 'fiches-pratiques',
             'qa', 'comparative', 'news', 'testimonial', 'qa_needs',
                 'press', 'press_release'                              => 'fiches-thematiques',
