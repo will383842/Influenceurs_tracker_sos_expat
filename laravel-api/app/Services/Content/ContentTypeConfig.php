@@ -5,12 +5,19 @@ namespace App\Services\Content;
 class ContentTypeConfig
 {
     /**
+     * Anti-generic title instruction appended to every prompt_suffix.
+     * Prevents AI from generating clickbait titles like "Guide Complet", "Guide Ultime", etc.
+     */
+    private const TITLE_INSTRUCTION = "\n\nTITRE : NE JAMAIS utiliser « Guide Complet », « Guide Ultime », « Tout savoir sur », « Découvrez ». "
+        . "Le titre doit être une requête Google naturelle, spécifique, avec le pays/ville et l'année si applicable.";
+
+    /**
      * Get AI configuration for each content type.
      * Different types get different AI models, prompts, and depth.
      */
     public static function get(string $type): array
     {
-        return match ($type) {
+        $config = match ($type) {
             // PILLAR ARTICLES (fiches pays, guides complets)
             // Maximum quality: GPT-4o for content + Perplexity for research + longest format
             // CITY GUIDES — PILLAR CONTENT (fiches villes — articles piliers comme les fiches pays)
@@ -465,6 +472,13 @@ class ContentTypeConfig
                 'prompt_suffix' => '',
             ],
         };
+
+        // Append anti-generic-title instruction to every prompt_suffix
+        if (!empty($config['prompt_suffix'])) {
+            $config['prompt_suffix'] .= self::TITLE_INSTRUCTION;
+        }
+
+        return $config;
     }
 
     /**
