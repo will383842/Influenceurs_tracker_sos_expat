@@ -256,7 +256,7 @@ class BlogPublisher
         }
 
         $translations[$lang] = [
-            'title'            => mb_substr($article->title, 0, 255),
+            'title'            => mb_substr(strip_tags($article->title), 0, 255),
             'slug'             => $article->slug,
             'content_html'     => $article->content_html,
             'excerpt'          => $article->excerpt,
@@ -268,11 +268,11 @@ class BlogPublisher
             'ai_summary'       => $article->ai_summary ?? $article->excerpt,
         ];
 
-        // FAQs for this language
+        // FAQs for this language — strip HTML tags and truncate
         if ($article->relationLoaded('faqs') && $article->faqs->isNotEmpty()) {
             $faqs[$lang] = $article->faqs->map(fn ($faq) => [
-                'question' => $faq->question,
-                'answer'   => $faq->answer,
+                'question' => mb_substr(strip_tags($faq->question), 0, 255),
+                'answer'   => strip_tags($faq->answer, '<p><br><a><strong><em><ul><ol><li>'),
             ])->toArray();
         }
 
@@ -310,7 +310,7 @@ class BlogPublisher
 
         $translations = [];
         $translations[$lang] = [
-            'title'            => mb_substr($comparative->title, 0, 255),
+            'title'            => mb_substr(strip_tags($comparative->title), 0, 255),
             'slug'             => $comparative->slug,
             'content_html'     => $comparative->content_html,
             'excerpt'          => $comparative->excerpt,
@@ -324,7 +324,7 @@ class BlogPublisher
             foreach ($comparative->translations as $child) {
                 $childLang = $this->normalizeLanguageCode($child->language) ?? $lang;
                 $translations[$childLang] = [
-                    'title'            => mb_substr($child->title, 0, 255),
+                    'title'            => mb_substr(strip_tags($child->title), 0, 255),
                     'slug'             => $child->slug,
                     'content_html'     => $child->content_html,
                     'excerpt'          => $child->excerpt,
@@ -361,7 +361,7 @@ class BlogPublisher
 
         $translations = [];
         $translations[$lang] = [
-            'title'            => mb_substr($entry->question, 0, 255),
+            'title'            => mb_substr(strip_tags($entry->question), 0, 255),
             'slug'             => $entry->slug,
             'content_html'     => $entry->answer_detailed_html,
             'excerpt'          => $entry->answer_short,
@@ -375,7 +375,7 @@ class BlogPublisher
             foreach ($entry->translations as $child) {
                 $childLang = $this->normalizeLanguageCode($child->language) ?? $lang;
                 $translations[$childLang] = [
-                    'title'            => mb_substr($child->question, 0, 255),
+                    'title'            => mb_substr(strip_tags($child->question), 0, 255),
                     'slug'             => $child->slug,
                     'content_html'     => $child->answer_detailed_html,
                     'excerpt'          => $child->answer_short,
