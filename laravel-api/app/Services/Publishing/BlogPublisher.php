@@ -256,23 +256,23 @@ class BlogPublisher
         }
 
         $translations[$lang] = [
-            'title'            => $article->title,
+            'title'            => mb_substr(strip_tags($article->title), 0, 255),
             'slug'             => $article->slug,
             'content_html'     => $article->content_html,
             'excerpt'          => $article->excerpt,
-            'meta_title'       => $article->meta_title,
-            'meta_description' => $article->meta_description,
-            'og_title'         => $article->og_title ?? $article->meta_title,
-            'og_description'   => $article->og_description ?? $article->meta_description,
+            'meta_title'       => mb_substr($article->meta_title ?? '', 0, 255) ?: null,
+            'meta_description' => mb_substr($article->meta_description ?? '', 0, 500) ?: null,
+            'og_title'         => mb_substr($article->og_title ?? $article->meta_title ?? '', 0, 255) ?: null,
+            'og_description'   => mb_substr($article->og_description ?? $article->meta_description ?? '', 0, 500) ?: null,
             'og_image_url'     => $article->featured_image_url,
             'ai_summary'       => $article->ai_summary ?? $article->excerpt,
         ];
 
-        // FAQs for this language
+        // FAQs for this language — strip HTML tags and truncate
         if ($article->relationLoaded('faqs') && $article->faqs->isNotEmpty()) {
             $faqs[$lang] = $article->faqs->map(fn ($faq) => [
-                'question' => $faq->question,
-                'answer'   => $faq->answer,
+                'question' => mb_substr(strip_tags($faq->question), 0, 255),
+                'answer'   => strip_tags($faq->answer, '<p><br><a><strong><em><ul><ol><li>'),
             ])->toArray();
         }
 
@@ -310,12 +310,12 @@ class BlogPublisher
 
         $translations = [];
         $translations[$lang] = [
-            'title'            => $comparative->title,
+            'title'            => mb_substr(strip_tags($comparative->title), 0, 255),
             'slug'             => $comparative->slug,
             'content_html'     => $comparative->content_html,
             'excerpt'          => $comparative->excerpt,
-            'meta_title'       => $comparative->meta_title,
-            'meta_description' => $comparative->meta_description,
+            'meta_title'       => mb_substr($comparative->meta_title ?? '', 0, 255) ?: null,
+            'meta_description' => mb_substr($comparative->meta_description ?? '', 0, 500) ?: null,
             'json_ld'          => $comparative->json_ld,
         ];
 
@@ -324,12 +324,12 @@ class BlogPublisher
             foreach ($comparative->translations as $child) {
                 $childLang = $this->normalizeLanguageCode($child->language) ?? $lang;
                 $translations[$childLang] = [
-                    'title'            => $child->title,
+                    'title'            => mb_substr(strip_tags($child->title), 0, 255),
                     'slug'             => $child->slug,
                     'content_html'     => $child->content_html,
                     'excerpt'          => $child->excerpt,
-                    'meta_title'       => $child->meta_title,
-                    'meta_description' => $child->meta_description,
+                    'meta_title'       => mb_substr($child->meta_title ?? '', 0, 255) ?: null,
+                    'meta_description' => mb_substr($child->meta_description ?? '', 0, 500) ?: null,
                     'json_ld'          => $child->json_ld,
                 ];
             }
@@ -361,12 +361,12 @@ class BlogPublisher
 
         $translations = [];
         $translations[$lang] = [
-            'title'            => $entry->question,
+            'title'            => mb_substr(strip_tags($entry->question), 0, 255),
             'slug'             => $entry->slug,
             'content_html'     => $entry->answer_detailed_html,
             'excerpt'          => $entry->answer_short,
-            'meta_title'       => $entry->meta_title ?? $entry->question,
-            'meta_description' => $entry->meta_description ?? $entry->answer_short,
+            'meta_title'       => mb_substr($entry->meta_title ?? $entry->question ?? '', 0, 255) ?: null,
+            'meta_description' => mb_substr($entry->meta_description ?? $entry->answer_short ?? '', 0, 500) ?: null,
             'json_ld'          => $entry->json_ld,
         ];
 
@@ -375,12 +375,12 @@ class BlogPublisher
             foreach ($entry->translations as $child) {
                 $childLang = $this->normalizeLanguageCode($child->language) ?? $lang;
                 $translations[$childLang] = [
-                    'title'            => $child->question,
+                    'title'            => mb_substr(strip_tags($child->question), 0, 255),
                     'slug'             => $child->slug,
                     'content_html'     => $child->answer_detailed_html,
                     'excerpt'          => $child->answer_short,
-                    'meta_title'       => $child->meta_title ?? $child->question,
-                    'meta_description' => $child->meta_description ?? $child->answer_short,
+                    'meta_title'       => mb_substr($child->meta_title ?? $child->question ?? '', 0, 255) ?: null,
+                    'meta_description' => mb_substr($child->meta_description ?? $child->answer_short ?? '', 0, 500) ?: null,
                     'json_ld'          => $child->json_ld,
                 ];
             }
