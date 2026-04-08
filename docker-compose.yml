@@ -182,11 +182,13 @@ services:
     networks:
       - internal
 
+  # Content workers — 6 parallel workers for generation + translation
+  # Capacity: ~330 articles/day (generation + 8 language translations)
+  # Scale up/down by changing deploy.replicas
   content-worker:
     build:
       context: .
       dockerfile: deploy/Dockerfile.api
-    container_name: inf-content-worker
     restart: unless-stopped
     command: ["php", "artisan", "queue:work", "redis", "--queue=content", "--sleep=3", "--tries=3", "--timeout=600", "--memory=512"]
     mem_limit: 512m
@@ -204,12 +206,14 @@ services:
     networks:
       - internal
       - shared-network
+    deploy:
+      replicas: 6
 
+  # Publication workers — 2 parallel workers for blog publishing
   publication-worker:
     build:
       context: .
       dockerfile: deploy/Dockerfile.api
-    container_name: inf-publication-worker
     restart: unless-stopped
     command: ["php", "artisan", "queue:work", "redis", "--queue=publication", "--sleep=5", "--tries=0", "--timeout=120", "--memory=256"]
     mem_limit: 512m
@@ -227,6 +231,8 @@ services:
     networks:
       - internal
       - shared-network
+    deploy:
+      replicas: 2
 
   nginx-api:
     image: nginx:alpine
