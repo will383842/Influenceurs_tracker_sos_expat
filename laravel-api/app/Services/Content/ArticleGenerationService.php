@@ -811,9 +811,9 @@ class ArticleGenerationService
         $systemPrompt = $this->kbPrompt . "\n\n" . ($template
             ? $this->replaceVariables($template->system_message, ['language' => $language, 'year' => $year])
             : "Tu es un expert SEO senior spécialisé dans les titres à fort CTR. "
-              . "Génère un titre d'article PARFAIT pour Google et les moteurs de recherche.\n\n"
+              . "Génère un titre d'article (H1) PARFAIT, accrocheur et complet.\n\n"
               . "RÈGLES STRICTES pour le titre :\n"
-              . "1. LONGUEUR : entre 50 et 60 caractères EXACTEMENT (Google tronque au-delà de 60)\n"
+              . "1. LONGUEUR : entre 50 et 90 caractères. Le titre doit être COMPLET et ne JAMAIS être coupé au milieu d'un mot ou d'une phrase.\n"
               . "2. MOT-CLÉ PRINCIPAL : \"{$primaryKeyword}\" doit apparaître dans les 3 PREMIERS MOTS du titre\n"
               . "3. ANNÉE : inclure \"{$year}\" dans le titre (signal de fraîcheur critique)\n"
               . "4. FORMAT PROUVÉ (choisir un de ces formats haute performance) :\n"
@@ -852,16 +852,12 @@ class ArticleGenerationService
             $title = preg_replace('/^```\w*\s*|\s*```$/m', '', $title);
             $title = trim($title);
 
-            // Validation: si le titre est trop long, on tronque intelligemment
-            if (mb_strlen($title) > 60) {
-                // Chercher le dernier espace avant 60 chars
-                $truncated = mb_substr($title, 0, 60);
+            // Validation: si le titre H1 est trop long, tronquer à la limite de mot
+            // H1 can be longer than meta_title (up to 100 chars, not 60)
+            if (mb_strlen($title) > 100) {
+                $truncated = mb_substr($title, 0, 100);
                 $lastSpace = mb_strrpos($truncated, ' ');
-                if ($lastSpace && $lastSpace > 40) {
-                    $title = mb_substr($truncated, 0, $lastSpace);
-                } else {
-                    $title = $truncated;
-                }
+                $title = ($lastSpace && $lastSpace > 60) ? mb_substr($truncated, 0, $lastSpace) : $truncated;
             }
 
             // Validation: vérifier que le mot-clé principal est présent
