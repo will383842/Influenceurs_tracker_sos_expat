@@ -136,8 +136,10 @@ PROMPT;
 === SOS-EXPAT REFERENCE (NE PAS TRADUIRE CES TERMES) ===
 - Nom exact : SOS-Expat.com (avec tiret et .com, ne PAS traduire)
 - Service : mise en relation telephonique avec avocats et experts locaux
-- Avocat : 49EUR / 55USD pour 20min | Expert local : 19EUR / 25USD pour 30min
-- Prestataire avocat recoit : 30EUR/30USD | Expert : 10EUR/10USD
+- Avocat partenaire : 49EUR / 55USD pour 20min | Expert local partenaire : 19EUR / 25USD pour 30min
+- Le CLIENT paie — SOS-Expat.com prend des frais de mise en relation (19EUR/25USD avocat, 9EUR/15USD expert)
+- L'avocat partenaire recoit : 30EUR/30USD | L'expert partenaire recoit : 10EUR/10USD
+- Les avocats et experts sont des PARTENAIRES INDEPENDANTS, PAS des employes de SOS-Expat.com
 - 197 pays, 9 langues, disponible 24/7
 - Mise en relation en moins de 5 minutes
 - Ce n'est PAS un cabinet d'avocats, PAS une assurance, PAS gratuit, PAS un chatbot
@@ -244,13 +246,14 @@ BLOCK;
         $note = $this->kb['services']['note_important'] ?? '';
 
         return <<<BLOCK
-SERVICES ET TARIFS EXACTS :
-- AVOCAT : {$lawyer['price_eur']}EUR / {$lawyer['price_usd']}USD — {$lawyer['duration_minutes']} minutes
-  Prestataire recoit : {$lawyer['provider_payout_eur']}EUR / {$lawyer['provider_payout_usd']}USD | Plateforme : {$lawyer['platform_fee_eur']}EUR / {$lawyer['platform_fee_usd']}USD
+SERVICES ET TARIFS EXACTS (le CLIENT paie, SOS-Expat.com prend des frais de mise en relation) :
+- AVOCAT PARTENAIRE : {$lawyer['price_eur']}EUR / {$lawyer['price_usd']}USD — {$lawyer['duration_minutes']} minutes
+  L'avocat partenaire recoit : {$lawyer['provider_payout_eur']}EUR / {$lawyer['provider_payout_usd']}USD | Frais SOS-Expat : {$lawyer['platform_fee_eur']}EUR / {$lawyer['platform_fee_usd']}USD
   {$lawyer['description_fr']}
-- EXPERT LOCAL : {$expat['price_eur']}EUR / {$expat['price_usd']}USD — {$expat['duration_minutes']} minutes
-  Prestataire recoit : {$expat['provider_payout_eur']}EUR / {$expat['provider_payout_usd']}USD | Plateforme : {$expat['platform_fee_eur']}EUR / {$expat['platform_fee_usd']}USD
+- EXPERT LOCAL PARTENAIRE : {$expat['price_eur']}EUR / {$expat['price_usd']}USD — {$expat['duration_minutes']} minutes
+  L'expert partenaire recoit : {$expat['provider_payout_eur']}EUR / {$expat['provider_payout_usd']}USD | Frais SOS-Expat : {$expat['platform_fee_eur']}EUR / {$expat['platform_fee_usd']}USD
   {$expat['description_fr']}
+IMPORTANT : Les avocats et experts sont des PARTENAIRES INDEPENDANTS, PAS des employes. Ils s'inscrivent librement sur la plateforme. SOS-Expat.com ne les recrute PAS et ne les paie PAS — c'est le client qui paie.
 NOTE : {$note}
 BLOCK;
     }

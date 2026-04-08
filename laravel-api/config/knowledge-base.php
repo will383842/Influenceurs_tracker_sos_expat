@@ -16,6 +16,8 @@
  * - NEVER say SOS-Expat.com is free (it's a paid service)
  * - NEVER say SOS-Expat.com provides legal advice (it CONNECTS with lawyers)
  * - NEVER confuse lawyer (49EUR/20min) with expat expert (19EUR/30min)
+ * - NEVER say SOS-Expat.com recruits or employs lawyers/experts — they are INDEPENDENT PARTNERS
+ * - NEVER say SOS-Expat.com pays the providers — the CLIENT pays, SOS-Expat takes connection fees
  * - NEVER say SOS-Expat.com is an insurance or a consulate
  * - NEVER promise specific legal outcomes
  */
@@ -44,7 +46,9 @@ return [
         ],
 
         'what_it_is' => [
-            'Une plateforme qui CONNECTE les personnes a l\'etranger avec des avocats et experts locaux par telephone',
+            'Une plateforme de MISE EN RELATION telephonique entre les personnes a l\'etranger et des avocats ou experts locaux PARTENAIRES',
+            'Les avocats et experts locaux sont des PARTENAIRES INDEPENDANTS, PAS des employes de SOS-Expat.com',
+            'Le CLIENT paie directement le service — SOS-Expat.com ne prend que des frais de mise en relation et de fonctionnement',
             'Service disponible 24h/24, 7j/7 dans 197 pays et 9 langues',
             'Mise en relation en moins de 5 minutes via appel telephonique',
             'Appel passe via IVR Twilio avec conference securisee',
@@ -53,6 +57,7 @@ return [
 
         'what_it_is_NOT' => [
             'PAS un cabinet d\'avocats — SOS-Expat.com ne fournit PAS de conseil juridique directement',
+            'PAS un employeur — les avocats et experts sont des partenaires independants qui s\'inscrivent librement',
             'PAS une assurance voyage — SOS-Expat.com ne rembourse rien en cas de sinistre',
             'PAS un consulat ou une ambassade — aucun pouvoir consulaire',
             'PAS un service gratuit — appels payants (avocat 49EUR/55USD, expert 19EUR/25USD)',
@@ -65,6 +70,9 @@ return [
     // =====================================================================
     // 2. SERVICES & PRICING (exact from pricingService.ts)
     // =====================================================================
+    // IMPORTANT: Les avocats et experts locaux sont des PARTENAIRES INDEPENDANTS.
+    // Le CLIENT paie le prix total. SOS-Expat.com prend des frais de mise en relation.
+    // Le partenaire recoit le reste. SOS-Expat.com ne recrute PAS et ne paie PAS les prestataires.
 
     'services' => [
         'lawyer' => [
@@ -77,8 +85,8 @@ return [
             'platform_fee_eur' => 19,
             'platform_fee_usd' => 25,
             'duration_minutes' => 20,
-            'description_fr' => 'Mise en relation avec un avocat verifie dans le pays concerne. Specialites : droit de l\'immigration, droit du travail, droit commercial, fiscalite internationale, droit immobilier.',
-            'description_en' => 'Connection with a verified lawyer in the relevant country. Specialties: immigration law, labor law, commercial law, international tax, real estate law.',
+            'description_fr' => 'Mise en relation avec un avocat partenaire verifie dans le pays concerne. Le client paie 49EUR/55USD. L\'avocat partenaire recoit 30EUR/30USD. SOS-Expat.com prend 19EUR/25USD de frais de mise en relation. Specialites : droit de l\'immigration, droit du travail, droit commercial, fiscalite internationale, droit immobilier.',
+            'description_en' => 'Connection with a verified partner lawyer in the relevant country. Client pays 49EUR/55USD. The partner lawyer receives 30EUR/30USD. SOS-Expat.com takes 19EUR/25USD as connection fee.',
         ],
         'expat' => [
             'name_fr' => 'Appel Expert Local (Expat Aidant)',
@@ -90,8 +98,8 @@ return [
             'platform_fee_eur' => 9,
             'platform_fee_usd' => 15,
             'duration_minutes' => 30,
-            'description_fr' => 'Mise en relation avec un expatrie experimente vivant dans le pays concerne. Aide pratique : logement, banque, transport, vie quotidienne, communaute locale, demarches administratives.',
-            'description_en' => 'Connection with an experienced expat living in the relevant country. Practical help: housing, banking, transport, daily life, local community, administrative procedures.',
+            'description_fr' => 'Mise en relation avec un expatrie partenaire experimente vivant dans le pays concerne. Le client paie 19EUR/25USD. L\'expert partenaire recoit 10EUR/10USD. SOS-Expat.com prend 9EUR/15USD de frais de mise en relation. Aide pratique : logement, banque, transport, vie quotidienne, communaute locale, demarches administratives.',
+            'description_en' => 'Connection with an experienced partner expat living in the relevant country. Client pays 19EUR/25USD. The partner expert receives 10EUR/10USD. SOS-Expat.com takes 9EUR/15USD as connection fee.',
         ],
         'note_important' => 'Les avocats restent seuls responsables de leurs conseils. Les experts locaux fournissent une aide pratique NON reglementee (orientation, contacts, traduction informelle).',
     ],
