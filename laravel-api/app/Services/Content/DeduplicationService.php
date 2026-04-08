@@ -29,11 +29,12 @@ class DeduplicationService
      */
     public function findDuplicateArticle(string $title, string $country, string $language): ?GeneratedArticle
     {
-        // 1. Exact slug match
+        // 1. Exact slug match (exclude articles still generating — they are the current article)
         $slug = Str::slug($title);
         $existing = GeneratedArticle::where('language', $language)
             ->where('slug', 'ilike', $slug . '%')
             ->whereNull('parent_article_id') // originals only
+            ->where('status', '!=', 'generating')
             ->first();
         if ($existing) {
             Log::info('DeduplicationService: slug match found', ['title' => $title, 'existing_id' => $existing->id]);

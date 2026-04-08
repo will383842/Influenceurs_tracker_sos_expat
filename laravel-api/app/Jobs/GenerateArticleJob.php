@@ -54,8 +54,8 @@ class GenerateArticleJob implements ShouldQueue
         }
 
         // ── Auto-publish to default endpoint (blog sos-expat.com) ──
-        // Skip if this is a translation (parent publishes all translations together)
-        if (!$article->parent_article_id) {
+        // Skip if: translation, or generation failed (no content / 0 words)
+        if (!$article->parent_article_id && !empty($article->content_html) && $article->word_count > 0) {
             $this->autoPublish($article);
         }
 
