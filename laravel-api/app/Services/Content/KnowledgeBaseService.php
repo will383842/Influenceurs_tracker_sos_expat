@@ -175,8 +175,8 @@ PROMPT;
             'n1_call_commission' => 'Commission N1 (filleul direct)',
             'n2_call_commission' => 'Commission N2 (filleul indirect)',
             'activation_bonus' => 'Bonus activation',
-            'provider_recruitment_lawyer' => 'Recrutement prestataire avocat',
-            'provider_recruitment_expat' => 'Recrutement prestataire expert',
+            'provider_recruitment_lawyer' => 'Affiliation prestataire avocat',
+            'provider_recruitment_expat' => 'Affiliation prestataire expert',
             'telegram_bonus' => 'Bonus Telegram',
             'client_discount' => 'Reduction client',
         ];
@@ -253,7 +253,7 @@ SERVICES ET TARIFS EXACTS (le CLIENT paie, SOS-Expat.com prend des frais de mise
 - EXPERT LOCAL PARTENAIRE : {$expat['price_eur']}EUR / {$expat['price_usd']}USD — {$expat['duration_minutes']} minutes
   L'expert partenaire recoit : {$expat['provider_payout_eur']}EUR / {$expat['provider_payout_usd']}USD | Frais SOS-Expat : {$expat['platform_fee_eur']}EUR / {$expat['platform_fee_usd']}USD
   {$expat['description_fr']}
-IMPORTANT : Les avocats et experts sont des PARTENAIRES INDEPENDANTS, PAS des employes. Ils s'inscrivent librement sur la plateforme. SOS-Expat.com ne les recrute PAS et ne les paie PAS — c'est le client qui paie.
+IMPORTANT : Les avocats et experts sont des PARTENAIRES INDEPENDANTS, PAS des employes. Ils s'inscrivent librement sur la plateforme. SOS-Expat.com ne les embauche PAS et ne les paie PAS — c'est le client qui paie.
 NOTE : {$note}
 BLOCK;
     }
