@@ -129,6 +129,20 @@ class QualityGuardService
             $warnings[] = "Meta description: {$metaDescLen} chars (optimal 120-160)";
         }
 
+        // ── 9b. META DESCRIPTION ACTION VERB ──
+        $metaDesc = mb_strtolower($article->meta_description ?? '');
+        $hasActionVerb = (bool) preg_match('/\b(découvrez|apprenez|trouvez|consultez|comparez|explorez|discover|learn|find|explore|compare|check|read|get|descubra|aprenda|encuentre|entdecken|erfahren|finden)\b/iu', $metaDesc);
+        if (!$hasActionVerb && $metaDescLen > 0) {
+            $warnings[] = "Meta description: pas de verbe d'action (Découvrez, Apprenez, Trouvez...)";
+        }
+
+        // ── 9c. YEAR IN TITLE ──
+        $currentYear = date('Y');
+        $titleHasYear = str_contains($article->title ?? '', $currentYear) || str_contains($article->meta_title ?? '', $currentYear);
+        if (!$titleHasYear && !in_array($article->content_type, ['qa', 'qa_needs', 'testimonial'])) {
+            $warnings[] = "Titre sans année {$currentYear} (signal fraîcheur Google)";
+        }
+
         // ── 10. BRAND COMPLIANCE ──
         $brandResult = $this->checkBrandCompliance($text);
         $checks['brand'] = $brandResult['passed'];
