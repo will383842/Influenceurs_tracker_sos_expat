@@ -243,7 +243,7 @@ class GenerationGuardService
 
             if ($similarity > 0.8) {
                 return [
-                    'status' => 'flag',
+                    'status' => 'block',
                     'reason' => "Titre tres similaire dans un autre pays ({$candidate->country}): \"{$candidate->title}\"",
                     'existing_id' => $candidate->id,
                     'similarity' => $similarity,

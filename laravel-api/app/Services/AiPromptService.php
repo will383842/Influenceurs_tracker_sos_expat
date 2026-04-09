@@ -143,7 +143,7 @@ PROMPT;
     private function jobBoardPrompt(string $country, string $lang): string
     {
         return <<<PROMPT
-Cherche les sites d'offres d'emploi en {$country} où on peut publier gratuitement une annonce pour recruter des freelances ou chatters francophones.
+Cherche les sites d'offres d'emploi en {$country} où on peut publier gratuitement une annonce pour trouver des freelances ou chatters francophones.
 
 Mots-clés :
 - "site emploi gratuit {$country}"

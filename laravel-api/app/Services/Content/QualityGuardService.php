@@ -21,22 +21,32 @@ use Illuminate\Support\Facades\Log;
  */
 class QualityGuardService
 {
-    // Minimum thresholds
+    // Minimum thresholds — keys must match content_type values used in generation jobs
     private const MIN_WORD_COUNT = [
-        'qr' => 300,
+        'qa' => 300,
+        'qa_needs' => 300,
+        'qr' => 300,            // legacy alias
         'news' => 600,
         'article' => 1200,
         'guide' => 2000,
+        'guide_city' => 2000,
+        'pillar' => 2000,
         'comparative' => 1500,
         'fiches_pays' => 2000,
         'fiches_expat' => 1500,
         'fiches_vacances' => 1200,
+        'statistics' => 1500,
+        'pain_point' => 500,
+        'tutorial' => 1000,
+        'testimonial' => 800,
+        'outreach' => 500,
         'chatters' => 800,
         'influenceurs' => 800,
         'admin_groupes' => 800,
         'avocats' => 800,
         'expats_aidants' => 800,
         'affiliation' => 1000,
+        'brand_content' => 800,
     ];
 
     private const MIN_INTERNAL_LINKS = 2;
@@ -58,7 +68,13 @@ class QualityGuardService
 
         $html = $article->content_html ?? '';
         $text = strip_tags($html);
-        $wordCount = str_word_count($text);
+        $lang = $article->language ?? 'fr';
+        // CJK/Arabic/Hindi: str_word_count fails — use regex for Unicode word boundaries
+        if (in_array($lang, ['zh', 'ar', 'hi'])) {
+            $wordCount = max(preg_match_all('/\S+/u', $text), (int) (mb_strlen(trim($text)) / 2));
+        } else {
+            $wordCount = str_word_count($text);
+        }
         $contentType = $article->content_type ?? 'article';
 
         // ── 1. WORD COUNT ──

@@ -30,7 +30,7 @@ class GenerationSchedulerService
         'guide_city' => 5,      // City guides
         'comparative' => 5,     // Comparatives
         'pain_point' => 8,      // Pain point — haute conversion
-        'statistics' => 5,      // Statistics
+        'statistiques' => 5,    // Statistics
         'outreach' => 5,        // Outreach (all sub-types)
         'testimonial' => 3,     // Testimonials
         'affiliation' => 3,     // Affiliation comparatives

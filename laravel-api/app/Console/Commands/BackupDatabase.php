@@ -82,6 +82,29 @@ class BackupDatabase extends Command
             $this->warn("[Backup] Could not count records: " . $e->getMessage());
         }
 
+        // Off-site backup to Hetzner Storage Box
+        $storageBoxUser = env('STORAGE_BOX_USER');
+        $storageBoxHost = env('STORAGE_BOX_HOST');
+        $storageBoxPath = env('STORAGE_BOX_PATH', '/backups/mission-control');
+
+        if ($storageBoxUser && $storageBoxHost) {
+            $this->info("[Backup] Syncing off-site to Hetzner Storage Box...");
+            $rsyncCmd = sprintf(
+                'rsync -az --timeout=120 %s/ %s@%s:%s/ 2>&1',
+                escapeshellarg($backupDir),
+                escapeshellarg($storageBoxUser),
+                escapeshellarg($storageBoxHost),
+                escapeshellarg($storageBoxPath)
+            );
+            exec($rsyncCmd, $rsyncOutput, $rsyncExit);
+            if ($rsyncExit === 0) {
+                $this->info("[Backup] Off-site sync complete");
+            } else {
+                $this->warn("[Backup] Off-site sync failed (exit {$rsyncExit})");
+                Log::warning('Backup off-site sync failed', ['exit_code' => $rsyncExit, 'output' => $rsyncOutput]);
+            }
+        }
+
         // Cleanup: keep last 30 days
         $this->cleanup($backupDir, 30);
 

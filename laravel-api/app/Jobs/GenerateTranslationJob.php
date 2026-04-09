@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class GenerateTranslationJob implements ShouldQueue
@@ -58,5 +59,23 @@ class GenerateTranslationJob implements ShouldQueue
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),
         ]);
+
+        $botToken = config('services.telegram_alerts.bot_token');
+        $chatId = config('services.telegram_alerts.chat_id');
+        if ($botToken && $chatId) {
+            try {
+                Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'parse_mode' => 'Markdown',
+                    'text' => "🚨 *Job Failed*: `GenerateTranslationJob`\n" .
+                              "Article: {$this->articleId}\n" .
+                              "Lang: {$this->targetLanguage}\n" .
+                              "Error: " . mb_substr($e->getMessage(), 0, 500) . "\n" .
+                              "Time: " . now()->toDateTimeString(),
+                ]);
+            } catch (\Throwable $tgError) {
+                Log::warning('Failed to send Telegram alert', ['error' => $tgError->getMessage()]);
+            }
+        }
     }
 }

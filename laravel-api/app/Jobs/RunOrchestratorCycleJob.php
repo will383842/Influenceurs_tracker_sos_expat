@@ -100,14 +100,26 @@ class RunOrchestratorCycleJob implements ShouldQueue
                 }
             }
 
-            try {
-                $success = $this->generateOne($typeInfo['type'], $config);
+            // Check per-type daily limits
+            $scheduler = app(GenerationSchedulerService::class);
+            $canGen = $scheduler->canGenerate($typeInfo['type']);
+            if (!$canGen['allowed']) {
+                Log::info("Orchestrator: skipping {$typeInfo['type']} — {$canGen['reason']}");
+                continue;
+            }
 
-                if ($success) {
+            try {
+                $dispatched = $this->generateOne($typeInfo['type'], $config);
+
+                if ($dispatched) {
+                    // NOTE: This records a "dispatch", not a confirmed generation.
+                    // The actual job runs async on queue 'content'. If it fails,
+                    // today_generated will be over-counted. Actual cost is tracked
+                    // by CostTrackerService inside each generation job.
                     $orchestrator->recordGeneration(0);
                     $orchestrator->updateDailyLog($typeInfo['type'], 1, 0, 0, 0);
                     $generated++;
-                    Log::info("Orchestrator: generated {$typeInfo['type']}", ['label' => $typeInfo['label']]);
+                    Log::info("Orchestrator: dispatched {$typeInfo['type']}", ['label' => $typeInfo['label']]);
                 }
             } catch (\Throwable $e) {
                 $errorMsg = $e->getMessage();

@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class RunNewsGenerationJob implements ShouldQueue
@@ -52,6 +53,31 @@ class RunNewsGenerationJob implements ShouldQueue
             'dispatched'      => $dispatched,
             'remaining_quota' => $remaining - $dispatched,
         ];
+    }
+
+    public function failed(\Throwable $e): void
+    {
+        Log::error('RunNewsGenerationJob failed permanently', [
+            'error' => $e->getMessage(),
+        ]);
+
+        $botToken = config('services.telegram_alerts.bot_token');
+        $chatId = config('services.telegram_alerts.chat_id');
+        if ($botToken && $chatId) {
+            try {
+                Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'parse_mode' => 'Markdown',
+                    'text' => "🚨 *Job Failed*: `RunNewsGenerationJob`\n" .
+                              "Error: " . mb_substr($e->getMessage(), 0, 500) . "\n" .
+                              "Time: " . now()->toDateTimeString(),
+                ]);
+            } catch (\Throwable $tgError) {
+                Log::warning('Failed to send Telegram alert', [
+                    'error' => $tgError->getMessage(),
+                ]);
+            }
+        }
     }
 
     // ─────────────────────────────────────────

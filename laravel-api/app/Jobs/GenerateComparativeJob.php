@@ -45,15 +45,35 @@ class GenerateComparativeJob implements ShouldQueue
             $comparative->update(['generation_cost_cents' => $totalCost]);
         }
 
-        // Auto-publish to default endpoint
-        $this->autoPublish($comparative);
+        // Basic quality gate before auto-publish (Comparative is not a GeneratedArticle,
+        // so we can't use QualityGuardService directly — inline essential checks)
+        $text = strip_tags($comparative->content_html ?? '');
+        $wordCount = str_word_count($text);
+        $h2Count = preg_match_all('/<h2[^>]*>/i', $comparative->content_html ?? '');
+        $hasBrandIssue = preg_match('/\bMLM\b|recruter|salarié|salarie/iu', $text);
+
+        $canPublish = !empty($comparative->content_html)
+            && $wordCount >= 500
+            && $h2Count >= 2
+            && !$hasBrandIssue;
+
+        $comparative->update([
+            'quality_score' => $canPublish ? 80 : 40,
+        ]);
+
+        if ($canPublish) {
+            $this->autoPublish($comparative);
+        } else {
+            $comparative->update(['status' => 'review']);
+        }
 
         Log::info('GenerateComparativeJob completed', [
             'id' => $comparative->id,
             'title' => $comparative->title,
             'seo_score' => $comparative->seo_score,
             'cost_cents' => $comparative->generation_cost_cents,
-            'auto_published' => true,
+            'quality_score' => $qualityScore,
+            'auto_published' => $canPublish,
         ]);
     }
 

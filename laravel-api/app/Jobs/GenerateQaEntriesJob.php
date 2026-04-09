@@ -41,15 +41,33 @@ class GenerateQaEntriesJob implements ShouldQueue
 
         $entries = $service->generateFromArticleFaqs($article, $this->faqIds);
 
-        // Auto-publish each Q/A entry
+        // Quality gate + auto-publish each Q/A entry
+        $published = 0;
+        $skipped = 0;
         foreach ($entries as $entry) {
-            $this->autoPublish($entry);
+            $text = strip_tags($entry->answer_detailed_html ?? '');
+            $wordCount = str_word_count($text);
+            $hasBrandIssue = preg_match('/\bMLM\b|recruter|salarié|salarie/iu', $text);
+
+            if ($wordCount >= 100 && !empty($entry->answer_detailed_html) && !$hasBrandIssue) {
+                $this->autoPublish($entry);
+                $published++;
+            } else {
+                $entry->update(['status' => 'review']);
+                $skipped++;
+                Log::info('GenerateQaEntriesJob: Q/A entry skipped quality gate', [
+                    'qa_entry_id' => $entry->id,
+                    'word_count' => $wordCount,
+                    'brand_issue' => (bool) $hasBrandIssue,
+                ]);
+            }
         }
 
         Log::info('GenerateQaEntriesJob completed', [
             'article_id' => $article->id,
             'entries_created' => $entries->count(),
-            'auto_published' => $entries->count(),
+            'auto_published' => $published,
+            'skipped_review' => $skipped,
         ]);
     }
 

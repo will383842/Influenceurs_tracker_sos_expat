@@ -80,3 +80,16 @@ Schedule::call(function () {
         \Illuminate\Support\Facades\Log::info("News stale recovery: {$staleCount} items remis en pending");
     }
 })->everyFifteenMinutes()->name('news-stale-recovery')->withoutOverlapping();
+
+// Source items stale recovery: reset items stuck in 'processing' for >20 min
+// (happens when GenerateArticleJob fails but GenerateFromSourceJob already marked the item)
+Schedule::call(function () {
+    $staleCount = \Illuminate\Support\Facades\DB::table('generation_source_items')
+        ->where('processing_status', 'processing')
+        ->where('updated_at', '<', now()->subMinutes(20))
+        ->update(['processing_status' => 'ready', 'updated_at' => now()]);
+
+    if ($staleCount > 0) {
+        \Illuminate\Support\Facades\Log::info("Source items stale recovery: {$staleCount} items remis en ready");
+    }
+})->everyFifteenMinutes()->name('source-items-stale-recovery')->withoutOverlapping();

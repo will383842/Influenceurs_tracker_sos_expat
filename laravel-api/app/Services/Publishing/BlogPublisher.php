@@ -212,7 +212,15 @@ class BlogPublisher
             ->timeout(30)
             ->post(rtrim($blogUrl, '/') . '/api/v1/articles');
 
-        if ($response->failed()) {
+        // 409 = article already exists (deduplicated by external_id) — treat as success
+        if ($response->status() === 409) {
+            $existingData = $response->json();
+            Log::info('BlogPublisher: article already exists (409), treating as published', [
+                'uuid' => $parentArticle->uuid,
+                'existing_id' => $existingData['data']['id'] ?? $existingData['id'] ?? null,
+            ]);
+            $data = $existingData;
+        } elseif ($response->failed()) {
             $error = $response->json('message') ?? $response->body();
             Log::error('BlogPublisher: API error', [
                 'status' => $response->status(),

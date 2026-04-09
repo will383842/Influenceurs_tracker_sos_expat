@@ -12,7 +12,7 @@ return new class extends Migration
             $table->string('og_type', 30)->default('article')->after('og_description');
             $table->string('og_locale', 10)->nullable()->after('og_type');
             $table->string('og_url', 500)->nullable()->after('og_locale');
-            $table->string('og_site_name', 100)->default('SOS Expat & Travelers')->after('og_url');
+            $table->string('og_site_name', 100)->default('SOS-Expat & Travelers')->after('og_url');
             $table->string('twitter_card', 30)->default('summary_large_image')->after('og_site_name');
             $table->string('geo_region', 5)->nullable()->after('twitter_card');
             $table->string('geo_placename', 200)->nullable()->after('geo_region');

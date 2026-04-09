@@ -111,9 +111,22 @@ class GenerateArticleJob implements ShouldQueue
                 ->first();
 
             if (!$endpoint) {
-                Log::warning('GenerateArticleJob: no default publishing endpoint, skipping auto-publish', [
+                Log::error('GenerateArticleJob: no default publishing endpoint, skipping auto-publish', [
                     'article_id' => $article->id,
                 ]);
+                // Alert via Telegram — this is a critical config issue
+                $botToken = config('services.telegram_alerts.bot_token');
+                $chatId = config('services.telegram_alerts.chat_id');
+                if ($botToken && $chatId) {
+                    try {
+                        \Illuminate\Support\Facades\Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                            'chat_id' => $chatId,
+                            'parse_mode' => 'Markdown',
+                            'text' => "🚨 *No Publishing Endpoint!*\nArticle `{$article->id}` generated but cannot be published.\nNo default active endpoint configured.\nRun: `php artisan db:seed --class=PublishingEndpointSeeder`",
+                        ]);
+                    } catch (\Throwable) {}
+                }
+                $article->update(['status' => 'review']);
                 return;
             }
 
@@ -128,7 +141,8 @@ class GenerateArticleJob implements ShouldQueue
                 return;
             }
 
-            // Delay 90 seconds to let translations finish (Phase 15 dispatches them async)
+            // Delay 5 minutes to let translations finish (Phase 15 dispatches 8 async
+            // GenerateTranslationJob with timeout=300s each on queue 'content')
             $queueItem = PublicationQueueItem::create([
                 'publishable_type' => GeneratedArticle::class,
                 'publishable_id'   => $article->id,
@@ -138,7 +152,7 @@ class GenerateArticleJob implements ShouldQueue
                 'max_attempts'     => 5,
             ]);
 
-            PublishContentJob::dispatch($queueItem->id)->delay(now()->addSeconds(90));
+            PublishContentJob::dispatch($queueItem->id)->delay(now()->addSeconds(300));
 
             Log::info('GenerateArticleJob: auto-publish queued', [
                 'article_id'    => $article->id,

@@ -536,7 +536,7 @@ class ArticleGenerationService
             // Dispatched async — doesn't block the current generation
             if (!in_array($contentType, ['qa', 'news'], true)) {
                 try {
-                    \App\Jobs\GenerateQrSatellitesJob::dispatch($article->id)->onQueue('content-worker')->delay(now()->addMinutes(2));
+                    \App\Jobs\GenerateQrSatellitesJob::dispatch($article->id)->onQueue('content')->delay(now()->addMinutes(2));
                     Log::info('Q/R satellites dispatched', ['article_id' => $article->id]);
                 } catch (\Throwable $e) {
                     Log::warning('Q/R satellites dispatch failed (non-blocking)', ['error' => $e->getMessage()]);
