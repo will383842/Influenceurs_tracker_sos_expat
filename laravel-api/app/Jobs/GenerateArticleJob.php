@@ -54,30 +54,37 @@ class GenerateArticleJob implements ShouldQueue
             $article->update(['generation_cost_cents' => $totalCost]);
         }
 
-        // ── Quality Guard: block auto-publish if quality check fails ──
+        // ── Quality Guard ──
         $qualityGuard = app(QualityGuardService::class);
         $qualityResult = $qualityGuard->check($article);
-        $qualityPassed = $qualityResult['passed'] ?? false;
+        $qualityScore = $qualityResult['score'] ?? 0;
+        $qualityIssues = $qualityResult['issues'] ?? [];
 
         // Persist quality result on the article
         $article->update([
-            'quality_score' => $qualityResult['score'] ?? null,
-            'quality_issues' => !empty($qualityResult['issues']) ? $qualityResult['issues'] : null,
+            'quality_score' => $qualityScore,
+            'quality_issues' => !empty($qualityIssues) ? $qualityIssues : null,
         ]);
 
-        if (!$qualityPassed) {
-            // Quality check failed — keep article in "review" for manual verification
+        // Auto-publish if: score >= 60, no brand compliance issues, has content, is original (not translation)
+        $canPublish = $qualityScore >= 60
+            && empty($qualityIssues)
+            && !$article->parent_article_id
+            && !empty($article->content_html)
+            && $article->word_count > 0;
+
+        if (!$canPublish && !$article->parent_article_id && $article->word_count > 0) {
+            // Has content but quality issues → review (not lost, can be published manually)
             $article->update(['status' => 'review']);
-            Log::warning('GenerateArticleJob: quality check FAILED, article set to review (no auto-publish)', [
+            Log::info('GenerateArticleJob: article set to review', [
                 'article_id' => $article->id,
-                'quality_score' => $qualityResult['score'] ?? null,
-                'issues' => $qualityResult['issues'] ?? [],
+                'quality_score' => $qualityScore,
+                'issues' => $qualityIssues,
             ]);
         }
 
         // ── Auto-publish to default endpoint (blog sos-expat.com) ──
-        // Skip if: translation, generation failed (no content / 0 words), or quality check failed
-        if ($qualityPassed && !$article->parent_article_id && !empty($article->content_html) && $article->word_count > 0) {
+        if ($canPublish) {
             $this->autoPublish($article);
         }
 
