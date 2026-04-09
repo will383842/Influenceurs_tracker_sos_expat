@@ -143,7 +143,7 @@ class DiagnosePipelineCommand extends Command
         $this->newLine();
         $this->components->twoColumnDetail('<fg=cyan>4. Publication Queue</>');
 
-        $queueStatuses = DB::table('publication_queue_items')
+        $queueStatuses = DB::table('publication_queue')
             ->select(DB::raw('status, count(*) as cnt'))
             ->groupBy('status')
             ->get();
@@ -163,7 +163,7 @@ class DiagnosePipelineCommand extends Command
         }
 
         // Show failed publication details
-        $failedPubs = DB::table('publication_queue_items')
+        $failedPubs = DB::table('publication_queue')
             ->where('status', 'failed')
             ->orderByDesc('updated_at')
             ->limit(5)
@@ -279,14 +279,14 @@ class DiagnosePipelineCommand extends Command
                     $queued = 0;
                     foreach ($publishable as $article) {
                         // Check not already in queue
-                        $alreadyQueued = DB::table('publication_queue_items')
+                        $alreadyQueued = DB::table('publication_queue')
                             ->where('publishable_id', $article->id)
                             ->where('publishable_type', 'App\\Models\\GeneratedArticle')
                             ->whereIn('status', ['pending', 'published', 'scheduled'])
                             ->exists();
 
                         if (!$alreadyQueued) {
-                            $queueItemId = DB::table('publication_queue_items')->insertGetId([
+                            $queueItemId = DB::table('publication_queue')->insertGetId([
                                 'publishable_type' => 'App\\Models\\GeneratedArticle',
                                 'publishable_id'   => $article->id,
                                 'endpoint_id'      => $endpointId,
@@ -308,19 +308,19 @@ class DiagnosePipelineCommand extends Command
             }
 
             // Retry failed publication queue items
-            $failedItems = DB::table('publication_queue_items')
+            $failedItems = DB::table('publication_queue')
                 ->where('status', 'failed')
                 ->count();
 
             if ($failedItems > 0) {
                 $this->newLine();
                 $this->line("  Resetting {$failedItems} failed publication items to pending...");
-                DB::table('publication_queue_items')
+                DB::table('publication_queue')
                     ->where('status', 'failed')
                     ->update(['status' => 'pending', 'attempts' => 0, 'updated_at' => now()]);
 
                 // Re-dispatch them
-                $pending = DB::table('publication_queue_items')
+                $pending = DB::table('publication_queue')
                     ->where('status', 'pending')
                     ->pluck('id');
                 foreach ($pending as $itemId) {
