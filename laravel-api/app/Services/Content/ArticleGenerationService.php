@@ -890,11 +890,27 @@ class ArticleGenerationService
                 }
             }
 
+            // Validation: s'assurer que le pays est dans le titre (si article lié à un pays)
+            if ($country && mb_stripos($title, mb_substr($country, 0, 10)) === false) {
+                // Insérer le pays dans le titre
+                if (str_contains($title, ' : ')) {
+                    $parts = explode(' : ', $title, 2);
+                    $title = $parts[0] . ' ' . $country . ' : ' . $parts[1];
+                } else {
+                    $title .= ' — ' . $country;
+                }
+                if (mb_strlen($title) > 100) {
+                    $title = mb_substr($title, 0, 100);
+                    $lastSpace = mb_strrpos($title, ' ');
+                    if ($lastSpace && $lastSpace > 60) $title = mb_substr($title, 0, $lastSpace);
+                }
+            }
+
             return $title;
         }
 
-        // Fallback: titre structuré basique avec mot-clé + année (pas "Guide")
-        $fallback = ucfirst($primaryKeyword) . ' : Tout Savoir en ' . $year;
+        // Fallback: titre structuré basique avec mot-clé + année + pays (pas "Guide")
+        $fallback = ucfirst($primaryKeyword) . ($country ? " {$country}" : '') . ' : Tout Savoir en ' . $year;
         return mb_substr($fallback, 0, 60);
     }
 
