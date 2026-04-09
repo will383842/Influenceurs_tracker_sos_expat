@@ -533,6 +533,14 @@ return [
         'affiliation' => 'Comparatif de services avec liens affilies. Banques pour expatries, assurances voyage, transferts d\'argent, VPN, outils. Objectif = conversion affiliation. Objectivite = credibilite.',
         'qr' => 'Reponse courte et directe a une question precise. 300-800 mots. Featured snippet en premier paragraphe (40-60 mots = reponse directe). FAQ 5 questions liees. NE PAS etre un guide long.',
         'news' => 'Actualite expatries/voyageurs. Ton journalistique. Evenement recent avec date, source, impact. NE PAS repeter du contenu evergreen. 800-1200 mots.',
+        'statistics' => 'Article base sur des donnees statistiques (World Bank, OECD, Eurostat). Chiffres sources avec annee, graphiques si possible. Comparer avec moyenne mondiale/regionale. NE PAS inventer de donnees.',
+        'pain_point' => 'Article centre sur une souffrance/difficulte concrete d\'expatrie. Ton empathique. Solution pratique avec etapes. CTA vers SOS-Expat.com pour aide immediate. 800-1500 mots.',
+        'testimonial' => 'Temoignage REEL d\'un utilisateur. NE JAMAIS inventer de temoignage. Citer le prenom et le pays. Si pas de temoignage reel disponible, NE PAS generer.',
+        'landing' => 'Page de conversion pour le programme d\'affiliation. Avantages cles, commissions, CTA proeminent. Ton persuasif mais honnete. NE PAS utiliser le terme MLM.',
+        'press_release' => 'Communique de presse officiel SOS-Expat.com. Ton professionnel et factuel. Date, lieu, contact presse. Format pyramide inversee.',
+        'pillar' => 'Article PILIER exhaustif sur un pays (4000-7000 mots). Couvre TOUS les aspects : visa, logement, sante, education, cout de la vie, culture, communaute expatriee. Liens vers articles detailles.',
+        'tutorial' => 'Guide pratique etape par etape. Numerotation des etapes, captures d\'ecran si pertinent. Objectif clair des l\'introduction. FAQ en fin. 1000-2000 mots.',
+        'qa_needs' => 'Reponse Q/R basee sur un besoin identifie (pas une vraie question de forum). Format identique a qa : featured snippet + FAQ. 300-800 mots.',
     ],
 
     // =====================================================================

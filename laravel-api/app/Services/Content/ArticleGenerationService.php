@@ -641,7 +641,7 @@ class ArticleGenerationService
 
         // Step 1 — GPT extracts key facts from the scraped content (always done)
         $truncated     = mb_substr(strip_tags($sourceContent), 0, 4000);
-        $extractResult = $this->openAi->complete(
+        $extractResult = $this->aiComplete(
             $this->kbPrompt . "\n\nTu es un assistant de recherche. Extrais les faits clés, chiffres, données importantes "
             . "et points essentiels de ce contenu. "
             . "Retourne en JSON : {\"facts\": [\"fait1\", \"fait2\", ...], \"lsi_keywords\": [\"mot1\", \"mot2\", ...]}",
@@ -721,7 +721,7 @@ class ArticleGenerationService
 
             // Extract LSI keywords from the research
             try {
-                $lsiResult = $this->openAi->complete(
+                $lsiResult = $this->aiComplete(
                     "Extrais 10-15 mots-clés sémantiques (LSI) de ce texte de recherche. Ce sont des termes que Google s'attend à trouver dans un article complet sur le sujet. Retourne en JSON: {\"lsi_keywords\": [\"mot1\", \"mot2\", ...]}",
                     mb_substr($result['text'], 0, 3000),
                     ['temperature' => 0.3, 'max_tokens' => 300, 'json_mode' => true]
@@ -838,7 +838,7 @@ class ArticleGenerationService
                 . "\nGRAMMAIRE : Utiliser la BONNE préposition devant le nom de pays (en français : 'au Portugal', 'en France', 'aux États-Unis', 'à Singapour'). Le titre DOIT sonner 100% naturel et natif — JAMAIS de formulation maladroite.";
         }
 
-        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+        $result = $this->aiComplete($systemPrompt, $userPrompt, [
             'model' => $typeConfig['model'] ?? null,
             'temperature' => $typeConfig['temperature'] ?? 0.6,
             'max_tokens' => $typeConfig['max_tokens_title'] ?? 100,
@@ -911,7 +911,7 @@ class ArticleGenerationService
             . "\n- Ton factuel, informatif, donne envie de lire l'article complet"
             . "\nLangue: {$language}. Retourne UNIQUEMENT le texte, sans guillemets.";
 
-        $result = $this->openAi->complete($systemPrompt, "Titre: {$title}{$factsContext}", [
+        $result = $this->aiComplete($systemPrompt, "Titre: {$title}{$factsContext}", [
             'temperature' => 0.5,
             'max_tokens' => 100,
         ]);
@@ -1101,7 +1101,7 @@ class ArticleGenerationService
                     . "Chaque section <h2> doit contenir au minimum 3 paragraphes de 80+ mots chacun.\n\n"
                     . "ARTICLE À DÉVELOPPER :\n" . $content;
 
-                $extendResult = $this->openAi->complete(
+                $extendResult = $this->aiComplete(
                     $this->kbPrompt . "\n\nTu es un rédacteur web expert. Développe cet article en HTML pour qu'il atteigne {$targetWords} mots minimum.",
                     $extendPrompt,
                     [
@@ -1151,7 +1151,7 @@ class ArticleGenerationService
             ])
             : "Titre de l'article: \"{$article->title}\"\nMot-clé principal: \"{$primaryKeyword}\"\nAnnée: " . date('Y') . "\n\nGénère UNIQUEMENT le paragraphe de définition (40-60 mots, pas de HTML, juste le texte).";
 
-        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+        $result = $this->aiComplete($systemPrompt, $userPrompt, [
             'temperature' => 0.5,
             'max_tokens' => 200,
         ]);
@@ -1199,7 +1199,7 @@ class ArticleGenerationService
             . "Les questions doivent être celles que les utilisateurs taperaient réellement dans Google."
             . $faqCountryConstraint;
 
-        $result = $this->openAi->complete($systemPrompt, "Titre: {$title}\n\nContenu (extrait):\n{$contentExcerpt}", [
+        $result = $this->aiComplete($systemPrompt, "Titre: {$title}\n\nContenu (extrait):\n{$contentExcerpt}", [
             'temperature' => 0.6,
             'max_tokens' => 3000,
             'json_mode' => true,
@@ -1242,7 +1242,7 @@ class ArticleGenerationService
             . "- Mentionne un bénéfice concret pour l'utilisateur\n"
             . "- Pas de caractères spéciaux inutiles, pas de caps lock";
 
-        $result = $this->openAi->complete($systemPrompt,
+        $result = $this->aiComplete($systemPrompt,
             "Titre: {$title}\nExcerpt: {$excerpt}\nMot-clé: {$primaryKeyword}", [
                 'temperature' => 0.5,
                 'max_tokens' => 300,
@@ -1323,7 +1323,7 @@ class ArticleGenerationService
         $userPrompt = "Meta title actuel: {$metaTitle}\nMeta desc actuelle: {$metaDescription}\nTitre H1: {$title}\nContenu: {$contentSnippet}";
 
         try {
-            $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            $result = $this->aiComplete($systemPrompt, $userPrompt, [
                 'temperature' => 0.5,
                 'max_tokens' => 600,
                 'json_mode' => true,
