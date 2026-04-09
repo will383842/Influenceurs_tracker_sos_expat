@@ -94,8 +94,8 @@ class GenerateArticleJob implements ShouldQueue
             'word_count' => $article->word_count,
             'seo_score' => $article->seo_score,
             'cost_cents' => $article->generation_cost_cents,
-            'quality_passed' => $qualityPassed,
-            'auto_published' => $qualityPassed && !$article->parent_article_id,
+            'quality_passed' => $canPublish,
+            'auto_published' => $canPublish,
         ]);
     }
 
