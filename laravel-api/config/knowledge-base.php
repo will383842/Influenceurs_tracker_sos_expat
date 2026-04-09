@@ -577,7 +577,7 @@ return [
     ],
 
     'aeo_rules' => [
-        'ai_summary' => 'Chaque article DOIT avoir un champ ai_summary : 1 phrase factuelle de max 100 caracteres, reponse directe a l\'intention de recherche. Optimise pour etre cite par les moteurs IA.',
+        'ai_summary' => 'Chaque article DOIT avoir un champ ai_summary : 1 phrase factuelle de max 160 caracteres, reponse directe a l\'intention de recherche. Optimise pour etre cite par les moteurs IA.',
         'concise_answers' => 'Chaque section doit commencer par une phrase-reponse directe AVANT le developpement. Les moteurs IA extraient le debut de chaque section.',
         'structured_data' => 'Toujours inclure FAQ Schema (5-7 Q/R), Article Schema avec dateModified, et Speakable Schema sur le featured snippet + H1.',
         'entity_clarity' => 'Definir clairement chaque entite mentionnee (pays, service, loi) des sa premiere apparition. Les moteurs IA ont besoin de contexte explicite.',

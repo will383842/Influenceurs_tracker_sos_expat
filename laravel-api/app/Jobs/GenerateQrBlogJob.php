@@ -246,7 +246,7 @@ Réponds UNIQUEMENT en JSON valide (sans markdown) :
   "excerpt": "string 1-2 phrases max 120 chars",
   "keywords_primary": "3-5 mots-clés séparés virgule",
   "keywords_secondary": ["longue traîne 1", "longue traîne 2", "longue traîne 3"],
-  "ai_summary": "1 phrase max 100 chars pour IA",
+  "ai_summary": "1 phrase max 160 chars pour IA",
   "content_html": "<p>Intro...</p><h2>...</h2>...",
   "faqs": [
     {"question": "Question ?", "answer": "<p>Réponse HTML...</p>"},

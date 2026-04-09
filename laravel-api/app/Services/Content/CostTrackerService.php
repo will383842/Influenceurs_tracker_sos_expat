@@ -76,7 +76,7 @@ class CostTrackerService
      */
     public function shouldBlock(): bool
     {
-        $blockOnExceeded = (bool) config('services.ai.block_on_exceeded', false);
+        $blockOnExceeded = (bool) config('services.ai.block_on_exceeded', true);
 
         if (!$blockOnExceeded) {
             return false;

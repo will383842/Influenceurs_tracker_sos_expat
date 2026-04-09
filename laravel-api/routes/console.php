@@ -25,8 +25,8 @@ Schedule::command('backup:database')->dailyAt('03:00')->withoutOverlapping();
 // Pipeline 14 sources: DESACTIVE (toute generation via onglets UI)
 // Schedule::job(new RunDailyContentJob)->dailyAt('06:00')->withoutOverlapping(14400);
 
-// Q/R Blog auto: DESACTIVE (generation via onglet Q/R)
-// Schedule::command('qr:daily-generate')->dailyAt('07:00')->withoutOverlapping(7200);
+// Q/R Blog auto: génération quotidienne à 07:00 UTC
+Schedule::command('qr:daily-generate')->dailyAt('07:00')->withoutOverlapping(7200);
 
 // ── ACTIFS ──
 

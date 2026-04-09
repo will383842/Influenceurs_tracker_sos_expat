@@ -220,13 +220,13 @@ class AutoOptimizeService
     private function optimizeAeoSummary(GeneratedArticle $article, string $language): void
     {
         $result = $this->openAi->complete(
-            "Genere un ai_summary factuel en 1 phrase de max 100 caracteres. Reponse directe a l'intention de recherche. Langue: {$language}.",
+            "Genere un ai_summary factuel en 1 phrase de max 160 caracteres. Reponse directe a l'intention de recherche. Langue: {$language}.",
             "Titre: {$article->title}\nExtrait: " . mb_substr(strip_tags($article->content_html ?? ''), 0, 300),
             ['temperature' => 0.3, 'max_tokens' => 60]
         );
 
         $summary = trim($result['content'] ?? $result['text'] ?? '');
-        if (!empty($summary) && mb_strlen($summary) <= 120) {
+        if (!empty($summary) && mb_strlen($summary) <= 160) {
             $article->update(['ai_summary' => $summary]);
         }
     }

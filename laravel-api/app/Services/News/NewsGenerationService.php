@@ -211,7 +211,7 @@ Réponds UNIQUEMENT en JSON valide (sans markdown):
   "excerpt": "2-3 phrases d'accroche max 180 chars",
   "keywords_primary": "mot-clé principal",
   "keywords_secondary": ["longue traîne 1", "longue traîne 2", "longue traîne 3"],
-  "ai_summary": "1 phrase max 100 chars pour IA/AEO",
+  "ai_summary": "1 phrase max 160 chars pour IA/AEO",
   "content_html": "<p>...</p><h2>...</h2>...",
   "faqs": [{"question": "...", "answer": "<p>...</p>"}]
 }

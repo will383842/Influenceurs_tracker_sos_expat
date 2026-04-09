@@ -6,6 +6,7 @@ use App\Models\GeneratedArticle;
 use App\Models\PublicationQueueItem;
 use App\Models\PublishingEndpoint;
 use App\Services\Content\ArticleGenerationService;
+use App\Services\Content\QualityGuardService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -53,9 +54,30 @@ class GenerateArticleJob implements ShouldQueue
             $article->update(['generation_cost_cents' => $totalCost]);
         }
 
+        // ── Quality Guard: block auto-publish if quality check fails ──
+        $qualityGuard = app(QualityGuardService::class);
+        $qualityResult = $qualityGuard->check($article);
+        $qualityPassed = $qualityResult['passed'] ?? false;
+
+        // Persist quality result on the article
+        $article->update([
+            'quality_score' => $qualityResult['score'] ?? null,
+            'quality_issues' => !empty($qualityResult['issues']) ? $qualityResult['issues'] : null,
+        ]);
+
+        if (!$qualityPassed) {
+            // Quality check failed — keep article in "review" for manual verification
+            $article->update(['status' => 'review']);
+            Log::warning('GenerateArticleJob: quality check FAILED, article set to review (no auto-publish)', [
+                'article_id' => $article->id,
+                'quality_score' => $qualityResult['score'] ?? null,
+                'issues' => $qualityResult['issues'] ?? [],
+            ]);
+        }
+
         // ── Auto-publish to default endpoint (blog sos-expat.com) ──
-        // Skip if: translation, or generation failed (no content / 0 words)
-        if (!$article->parent_article_id && !empty($article->content_html) && $article->word_count > 0) {
+        // Skip if: translation, generation failed (no content / 0 words), or quality check failed
+        if ($qualityPassed && !$article->parent_article_id && !empty($article->content_html) && $article->word_count > 0) {
             $this->autoPublish($article);
         }
 
@@ -65,7 +87,8 @@ class GenerateArticleJob implements ShouldQueue
             'word_count' => $article->word_count,
             'seo_score' => $article->seo_score,
             'cost_cents' => $article->generation_cost_cents,
-            'auto_published' => !$article->parent_article_id,
+            'quality_passed' => $qualityPassed,
+            'auto_published' => $qualityPassed && !$article->parent_article_id,
         ]);
     }
 

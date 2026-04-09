@@ -165,7 +165,7 @@ class GenerateQrSatellitesJob implements ShouldQueue
             . "- Dire 'votre ambassade' PAS 'l'ambassade de France'\n"
             . "- 3-5 FAQ complementaires\n"
             . "- 1 lien interne vers l'article parent: {$parentLink}\n"
-            . "- meta_title: max 60 chars | meta_description: 140-155 chars | ai_summary: max 100 chars\n\n"
+            . "- meta_title: max 60 chars | meta_description: 140-155 chars | ai_summary: max 160 chars\n\n"
             . "Retourne en JSON UNIQUEMENT:\n"
             . "{\"meta_title\":\"...\",\"meta_description\":\"...\",\"excerpt\":\"...\",\"keywords_primary\":\"...\",\"ai_summary\":\"...\",\"content_html\":\"...\",\"faqs\":[{\"question\":\"?\",\"answer\":\"<p>...</p>\"}]}";
 

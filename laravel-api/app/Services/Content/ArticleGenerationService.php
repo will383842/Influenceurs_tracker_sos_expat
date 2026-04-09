@@ -1163,11 +1163,11 @@ class ArticleGenerationService
             // Wrap in paragraph with bold for emphasis
             $snippetHtml = '<p class="featured-snippet"><strong>' . e($snippet) . '</strong></p>';
 
-            // Insert after first <h2>
+            // Insert BEFORE first <h2> (after introduction, before first section)
             $html = $article->content_html;
-            $pos = strpos($html, '</h2>');
+            $pos = strpos($html, '<h2');
             if ($pos !== false) {
-                $html = substr($html, 0, $pos + 5) . "\n" . $snippetHtml . "\n" . substr($html, $pos + 5);
+                $html = substr($html, 0, $pos) . $snippetHtml . "\n" . substr($html, $pos);
             } else {
                 // No H2 found, insert at beginning
                 $html = $snippetHtml . "\n" . $html;
@@ -1313,12 +1313,12 @@ class ArticleGenerationService
             . "{\n"
             . "  \"og_title\": \"Titre accrocheur pour réseaux sociaux (≤95 chars, DIFFÉRENT du meta_title)\",\n"
             . "  \"og_description\": \"Description incitant au partage social avec CTA (≤200 chars)\",\n"
-            . "  \"ai_summary\": \"Résumé factuel 100-200 mots pour les moteurs IA (PAS de marketing, commence par les faits)\"\n"
+            . "  \"ai_summary\": \"Résumé factuel max 160 caractères pour les moteurs IA (PAS de marketing, commence par les faits)\"\n"
             . "}\n\n"
             . "IMPORTANT:\n"
             . "- og_title : plus ÉMOTIONNEL et ENGAGEANT que le meta_title (qui est SEO)\n"
             . "- og_description : doit donner envie de CLIQUER et PARTAGER\n"
-            . "- ai_summary : STRICTEMENT FACTUEL, 100-200 mots, commence par les faits, pas par 'Cet article...'";
+            . "- ai_summary : STRICTEMENT FACTUEL, max 160 caractères, commence par les faits, pas par 'Cet article...'";
 
         $userPrompt = "Meta title actuel: {$metaTitle}\nMeta desc actuelle: {$metaDescription}\nTitre H1: {$title}\nContenu: {$contentSnippet}";
 
@@ -1335,7 +1335,7 @@ class ArticleGenerationService
                     return [
                         'og_title'       => mb_substr($parsed['og_title'] ?? $metaTitle, 0, 95),
                         'og_description' => mb_substr($parsed['og_description'] ?? $metaDescription, 0, 200),
-                        'ai_summary'     => mb_substr($parsed['ai_summary'] ?? $excerpt, 0, 1400),
+                        'ai_summary'     => mb_substr($parsed['ai_summary'] ?? $excerpt, 0, 160),
                     ];
                 }
             }
@@ -1347,7 +1347,7 @@ class ArticleGenerationService
         return [
             'og_title'       => mb_substr($title, 0, 95),
             'og_description' => mb_substr($metaDescription, 0, 200),
-            'ai_summary'     => mb_substr($excerpt, 0, 1400),
+            'ai_summary'     => mb_substr($excerpt, 0, 160),
         ];
     }
 

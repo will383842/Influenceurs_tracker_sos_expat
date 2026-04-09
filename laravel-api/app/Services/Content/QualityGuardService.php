@@ -112,9 +112,9 @@ class QualityGuardService
         }
 
         // ── 8. AEO READINESS ──
-        $checks['aeo'] = !empty($article->ai_summary) && mb_strlen($article->ai_summary) <= 120;
+        $checks['aeo'] = !empty($article->ai_summary) && mb_strlen($article->ai_summary) <= 160;
         if (!$checks['aeo']) {
-            $warnings[] = "AEO: ai_summary manquant ou trop long (max 100 caracteres)";
+            $warnings[] = "AEO: ai_summary manquant ou trop long (max 160 caracteres)";
         }
 
         // ── 9. META TAGS ──
@@ -130,9 +130,12 @@ class QualityGuardService
         }
 
         // ── 10. BRAND COMPLIANCE ──
-        $checks['brand'] = $this->checkBrandCompliance($text);
-        if (!$checks['brand']) {
-            $issues[] = "Brand compliance: mentions incorrectes de SOS-Expat detectees";
+        $brandResult = $this->checkBrandCompliance($text);
+        $checks['brand'] = $brandResult['passed'];
+        if (!$brandResult['passed']) {
+            foreach ($brandResult['issues'] as $brandIssue) {
+                $issues[] = "Brand compliance: {$brandIssue}";
+            }
         }
 
         // Calculate score
@@ -232,25 +235,48 @@ class QualityGuardService
         return ['passed' => true, 'reason' => null];
     }
 
-    private function checkBrandCompliance(string $text): bool
+    /**
+     * @return array{passed: bool, issues: string[]}
+     */
+    private function checkBrandCompliance(string $text): array
     {
-        $lower = mb_strtolower($text);
+        $issues = [];
 
         // Must NOT say "SOS Expat" without hyphen (except in URLs)
-        if (preg_match('/sos\s+expat(?!\.\w)/iu', $text) && !str_contains($lower, 'sos-expat')) {
-            return false;
+        if (preg_match('/sos\s+expat(?!\.\w)/iu', $text) && !str_contains(mb_strtolower($text), 'sos-expat')) {
+            $issues[] = 'Mention "SOS Expat" sans tiret detectee (utiliser "SOS-Expat")';
         }
 
         // Must NOT say it's free
         if (preg_match('/sos[- ]?expat.{0,30}(gratuit|free|gratis)/iu', $text)) {
-            return false;
+            $issues[] = 'SOS-Expat presente comme gratuit';
         }
 
         // Must NOT say it provides legal advice directly
         if (preg_match('/sos[- ]?expat.{0,30}(fournit|donne|offre).{0,20}(conseil|avis) juridique/iu', $text)) {
-            return false;
+            $issues[] = 'SOS-Expat presente comme fournissant des conseils juridiques';
         }
 
-        return true;
+        // Must NOT use forbidden affiliate terminology
+        if (preg_match('/\bMLM\b/i', $text)) {
+            $issues[] = 'Terme interdit "MLM" detecte — utiliser "programme d\'affiliation"';
+        }
+
+        if (preg_match('/\b(recruter|recruit)\b/iu', $text)) {
+            $issues[] = 'Terme interdit "recruter/recruit" detecte — utiliser "parrainer" ou "inviter"';
+        }
+
+        if (preg_match('/\b(salarié|salarie)\b/iu', $text)) {
+            $issues[] = 'Terme interdit "salarié" detecte — utiliser "affilié" ou "partenaire"';
+        }
+
+        if (preg_match('/\brecrutement\b/iu', $text)) {
+            $issues[] = 'Terme interdit "recrutement" detecte — utiliser "parrainage" ou "affiliation"';
+        }
+
+        return [
+            'passed' => empty($issues),
+            'issues' => $issues,
+        ];
     }
 }

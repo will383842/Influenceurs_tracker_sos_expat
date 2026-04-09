@@ -201,7 +201,7 @@ REGLES :
 - Ton pratique, concret, accessible
 - meta_title: max 60 chars, question reformulee pour le SEO
 - meta_description: 140-155 chars, incitative
-- ai_summary: 1 phrase max 100 chars
+- ai_summary: 1 phrase max 160 chars
 
 Retourne en JSON UNIQUEMENT :
 {{
@@ -209,7 +209,7 @@ Retourne en JSON UNIQUEMENT :
   "meta_description": "string 140-155 chars",
   "excerpt": "string max 120 chars",
   "keywords_primary": "mots-cles principaux",
-  "ai_summary": "resume factuel max 100 chars",
+  "ai_summary": "resume factuel max 160 chars",
   "content_html": "<p>Reponse directe...</p><h2>...</h2>...",
   "faqs": [{{"question": "?", "answer": "<p>...</p>"}}]
 }}
