@@ -7,13 +7,18 @@ use App\Services\Content\GenerationGuardService;
 use App\Services\Content\GenerationSchedulerService;
 use App\Services\Content\KnowledgeBaseService;
 use App\Services\News\SimilarityCheckerService;
+use App\Services\AI\OpenAiService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class NewsGenerationService
 {
-    private const MODEL_GENERATE = 'claude-sonnet-4-6';
-    private const MODEL_LIGHT    = 'claude-haiku-4-5-20251001';
+    private const MODEL_GENERATE       = 'claude-sonnet-4-6';
+    private const MODEL_LIGHT          = 'claude-haiku-4-5-20251001';
+    private const MODEL_FALLBACK_GPT   = 'gpt-4o-mini';
+
+    /** HTTP status codes that trigger GPT fallback */
+    private const FALLBACK_STATUS_CODES = [500, 502, 503, 529];
 
     public function __construct(
         private KnowledgeBaseService $knowledgeBase,
@@ -143,7 +148,9 @@ class NewsGenerationService
         $source  = mb_substr(strip_tags($item->original_content ?: $item->original_excerpt ?: ''), 0, 1500);
         $title   = $item->title;
 
-        $prompt = <<<PROMPT
+        $systemPrompt = $this->knowledgeBase->getLightPrompt('news', $item->country, $item->language ?? 'fr') ?? '';
+
+        $userPrompt = <<<PROMPT
 Extrais UNIQUEMENT les faits factuels de cet article: dates, chiffres, noms de pays/villes, noms d'institutions, données statistiques, changements réglementaires.
 NE RECOPIE AUCUNE phrase de l'article source.
 Titre: {$title}
@@ -151,8 +158,28 @@ Contenu: {$source}
 Réponds en JSON: {"facts": ["fait1", "fait2", ...], "country": "XX ou null", "angle": "angle editorial suggéré"}
 PROMPT;
 
-        $kbLight = $this->knowledgeBase->getLightPrompt('news', $item->country, $item->language ?? 'fr');
-        $result = $this->callClaude(self::MODEL_LIGHT, $prompt, 500, $key, $kbLight);
+        // GPT-4o-mini for fact extraction (cost-optimized: ~5x cheaper than Haiku)
+        /** @var OpenAiService $openai */
+        $openai = app(OpenAiService::class);
+
+        if ($openai->isConfigured()) {
+            $result = $openai->complete($systemPrompt, $userPrompt, [
+                'model'      => self::MODEL_FALLBACK_GPT,
+                'max_tokens' => 500,
+                'json_mode'  => true,
+            ]);
+
+            if ($result['success'] && !empty($result['content'])) {
+                return $this->extractJson($result['content']);
+            }
+
+            Log::warning('NewsGenerationService: GPT fact extraction failed, falling back to Claude', [
+                'error' => $result['error'] ?? 'unknown',
+            ]);
+        }
+
+        // Fallback to Claude Haiku if GPT unavailable
+        $result = $this->callClaude(self::MODEL_LIGHT, $userPrompt, 500, $key, $systemPrompt);
         if (! $result) return null;
 
         return $this->extractJson($result);
@@ -299,6 +326,9 @@ PROMPT;
     // CLAUDE API
     // ─────────────────────────────────────────
 
+    /**
+     * Call Claude API with automatic GPT-4o-mini fallback on 5xx / timeout errors.
+     */
     private function callClaude(string $model, string $prompt, int $maxTokens, string $key, ?string $systemPrompt = null): ?string
     {
         $body = [
@@ -311,21 +341,110 @@ PROMPT;
             $body['system'] = $systemPrompt;
         }
 
-        $response = Http::withHeaders([
-            'x-api-key'         => $key,
-            'anthropic-version' => '2023-06-01',
-            'content-type'      => 'application/json',
-        ])->timeout(120)->post('https://api.anthropic.com/v1/messages', $body);
+        $shouldFallback = false;
+        $claudeError    = null;
 
-        if (! $response->successful()) {
-            Log::error('NewsGenerationService: Claude API error', [
-                'model'  => $model,
-                'status' => $response->status(),
+        try {
+            $response = Http::withHeaders([
+                'x-api-key'         => $key,
+                'anthropic-version' => '2023-06-01',
+                'content-type'      => 'application/json',
+            ])->timeout(120)->post('https://api.anthropic.com/v1/messages', $body);
+
+            if ($response->successful()) {
+                $text = $response->json('content.0.text');
+                if ($text === null) {
+                    $data = $response->json();
+                    $text = $data['content'][0]['text'] ?? null;
+                }
+                if ($text !== null) {
+                    Log::info('NewsGenerationService: Claude OK', ['model' => $model]);
+                    return $text;
+                }
+                Log::warning('NewsGenerationService: Claude 200 mais content.0.text absent', [
+                    'model'       => $model,
+                    'raw_snippet' => mb_substr($response->body(), 0, 300),
+                ]);
+                $shouldFallback = true;
+                $claudeError    = 'empty_response';
+            } else {
+                $status = $response->status();
+                Log::error('NewsGenerationService: Claude API error', [
+                    'model'  => $model,
+                    'status' => $status,
+                    'body'   => mb_substr($response->body(), 0, 500),
+                ]);
+
+                // Fallback uniquement sur erreurs serveur (5xx), pas sur 4xx (bad request, auth, etc.)
+                $shouldFallback = in_array($status, self::FALLBACK_STATUS_CODES, true) || $status >= 500;
+                $claudeError    = "HTTP {$status}";
+            }
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::error('NewsGenerationService: Claude timeout/connexion', [
+                'model' => $model,
+                'error' => $e->getMessage(),
             ]);
+            $shouldFallback = true;
+            $claudeError    = 'timeout';
+        } catch (\Throwable $e) {
+            Log::error('NewsGenerationService: Claude exception', [
+                'model' => $model,
+                'error' => $e->getMessage(),
+            ]);
+            $shouldFallback = true;
+            $claudeError    = $e->getMessage();
+        }
+
+        // ── Fallback GPT-4o-mini ──
+        if ($shouldFallback) {
+            return $this->callGptFallback($prompt, $maxTokens, $systemPrompt, $model, $claudeError);
+        }
+
+        return null;
+    }
+
+    /**
+     * Fallback : appel GPT-4o-mini quand Claude échoue (5xx, timeout).
+     */
+    private function callGptFallback(string $prompt, int $maxTokens, ?string $systemPrompt, string $failedModel, string $failedReason): ?string
+    {
+        /** @var OpenAiService $openai */
+        $openai = app(OpenAiService::class);
+
+        if (! $openai->isConfigured()) {
+            Log::warning('NewsGenerationService: GPT fallback impossible — OpenAI non configuré');
             return null;
         }
 
-        return $response->json('content.0.text');
+        Log::info('NewsGenerationService: fallback GPT-4o-mini', [
+            'failed_model'  => $failedModel,
+            'failed_reason' => $failedReason,
+        ]);
+
+        $result = $openai->complete(
+            $systemPrompt ?? '',
+            $prompt,
+            [
+                'model'      => self::MODEL_FALLBACK_GPT,
+                'max_tokens' => $maxTokens,
+                'json_mode'  => true,
+            ]
+        );
+
+        if ($result['success'] && ! empty($result['content'])) {
+            Log::info('NewsGenerationService: GPT fallback OK', [
+                'model'         => $result['model'] ?? self::MODEL_FALLBACK_GPT,
+                'tokens_input'  => $result['tokens_input'] ?? 0,
+                'tokens_output' => $result['tokens_output'] ?? 0,
+            ]);
+            return $result['content'];
+        }
+
+        Log::error('NewsGenerationService: GPT fallback échoué aussi', [
+            'error' => $result['error'] ?? 'unknown',
+        ]);
+
+        return null;
     }
 
     private function extractJson(string $text): ?array

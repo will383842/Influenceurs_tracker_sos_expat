@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class RelevanceFilterService
 {
-    private const MODEL = 'claude-haiku-4-5-20251001';
+    private const MODEL = 'gpt-4o-mini';
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
 Tu évalues si un article de presse est DIRECTEMENT utile à quelqu'un qui vit, travaille ou voyage HORS de son pays d'origine.
@@ -41,15 +41,15 @@ Réponds UNIQUEMENT en JSON valide (sans markdown):
 PROMPT;
 
     /**
-     * Evaluate the relevance of a feed item using Claude Haiku.
+     * Evaluate the relevance of a feed item using GPT-4o-mini (cost-optimized).
      * Updates the item in place (status, relevance_score, relevance_category, relevance_reason).
      */
     public function evaluate(RssFeedItem $item): void
     {
-        $anthropicKey = config('services.anthropic.api_key') ?: config('services.claude.api_key');
+        $openaiKey = config('services.openai.api_key') ?? env('OPENAI_API_KEY');
 
-        if (! $anthropicKey) {
-            Log::warning('RelevanceFilterService: ANTHROPIC_API_KEY manquant');
+        if (! $openaiKey) {
+            Log::warning('RelevanceFilterService: OPENAI_API_KEY manquant');
             return;
         }
 
@@ -58,18 +58,19 @@ PROMPT;
 
         $userPrompt = "Titre: {$text}\nRésumé: {$excerpt}";
 
-        $result = $this->callClaude($userPrompt, $anthropicKey);
+        $result = $this->callOpenAi($userPrompt, $openaiKey);
 
         if (! $result) {
-            // En cas d'échec API, on laisse le status à 'pending'
-            Log::warning("RelevanceFilterService: échec appel Claude pour item #{$item->id}");
+            Log::warning("RelevanceFilterService: échec appel OpenAI pour item #{$item->id}");
+            $item->update(['error_message' => 'Relevance API call failed — ' . now()->toDateTimeString()]);
             return;
         }
 
         $json = $this->extractJson($result);
 
         if (! $json) {
-            Log::warning("RelevanceFilterService: JSON invalide pour item #{$item->id}", ['raw' => $result]);
+            Log::warning("RelevanceFilterService: JSON invalide pour item #{$item->id}", ['raw' => mb_substr($result, 0, 500)]);
+            $item->update(['error_message' => 'Relevance JSON parse failed — ' . now()->toDateTimeString()]);
             return;
         }
 
@@ -98,28 +99,42 @@ PROMPT;
     }
 
     // ─────────────────────────────────────────
-    // CLAUDE API
+    // OPENAI API (GPT-4o-mini — cost-optimized)
     // ─────────────────────────────────────────
 
-    private function callClaude(string $userPrompt, string $key): ?string
+    private function callOpenAi(string $userPrompt, string $key): ?string
     {
-        $response = Http::withHeaders([
-            'x-api-key'         => $key,
-            'anthropic-version' => '2023-06-01',
-            'content-type'      => 'application/json',
-        ])->timeout(60)->post('https://api.anthropic.com/v1/messages', [
-            'model'      => self::MODEL,
-            'max_tokens' => 200,
-            'system'     => self::SYSTEM_PROMPT,
-            'messages'   => [['role' => 'user', 'content' => $userPrompt]],
-        ]);
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$key}",
+                'Content-Type'  => 'application/json',
+            ])->timeout(60)->post('https://api.openai.com/v1/chat/completions', [
+                'model'           => self::MODEL,
+                'max_tokens'      => 200,
+                'temperature'     => 0.3,
+                'response_format' => ['type' => 'json_object'],
+                'messages'        => [
+                    ['role' => 'system', 'content' => self::SYSTEM_PROMPT],
+                    ['role' => 'user',   'content' => $userPrompt],
+                ],
+            ]);
 
-        if (! $response->successful()) {
-            Log::error('RelevanceFilterService: Claude API error', ['status' => $response->status()]);
+            if (! $response->successful()) {
+                Log::error('RelevanceFilterService: OpenAI API error', [
+                    'status' => $response->status(),
+                    'body'   => mb_substr($response->body(), 0, 500),
+                ]);
+                return null;
+            }
+
+            return $response->json('choices.0.message.content');
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::error('RelevanceFilterService: timeout/connexion', ['error' => $e->getMessage()]);
+            return null;
+        } catch (\Throwable $e) {
+            Log::error('RelevanceFilterService: exception inattendue', ['error' => $e->getMessage()]);
             return null;
         }
-
-        return $response->json('content.0.text');
     }
 
     private function extractJson(string $text): ?array
