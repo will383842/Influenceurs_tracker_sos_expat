@@ -190,11 +190,12 @@ class ProcessAutoCampaignJob implements ShouldQueue
         ]);
         $session->markRunning();
 
-        // Collect existing URLs to exclude duplicates
-        $existingDomains = Influenceur::where('contact_type', $contactType)
-            ->where('country', $country)
+        // Collect existing URLs to exclude duplicates — ALL types for this country
+        // (prevents paying API to rediscover sites already known under a different type)
+        $existingDomains = Influenceur::where('country', $country)
             ->whereNotNull('profile_url_domain')
             ->pluck('profile_url_domain')
+            ->unique()
             ->toArray();
 
         $session->update(['excluded_domains' => $existingDomains]);
@@ -320,13 +321,22 @@ class ProcessAutoCampaignJob implements ShouldQueue
                     $websiteUrl = $contact['profile_url'];
                 }
 
+                // Ensure profile_url_domain is set (critical for dedup across campaigns)
+                $profileUrlDomain = $contact['profile_url_domain'] ?? null;
+                if (!$profileUrlDomain && !empty($contact['profile_url'])) {
+                    $host = parse_url($contact['profile_url'], PHP_URL_HOST);
+                    if ($host) {
+                        $profileUrlDomain = preg_replace('/^www\./', '', $host);
+                    }
+                }
+
                 $influenceur = Influenceur::create([
                     'contact_type'       => $contact['contact_type'] ?? $contactType,
                     'name'               => $contact['name'],
                     'email'              => $contact['email'] ?? null,
                     'phone'              => $contact['phone'] ?? null,
                     'profile_url'        => $contact['profile_url'] ?? null,
-                    'profile_url_domain' => $contact['profile_url_domain'] ?? null,
+                    'profile_url_domain' => $profileUrlDomain ?? $contact['profile_url_domain'] ?? null,
                     'website_url'        => $websiteUrl,
                     'country'            => $contact['country'] ?? $country,
                     'language'           => $language,
