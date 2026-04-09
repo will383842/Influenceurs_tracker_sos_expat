@@ -31,25 +31,9 @@ class GenerateFromSourceJob implements ShouldQueue
     // Set to false to enable auto-generation via orchestrator.
     private const SKIP_ALL_GENERATION = false;
 
-    // Legacy skip list (unused when SKIP_ALL_GENERATION = true)
+    // Sources to skip (only non-article sources like directory scraping)
     private const SKIP_SOURCES = [
-        'annuaires',       // directory data, no articles
-        'fiche-pays',      // → Fiches Pays tab
-        'fiche-villes',    // → future tab
-        'qa',              // → Q/R tab
-        'fiches-pratiques',// → Articles tab
-        'temoignages',     // → future tab
-        'comparatifs',     // → Comparatifs tab
-        'affiliation',     // → future tab
-        'chatters',        // → Chatters tab
-        'bloggeurs',       // → Influenceurs tab
-        'admin-groups',    // → Admin Groupes tab
-        'avocats',         // → Avocats outreach tab
-        'expats-aidants',  // → Expats Aidants outreach tab
-        'besoins-reels',   // → Templates longues traines
-        'art-mots-cles',   // → Art Mots Clés tab
-        'longues-traines', // → Art Longues Traînes tab
-        'brand-content',   // → Brand Content tab
+        'annuaires',       // directory data, not articles
     ];
 
     public function __construct(
