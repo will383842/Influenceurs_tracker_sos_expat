@@ -344,9 +344,6 @@ export default function Layout() {
                   </NavSubGroup>
 
                   <NavSubGroup label="Données contenu" isOpen={openSubGroups.sourcing_content} onToggle={() => toggleSubGroup('sourcing_content')}>
-                    <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
-                      🗂️ Sources de génération
-                    </NavLink>
                     <NavLink to="/content/sites" className={subNavClass} onClick={handleNavClick}>
                       🌐 Sites web
                     </NavLink>
@@ -500,6 +497,9 @@ export default function Layout() {
                     </NavLink>
                     <NavLink to="/content/overview" className={subNavClass} onClick={handleNavClick}>
                       📊 Vue d'ensemble
+                    </NavLink>
+                    <NavLink to="/content/sources" className={subNavClass} onClick={handleNavClick}>
+                      🗂️ Sources de génération
                     </NavLink>
                   </NavSubGroup>
 
