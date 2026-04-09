@@ -40,6 +40,24 @@ class ProcessAutoCampaignJob implements ShouldQueue
         ClaudeSearchService $claudeService,
         ResultParserService $parserService,
     ): void {
+        // Auto-resume perpetual campaigns that are ready
+        $perpetualReady = AutoCampaign::where('auto_restart', true)
+            ->where('status', 'paused')
+            ->whereNotNull('started_at')
+            ->where('started_at', '<=', now())
+            ->first();
+
+        if ($perpetualReady) {
+            $perpetualReady->update([
+                'status'     => 'running',
+                'started_at' => now(),
+            ]);
+            Log::info('AutoCampaign: perpetual campaign auto-resumed', [
+                'campaign_id'      => $perpetualReady->id,
+                'cycles_completed' => $perpetualReady->cycles_completed,
+            ]);
+        }
+
         // Find the active running campaign
         $campaign = AutoCampaign::running()->first();
         if (!$campaign) {

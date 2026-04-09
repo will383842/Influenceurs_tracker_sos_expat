@@ -91,6 +91,8 @@ class AutoCampaignController extends Controller
             'delay_between_retries_seconds' => 'sometimes|integer|min:300|max:7200',
             'max_retries'                   => 'sometimes|integer|min:1|max:5',
             'max_consecutive_failures'      => 'sometimes|integer|min:3|max:20',
+            'auto_restart'                  => 'sometimes|boolean',
+            'restart_delay_hours'           => 'sometimes|integer|min:1|max:168',
         ]);
 
         // If another campaign is running, queue this one instead of blocking
@@ -112,6 +114,8 @@ class AutoCampaignController extends Controller
             'delay_between_retries_seconds' => $data['delay_between_retries_seconds'] ?? 600,
             'max_retries'                   => $data['max_retries'] ?? 3,
             'max_consecutive_failures'      => $data['max_consecutive_failures'] ?? 5,
+            'auto_restart'                  => $data['auto_restart'] ?? false,
+            'restart_delay_hours'           => $data['restart_delay_hours'] ?? 24,
             'started_at'                    => $hasRunning ? null : now(),
             'created_by'                    => $request->user()->id,
         ]);
@@ -243,6 +247,8 @@ class AutoCampaignController extends Controller
             'delay_between_tasks_seconds'   => 'sometimes|integer|min:30|max:3600',
             'max_retries'                   => 'sometimes|integer|min:1|max:5',
             'max_consecutive_failures'      => 'sometimes|integer|min:3|max:20',
+            'auto_restart'                  => 'sometimes|boolean',
+            'restart_delay_hours'           => 'sometimes|integer|min:1|max:168',
         ]);
 
         $campaign->update($data);

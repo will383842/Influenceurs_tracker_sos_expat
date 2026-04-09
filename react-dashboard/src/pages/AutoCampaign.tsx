@@ -24,6 +24,9 @@ interface Campaign {
   total_cost_cents: number;
   consecutive_failures: number;
   max_consecutive_failures: number;
+  auto_restart: boolean;
+  restart_delay_hours: number;
+  cycles_completed: number;
   started_at: string | null;
   completed_at: string | null;
   progress?: number;
@@ -270,6 +273,8 @@ export default function AutoCampaignPage() {
   const [formLanguages, setFormLanguages] = useState<string[]>(['fr']);
   const [formDelay, setFormDelay] = useState(300);
   const [formRetries, setFormRetries] = useState(3);
+  const [formAutoRestart, setFormAutoRestart] = useState(false);
+  const [formRestartDelay, setFormRestartDelay] = useState(24);
   const [showForm, setShowForm] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -330,6 +335,8 @@ export default function AutoCampaignPage() {
         languages: formLanguages,
         delay_between_tasks_seconds: formDelay,
         max_retries: formRetries,
+        auto_restart: formAutoRestart,
+        restart_delay_hours: formRestartDelay,
       });
       setShowForm(false);
       setFormName('');
@@ -550,6 +557,38 @@ export default function AutoCampaignPage() {
             </div>
           </div>
 
+          {/* Mode perpetuel */}
+          <div className="bg-surface2 border border-border rounded-lg p-4 space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formAutoRestart}
+                onChange={(e) => setFormAutoRestart(e.target.checked)}
+                className="w-4 h-4 rounded border-border bg-surface text-violet focus:ring-violet"
+              />
+              <div>
+                <span className="text-white text-sm font-medium">Mode perpetuel</span>
+                <p className="text-muted text-xs mt-0.5">
+                  La campagne se relance automatiquement apres chaque cycle.
+                  Les contacts deja trouves sont exclus (pas de doublons).
+                </p>
+              </div>
+            </label>
+            {formAutoRestart && (
+              <div className="flex items-center gap-2 ml-7">
+                <span className="text-muted text-xs">Delai entre cycles :</span>
+                <input
+                  type="number"
+                  value={formRestartDelay}
+                  onChange={(e) => setFormRestartDelay(Number(e.target.value) || 24)}
+                  min={1} max={168}
+                  className="w-16 bg-bg border border-border rounded px-2 py-1 text-sm text-white text-center"
+                />
+                <span className="text-muted text-xs">heures</span>
+              </div>
+            )}
+          </div>
+
           {/* Estimation */}
           {taskCombos > 0 && (
             <div className="bg-surface2 border border-border rounded-lg p-4 text-sm space-y-1">
@@ -722,6 +761,9 @@ export default function AutoCampaignPage() {
               <span>${(c.total_cost_cents / 100).toFixed(2)} coût API</span>
               {c.consecutive_failures > 0 && (
                 <span className="text-red-400">{c.consecutive_failures} échecs consécutifs</span>
+              )}
+              {c.auto_restart && (
+                <span className="text-violet-light font-medium">♾️ Perpetuel ({c.cycles_completed} cycles)</span>
               )}
             </div>
           </div>

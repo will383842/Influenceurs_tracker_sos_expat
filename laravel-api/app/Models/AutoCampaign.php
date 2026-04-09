@@ -17,15 +17,17 @@ class AutoCampaign extends Model
         'consecutive_failures', 'max_consecutive_failures',
         'started_at', 'completed_at', 'last_task_at',
         'created_by', 'queue_position',
+        'auto_restart', 'restart_delay_hours', 'cycles_completed',
     ];
 
     protected $casts = [
-        'contact_types' => 'array',
-        'countries'     => 'array',
-        'languages'     => 'array',
-        'started_at'    => 'datetime',
-        'completed_at'  => 'datetime',
-        'last_task_at'  => 'datetime',
+        'contact_types'  => 'array',
+        'countries'      => 'array',
+        'languages'      => 'array',
+        'started_at'     => 'datetime',
+        'completed_at'   => 'datetime',
+        'last_task_at'   => 'datetime',
+        'auto_restart'   => 'boolean',
     ];
 
     protected $appends = ['progress'];
@@ -127,14 +129,92 @@ class AutoCampaign extends Model
             ->count();
 
         if ($remaining === 0) {
-            $this->update([
-                'status'       => 'completed',
-                'completed_at' => now(),
-            ]);
+            $this->increment('cycles_completed');
 
-            // Auto-start next queued campaign
-            static::startNextQueued();
+            if ($this->auto_restart) {
+                // Perpetual mode: regenerate tasks and restart after delay
+                $this->restartCycle();
+            } else {
+                $this->update([
+                    'status'       => 'completed',
+                    'completed_at' => now(),
+                ]);
+
+                // Auto-start next queued campaign
+                static::startNextQueued();
+            }
         }
+    }
+
+    /**
+     * Restart the campaign for a new cycle (perpetual mode).
+     * Regenerates all tasks, resets counters, respects restart_delay_hours.
+     */
+    public function restartCycle(): void
+    {
+        $delayHours = $this->restart_delay_hours ?? 24;
+
+        \Illuminate\Support\Facades\Log::info('AutoCampaign: perpetual restart scheduled', [
+            'campaign_id'      => $this->id,
+            'cycles_completed' => $this->cycles_completed,
+            'restart_in_hours' => $delayHours,
+        ]);
+
+        // Delete old tasks (keep history via cycles_completed counter)
+        $this->tasks()->delete();
+
+        // Regenerate tasks for all type × country combinations
+        $this->regenerateTasks();
+
+        // Schedule restart: pause now, a scheduled job will resume after delay
+        $this->update([
+            'status'                => 'paused',
+            'completed_at'          => now(),
+            'consecutive_failures'  => 0,
+            'tasks_completed'       => 0,
+            'tasks_failed'          => 0,
+            'tasks_skipped'         => 0,
+            // Store when to auto-resume
+            'started_at'            => now()->addHours($delayHours),
+        ]);
+    }
+
+    /**
+     * Regenerate all tasks for this campaign (type × country × language combinations).
+     */
+    public function regenerateTasks(): void
+    {
+        $types     = $this->contact_types ?? [];
+        $countries = $this->countries ?? [];
+        $languages = $this->languages ?? ['fr'];
+
+        $taskCount = 0;
+        foreach ($types as $type) {
+            foreach ($countries as $country) {
+                $lang = $languages[0] ?? 'fr'; // Primary language
+                AutoCampaignTask::create([
+                    'campaign_id'  => $this->id,
+                    'contact_type' => $type,
+                    'country'      => $country,
+                    'language'     => $lang,
+                    'status'       => 'pending',
+                ]);
+                $taskCount++;
+            }
+        }
+
+        $this->update(['tasks_total' => $taskCount]);
+    }
+
+    /**
+     * Check if a paused perpetual campaign is ready to auto-resume.
+     */
+    public function isReadyToAutoResume(): bool
+    {
+        return $this->auto_restart
+            && $this->status === 'paused'
+            && $this->started_at
+            && now()->gte($this->started_at);
     }
 
     /**
