@@ -16,10 +16,20 @@
  * - NEVER say SOS-Expat.com is free (it's a paid service)
  * - NEVER say SOS-Expat.com provides legal advice (it CONNECTS with lawyers)
  * - NEVER confuse lawyer (49EUR/20min) with expat expert (19EUR/30min)
- * - NEVER say SOS-Expat.com recruits or employs lawyers/experts — they are INDEPENDENT PARTNERS
+ * - NEVER say SOS-Expat.com employs lawyers/experts — they are INDEPENDENT PARTNERS who join voluntarily
  * - NEVER say SOS-Expat.com pays the providers — the CLIENT pays, SOS-Expat takes connection fees
  * - NEVER say SOS-Expat.com is an insurance or a consulate
  * - NEVER promise specific legal outcomes
+ *
+ * AFFILIATE PROGRAM TERMINOLOGY (CRITICAL):
+ * - NEVER use the term "MLM" — ALWAYS say "programme d'affiliation" / "affiliate program"
+ * - NEVER say "recruter" / "recruit" — say "parrainer" / "sponsor" or "inviter à rejoindre le programme"
+ * - NEVER say "salarié" / "employee" — Chatters/Influencers/Bloggers/GroupAdmins are AFFILIATES (affiliés)
+ * - NEVER say "salaire" / "salary" — say "commissions d'affiliation" / "affiliate commissions"
+ * - Affiliates are INDEPENDENT, governed by the legislation of THEIR country of residence
+ * - Their legal status depends on local laws (auto-entrepreneur, freelance, contractor, etc.)
+ * - ALWAYS include a link to the affiliate program in articles mentioning chatters/influencers/bloggers
+ * - The correct terms: "affilié", "partenaire affilié", "programme d'affiliation", "commissions"
  */
 
 return [
@@ -213,28 +223,28 @@ return [
 
         // --- 7.2 CHATTER ---
         'chatter' => [
-            'name' => 'Programme Chatter',
-            'description' => 'Partager SOS-Expat.com sur les reseaux sociaux et gagner des commissions sur chaque appel genere',
+            'name' => 'Programme d\'affiliation Chatter',
+            'description' => 'Partager SOS-Expat.com sur les reseaux sociaux et gagner des commissions d\'affiliation sur chaque appel genere',
             'signup_bonus' => 200,              // $2.00
             'client_lawyer_call' => 500,        // $5.00 per call
             'client_expat_call' => 300,         // $3.00 per call
-            'n1_call_commission' => 100,        // $1.00 (direct recruit's call)
-            'n2_call_commission' => 50,         // $0.50 (indirect recruit's call)
-            'activation_bonus' => 500,          // $5.00 (after recruit makes 2 calls)
+            'n1_call_commission' => 100,        // $1.00 (direct referral's call — filleul N1)
+            'n2_call_commission' => 50,         // $0.50 (indirect referral's call — filleul N2)
+            'activation_bonus' => 500,          // $5.00 (after referral makes 2 calls)
             'activation_calls_required' => 2,
-            'n1_recruit_bonus' => 100,          // $1.00 (when N1 recruits someone who activates)
-            'provider_recruitment_lawyer' => 500,    // $5.00 (6-month window)
-            'provider_recruitment_expat' => 300,     // $3.00 (6-month window)
-            'provider_recruitment_window' => '6 mois',
+            'n1_referral_bonus' => 100,         // $1.00 (when N1 referral sponsors someone who activates)
+            'provider_referral_lawyer' => 500,       // $5.00 (6-month window)
+            'provider_referral_expat' => 300,        // $3.00 (6-month window)
+            'provider_referral_window' => '6 mois',
             'telegram_bonus' => 5000,           // $50.00
             'telegram_unlock_threshold' => 15000, // $150.00 in direct client commissions
             'milestones' => [
-                5 => 1500,      // 5 recruits → $15.00
-                10 => 3500,     // 10 recruits → $35.00
-                20 => 7500,     // 20 recruits → $75.00
-                50 => 25000,    // 50 recruits → $250.00
-                100 => 60000,   // 100 recruits → $600.00
-                500 => 400000,  // 500 recruits → $4,000.00
+                5 => 1500,      // 5 filleuls (referrals) → $15.00
+                10 => 3500,     // 10 filleuls → $35.00
+                20 => 7500,     // 20 filleuls → $75.00
+                50 => 25000,    // 50 filleuls → $250.00
+                100 => 60000,   // 100 filleuls → $600.00
+                500 => 400000,  // 500 filleuls → $4,000.00
             ],
             'top3_monthly' => [
                 1 => ['cash' => 20000, 'multiplier' => 2.0],     // $200 + 2x next month
@@ -246,9 +256,9 @@ return [
 
         // --- 7.3 CAPTAIN CHATTER ---
         'captain_chatter' => [
-            'name' => 'Programme Captain Chatter',
-            'description' => 'Leader d\'equipe chatters — bonus mensuels progressifs selon les performances de l\'equipe',
-            'inherits' => 'Toutes les commissions du programme Chatter PLUS :',
+            'name' => 'Programme d\'affiliation Captain Chatter',
+            'description' => 'Leader d\'equipe d\'affilies chatters — bonus mensuels progressifs selon les performances de l\'equipe',
+            'inherits' => 'Toutes les commissions du programme d\'affiliation Chatter PLUS :',
             'captain_lawyer_call' => 300,       // $3.00 (on top of standard chatter commission)
             'captain_expat_call' => 200,        // $2.00
             'tiers' => [
@@ -260,7 +270,7 @@ return [
             ],
             'quality_bonus' => [
                 'amount' => 10000,                  // $100.00
-                'min_active_recruits' => 10,
+                'min_active_referrals' => 10,
                 'min_team_commissions' => 10000,    // $100.00 minimum team commissions
             ],
         ],
@@ -272,17 +282,17 @@ return [
             'signup_bonus' => 200,              // $2.00
             'client_lawyer_call' => 500,        // $5.00
             'client_expat_call' => 300,         // $3.00
-            'provider_recruitment_lawyer' => 500,
-            'provider_recruitment_expat' => 300,
+            'provider_referral_lawyer' => 500,
+            'provider_referral_expat' => 300,
             'client_discount' => 500,           // $5.00 fixed discount for referred clients
             'n1_call_commission' => 100,        // $1.00
             'n2_call_commission' => 50,         // $0.50
             'activation_bonus' => 500,          // $5.00
             'activation_calls_required' => 2,
             'activation_min_direct_commissions' => 10000, // $100.00
-            'n1_recruit_bonus' => 100,
-            'recruitment_commission' => 500,     // $5.00 one-time when recruit earns $50
-            'recruitment_threshold' => 5000,     // $50.00
+            'n1_referral_bonus' => 100,
+            'referral_commission' => 500,     // $5.00 one-time when referral earns $50
+            'referral_threshold' => 5000,     // $50.00
             'telegram_bonus' => 5000,           // $50.00
             'milestones' => [
                 5 => 1500, 10 => 3500, 20 => 7500, 50 => 25000, 100 => 60000, 500 => 400000,
@@ -297,17 +307,17 @@ return [
             'signup_bonus' => 200,              // $2.00
             'client_lawyer_call' => 500,        // $5.00
             'client_expat_call' => 300,         // $3.00
-            'provider_recruitment_lawyer' => 500,
-            'provider_recruitment_expat' => 300,
+            'provider_referral_lawyer' => 500,
+            'provider_referral_expat' => 300,
             'client_discount' => 0,             // $0.00 — PAS de reduction pour les clients des blogueurs
             'n1_call_commission' => 100,
             'n2_call_commission' => 50,
             'activation_bonus' => 500,
             'activation_calls_required' => 2,
             'activation_min_direct_commissions' => 10000, // $100.00
-            'n1_recruit_bonus' => 100,
-            'blogger_recruitment_bonus' => 5000,    // $50.00 one-time when recruited blogger earns $200
-            'blogger_recruitment_threshold' => 20000, // $200.00
+            'n1_referral_bonus' => 100,
+            'blogger_referral_bonus' => 5000,    // $50.00 one-time when referred blogger earns $200
+            'blogger_referral_threshold' => 20000, // $200.00
             'milestones' => [
                 5 => 1500, 10 => 3500, 20 => 7500, 50 => 25000, 100 => 60000, 500 => 400000,
             ],
@@ -321,15 +331,15 @@ return [
             'signup_bonus' => 200,
             'client_lawyer_call' => 500,        // $5.00
             'client_expat_call' => 300,         // $3.00
-            'provider_recruitment_lawyer' => 500,
-            'provider_recruitment_expat' => 300,
+            'provider_referral_lawyer' => 500,
+            'provider_referral_expat' => 300,
             'client_discount' => 500,           // $5.00 fixed discount for referred clients
             'n1_call_commission' => 100,
             'n2_call_commission' => 50,
             'activation_bonus' => 500,
             'activation_calls_required' => 2,
             'activation_min_direct_commissions' => 10000,
-            'n1_recruit_bonus' => 100,
+            'n1_referral_bonus' => 100,
             'milestones' => [
                 5 => 1500, 10 => 3500, 20 => 7500, 50 => 25000, 100 => 60000, 500 => 400000,
             ],
@@ -368,7 +378,7 @@ return [
 
         // --- Common to all programs ---
         'common' => [
-            'mlm_structure' => '2 niveaux (N1 direct + N2 indirect)',
+            'affiliation_structure' => '2 niveaux de parrainage (N1 filleul direct + N2 filleul indirect)',
             'milestone_reset' => 'Non — les milestones sont permanents (one-time bonus)',
             'top3_reset' => 'Mensuel — classement reinitialise chaque mois',
             'withdrawal_minimum' => 3000,       // $30.00
@@ -514,9 +524,9 @@ return [
         'fiches_vacances' => 'Guide vacances specifique au pays. Visa touriste, budget 1-2 semaines, securite, sante voyageur, monnaie, pourboires, transports locaux. NE PAS repeter la fiche expat. Focus COURT SEJOUR.',
         'fiches_villes' => 'ARTICLE PILIER sur UNE VILLE specifique. 4000-7000 mots. Quartiers par nom avec tableau comparatif (prix, securite, ambiance, transport). Transports locaux (metro, bus, taxi). Prix locaux en devise locale + EUR/USD. Communaute expatriee. Coworking si pertinent. NE PAS repeter la fiche pays — lier vers elle. S\'adresser a TOUTE nationalite.',
         'art_mots_cles' => 'Article APPROFONDI sur 1 sujet precis. 1500-2500 mots. NE PAS etre un guide general du pays. Aller en PROFONDEUR avec donnees chiffrees, etapes concretes, exemples reels, sources citees. Mot-cle principal dans titre + H2.',
-        'chatters' => 'Article de recrutement chatter. Avantages du programme ($5 par appel avocat, $3 par appel expert, MLM 2 niveaux, milestones jusqu\'a $4000), missions concretes, temoignages. CTA inscription. NE PAS etre un guide d\'expatriation.',
-        'influenceurs' => 'Article de recrutement influenceur. Monetisation audience, commissions ($5/$3 par appel, $5 reduction pour clients), widget, integration facile. CTA inscription. NE PAS etre un guide d\'expatriation.',
-        'admin_groupes' => 'Article de recrutement admin groupe WhatsApp/Telegram/Facebook. Monetisation communaute existante, commissions, recrutement de prestataires. CTA inscription.',
+        'chatters' => 'Article programme d\'affiliation chatter. Avantages du programme ($5 par appel avocat, $3 par appel expert, parrainage 2 niveaux, milestones jusqu\'a $4000), missions concretes, temoignages. CTA inscription au programme d\'affiliation. NE PAS etre un guide d\'expatriation. NE JAMAIS utiliser le terme MLM.',
+        'influenceurs' => 'Article programme d\'affiliation influenceur. Monetisation audience, commissions ($5/$3 par appel, $5 reduction pour clients), widget, integration facile. CTA inscription. NE PAS etre un guide d\'expatriation.',
+        'admin_groupes' => 'Article programme d\'affiliation admin groupe WhatsApp/Telegram/Facebook. Monetisation communaute existante, commissions, parrainage de prestataires. CTA inscription.',
         'avocats' => 'Article pour attirer des avocats prestataires. Clientele internationale 197 pays, appels remuneres (30EUR par appel), flexibilite 24/7, pas de cout d\'acquisition client. CTA inscription prestataire.',
         'expats_aidants' => 'Article pour attirer des expatries aidants. Partager son experience, revenu complementaire (10EUR par appel), flexibilite totale, aider des compatriotes. CTA inscription.',
         'comparatifs' => 'Comparaison OBJECTIVE de 2+ services/pays. Tableau comparatif structure (8-12 criteres), pros/cons, verdict argumente. NE PAS etre promotionnel pour SOS-Expat.com sauf CTA naturel en fin.',
@@ -915,7 +925,7 @@ return [
         'rule_3' => 'Q/R = reponse COURTE et directe — jamais un article long',
         'rule_4' => 'NEWS = actualite RECENTE avec date — jamais du contenu evergreen',
         'rule_5' => 'COMPARATIF = objectif avec tableau — jamais promotionnel',
-        'rule_6' => 'CHATTERS/INFLUENCEURS/ADMINS = recrutement — jamais un guide d\'expatriation',
+        'rule_6' => 'CHATTERS/INFLUENCEURS/ADMINS = parrainage — jamais un guide d\'expatriation',
         'rule_7' => 'AVOCATS/EXPATS AIDANTS = attirer des prestataires — jamais un guide client',
         'rule_8' => 'Si un sujet est deja couvert dans une fiche pays, l\'article mot-cle doit apporter une profondeur SUPPLEMENTAIRE, pas repeter',
         'rule_9' => 'Verifier les articles existants AVANT de generer — si doublon > 50% similarite titre, NE PAS generer',

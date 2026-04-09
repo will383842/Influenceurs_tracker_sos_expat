@@ -165,7 +165,7 @@ class BlogPublisher
             'og_type'          => $parentArticle->og_type ?? 'article',
             'og_locale'        => $parentArticle->og_locale ?? null,
             'og_url'           => $parentArticle->og_url ?? $parentArticle->canonical_url ?? null,
-            'og_site_name'     => $parentArticle->og_site_name ?? 'SOS Expat & Travelers',
+            'og_site_name'     => $parentArticle->og_site_name ?? 'SOS-Expat & Travelers',
             'twitter_card'     => $parentArticle->twitter_card ?? 'summary_large_image',
             'geo_region'       => $parentArticle->geo_region ?? null,
             'geo_placename'    => $parentArticle->geo_placename ?? null,

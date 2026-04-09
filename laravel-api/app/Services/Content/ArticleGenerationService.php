@@ -301,7 +301,7 @@ class ArticleGenerationService
                 'ai_summary'       => $aeoMeta['ai_summary'],
                 'og_type'          => 'article',
                 'og_locale'        => GeoMetaService::OG_LOCALE_MAP[$params['language'] ?? 'fr'] ?? 'fr_FR',
-                'og_site_name'     => 'SOS Expat & Travelers',
+                'og_site_name'     => 'SOS-Expat & Travelers',
                 'twitter_card'     => 'summary_large_image',
                 'content_language' => $params['language'] ?? 'fr',
                 'meta_keywords'    => implode(', ', array_filter(array_slice($params['keywords'] ?? [], 0, 5))),
