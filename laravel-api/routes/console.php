@@ -93,3 +93,26 @@ Schedule::call(function () {
         \Illuminate\Support\Facades\Log::info("Source items stale recovery: {$staleCount} items remis en ready");
     }
 })->everyFifteenMinutes()->name('source-items-stale-recovery')->withoutOverlapping();
+
+// Publication stale recovery: re-dispatch pending items whose Redis job vanished
+// (happens after container rebuild — Redis delayed jobs can be lost)
+Schedule::call(function () {
+    $staleItems = \Illuminate\Support\Facades\DB::table('publication_queue')
+        ->where('status', 'pending')
+        ->where('updated_at', '<', now()->subMinutes(10))
+        ->get(['id']);
+
+    $redispatched = 0;
+    foreach ($staleItems as $item) {
+        try {
+            \App\Jobs\PublishContentJob::dispatch($item->id)->delay(now()->addSeconds(rand(5, 30)));
+            $redispatched++;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Publication recovery: failed to re-dispatch #{$item->id}", ['error' => $e->getMessage()]);
+        }
+    }
+
+    if ($redispatched > 0) {
+        \Illuminate\Support\Facades\Log::info("Publication stale recovery: {$redispatched} items re-dispatched");
+    }
+})->everyFifteenMinutes()->name('publication-stale-recovery')->withoutOverlapping();
