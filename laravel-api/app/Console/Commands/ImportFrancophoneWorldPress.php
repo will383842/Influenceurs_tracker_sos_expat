@@ -24,6 +24,406 @@ class ImportFrancophoneWorldPress extends Command
     private array $publications = [
 
         // ══════════════════════════════════════════════════════════════════
+        // FRANCE — PRESSE QUOTIDIENNE NATIONALE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Le Monde', 'base_url' => 'https://www.lemonde.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Le Figaro', 'base_url' => 'https://www.lefigaro.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business', 'expatriation'], 'country' => 'France'],
+        ['name' => 'Libération', 'base_url' => 'https://www.liberation.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => "L'Humanité", 'base_url' => 'https://www.humanite.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => '20 Minutes', 'base_url' => 'https://www.20minutes.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Le Parisien', 'base_url' => 'https://www.leparisien.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'La Croix', 'base_url' => 'https://www.la-croix.com', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Les Échos', 'base_url' => 'https://www.lesechos.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Aujourd\'hui en France', 'base_url' => 'https://www.leparisien.fr/aujourd-hui-en-france', 'media_type' => 'presse_ecrite', 'topics' => ['international'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — NEWSMAGAZINES & HEBDOMADAIRES
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => "L'Obs", 'base_url' => 'https://www.nouvelobs.com', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => "L'Express", 'base_url' => 'https://www.lexpress.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Le Point', 'base_url' => 'https://www.lepoint.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Marianne', 'base_url' => 'https://www.marianne.net', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Valeurs Actuelles', 'base_url' => 'https://www.valeursactuelles.com', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Le Canard Enchaîné', 'base_url' => 'https://www.lecanardenchaine.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Mediapart', 'base_url' => 'https://www.mediapart.fr', 'media_type' => 'web', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Politis', 'base_url' => 'https://www.politis.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Courrier International', 'base_url' => 'https://www.courrierinternational.com', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'voyage'], 'country' => 'France'],
+        ['name' => 'Télérama', 'base_url' => 'https://www.telerama.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Le Journal du Dimanche', 'base_url' => 'https://www.lejdd.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Paris Match', 'base_url' => 'https://www.parismatch.com', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Society Magazine', 'base_url' => 'https://www.society-magazine.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Charlie Hebdo', 'base_url' => 'https://charliehebdo.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Alternatives Économiques', 'base_url' => 'https://www.alternatives-economiques.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'international'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — PRESSE ÉCONOMIQUE & BUSINESS
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Capital', 'base_url' => 'https://www.capital.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Challenges', 'base_url' => 'https://www.challenges.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Forbes France', 'base_url' => 'https://www.forbes.fr', 'media_type' => 'web', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'La Tribune', 'base_url' => 'https://www.latribune.fr', 'media_type' => 'web', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => "L'Usine Nouvelle", 'base_url' => 'https://www.usinenouvelle.com', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'tech'], 'country' => 'France'],
+        ['name' => "Chef d'Entreprise", 'base_url' => 'https://www.chefdentreprise.com', 'media_type' => 'web', 'topics' => ['entrepreneuriat', 'business'], 'country' => 'France'],
+        ['name' => 'Management Magazine', 'base_url' => 'https://www.management.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Le Revenu', 'base_url' => 'https://www.lerevenu.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Investir Les Échos', 'base_url' => 'https://investir.lesechos.fr', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Journal des Entreprises', 'base_url' => 'https://www.lejournaldesentreprises.com', 'media_type' => 'web', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'LSA Conso', 'base_url' => 'https://www.lsa-conso.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'CB News', 'base_url' => 'https://www.cbnews.fr', 'media_type' => 'web', 'topics' => ['business', 'tech'], 'country' => 'France'],
+        ['name' => 'Influencia', 'base_url' => 'https://www.influencia.net', 'media_type' => 'web', 'topics' => ['business', 'tech'], 'country' => 'France'],
+        ['name' => 'Stratégies', 'base_url' => 'https://www.strategies.fr', 'media_type' => 'web', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Le Journal du Net', 'base_url' => 'https://www.journaldunet.com', 'media_type' => 'web', 'topics' => ['tech', 'business'], 'country' => 'France'],
+        ['name' => 'L\'Agefi', 'base_url' => 'https://www.agefi.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Option Finance', 'base_url' => 'https://www.optionfinance.fr', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Mieux Vivre Votre Argent', 'base_url' => 'https://www.mieuxvivre-votreargent.fr', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'BFM Patrimoine', 'base_url' => 'https://www.patrimoine.bfmtv.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Cafedupatrimoine', 'base_url' => 'https://www.cafedupatrimoine.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'MoneyVox', 'base_url' => 'https://www.moneyvox.fr', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Boursorama Mag', 'base_url' => 'https://www.boursorama.com/patrimoine', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'ToutSurMesFinances', 'base_url' => 'https://www.toutsurmesfigurances.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — TECH & STARTUPS
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Frenchweb', 'base_url' => 'https://www.frenchweb.fr', 'media_type' => 'web', 'topics' => ['tech', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Maddyness', 'base_url' => 'https://www.maddyness.com', 'media_type' => 'web', 'topics' => ['entrepreneuriat', 'tech'], 'country' => 'France'],
+        ['name' => 'Siècle Digital', 'base_url' => 'https://siecledigital.fr', 'media_type' => 'web', 'topics' => ['tech', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Presse-Citron', 'base_url' => 'https://www.presse-citron.net', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'Numerama', 'base_url' => 'https://www.numerama.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => '01net', 'base_url' => 'https://www.01net.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'Clubic', 'base_url' => 'https://www.clubic.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'BPI France Le Hub', 'base_url' => 'https://lehub.bpifrance.fr', 'media_type' => 'web', 'topics' => ['entrepreneuriat', 'business'], 'country' => 'France'],
+        ['name' => 'WeDemain', 'base_url' => 'https://www.wedemain.fr', 'media_type' => 'web', 'topics' => ['entrepreneuriat', 'international'], 'country' => 'France'],
+        ['name' => 'Futura Sciences', 'base_url' => 'https://www.futura-sciences.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'Next INpact', 'base_url' => 'https://next.ink', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'ZDNet France', 'base_url' => 'https://www.zdnet.fr', 'media_type' => 'web', 'topics' => ['tech', 'business'], 'country' => 'France'],
+        ['name' => 'Le Monde Informatique', 'base_url' => 'https://www.lemondeinformatique.fr', 'media_type' => 'web', 'topics' => ['tech', 'business'], 'country' => 'France'],
+        ['name' => 'Silicon.fr', 'base_url' => 'https://www.silicon.fr', 'media_type' => 'web', 'topics' => ['tech', 'business'], 'country' => 'France'],
+        ['name' => 'L\'Informaticien', 'base_url' => 'https://www.linformaticien.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'Le Big Data', 'base_url' => 'https://www.lebigdata.fr', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'Frandroid', 'base_url' => 'https://www.frandroid.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'Les Numériques', 'base_url' => 'https://www.lesnumeriques.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'iPhon.fr', 'base_url' => 'https://www.iphon.fr', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'MacGeneration', 'base_url' => 'https://www.macgeneration.com', 'media_type' => 'web', 'topics' => ['tech'], 'country' => 'France'],
+        ['name' => 'Archimag', 'base_url' => 'https://www.archimag.com', 'media_type' => 'web', 'topics' => ['tech', 'business'], 'country' => 'France'],
+        ['name' => 'Usbek & Rica', 'base_url' => 'https://usbeketrica.com', 'media_type' => 'web', 'topics' => ['tech', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'La French Tech', 'base_url' => 'https://lafrenchtech.com', 'media_type' => 'web', 'topics' => ['entrepreneuriat', 'tech'], 'country' => 'France'],
+        ['name' => 'French Tech Journal', 'base_url' => 'https://frenchtechjournal.com', 'media_type' => 'web', 'topics' => ['entrepreneuriat', 'tech'], 'country' => 'France'],
+        ['name' => 'Welcome to the Jungle', 'base_url' => 'https://www.welcometothejungle.com', 'media_type' => 'web', 'topics' => ['entrepreneuriat', 'lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — PRESSE RÉGIONALE (PQR — 60+ TITRES)
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Ouest-France', 'base_url' => 'https://www.ouest-france.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Le Télégramme', 'base_url' => 'https://www.letelegramme.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'La Voix du Nord', 'base_url' => 'https://www.lavoixdunord.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Sud Ouest', 'base_url' => 'https://www.sudouest.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Le Progrès', 'base_url' => 'https://www.leprogres.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'La Dépêche du Midi', 'base_url' => 'https://www.ladepeche.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'La Montagne', 'base_url' => 'https://www.lamontagne.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => "L'Est Républicain", 'base_url' => 'https://www.estrepublicain.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Dauphiné Libéré', 'base_url' => 'https://www.ledauphine.com', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'voyage'], 'country' => 'France'],
+        ['name' => 'Nice-Matin', 'base_url' => 'https://www.nicematin.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage', 'international'], 'country' => 'France'],
+        ['name' => 'Var-Matin', 'base_url' => 'https://www.varmatin.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'La Provence', 'base_url' => 'https://www.laprovence.com', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Midi Libre', 'base_url' => 'https://www.midilibre.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'L\'Indépendant', 'base_url' => 'https://www.lindependant.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Centre Presse', 'base_url' => 'https://www.centrepresseaveyron.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Populaire du Centre', 'base_url' => 'https://www.lepopulaire.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'La Nouvelle République', 'base_url' => 'https://www.lanouvellerepublique.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Berry Républicain', 'base_url' => 'https://www.leberry.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Journal du Centre', 'base_url' => 'https://www.lejdc.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'L\'Yonne Républicaine', 'base_url' => 'https://www.lyonne.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Républicain Lorrain', 'base_url' => 'https://www.republicain-lorrain.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Vosges Matin', 'base_url' => 'https://www.vosgesmatin.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'L\'Alsace', 'base_url' => 'https://www.lalsace.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'Les Dernières Nouvelles d\'Alsace', 'base_url' => 'https://www.dna.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'Le Bien Public', 'base_url' => 'https://www.bienpublic.com', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Journal de Saône-et-Loire', 'base_url' => 'https://www.lejsl.com', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Paris-Normandie', 'base_url' => 'https://www.paris-normandie.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Courrier de l\'Ouest', 'base_url' => 'https://www.courrierdelouest.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Maine Libre', 'base_url' => 'https://www.lemainelibre.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Presse Océan', 'base_url' => 'https://www.presseocean.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'La Charente Libre', 'base_url' => 'https://www.charentelibre.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Courrier Picard', 'base_url' => 'https://www.courrier-picard.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => "L'Union (Reims)", 'base_url' => 'https://www.lunion.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => "L'Ardennais", 'base_url' => 'https://www.lardennais.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => "L'Est Éclair", 'base_url' => 'https://www.lest-eclair.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'La Manche Libre', 'base_url' => 'https://www.lamanchelibre.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Courrier Cauchois', 'base_url' => 'https://www.lecourriercauchois.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'La Marseillaise', 'base_url' => 'https://www.lamarseillaise.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Corse Matin', 'base_url' => 'https://www.corsematin.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage', 'business'], 'country' => 'France'],
+        ['name' => 'L\'Écho Républicain', 'base_url' => 'https://www.lechorepublicain.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — TV & CHAÎNES D'INFO
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'France 24', 'base_url' => 'https://www.france24.com/fr', 'media_type' => 'tv', 'topics' => ['international', 'business', 'expatriation'], 'country' => 'France'],
+        ['name' => 'BFM TV', 'base_url' => 'https://www.bfmtv.com', 'media_type' => 'tv', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'BFM Business', 'base_url' => 'https://bfmbusiness.bfmtv.com', 'media_type' => 'tv', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'LCI', 'base_url' => 'https://www.lci.fr', 'media_type' => 'tv', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'CNews', 'base_url' => 'https://www.cnews.fr', 'media_type' => 'tv', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'franceinfo TV', 'base_url' => 'https://www.francetvinfo.fr', 'media_type' => 'tv', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'TV5 Monde', 'base_url' => 'https://www.tv5monde.com', 'media_type' => 'tv', 'topics' => ['international', 'voyage', 'expatriation'], 'country' => 'France'],
+        ['name' => 'Arte', 'base_url' => 'https://www.arte.tv/fr', 'media_type' => 'tv', 'topics' => ['international', 'voyage', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'France 2', 'base_url' => 'https://www.france.tv/france-2', 'media_type' => 'tv', 'topics' => ['international', 'voyage'], 'country' => 'France'],
+        ['name' => 'France 3', 'base_url' => 'https://www.france.tv/france-3', 'media_type' => 'tv', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'France 5', 'base_url' => 'https://www.france.tv/france-5', 'media_type' => 'tv', 'topics' => ['voyage', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'TF1 Info', 'base_url' => 'https://www.tf1info.fr', 'media_type' => 'tv', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'M6 Info', 'base_url' => 'https://www.6play.fr/m6', 'media_type' => 'tv', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Public Sénat', 'base_url' => 'https://www.publicsenat.fr', 'media_type' => 'tv', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'LCP', 'base_url' => 'https://www.lcp.fr', 'media_type' => 'tv', 'topics' => ['international', 'business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — RADIO
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'RFI', 'base_url' => 'https://www.rfi.fr', 'media_type' => 'radio', 'topics' => ['international', 'business', 'expatriation'], 'country' => 'France'],
+        ['name' => 'France Inter', 'base_url' => 'https://www.radiofrance.fr/franceinter', 'media_type' => 'radio', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'France Culture', 'base_url' => 'https://www.radiofrance.fr/franceculture', 'media_type' => 'radio', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'France Info Radio', 'base_url' => 'https://www.radiofrance.fr/franceinfo', 'media_type' => 'radio', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Europe 1', 'base_url' => 'https://www.europe1.fr', 'media_type' => 'radio', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'RTL', 'base_url' => 'https://www.rtl.fr', 'media_type' => 'radio', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'RMC', 'base_url' => 'https://rmc.bfmtv.com', 'media_type' => 'radio', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'Sud Radio', 'base_url' => 'https://www.sudradio.fr', 'media_type' => 'radio', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Radio Classique', 'base_url' => 'https://www.radioclassique.fr', 'media_type' => 'radio', 'topics' => ['business', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'France Bleu', 'base_url' => 'https://www.francebleu.fr', 'media_type' => 'radio', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Mouv\'', 'base_url' => 'https://www.radiofrance.fr/mouv', 'media_type' => 'radio', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Nova', 'base_url' => 'https://www.nova.fr', 'media_type' => 'radio', 'topics' => ['lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — PRESSE FÉMININE & LIFESTYLE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'ELLE', 'base_url' => 'https://www.elle.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Marie Claire', 'base_url' => 'https://www.marieclaire.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Madame Figaro', 'base_url' => 'https://madame.lefigaro.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Vogue France', 'base_url' => 'https://www.vogue.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Vanity Fair France', 'base_url' => 'https://www.vanityfair.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+        ['name' => 'Grazia France', 'base_url' => 'https://www.grazia.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Glamour France', 'base_url' => 'https://www.glamourparis.com', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Cosmopolitan France', 'base_url' => 'https://www.cosmopolitan.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Femme Actuelle', 'base_url' => 'https://www.femmeactuelle.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Gala', 'base_url' => 'https://www.gala.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Voici', 'base_url' => 'https://www.voici.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Closer', 'base_url' => 'https://www.closermag.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Public Magazine', 'base_url' => 'https://www.public.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Marie France', 'base_url' => 'https://www.mariefrance.fr', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Version Femina', 'base_url' => 'https://www.femina.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Avantages', 'base_url' => 'https://www.avantages.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Biba Magazine', 'base_url' => 'https://www.bibamagazine.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Stylist France', 'base_url' => 'https://www.stylist.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'GQ France', 'base_url' => 'https://www.gqmagazine.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Esquire France', 'base_url' => 'https://www.esquire.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'L\'Officiel', 'base_url' => 'https://www.lofficiel.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Numéro Magazine', 'base_url' => 'https://www.numero.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'AD Magazine', 'base_url' => 'https://www.admagazine.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'The Good Life France', 'base_url' => 'https://www.thegoodlife.fr', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'NEON Magazine', 'base_url' => 'https://www.neonmag.fr', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Konbini', 'base_url' => 'https://www.konbini.com', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Brut', 'base_url' => 'https://www.brut.media/fr', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Slate FR', 'base_url' => 'https://www.slate.fr', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Vice France', 'base_url' => 'https://www.vice.com/fr', 'media_type' => 'web', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+        ['name' => 'Madmoizelle', 'base_url' => 'https://www.madmoizelle.com', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Les Inrockuptibles', 'base_url' => 'https://www.lesinrocks.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+        ['name' => 'Technikart', 'base_url' => 'https://www.technikart.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — VOYAGE & TOURISME
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'GEO Magazine', 'base_url' => 'https://www.geo.fr', 'media_type' => 'presse_ecrite', 'topics' => ['voyage', 'international'], 'country' => 'France'],
+        ['name' => 'National Geographic France', 'base_url' => 'https://www.nationalgeographic.fr', 'media_type' => 'presse_ecrite', 'topics' => ['voyage', 'international'], 'country' => 'France'],
+        ['name' => 'Le Routard', 'base_url' => 'https://www.routard.com', 'media_type' => 'web', 'topics' => ['voyage', 'expatriation'], 'country' => 'France'],
+        ['name' => 'Petit Futé', 'base_url' => 'https://www.petitfute.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage', 'expatriation'], 'country' => 'France'],
+        ['name' => "L'Écho Touristique", 'base_url' => 'https://www.lechotouristique.com', 'media_type' => 'web', 'topics' => ['voyage', 'business'], 'country' => 'France'],
+        ['name' => 'Partir Magazine', 'base_url' => 'https://www.partir.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Tourmag', 'base_url' => 'https://www.tourmag.com', 'media_type' => 'web', 'topics' => ['voyage', 'business'], 'country' => 'France'],
+        ['name' => 'Quotidien du Tourisme', 'base_url' => 'https://www.quotidiendutourisme.com', 'media_type' => 'web', 'topics' => ['voyage', 'business'], 'country' => 'France'],
+        ['name' => 'Easyvoyage', 'base_url' => 'https://www.easyvoyage.com', 'media_type' => 'web', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Lonely Planet France', 'base_url' => 'https://www.lonelyplanet.fr', 'media_type' => 'web', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Voyageons Autrement', 'base_url' => 'https://www.voyageons-autrement.com', 'media_type' => 'web', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'A/R Magazine', 'base_url' => 'https://www.ar-magazine.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Trek Magazine', 'base_url' => 'https://www.trekmag.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Terre Sauvage', 'base_url' => 'https://www.terresauvage.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Détours en France', 'base_url' => 'https://www.detoursenfrance.fr', 'media_type' => 'presse_ecrite', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Grands Reportages', 'base_url' => 'https://www.grandsreportages.com', 'media_type' => 'presse_ecrite', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'Voyages d\'Affaires', 'base_url' => 'https://www.voyages-d-affaires.com', 'media_type' => 'web', 'topics' => ['voyage', 'business'], 'country' => 'France'],
+        ['name' => 'Travel On Move', 'base_url' => 'https://www.travelonmove.com', 'media_type' => 'web', 'topics' => ['voyage'], 'country' => 'France'],
+        ['name' => 'TravellerMag FR', 'base_url' => 'https://www.travellermag.fr', 'media_type' => 'web', 'topics' => ['voyage', 'lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — EXPATRIATION & FRANÇAIS À L'ÉTRANGER
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Le Petit Journal', 'base_url' => 'https://lepetitjournal.com', 'media_type' => 'web', 'topics' => ['expatriation', 'international'], 'country' => 'France'],
+        ['name' => "Français à l'Étranger", 'base_url' => 'https://www.francaisaletranger.fr', 'media_type' => 'web', 'topics' => ['expatriation', 'international'], 'country' => 'France'],
+        ['name' => 'FemmExpat', 'base_url' => 'https://www.femmexpat.com', 'media_type' => 'web', 'topics' => ['expatriation', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Expat.com Magazine', 'base_url' => 'https://www.expat.com', 'media_type' => 'web', 'topics' => ['expatriation', 'international'], 'country' => 'France'],
+        ['name' => 'Vivre à l\'étranger', 'base_url' => 'https://www.vivrealetranger.com', 'media_type' => 'web', 'topics' => ['expatriation', 'voyage'], 'country' => 'France'],
+        ['name' => 'MFE (Maison des Français de l\'Étranger)', 'base_url' => 'https://mfe.org', 'media_type' => 'web', 'topics' => ['expatriation', 'international'], 'country' => 'France'],
+        ['name' => 'InterNations FR', 'base_url' => 'https://www.internations.org/fr', 'media_type' => 'web', 'topics' => ['expatriation', 'international'], 'country' => 'France'],
+        ['name' => 'MondeExpat', 'base_url' => 'https://www.mondeexpat.com', 'media_type' => 'web', 'topics' => ['expatriation', 'voyage'], 'country' => 'France'],
+        ['name' => 'Nomade Digital', 'base_url' => 'https://www.nomadedigital.fr', 'media_type' => 'web', 'topics' => ['voyage', 'entrepreneuriat', 'expatriation'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — PRESSE JURIDIQUE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Le Monde du Droit', 'base_url' => 'https://www.lemondedudroit.fr', 'media_type' => 'web', 'topics' => ['business', 'juridique'], 'country' => 'France'],
+        ['name' => 'Dalloz Actualité', 'base_url' => 'https://www.dalloz-actualite.fr', 'media_type' => 'web', 'topics' => ['juridique'], 'country' => 'France'],
+        ['name' => 'Village de la Justice', 'base_url' => 'https://www.village-justice.com', 'media_type' => 'web', 'topics' => ['juridique', 'business'], 'country' => 'France'],
+        ['name' => 'Actu-Juridique', 'base_url' => 'https://www.actu-juridique.fr', 'media_type' => 'web', 'topics' => ['juridique'], 'country' => 'France'],
+        ['name' => 'Le Petit Juriste', 'base_url' => 'https://www.lepetitjuriste.fr', 'media_type' => 'web', 'topics' => ['juridique', 'business'], 'country' => 'France'],
+        ['name' => 'Juritravail', 'base_url' => 'https://www.juritravail.com', 'media_type' => 'web', 'topics' => ['juridique', 'business'], 'country' => 'France'],
+        ['name' => 'Gazette du Palais', 'base_url' => 'https://www.gazettedupalais.com', 'media_type' => 'presse_ecrite', 'topics' => ['juridique'], 'country' => 'France'],
+        ['name' => 'LexisNexis Actualités', 'base_url' => 'https://www.lexisnexis.fr', 'media_type' => 'web', 'topics' => ['juridique', 'business'], 'country' => 'France'],
+        ['name' => 'Recueil Dalloz', 'base_url' => 'https://www.dalloz.fr', 'media_type' => 'presse_ecrite', 'topics' => ['juridique'], 'country' => 'France'],
+        ['name' => 'Décideurs Magazine', 'base_url' => 'https://www.magazine-decideurs.com', 'media_type' => 'web', 'topics' => ['juridique', 'business'], 'country' => 'France'],
+        ['name' => 'Affiches Parisiennes', 'base_url' => 'https://www.affiches-parisiennes.com', 'media_type' => 'presse_ecrite', 'topics' => ['juridique', 'business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — IMMOBILIER & PATRIMOINE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Le Particulier', 'base_url' => 'https://leparticulier.lefigaro.fr', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Journal de l\'Agence', 'base_url' => 'https://www.journaldelagence.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Mysweetimmo', 'base_url' => 'https://www.mysweetimmo.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'ImmoMatin', 'base_url' => 'https://www.immomatin.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Journal de l\'Immobilier', 'base_url' => 'https://journaldelimmobilier.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Le Moniteur', 'base_url' => 'https://www.lemoniteur.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Batiactu', 'base_url' => 'https://www.batiactu.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — SANTÉ & BIEN-ÊTRE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Top Santé', 'base_url' => 'https://www.topsante.com', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Doctissimo', 'base_url' => 'https://www.doctissimo.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Psychologies Magazine', 'base_url' => 'https://www.psychologies.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Santé Magazine', 'base_url' => 'https://www.santemagazine.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Femme Actuelle Santé', 'base_url' => 'https://www.femmeactuelle.fr/sante', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Pourquoi Docteur', 'base_url' => 'https://www.pourquoidocteur.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Le Quotidien du Médecin', 'base_url' => 'https://www.lequotidiendumedecin.fr', 'media_type' => 'web', 'topics' => ['lifestyle', 'business'], 'country' => 'France'],
+        ['name' => 'Egora', 'base_url' => 'https://www.egora.fr', 'media_type' => 'web', 'topics' => ['lifestyle', 'business'], 'country' => 'France'],
+        ['name' => 'What\'s Up Doc', 'base_url' => 'https://www.whatsupdoc-lemag.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — ÉCOLOGIE & ENVIRONNEMENT
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Reporterre', 'base_url' => 'https://reporterre.net', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Novethic', 'base_url' => 'https://www.novethic.fr', 'media_type' => 'web', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'Vert (Le Média)', 'base_url' => 'https://vert.eco', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Actu-Environnement', 'base_url' => 'https://www.actu-environnement.com', 'media_type' => 'web', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'Natura Sciences', 'base_url' => 'https://www.natura-sciences.com', 'media_type' => 'web', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Bon Pote', 'base_url' => 'https://bonpote.com', 'media_type' => 'web', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Socialter', 'base_url' => 'https://www.socialter.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business', 'lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — GASTRONOMIE & FOOD
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Le Fooding', 'base_url' => 'https://lefooding.com', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Cuisine Actuelle', 'base_url' => 'https://www.cuisineactuelle.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Régal', 'base_url' => 'https://www.rfrancegal.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Fou de Cuisine', 'base_url' => 'https://www.foudecuisine.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Atabula', 'base_url' => 'https://www.atabula.com', 'media_type' => 'web', 'topics' => ['lifestyle', 'business'], 'country' => 'France'],
+        ['name' => 'Le Point Gastronomie', 'base_url' => 'https://www.lepoint.fr/gastronomie', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — ÉDUCATION & FORMATION
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'L\'Étudiant', 'base_url' => 'https://www.letudiant.fr', 'media_type' => 'web', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'Studyrama', 'base_url' => 'https://www.studyrama.com', 'media_type' => 'web', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'Le Monde Campus', 'base_url' => 'https://www.lemonde.fr/campus', 'media_type' => 'web', 'topics' => ['business', 'international'], 'country' => 'France'],
+        ['name' => 'AEF Info', 'base_url' => 'https://www.aefinfo.fr', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'EducPros', 'base_url' => 'https://www.letudiant.fr/educpros', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Courrier Cadres', 'base_url' => 'https://courriercadres.com', 'media_type' => 'web', 'topics' => ['business', 'entrepreneuriat'], 'country' => 'France'],
+        ['name' => 'Cadremploi Mag', 'base_url' => 'https://www.cadremploi.fr/editorial', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — RH & MOBILITÉ INTERNATIONALE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Liaisons Sociales', 'base_url' => 'https://www.liaisons-sociales.fr', 'media_type' => 'presse_ecrite', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Entreprise & Carrières', 'base_url' => 'https://www.entreprise-carrieres.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Rebondir', 'base_url' => 'https://www.rebondir.fr', 'media_type' => 'web', 'topics' => ['business', 'expatriation'], 'country' => 'France'],
+        ['name' => 'Exclusive RH', 'base_url' => 'https://www.exclusiverh.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Focus RH', 'base_url' => 'https://www.focusrh.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'Parlons RH', 'base_url' => 'https://www.parlonsrh.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+        ['name' => 'MyRHline', 'base_url' => 'https://myrhline.com', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — CULTURE & ARTS
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Beaux Arts Magazine', 'base_url' => 'https://www.beauxarts.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Connaissance des Arts', 'base_url' => 'https://www.connaissancedesarts.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Philosophie Magazine', 'base_url' => 'https://www.philomag.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+        ['name' => 'Sciences Humaines', 'base_url' => 'https://www.scienceshumaines.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+        ['name' => 'L\'Histoire', 'base_url' => 'https://www.lhistoire.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Historia', 'base_url' => 'https://www.historia.fr', 'media_type' => 'presse_ecrite', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Le Magazine Littéraire', 'base_url' => 'https://www.magazine-litteraire.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Première', 'base_url' => 'https://www.premiere.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Allociné', 'base_url' => 'https://www.allocine.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Les Cahiers du Cinéma', 'base_url' => 'https://www.cahiersducinema.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — SPORT (rubriques voyage/international)
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'L\'Équipe', 'base_url' => 'https://www.lequipe.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+        ['name' => 'So Foot', 'base_url' => 'https://www.sofoot.com', 'media_type' => 'web', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+        ['name' => 'RMC Sport', 'base_url' => 'https://rmcsport.bfmtv.com', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — LUXE & PREMIUM
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Le Figaro Madame Voyage', 'base_url' => 'https://madame.lefigaro.fr/voyages', 'media_type' => 'web', 'topics' => ['voyage', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Journal du Luxe', 'base_url' => 'https://journalduluxe.fr', 'media_type' => 'web', 'topics' => ['business', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Luxe Magazine', 'base_url' => 'https://www.luxe-magazine.com', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Ideat', 'base_url' => 'https://ideat.thegoodhub.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Côté Maison', 'base_url' => 'https://www.cotemaison.fr', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'Maison & Travaux', 'base_url' => 'https://www.maison-travaux.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — PARENTALITÉ & FAMILLE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Parents Magazine', 'base_url' => 'https://www.parents.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Enfant Magazine', 'base_url' => 'https://www.enfant.com', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+        ['name' => 'MagicMaman', 'base_url' => 'https://www.magicmaman.com', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Famille Chrétienne', 'base_url' => 'https://www.famillechretienne.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'international'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — SENIORS & RETRAITE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Notre Temps', 'base_url' => 'https://www.notretemps.com', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage', 'expatriation'], 'country' => 'France'],
+        ['name' => 'Pleine Vie', 'base_url' => 'https://www.pleinevie.fr', 'media_type' => 'presse_ecrite', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Senior Actu', 'base_url' => 'https://www.senioractu.com', 'media_type' => 'web', 'topics' => ['lifestyle', 'voyage'], 'country' => 'France'],
+        ['name' => 'Agevillage', 'base_url' => 'https://www.agevillage.com', 'media_type' => 'web', 'topics' => ['lifestyle'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — PURE PLAYERS & PODCASTS
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Huffington Post FR', 'base_url' => 'https://www.huffingtonpost.fr', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Atlantico', 'base_url' => 'https://atlantico.fr', 'media_type' => 'web', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Agoravox', 'base_url' => 'https://www.agoravox.fr', 'media_type' => 'web', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Rue89', 'base_url' => 'https://www.nouvelobs.com/rue89', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'StreetPress', 'base_url' => 'https://www.streetpress.com', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Basta!', 'base_url' => 'https://basta.media', 'media_type' => 'web', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'QG Le Média', 'base_url' => 'https://qg.media', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Loopsider', 'base_url' => 'https://www.loopsider.com', 'media_type' => 'web', 'topics' => ['international', 'lifestyle'], 'country' => 'France'],
+        ['name' => 'Blast', 'base_url' => 'https://www.blast-info.fr', 'media_type' => 'web', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Arrêt sur Images', 'base_url' => 'https://www.arretsurimages.net', 'media_type' => 'web', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Les Jours', 'base_url' => 'https://lesjours.fr', 'media_type' => 'web', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Brief.me', 'base_url' => 'https://www.brief.me', 'media_type' => 'web', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Heidi.news FR', 'base_url' => 'https://www.heidi.news/fr', 'media_type' => 'web', 'topics' => ['international'], 'country' => 'France'],
+        ['name' => 'Spalian', 'base_url' => 'https://spalian.com', 'media_type' => 'web', 'topics' => ['business', 'international'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — AGENCES DE PRESSE
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'AFP (Agence France-Presse)', 'base_url' => 'https://www.afp.com', 'media_type' => 'web', 'topics' => ['international', 'business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
+        // FRANCE — ANNUAIRES DE JOURNALISTES
+        // ══════════════════════════════════════════════════════════════════
+        ['name' => 'Annuaire Journaliste FR', 'base_url' => 'https://annuaire.journaliste.fr', 'media_type' => 'web', 'topics' => ['international', 'business', 'voyage', 'expatriation'], 'country' => 'France'],
+        ['name' => 'Presselib Freelances', 'base_url' => 'https://www.presselib.com', 'media_type' => 'web', 'topics' => ['international', 'voyage', 'expatriation'], 'country' => 'France'],
+        ['name' => 'Muck Rack France', 'base_url' => 'https://muckrack.com', 'media_type' => 'web', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'The Conversation France', 'base_url' => 'https://theconversation.com/fr', 'media_type' => 'web', 'topics' => ['international', 'business'], 'country' => 'France'],
+        ['name' => 'Babbler', 'base_url' => 'https://www.babbler.fr', 'media_type' => 'web', 'topics' => ['business'], 'country' => 'France'],
+
+        // ══════════════════════════════════════════════════════════════════
         // AFRIQUE DE L'OUEST — SÉNÉGAL
         // ══════════════════════════════════════════════════════════════════
         ['name' => 'Le Soleil (Sénégal)', 'base_url' => 'https://lesoleil.sn', 'media_type' => 'presse_ecrite', 'topics' => ['international', 'business', 'expatriation'], 'country' => 'Sénégal'],
