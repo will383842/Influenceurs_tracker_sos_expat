@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\DiscoverPressPublicationsJob;
 use App\Jobs\ScrapePressPublicationJob;
 use App\Jobs\ScrapePublicationAuthorsJob;
 use App\Jobs\ScrapeLawyerDirectoryJob;
@@ -26,6 +27,22 @@ class ScrapingDashboardController extends Controller
 
         // Per-scraper stats
         $scrapers = [
+
+            // ── Découverte de publications ────────────────────────────────
+            [
+                'id'          => 'discover_press',
+                'label'       => 'Découvrir nouvelles publications',
+                'icon'        => '🔍',
+                'category'    => 'Presse',
+                'description' => 'Découvre automatiquement de nouvelles publications presse (voyage, expat, lifestyle) et scrape leurs contacts. 100% gratuit.',
+                'stats'       => $this->journalistStats(),
+                'actions'     => [
+                    ['id' => 'discover_press_voyage',       'label' => 'Découvrir — Voyage',       'color' => 'blue'],
+                    ['id' => 'discover_press_expatriation', 'label' => 'Découvrir — Expatriation', 'color' => 'green'],
+                    ['id' => 'discover_press_lifestyle',    'label' => 'Découvrir — Lifestyle',    'color' => 'pink'],
+                    ['id' => 'discover_press_all',          'label' => 'Découvrir — Tout',         'color' => 'violet'],
+                ],
+            ],
 
             // ── Annuaires de Journalistes ─────────────────────────────────
             [
@@ -132,6 +149,20 @@ class ScrapingDashboardController extends Controller
         $queued = 0;
 
         switch ($action) {
+
+            case 'discover_press_voyage':
+            case 'discover_press_expatriation':
+            case 'discover_press_lifestyle':
+            case 'discover_press_all':
+                $category = match ($action) {
+                    'discover_press_voyage'       => 'voyage',
+                    'discover_press_expatriation' => 'expatriation',
+                    'discover_press_lifestyle'    => 'lifestyle',
+                    default                       => 'all',
+                };
+                DiscoverPressPublicationsJob::dispatch($category, true);
+                $queued = 1;
+                break;
 
             case 'scrape_journalist_directories':
                 $sources = DB::table('journalist_directory_sources')
