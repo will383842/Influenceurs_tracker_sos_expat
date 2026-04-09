@@ -9,7 +9,19 @@ class ContentTypeConfig
      * Prevents AI from generating clickbait titles like "Guide Complet", "Guide Ultime", etc.
      */
     private const TITLE_INSTRUCTION = "\n\nTITRE : NE JAMAIS utiliser « Guide Complet », « Guide Ultime », « Tout savoir sur », « Découvrez ». "
-        . "Le titre doit être une requête Google naturelle, spécifique, avec le pays/ville et l'année si applicable.";
+        . "Le titre doit être une requête Google naturelle, spécifique, avec le pays/ville et l'année si applicable.\n\n"
+        . "QUALITE REDACTIONNELLE ABSOLUE :\n"
+        . "- Ecris comme un JOURNALISTE DU NEW YORK TIMES specialise en mobilite internationale — pas comme une IA.\n"
+        . "- Chaque phrase doit apporter une INFORMATION NOUVELLE. Zero phrase de remplissage. Zero platitude.\n"
+        . "- Utilise des ANECDOTES CONCRETES et des SITUATIONS VECUES pour illustrer (ex: 'Marie, 34 ans, arrivee a Lisbonne en janvier, a decouvert que...').\n"
+        . "- Donne des CHIFFRES PRECIS, DATES, et SOURCES pour chaque affirmation factuelle.\n"
+        . "- Ecris au PRESENT quand possible. Phrases courtes (max 25 mots). Paragraphes courts (max 4 lignes).\n"
+        . "- Ton : un ami expert qui a VECU l'experience et partage ses conseils autour d'un cafe. Chaleureux mais precis.\n"
+        . "- INTERDIT : 'Il est important de', 'Il convient de noter', 'Dans cet article', 'N'hesitez pas a', 'En conclusion'. Ces formules trahissent un texte IA.\n"
+        . "- INTERDIT : listes generiques de 3 items quand il en faut 7. Phrases passe-partout applicables a n'importe quel pays.\n"
+        . "- OBLIGATOIRE : au moins 1 info SURPRENANTE ou PEU CONNUE que le lecteur ne trouvera nulle part ailleurs.\n"
+        . "- OBLIGATOIRE : des TRANSITIONS NARRATIVES entre les sections (pas juste des H2 qui se succedent sans lien).\n"
+        . "- Le lecteur doit se dire : 'Cet article est EXACTEMENT ce qu'il me fallait. Il a repondu a des questions que je ne savais meme pas que j'avais.'";
 
     /**
      * Get AI configuration for each content type.
@@ -45,13 +57,17 @@ class ContentTypeConfig
                 'include_charts_data' => true,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "ARTICLE PILIER specifique a la VILLE — doit etre la REFERENCE MONDIALE sur cette ville pour les expatries. "
-                    . "Mentionner les QUARTIERS par nom, les prix LOCAUX en devise locale + EUR/USD, "
-                    . "les transports LOCAUX (metro, bus, taxi, VTC), les adresses PRECISES. "
-                    . "Inclure un tableau comparatif des quartiers (prix, securite, ambiance, transport). "
-                    . "S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais. "
-                    . "Lier vers la fiche pays correspondante pour le contexte national (visa, fiscalite, sante). "
-                    . "Cet article est un PILIER — les articles satellites (logement, coworking, ecoles) viendront apres.",
+                'prompt_suffix' => "ARTICLE PILIER — cette page doit devenir LA REFERENCE MONDIALE sur cette ville pour les expatries.\n"
+                    . "Ecris comme si tu avais VECU 5 ans dans cette ville et que tu guidais un ami qui s'y installe demain.\n"
+                    . "OBLIGATOIRE :\n"
+                    . "- Nommer les QUARTIERS par nom avec personnalite (ex: 'Cihangir, le Montmartre d'Istanbul — boheme, cafes rooftop, loyers a 800€/mois').\n"
+                    . "- Prix LOCAUX en devise locale + EUR/USD pour : loyer studio, repas restaurant, cafe, biere, abonnement metro, coworking.\n"
+                    . "- Transports : lignes de metro/bus specifiques, apps locales (Grab, Bolt, etc.), cout moyen d'un trajet.\n"
+                    . "- Tableau comparatif de 4-6 quartiers : prix, securite, ambiance, transports, profil ideal (famille/celibataire/digital nomad).\n"
+                    . "- Les 3 PIEGES que personne ne mentionne (ex: 'A Bangkok, les appartements au rez-de-chaussee inondent chaque annee en octobre').\n"
+                    . "- Les 3 BONS PLANS que seuls les locaux connaissent.\n"
+                    . "- S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais.\n"
+                    . "- Lier vers la fiche pays pour le contexte national (visa, fiscalite, sante).",
             ],
 
             // PILLAR ARTICLES (fiches pays, guides complets)
@@ -79,10 +95,16 @@ class ContentTypeConfig
                 'include_charts_data' => true,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Cet article doit etre la REFERENCE MONDIALE sur ce sujet. "
-                    . "Il doit etre plus complet, plus detaille et plus utile que TOUT ce qui existe sur le web. "
-                    . "Inclure des donnees chiffrees precises, des tableaux comparatifs, des listes d'etapes, "
-                    . "des conseils pratiques uniques, et des avertissements importants.",
+                'prompt_suffix' => "Cet article doit etre la REFERENCE MONDIALE sur ce sujet — le genre d'article que les consulats eux-memes recommandent.\n"
+                    . "OBLIGATOIRE :\n"
+                    . "- Commence par un paragraphe-choc qui accroche immediatement (une stat surprenante, une anecdote vecue, un constat contre-intuitif).\n"
+                    . "- Au moins 5 DONNEES CHIFFREES PRECISES avec source et annee (ex: 'Le salaire minimum au Portugal est de 820€/mois en 2026 — Ministerio do Trabalho').\n"
+                    . "- 2 tableaux <table> : un comparatif (avant/apres, France vs pays, etc.) et un recapitulatif des couts ou demarches.\n"
+                    . "- 1 timeline ou liste ordonnee <ol> pour les etapes administratives avec DELAIS REELS.\n"
+                    . "- Section 'Ce que personne ne vous dit' avec 3-5 pieges/surprises que seuls les expatries sur place connaissent.\n"
+                    . "- Des encadres <strong>Bon a savoir :</strong> apres chaque section clé.\n"
+                    . "- Chaque H2 doit etre formule comme une QUESTION que les gens tapent sur Google.\n"
+                    . "- S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais.",
             ],
 
             // NORMAL ARTICLES (thematiques, pratiques)
@@ -110,10 +132,16 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Article informatif et pratique de haute qualite. "
-                    . "OBLIGATOIRE : inclure au moins 3 donnees chiffrees precises et verifiees (montants, delais, pourcentages, statistiques officielles). "
-                    . "Chaque section H2 doit apporter une valeur concrete. "
-                    . "Un encadre 'Chiffres cles' avec les donnees essentielles en <strong>.",
+                'prompt_suffix' => "Article qui doit se lire comme un REPORTAGE DE TERRAIN — pas comme une fiche Wikipedia.\n"
+                    . "OBLIGATOIRE :\n"
+                    . "- Accroche narrative en intro : une situation concrete que le lecteur vit ou vivra (ex: 'Vous venez de recevoir votre visa. Votre vol est dans 3 semaines. Et la, la realite vous rattrape : par ou commencer ?').\n"
+                    . "- Au moins 5 donnees chiffrees precises avec source et annee.\n"
+                    . "- 1 encadre 'Chiffres cles' en debut d'article avec les 5 donnees essentielles en <strong>.\n"
+                    . "- 2-3 H2 formules comme des questions Google naturelles.\n"
+                    . "- 1 section 'Erreurs a eviter' avec des consequences REELLES (pas juste 'il faut faire attention').\n"
+                    . "- Des comparaisons eclairantes : 'Contrairement a la France ou... en [pays] le systeme fonctionne de maniere radicalement differente'.\n"
+                    . "- Conclusion avec un plan d'action en 3-5 etapes concretes.\n"
+                    . "- S'adresser a TOUTE nationalite d'expatrie.",
             ],
 
             // COMPARATIVES (tableaux, donnees structurees)
@@ -141,11 +169,15 @@ class ContentTypeConfig
                 'include_charts_data' => true,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Article COMPARATIF avec OBLIGATOIREMENT : "
-                    . "1) Au moins 2 tableaux <table> comparatifs detailles avec <thead> et <tbody>, "
-                    . "2) Des donnees chiffrees precises pour chaque entite comparee, "
-                    . "3) Un bloc 'Chiffres cles' avec les donnees importantes en <strong>, "
-                    . "4) Un resume 'Verdict' en fin d'article avec recommandations par profil d'expatrie.",
+                'prompt_suffix' => "Article COMPARATIF de niveau consultant McKinsey — le lecteur doit pouvoir DECIDER apres lecture.\n"
+                    . "OBLIGATOIRE :\n"
+                    . "- Verdict clair des les 3 premieres lignes : 'Pour un celibataire tech, le Portugal l'emporte. Pour une famille, l'Espagne est imbattable. Voici pourquoi.'\n"
+                    . "- Tableau recapitulatif COMPLET en haut d'article (vue d'ensemble de TOUS les criteres cote a cote).\n"
+                    . "- 1 tableau detaille PAR critere majeur (cout de la vie, visa, sante, fiscalite, qualite de vie) avec chiffres EXACTS.\n"
+                    . "- Chaque critere compare avec des CHIFFRES PRECIS : '1 850€/mois vs 1 500€/mois' — JAMAIS 'plus cher' ou 'moins cher' sans montant.\n"
+                    . "- Section 'Verdict par profil' : famille, celibataire, retraite, digital nomad, entrepreneur — chacun avec une recommandation argumentee.\n"
+                    . "- Section 'Le detail que tout change' : 1-2 criteres meconnus qui font basculer la decision (ex: le Portugal taxe les crypto a 0%, l'Espagne a 28%).\n"
+                    . "- S'adresser a TOUTE nationalite.",
             ],
 
             // Q&A (reponses directes, featured snippets)
@@ -173,8 +205,13 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => false,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Page Q&A avec reponse directe de 40-60 mots (featured snippet) "
-                    . "suivie d'une reponse detaillee structuree.",
+                'prompt_suffix' => "Page Q&A optimisee Position 0 Google.\n"
+                    . "STRUCTURE :\n"
+                    . "- Premier paragraphe : reponse directe et COMPLETE en 40-60 mots (featured snippet). Commence par reformuler le sujet : '[Sujet] coute/est/necessite...'\n"
+                    . "- Puis reponse detaillee en 3-5 sections H2 avec chiffres, etapes, sources officielles.\n"
+                    . "- Au moins 1 donnee SURPRENANTE que le lecteur ne s'attendait pas a trouver.\n"
+                    . "- Chaque reponse doit etre TELLEMENT precise que le lecteur n'a PAS besoin de chercher ailleurs.\n"
+                    . "- Ton : expert accessible — comme un ami qui connait le sujet par coeur.",
             ],
 
             // TESTIMONIALS (témoignages d'expatriés, social proof)
@@ -202,11 +239,16 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => false,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Témoignage inspiré de cas réels d'expatriés. "
-                    . "Style narratif à la première personne. "
-                    . "Inclure : contexte de départ, défis rencontrés, bonnes surprises, conseils concrets pour ceux qui veulent faire pareil. "
-                    . "NE PAS inventer de données chiffrées précises, rester dans le vécu personnel. "
-                    . "Mentionner que le témoignage est inspiré de retours d'expérience réels.",
+                'prompt_suffix' => "Temoignage IMMERSIF — le lecteur doit VIVRE l'experience de l'expatrie.\n"
+                    . "STYLE : Narratif a la premiere personne. Ecris comme un article du magazine 'GEO' ou 'Courrier International'.\n"
+                    . "STRUCTURE :\n"
+                    . "- Accroche-choc : le moment precis ou tout a bascule ('Le 14 mars, a 6h du matin, devant le bureau de l'immigration de Bangkok, j'ai compris que rien ne se passerait comme prevu.').\n"
+                    . "- Le contexte : qui je suis, pourquoi ce pays, ce que j'attendais.\n"
+                    . "- Les galeres CONCRETES (pas generiques) : la barriere de la langue, la bureaucratie locale, la solitude, un probleme specifique inattendu.\n"
+                    . "- Le declic / la bonne surprise : le moment ou j'ai commence a me sentir chez moi.\n"
+                    . "- Mes 5 conseils a ceux qui veulent faire pareil (conseils SPECIFIQUES au pays, pas generiques).\n"
+                    . "- NE PAS inventer de donnees chiffrees — rester dans le vecu personnel et emotionnel.\n"
+                    . "- Mentionner que le temoignage est inspire de retours d'experience reels.",
             ],
 
             // Q&A NEEDS (longue traîne — intentions de recherche précises)
@@ -234,9 +276,13 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => false,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Page longue traîne optimisée pour une intention de recherche très précise. "
-                    . "Réponse directe en 40-60 mots (featured snippet position 0) puis développement court. "
-                    . "Structurer autour de l'intention exacte de l'internaute.",
+                'prompt_suffix' => "Page longue traine — cible UNE intention de recherche ultra-precise.\n"
+                    . "STRUCTURE :\n"
+                    . "- Reponse directe en 40-60 mots (featured snippet position 0) : reformule le sujet + reponse complete.\n"
+                    . "- Puis 2-4 sections H2 qui approfondissent l'angle specifique.\n"
+                    . "- Chiffres precis, sources, annee — meme pour un article court.\n"
+                    . "- Etapes numerotees si c'est une demarche.\n"
+                    . "- L'article est COURT mais DENSE : chaque mot compte. Zero remplissage.",
             ],
 
             // TUTORIAL (guides pratiques pas-à-pas pour démarches expatriés)
@@ -264,13 +310,17 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Guide pratique pas-à-pas sur une démarche administrative ou pratique pour expatrié. "
-                    . "Structure OBLIGATOIRE : introduction (contexte + pourquoi ce guide), pré-requis, "
-                    . "étapes numérotées en <ol> (min 5, max 8 étapes) avec sous-détails concrets, "
-                    . "délais et coûts réels, erreurs fréquentes à éviter, FAQ 6 questions. "
-                    . "Chaque étape doit être actionnable immédiatement. "
-                    . "Données chiffrées vérifiées (délais officiels, montants réels). "
-                    . "CTA vers SOS-Expat.com pour aide personnalisée.",
+                'prompt_suffix' => "TUTORIEL PAS-A-PAS — le lecteur doit pouvoir suivre les etapes les yeux fermes.\n"
+                    . "STRUCTURE OBLIGATOIRE :\n"
+                    . "- Intro : 'Vous devez [demarche] ? Voici exactement comment faire, etape par etape, avec les delais et couts reels en [annee].'\n"
+                    . "- Pre-requis : liste a puces de tout ce qu'il faut AVANT de commencer (documents, montants, conditions).\n"
+                    . "- Etapes numerotees en <ol> (5-8 etapes) : chaque etape = 1 ACTION CONCRETE + delai + cout + piege a eviter.\n"
+                    . "- Pour chaque etape, donner l'URL ou le lieu EXACT ou la faire (ex: 'Rendez-vous sur service-public.fr > Etrangers > Demande de titre').\n"
+                    . "- Encadre <strong>Attention :</strong> apres les etapes critiques.\n"
+                    . "- Section 'Les 5 erreurs qui retardent votre dossier' avec consequences reelles.\n"
+                    . "- Section 'Combien ca coute au total ?' : tableau recapitulatif de TOUS les frais.\n"
+                    . "- FAQ 6 questions pratiques.\n"
+                    . "- Chaque etape doit etre actionnable IMMEDIATEMENT — pas de 'renseignez-vous aupres de...'.",
             ],
 
             // STATISTICS (articles data-driven à partir de datasets recherchés)
@@ -299,16 +349,17 @@ class ContentTypeConfig
                 'include_charts_data' => true,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Article STATISTIQUE data-driven. OBLIGATIONS :\n"
-                    . "1) Chaque statistique DOIT etre citee avec sa source entre parentheses (Organisation, Annee).\n"
-                    . "2) Au moins 2 tableaux <table> avec <thead>/<tbody> comparant les donnees par annee ou par pays.\n"
-                    . "3) Un encadre 'Chiffres cles' en debut d'article avec les 5 statistiques les plus importantes en <strong>.\n"
-                    . "4) Section 'Analyse et tendances' interpretant les donnees (croissance, declin, facteurs explicatifs).\n"
-                    . "5) Section 'Methodologie et sources' en fin d'article listant TOUTES les sources avec URLs.\n"
-                    . "6) S'adresser a TOUTES les nationalites, pas uniquement les Francais.\n"
-                    . "7) Inclure des comparaisons internationales quand les donnees le permettent.\n"
-                    . "8) FAQ orientees 'donnees' (ex: 'Combien de...', 'Quel pourcentage...', 'Quelle evolution...').\n"
-                    . "OBJECTIF : devenir la REFERENCE citee par les medias, chercheurs et institutions sur ce sujet.",
+                'prompt_suffix' => "Article STATISTIQUE de niveau rapport OCDE — doit devenir LA SOURCE citee par les medias et chercheurs.\n"
+                    . "STRUCTURE :\n"
+                    . "- Encadre 'Chiffres cles' en ouverture : 5 stats les plus frappantes en <strong>, chacune avec source et annee.\n"
+                    . "- Chaque stat DOIT etre citee : '42% des expatries (HSBC Expat Explorer, 2025)'. JAMAIS de stat sans source.\n"
+                    . "- Au moins 3 tableaux <table> : evolution temporelle, comparaison entre pays, et breakdown par categorie.\n"
+                    . "- Section 'Analyse et tendances' : interprete les donnees comme un economiste (croissance, declin, facteurs explicatifs, projections).\n"
+                    . "- Section 'Ce que ces chiffres signifient pour vous' : traduction concrete pour l'expatrie lambda.\n"
+                    . "- Comparaisons internationales SYSTEMATIQUES quand possible.\n"
+                    . "- Section 'Methodologie et sources' en fin d'article avec TOUTES les sources.\n"
+                    . "- FAQ orientees donnees : 'Combien de...', 'Quel pourcentage...', 'Quelle evolution...'.\n"
+                    . "- S'adresser a TOUTES les nationalites.",
             ],
 
             // PAIN POINT (souffrances/urgences expatriés — intent urgency)
@@ -337,17 +388,17 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Article SOUFFRANCE / URGENCE pour expatrie en detresse.\n"
-                    . "L'utilisateur a un probleme MAINTENANT et cherche une solution IMMEDIATE.\n"
-                    . "Structure OBLIGATOIRE :\n"
-                    . "1) Encadre URGENCE en haut (<div class='emergency-box'>) avec les premiers reflexes (3-5 actions immediates).\n"
-                    . "2) Etapes numerotees en <ol> — chaque etape = 1 action concrete et actionnable.\n"
-                    . "3) Numeros et contacts utiles (ambassade, police locale, numeros d'urgence du pays).\n"
-                    . "4) Section 'Erreurs a ne PAS commettre' avec les pieges courants.\n"
-                    . "5) CTA fort vers SOS-Expat : 'Besoin d'aide MAINTENANT ? SOS-Expat.com : mise en relation avec un expert en 5 min, 24h/24, 197 pays'.\n"
-                    . "Ton empathique mais directif. Phrases courtes. Zero jargon.\n"
-                    . "Chaque paragraphe doit rassurer ET donner une action concrete.\n"
-                    . "S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais.",
+                'prompt_suffix' => "Article URGENCE — l'expatrie qui lit cet article est en CRISE. Il a besoin d'aide MAINTENANT.\n"
+                    . "TON : Comme un ami calme et competent qui prend les choses en main. Phrases courtes. Actions concretes. Zero jargon.\n"
+                    . "STRUCTURE OBLIGATOIRE :\n"
+                    . "1) Encadre URGENCE rouge en haut (<div class='emergency-box'>) : 'Premiers reflexes — faites ceci IMMEDIATEMENT' avec 3-5 actions numerotees.\n"
+                    . "2) Numeros d'urgence du pays : police, ambulance, ambassade/consulat, numeros gratuits si existants.\n"
+                    . "3) Etapes en <ol> : chaque etape = 1 PHRASE D'ACTION ('Appelez le 191, c'est la police touristique en Thailande. Parlez lentement en anglais.').\n"
+                    . "4) Section 'Ce qu'il ne faut SURTOUT PAS faire' avec consequences reelles (ex: 'Ne signez RIEN que vous ne comprenez pas — meme si on vous dit que c'est une formalite').\n"
+                    . "5) Section 'Apres l'urgence : les demarches a faire dans les 48h'.\n"
+                    . "6) CTA final empathique : 'Besoin d'un expert MAINTENANT ? SOS-Expat.com : un avocat ou expert local au telephone en moins de 5 minutes, 24h/24, 197 pays.'\n"
+                    . "- Chaque paragraphe doit RASSURER et donner une ACTION concrete.\n"
+                    . "- S'adresser a TOUTE nationalite.",
             ],
 
             // NEWS (articles d'actualité réécrits depuis RSS — informationnels)
@@ -375,10 +426,14 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Article d'actualite expatriation reecrit a partir d'une source RSS. "
-                    . "Ne JAMAIS recopier de phrases de la source. Reecriture 100% originale. "
-                    . "Inclure le contexte pour les expatries (impact concret). "
-                    . "Court et factuel (600-1200 mots max).",
+                'prompt_suffix' => "Article d'ACTUALITE — ecris comme un correspondant du Monde ou de la BBC base dans le pays.\n"
+                    . "REGLES :\n"
+                    . "- Ne JAMAIS recopier de phrases de la source. Reecriture 100% originale avec ton journalistique.\n"
+                    . "- Pyramide inversee : l'info essentielle dans les 2 premieres phrases (qui, quoi, quand, ou, pourquoi).\n"
+                    . "- Section 'Ce que ca change CONCRETEMENT pour vous' : impact pratique pour l'expatrie/voyageur.\n"
+                    . "- Dates d'entree en vigueur clairement mentionnees.\n"
+                    . "- Ce qu'il faut faire MAINTENANT (actions concretes si applicables).\n"
+                    . "- Court et dense : 600-1200 mots max. Chaque phrase apporte une info nouvelle.",
             ],
 
             // OUTREACH (affiliation : chatters, blogueurs, admin groups)
@@ -408,10 +463,15 @@ class ContentTypeConfig
                 'include_charts_data' => false,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Article d'affiliation / outreach. "
-                    . "Objectif : convaincre le lecteur de rejoindre le programme SOS-Expat. "
-                    . "Ton enthousiaste mais honnête. Mettre en avant les avantages concrets (commissions, flexibilité, communauté). "
-                    . "Inclure un CTA clair en fin d'article.",
+                'prompt_suffix' => "Article d'AFFILIATION — convainc naturellement sans etre pushy.\n"
+                    . "TON : Comme un ami qui partage un bon plan qu'il a teste lui-meme. Enthousiaste mais honnete.\n"
+                    . "STRUCTURE :\n"
+                    . "- Accroche : un probleme concret que le lecteur vit ('Vous connaissez deja des expatries dans votre pays d'accueil. Pourquoi ne pas monetiser cette expertise ?').\n"
+                    . "- Les avantages CONCRETS avec chiffres : commissions exactes, exemples de gains possibles, flexibilite.\n"
+                    . "- Temoignage fictif mais realiste d'un affilié qui gagne.\n"
+                    . "- Les etapes concretes pour demarrer (en 3 minutes).\n"
+                    . "- CTA naturel en fin d'article.\n"
+                    . "- JAMAIS de promesses irrealistes. Honnete sur l'effort requis.",
             ],
 
             // AFFILIATION (landing pages conversion avec liens affiliés)
@@ -439,10 +499,14 @@ class ContentTypeConfig
                 'include_charts_data' => true,
                 'include_key_figures' => true,
                 'eeat_signals' => true,
-                'prompt_suffix' => "Article d'affiliation comparatif et orienté conversion. "
-                    . "Comparer objectivement les services (prix, avantages, inconvénients). "
-                    . "Les liens affiliés doivent apparaître naturellement dans le contexte. "
-                    . "Inclure un tableau comparatif détaillé et des retours d'expérience concrets.",
+                'prompt_suffix' => "Article COMPARATIF AFFILIATION — le lecteur doit pouvoir choisir le meilleur service pour SA situation.\n"
+                    . "STRUCTURE :\n"
+                    . "- Verdict rapide en introduction : 'Pour [profil X], on recommande [service A]. Pour [profil Y], [service B]. Voici notre analyse complete.'\n"
+                    . "- Tableau comparatif detaille : prix, avantages, inconvenients, note /10, profil ideal.\n"
+                    . "- Test/experience utilisateur pour chaque service : 'Nous avons teste l'inscription en [X] minutes...'.\n"
+                    . "- Section 'Pour qui ?' avec recommandations par profil (famille, solo, budget serre, premium).\n"
+                    . "- Les liens doivent apparaitre naturellement dans le contexte, pas forces.\n"
+                    . "- OBJECTIVITE totale : mentionner les defauts de chaque service.",
             ],
 
             // DEFAULT
