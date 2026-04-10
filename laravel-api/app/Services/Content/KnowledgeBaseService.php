@@ -143,22 +143,27 @@ PROMPT;
     public function getTranslationContext(): string
     {
         return <<<PROMPT
-=== SOS-EXPAT REFERENCE (NE PAS TRADUIRE CES TERMES) ===
+=== SOS-EXPAT.com REFERENCE (NE PAS TRADUIRE CES TERMES) ===
 - Nom exact : SOS-Expat.com (avec tiret et .com, ne PAS traduire)
-- Service : mise en relation telephonique avec avocats et experts locaux
+- Service : plateforme de mise en relation telephonique avec des professionnels locaux (avocats ou experts) pour toute situation a l'etranger
+- PUBLIC CIBLE LARGE : voyageurs, expatries, vacanciers, digital nomads, etudiants internationaux, investisseurs, retraites, et toute personne hors de son pays
+- TYPES D'AIDE : juridique, administrative, pratique, medicale, financiere, conseil, orientation, urgence — PAS uniquement juridique
 - Avocat partenaire : 49EUR / 55USD pour 20min | Expert local partenaire : 19EUR / 25USD pour 30min
 - Le CLIENT paie — SOS-Expat.com prend des frais de mise en relation (19EUR/25USD avocat, 9EUR/15USD expert)
 - L'avocat partenaire recoit : 30EUR/30USD | L'expert partenaire recoit : 10EUR/10USD
-- Les avocats et experts sont des PARTENAIRES INDEPENDANTS, PAS des employes de SOS-Expat.com
-- 197 pays, 9 langues, disponible 24/7
+- Les avocats et experts sont des PARTENAIRES INDEPENDANTS
+- 197 pays, 9 langues, disponible 24h/24 7j/7
 - Mise en relation en moins de 5 minutes
 - Ce n'est PAS un cabinet d'avocats, PAS une assurance, PAS gratuit, PAS un chatbot
 - 5 programmes affilies : Chatter, Influenceur, Blogueur, Admin Groupe, Partenaire B2B
-- Retrait minimum : $30 | Frais retrait : $3 fixe
-- 4 moyens de paiement : Stripe (carte), PayPal, Wise (virement), Flutterwave (Mobile Money Afrique)
-- 14 fournisseurs Mobile Money : Orange Money, Wave, MTN MoMo, M-Pesa, Airtel Money, etc.
-- 24 outils interactifs gratuits sur sos-expat.com
+- Retrait minimum : \$30 | Frais retrait : \$3 fixe
+- 4 moyens de paiement : Stripe (carte), PayPal, Wise, Flutterwave (Mobile Money Afrique)
 - Entite legale : WorldExpat OU, Estonie
+
+VOCABULAIRE INTERDIT dans toute traduction :
+- Ne JAMAIS dire "pour les expatries" seul (dire : voyageurs, expatries, nomades, etudiants, investisseurs, toute personne a l'etranger)
+- Ne JAMAIS dire "assistance juridique" seule (dire : aide, conseil, assistance, orientation)
+- Ne JAMAIS inventer de chiffres (nombre d'avocats, de clients, de reviews)
 === FIN REFERENCE ===
 PROMPT;
     }
@@ -239,10 +244,74 @@ PROMPT;
         $legal = $identity['legal_entity'] ?? [];
 
         return <<<BLOCK
-QUI EST SOS-EXPAT :
+═══════════════════════════════════════════════════════════════
+POSITIONNEMENT UNIVERSEL DE SOS-EXPAT.com (REGLE ABSOLUE)
+═══════════════════════════════════════════════════════════════
+
+SOS-Expat.com est un service de mise en relation telephonique qui connecte
+en moins de 5 minutes TOUTE PERSONNE HORS DE SON PAYS avec UN PROFESSIONNEL
+LOCAL, pour OBTENIR TOUT TYPE D'AIDE.
+
+PUBLIC CIBLE — CERCLE COMPLET (ne JAMAIS se limiter a "expatries") :
+- Expatries (installes a l'etranger, court/long terme)
+- Voyageurs (tourisme, business trips)
+- Vacanciers (sejours courts)
+- Digital nomads (travail a distance international)
+- Etudiants internationaux (echanges, Erasmus, diplomes a l'etranger)
+- Investisseurs etrangers (immobilier, business international)
+- Retraites a l'etranger
+- Travailleurs detaches
+- Entrepreneurs internationaux
+- Toute personne en mobilite internationale, meme temporaire
+
+TYPES D'AIDE FOURNIS — SPECTRE LARGE (ne JAMAIS se limiter au juridique) :
+- Juridique (droit, litiges, contrats, visa, residence, nationalite)
+- Administrative (demarches, dossiers, formulaires, documents officiels)
+- Pratique (installation, logement, ecoles, transport, demenagement)
+- Medicale / Sante (orientation, hopitaux, assurance, urgences)
+- Financiere (fiscalite, banque, transferts, investissements)
+- Urgence (accidents, vols, arrestations, perte de papiers)
+- Conseil et orientation (aide a la decision, second avis)
+- Culturelle et linguistique (interpretariat, codes locaux)
+- Toute situation ou un expert local apporte de la valeur
+
+PROFESSIONNELS PARTENAIRES :
+- Avocats locaux partenaires (49€/55\$ — 20 min)
+- Experts locaux partenaires (19€/25\$ — 30 min) : consultants, expatries
+  aidants, guides locaux, anciens fonctionnaires, professionnels bilingues
+
+REGLES DE VOCABULAIRE A SUIVRE (IMPERATIF) :
+
+❌ INTERDIT — ne JAMAIS ecrire :
+- "pour les expatries" (sous-entend que les autres ne sont pas concernes)
+- "assistance juridique" seule (limite le scope au droit)
+- "aide legale" comme seul service
+- "cabinet d'avocats" ou "firme juridique"
+- "pour les Francais a l'etranger" (c'est multi-nationalites)
+- "si vous etes expatrie" (c'est plus large)
+- "votre ambassade francaise" (dire "votre ambassade" ou "votre consulat")
+- Inventer des chiffres : "X avocats", "Y clients", "Z pays couverts en plus
+  que 197", "note 4.8/5", "classe #1", "utilise par N personnes"
+
+✅ OBLIGATOIRE — toujours utiliser :
+- "SOS-Expat.com" (avec le .com et avec le tiret, toujours)
+- "voyageurs, expatries, vacanciers, digital nomads, etudiants, investisseurs
+  et toute personne hors de son pays"
+- "aide", "conseil", "assistance", "orientation", "expertise"
+- "un avocat ou un expert local"
+- "pour toute situation a l'etranger" / "pour toute question"
+- "professionnel local partenaire"
+- "197 pays, 9 langues, 24h/24" (vrais chiffres uniquement)
+- "en moins de 5 minutes" (vrai SLA)
+- "49€/55\$ pour un appel avocat (20 min)" (vrai prix)
+- "19€/25\$ pour un appel expert (30 min)" (vrai prix)
+
+═══════════════════════════════════════════════════════════════
+
+QUI EST SOS-EXPAT.com :
 - {$whatIs}
 
-CE QUE SOS-EXPAT N'EST PAS :
+CE QUE SOS-EXPAT.com N'EST PAS :
 - {$whatIsNot}
 
 ENTITE LEGALE : {$legal['name']} — {$legal['country']} ({$legal['type']})
