@@ -850,88 +850,97 @@ class ArticleGenerationService
         ]);
 
         if ($result['success']) {
-            $title = trim($result['content'], " \t\n\r\0\x0B\"'");
-
-            // Strip any HTML/markdown that GPT might have included
-            $title = strip_tags($title);
-            $title = preg_replace('/^```\w*\s*|\s*```$/m', '', $title);
-            $title = trim($title);
-
-            // Validation: si le titre H1 est trop long, tronquer à la limite de mot
-            // H1 can be longer than meta_title (up to 100 chars, not 60)
-            if (mb_strlen($title) > 100) {
-                $truncated = mb_substr($title, 0, 100);
-                $lastSpace = mb_strrpos($truncated, ' ');
-                $title = ($lastSpace && $lastSpace > 60) ? mb_substr($truncated, 0, $lastSpace) : $truncated;
-            }
-
-            // Validation: vérifier que le mot-clé principal est présent
-            if (!empty($primaryKeyword) && mb_stripos($title, mb_substr($primaryKeyword, 0, 15)) === false) {
-                Log::warning('ArticleGeneration: title missing keyword, regenerating', [
-                    'title' => $title, 'keyword' => $primaryKeyword,
-                ]);
-                // Forcer le mot-clé dans le titre
-                $title = ucfirst($primaryKeyword) . ' : ' . $title;
-                if (mb_strlen($title) > 60) {
-                    $truncated = mb_substr($title, 0, 60);
-                    $lastSpace = mb_strrpos($truncated, ' ');
-                    $title = $lastSpace && $lastSpace > 40 ? mb_substr($truncated, 0, $lastSpace) : $truncated;
-                }
-            }
-
-            // Validation: reject generic IA-sounding patterns
-            $forbiddenStarts = ['guide ', 'article ', 'comment ', 'voici ', 'découvrez '];
-            $forbiddenPatterns = ['guide complet', 'guide pratique', 'guide essentiel', 'guide ultime', 'tout savoir'];
-            $titleLower = mb_strtolower($title);
-
-            // Strip generic patterns from title
-            foreach ($forbiddenPatterns as $pattern) {
-                if (mb_stripos($titleLower, $pattern) !== false) {
-                    $title = preg_replace('/\s*:?\s*guide (complet|pratique|essentiel|ultime)/iu', '', $title);
-                    $title = preg_replace('/\s*:?\s*tout savoir\s*(sur\s*)?/iu', ' : ', $title);
-                    $title = trim(preg_replace('/\s+/', ' ', $title), ' :');
-                    if (!preg_match('/\d{4}/', $title)) {
-                        $title .= ' (' . date('Y') . ')';
-                    }
-                    $titleLower = mb_strtolower($title);
-                    break;
-                }
-            }
-            foreach ($forbiddenStarts as $word) {
-                if (str_starts_with($titleLower, $word)) {
-                    // Prepend keyword to reframe the title
-                    $title = ucfirst($primaryKeyword) . ' : ' . $title;
-                    if (mb_strlen($title) > 60) {
-                        $truncated = mb_substr($title, 0, 60);
-                        $lastSpace = mb_strrpos($truncated, ' ');
-                        $title = $lastSpace && $lastSpace > 40 ? mb_substr($truncated, 0, $lastSpace) : $truncated;
-                    }
-                    break;
-                }
-            }
-
-            // Validation: s'assurer que le pays est dans le titre (si article lié à un pays)
-            if ($country && mb_stripos($title, mb_substr($country, 0, 10)) === false) {
-                // Insérer le pays dans le titre
-                if (str_contains($title, ' : ')) {
-                    $parts = explode(' : ', $title, 2);
-                    $title = $parts[0] . ' ' . $country . ' : ' . $parts[1];
-                } else {
-                    $title .= ' — ' . $country;
-                }
-                if (mb_strlen($title) > 100) {
-                    $title = mb_substr($title, 0, 100);
-                    $lastSpace = mb_strrpos($title, ' ');
-                    if ($lastSpace && $lastSpace > 60) $title = mb_substr($title, 0, $lastSpace);
-                }
-            }
-
+            $title = $this->cleanTitle($result['content'], $primaryKeyword, $country, $year);
             return $title;
         }
 
-        // Fallback: titre structuré basique avec mot-clé + année + pays (pas "Guide")
-        $fallback = ucfirst($primaryKeyword) . ($country ? " {$country}" : '') . ' : Tout Savoir en ' . $year;
-        return mb_substr($fallback, 0, 60);
+        // Fallback: structured title with keyword + country + year
+        $countryName = $country ? ($this->geoMeta->getGeoPlacename($country, $language) ?? $country) : '';
+        $fallback = ucfirst($primaryKeyword) . ($countryName ? " — {$countryName}" : '') . " ({$year})";
+        return mb_substr($fallback, 0, 90);
+    }
+
+    /**
+     * Clean and validate a generated title. Fixes ALL known issues:
+     * - Unicode escapes (\u00e9 → é)
+     * - Duplicate country names ("Géorgie Géorgie")
+     * - Generic patterns ("Guide Complet/Pratique/Essentiel")
+     * - Missing capitalization ("vivre a luanda")
+     * - Truncated titles ("federer et")
+     * - Unresolved template vars ({pays})
+     * - Ensure year is present
+     */
+    private function cleanTitle(string $raw, string $keyword, ?string $country, string $year): string
+    {
+        $title = trim($raw, " \t\n\r\0\x0B\"'");
+
+        // 1. Strip HTML/markdown
+        $title = strip_tags($title);
+        $title = preg_replace('/^```\w*\s*|\s*```$/m', '', $title);
+
+        // 2. Fix unicode escapes: \u00e9 → é, \u00e8 → è, etc.
+        $title = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($m) {
+            return mb_convert_encoding(pack('H*', $m[1]), 'UTF-8', 'UCS-2BE');
+        }, $title);
+
+        // 3. Resolve any remaining template variables
+        if ($country) {
+            $countryName = $this->geoMeta->getGeoPlacename($country, 'fr') ?? $country;
+            $title = str_replace(['{pays}', '{country}', '{Land}', '{país}'], $countryName, $title);
+        }
+        $title = str_replace(['{annee}', '{year}'], $year, $title);
+
+        // 4. Remove duplicate country names ("Géorgie Géorgie", "Pérou : Pérou")
+        if ($country) {
+            $countryName = $this->geoMeta->getGeoPlacename($country, 'fr') ?? $country;
+            // Match country name appearing 2+ times (case insensitive, with possible separator)
+            $escaped = preg_quote($countryName, '/');
+            $title = preg_replace("/({$escaped})\s*[:—–\-]?\s*{$escaped}/iu", '$1', $title);
+            // Also remove raw country code if it appears alongside country name
+            $title = preg_replace('/\s+' . preg_quote($country, '/') . '(?=\s|:|$)/i', '', $title);
+        }
+
+        // 5. Strip generic IA patterns
+        $title = preg_replace('/\s*:?\s*guide\s+(complet|pratique|essentiel|ultime|efficace)\b/iu', '', $title);
+        $title = preg_replace('/\s*:?\s*tout\s+savoir\s*(sur\s*)?/iu', '', $title);
+
+        // 6. Fix capitalization — Title Case for French
+        // Capitalize first letter + after : — –
+        $title = mb_strtoupper(mb_substr($title, 0, 1)) . mb_substr($title, 1);
+        $title = preg_replace_callback('/([:\—\–]\s*)([a-zàâäéèêëïîôùûüÿæœç])/u', function ($m) {
+            return $m[1] . mb_strtoupper($m[2]);
+        }, $title);
+
+        // 7. Capitalize city/country names (words after "à", "en", "au", "aux", "de")
+        $title = preg_replace_callback('/\b(à|en|au|aux|de|du)\s+([a-zàâäéèêëïîôùûüÿæœç])/u', function ($m) {
+            return $m[1] . ' ' . mb_strtoupper($m[2]);
+        }, $title);
+
+        // 8. Ensure year is present
+        if (!preg_match('/\d{4}/', $title)) {
+            $title .= " ({$year})";
+        }
+
+        // 9. Clean up spacing/punctuation artifacts
+        $title = preg_replace('/\s+/', ' ', $title);
+        $title = preg_replace('/\s*:\s*:\s*/', ' : ', $title);
+        $title = preg_replace('/\(\s*\)/', '', $title); // empty parentheses
+        $title = trim($title, " \t:—–-");
+
+        // 10. Reject if too short (< 20 chars = probably broken/truncated)
+        if (mb_strlen($title) < 20) {
+            $countryName = $country ? ($this->geoMeta->getGeoPlacename($country, 'fr') ?? $country) : '';
+            $title = ucfirst($keyword) . ($countryName ? " — {$countryName}" : '') . " ({$year})";
+        }
+
+        // 11. Truncate if too long (max 90 chars, cut at word boundary)
+        if (mb_strlen($title) > 90) {
+            $truncated = mb_substr($title, 0, 90);
+            $lastSpace = mb_strrpos($truncated, ' ');
+            $title = ($lastSpace && $lastSpace > 50) ? mb_substr($truncated, 0, $lastSpace) : $truncated;
+        }
+
+        return trim($title);
     }
 
     private function phase04_generateExcerpt(string $title, array $facts, string $language): string
