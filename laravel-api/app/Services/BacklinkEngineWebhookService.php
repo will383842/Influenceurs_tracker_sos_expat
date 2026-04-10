@@ -23,6 +23,7 @@ class BacklinkEngineWebhookService
         'annuaire',
         'partenaire',
         // Institutionnel
+        'ambassade',
         'consulat',
         'association',
         'ecole',
