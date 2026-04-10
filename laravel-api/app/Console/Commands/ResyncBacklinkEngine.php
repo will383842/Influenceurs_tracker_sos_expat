@@ -49,14 +49,15 @@ class ResyncBacklinkEngine extends Command
             $query->where('contact_type', $type);
         }
 
-        $influenceurs = $query->get();
-        $this->info("Influenceurs à synchro: {$influenceurs->count()}");
+        $total = $query->count();
+        $this->info("Influenceurs à synchro: {$total}");
 
         $sent   = 0;
         $skipped = 0;
         $errors = 0;
 
-        foreach ($influenceurs as $contact) {
+        $query->chunk(100, function ($chunk) use (&$sent, &$skipped, &$errors, $dryRun) {
+        foreach ($chunk as $contact) {
             $contactType = $contact->contact_type instanceof \App\Enums\ContactType
                 ? $contact->contact_type->value
                 : (string) $contact->contact_type;
@@ -102,6 +103,7 @@ class ResyncBacklinkEngine extends Command
             // Small delay to avoid overwhelming the webhook
             usleep(100_000); // 100ms
         }
+        }); // end chunk
 
         $this->line("  Sent: {$sent} | Skipped: {$skipped} | Errors: {$errors}");
 
@@ -111,14 +113,15 @@ class ResyncBacklinkEngine extends Command
             $pressQuery->whereNull('backlink_synced_at');
         }
 
-        $pressContacts = $pressQuery->get();
-        $this->info("Press contacts à synchro: {$pressContacts->count()}");
+        $pTotal = $pressQuery->count();
+        $this->info("Press contacts à synchro: {$pTotal}");
 
         $pSent = 0;
         $pSkipped = 0;
         $pErrors = 0;
 
-        foreach ($pressContacts as $pc) {
+        $pressQuery->chunk(100, function ($chunk) use (&$pSent, &$pSkipped, &$pErrors, $dryRun) {
+        foreach ($chunk as $pc) {
             $emailDomain = strtolower(explode('@', $pc->email)[1] ?? '');
             if (in_array($emailDomain, self::JUNK_EMAIL_DOMAINS)) {
                 $pSkipped++;
@@ -153,6 +156,7 @@ class ResyncBacklinkEngine extends Command
 
             usleep(100_000);
         }
+        }); // end chunk
 
         $this->line("  Sent: {$pSent} | Skipped: {$pSkipped} | Errors: {$pErrors}");
 
