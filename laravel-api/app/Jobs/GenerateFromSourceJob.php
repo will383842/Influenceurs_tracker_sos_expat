@@ -160,9 +160,12 @@ class GenerateFromSourceJob implements ShouldQueue
         // Level 2: per-item input quality
         $inputQuality  = $item->input_quality ?? $this->deriveInputQuality($item);
         $sourceContent = $this->loadSourceContent($item, $inputQuality);
-        $country       = $item->country ?? null;
+        $rawCountry    = $item->country ?? null;
 
-        // If no country on item, pick a random one from priority list (for template variables)
+        // Normalize country to ISO 2-letter code (critical for Blog country association)
+        $country = $rawCountry ? $this->normalizeCountryCode($rawCountry) : null;
+
+        // If no country on item, pick a random one from priority list
         if (!$country) {
             $priorities = ['FR', 'BE', 'CH', 'CA', 'MA', 'ES', 'DE', 'PT', 'TH', 'US', 'GB', 'AE', 'IT', 'NL', 'AU'];
             $country = $priorities[array_rand($priorities)];
@@ -172,7 +175,7 @@ class GenerateFromSourceJob implements ShouldQueue
         $keywords      = $this->buildKeywords($item, $this->sourceSlug);
 
         // Resolve template variables {pays}, {country}, {annee}, {ville} in topic
-        $countryName = \App\Models\ContentCountry::where('country_code', $country)->value('name_fr') ?? $country;
+        $countryName = $this->countryName($country);
         $topic = str_replace(
             ['{pays}', '{country}', '{Land}', '{país}', '{annee}', '{year}'],
             [$countryName, $countryName, $countryName, $countryName, date('Y'), date('Y')],
@@ -346,6 +349,110 @@ class GenerateFromSourceJob implements ShouldQueue
         }
 
         return null;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Country normalization — converts any format to ISO 2-letter code
+    // ─────────────────────────────────────────────────────────────
+
+    private static ?array $countryMap = null;
+
+    private function normalizeCountryCode(string $input): ?string
+    {
+        $input = trim($input);
+
+        // Already a 2-letter code
+        if (preg_match('/^[A-Z]{2}$/', strtoupper($input))) {
+            return strtoupper($input);
+        }
+
+        // Fix unicode escapes first: \u00e9 → é
+        $input = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($m) {
+            return mb_convert_encoding(pack('H*', $m[1]), 'UTF-8', 'UCS-2BE');
+        }, $input);
+
+        // Build mapping from name → code (cached in static property)
+        if (self::$countryMap === null) {
+            self::$countryMap = [];
+            $names = [
+                'AF'=>['Afghanistan'],'AL'=>['Albanie','Albania'],'DZ'=>['Algérie','Algeria','Algerie'],
+                'AD'=>['Andorre','Andorra'],'AO'=>['Angola'],'AE'=>['Émirats arabes unis','UAE','Emirats'],
+                'AR'=>['Argentine','Argentina'],'AU'=>['Australie','Australia'],'AT'=>['Autriche','Austria'],
+                'BE'=>['Belgique','Belgium'],'BJ'=>['Bénin','Benin'],'BO'=>['Bolivie','Bolivia'],
+                'BR'=>['Brésil','Brazil','Bresil'],'BG'=>['Bulgarie','Bulgaria'],
+                'BF'=>['Burkina Faso'],'BI'=>['Burundi'],'KH'=>['Cambodge','Cambodia'],
+                'CM'=>['Cameroun','Cameroon'],'CA'=>['Canada'],'CF'=>['Centrafrique'],
+                'CL'=>['Chili','Chile'],'CN'=>['Chine','China'],'CO'=>['Colombie','Colombia'],
+                'KM'=>['Comores','Comoros'],'CG'=>['Congo'],'CD'=>['RDC','Congo-Kinshasa'],
+                'KR'=>['Corée du Sud','South Korea','Coree du Sud'],'CI'=>['Côte d\'Ivoire','Cote d\'Ivoire','Ivory Coast'],
+                'HR'=>['Croatie','Croatia'],'CU'=>['Cuba'],'DK'=>['Danemark','Denmark'],
+                'DJ'=>['Djibouti'],'EG'=>['Égypte','Egypt','Egypte'],'ES'=>['Espagne','Spain'],
+                'EE'=>['Estonie','Estonia'],'US'=>['États-Unis','USA','Etats-Unis','United States'],
+                'ET'=>['Éthiopie','Ethiopia'],'FI'=>['Finlande','Finland'],'FR'=>['France'],
+                'GA'=>['Gabon'],'GE'=>['Géorgie','Georgia','Georgie'],'GH'=>['Ghana'],
+                'GR'=>['Grèce','Greece','Grece'],'GT'=>['Guatemala'],'GN'=>['Guinée','Guinea'],
+                'HT'=>['Haïti','Haiti'],'HN'=>['Honduras'],'HK'=>['Hong Kong'],
+                'HU'=>['Hongrie','Hungary'],'IN'=>['Inde','India'],'ID'=>['Indonésie','Indonesia','Indonesie'],
+                'IQ'=>['Irak','Iraq'],'IR'=>['Iran'],'IE'=>['Irlande','Ireland'],
+                'IS'=>['Islande','Iceland'],'IL'=>['Israël','Israel'],'IT'=>['Italie','Italy'],
+                'JM'=>['Jamaïque','Jamaica'],'JP'=>['Japon','Japan'],'JO'=>['Jordanie','Jordan'],
+                'KE'=>['Kenya'],'KW'=>['Koweït','Kuwait'],'LA'=>['Laos'],
+                'LV'=>['Lettonie','Latvia'],'LB'=>['Liban','Lebanon'],'LY'=>['Libye','Libya'],
+                'LT'=>['Lituanie','Lithuania'],'LU'=>['Luxembourg'],'MG'=>['Madagascar'],
+                'MY'=>['Malaisie','Malaysia'],'ML'=>['Mali'],'MT'=>['Malte','Malta'],
+                'MA'=>['Maroc','Morocco'],'MU'=>['Maurice','Île Maurice','Ile Maurice','Mauritius'],
+                'MR'=>['Mauritanie','Mauritania'],'MX'=>['Mexique','Mexico'],
+                'MD'=>['Moldavie','Moldova'],'MC'=>['Monaco'],'MN'=>['Mongolie','Mongolia'],
+                'ME'=>['Monténégro','Montenegro'],'MZ'=>['Mozambique'],
+                'MM'=>['Myanmar','Birmanie'],'NA'=>['Namibie','Namibia'],
+                'NP'=>['Népal','Nepal'],'NI'=>['Nicaragua'],'NE'=>['Niger'],
+                'NG'=>['Nigeria','Nigéria'],'NO'=>['Norvège','Norway','Norvege'],
+                'NZ'=>['Nouvelle-Zélande','New Zealand'],'OM'=>['Oman'],
+                'UG'=>['Ouganda','Uganda'],'UZ'=>['Ouzbékistan','Uzbekistan'],
+                'PK'=>['Pakistan'],'PA'=>['Panama'],'PY'=>['Paraguay'],
+                'NL'=>['Pays-Bas','Netherlands'],'PE'=>['Pérou','Peru','Perou'],
+                'PH'=>['Philippines'],'PL'=>['Pologne','Poland'],'PT'=>['Portugal'],
+                'QA'=>['Qatar'],'RO'=>['Roumanie','Romania'],'GB'=>['Royaume-Uni','UK','United Kingdom'],
+                'RU'=>['Russie','Russia'],'RW'=>['Rwanda'],'SN'=>['Sénégal','Senegal'],
+                'RS'=>['Serbie','Serbia'],'SG'=>['Singapour','Singapore'],
+                'SK'=>['Slovaquie','Slovakia'],'SI'=>['Slovénie','Slovenia'],
+                'SD'=>['Soudan','Sudan'],'LK'=>['Sri Lanka'],'SE'=>['Suède','Sweden','Suede'],
+                'CH'=>['Suisse','Switzerland'],'SR'=>['Suriname'],
+                'SY'=>['Syrie','Syria'],'TW'=>['Taïwan','Taiwan'],'TZ'=>['Tanzanie','Tanzania'],
+                'TD'=>['Tchad','Chad'],'CZ'=>['Tchéquie','Czech Republic','Republique Tcheque'],
+                'TH'=>['Thaïlande','Thailand','Thailande'],'TG'=>['Togo'],
+                'TN'=>['Tunisie','Tunisia'],'TR'=>['Turquie','Turkey'],
+                'UA'=>['Ukraine'],'UY'=>['Uruguay'],'VE'=>['Venezuela'],
+                'VN'=>['Vietnam','Viêt Nam'],'YE'=>['Yémen','Yemen'],
+                'ZM'=>['Zambie','Zambia'],'ZW'=>['Zimbabwe'],
+                'ST'=>['São Tomé-et-Príncipe','Sao Tomé et Principe','Sao Tome'],
+                'YT'=>['Mayotte'],'PF'=>['Polynésie française','Polynesie francaise'],
+                'GI'=>['Gibraltar'],'AW'=>['Aruba'],
+                'SL'=>['Sierra Leone'],'BB'=>['Barbade','Barbados'],
+                'MO'=>['Macao','Macau'],'SB'=>['Îles Salomon','Iles Salomon'],
+            ];
+            foreach ($names as $code => $variants) {
+                foreach ($variants as $name) {
+                    self::$countryMap[mb_strtolower($name)] = $code;
+                }
+            }
+        }
+
+        return self::$countryMap[mb_strtolower($input)] ?? null;
+    }
+
+    private function countryName(string $code): string
+    {
+        // Reverse lookup: code → French name
+        if (self::$countryMap === null) {
+            $this->normalizeCountryCode('init'); // init the map
+        }
+        foreach (self::$countryMap as $name => $c) {
+            if ($c === strtoupper($code)) {
+                return mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
+            }
+        }
+        return $code;
     }
 
     // ─────────────────────────────────────────────────────────────
