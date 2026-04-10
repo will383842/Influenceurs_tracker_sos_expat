@@ -810,31 +810,36 @@ class ArticleGenerationService
 
         $systemPrompt = $this->kbPrompt . "\n\n" . ($template
             ? $this->replaceVariables($template->system_message, ['language' => $language, 'year' => $year])
-            : "Tu es un expert SEO senior spécialisé dans les titres à fort CTR. "
-              . "Génère un titre d'article (H1) PARFAIT, accrocheur et complet.\n\n"
-              . "RÈGLES STRICTES pour le titre :\n"
-              . "1. LONGUEUR : entre 50 et 90 caractères. Le titre doit être COMPLET et ne JAMAIS être coupé au milieu d'un mot ou d'une phrase.\n"
-              . "2. MOT-CLÉ PRINCIPAL : \"{$primaryKeyword}\" doit apparaître dans les 3 PREMIERS MOTS du titre\n"
-              . "3. ANNÉE : inclure \"{$year}\" dans le titre (signal de fraîcheur critique)\n"
-              . "4. FORMAT PROUVÉ (choisir un de ces formats haute performance) :\n"
-              . "   - \"{Mot-clé} : Complet {$year}\"\n"
-              . "   - \"{Mot-clé} - {Chiffre} Étapes Essentielles ({$year})\"\n"
-              . "   - \"{Mot-clé} : Tout Savoir en {$year}\"\n"
-              . "   - \"{Mot-clé} {$year} : Conseils, Démarches et Astuces\"\n"
-              . "   - \"Top {Chiffre} : {Mot-clé} en {$year}\"\n"
-              . "5. POWER WORDS : utiliser un de ces mots qui augmentent le CTR : "
-              . "Complet, Pratique, Essentiel, À Jour, Officiel, Ultime, Simple, Rapide\n"
-              . "6. PAS de : clickbait, point d'exclamation, majuscules excessives, \"meilleur\" sans justification\n"
-              . "7. NE COMMENCE PAS le titre par : \"Guide\", \"Article\", \"Comment\", \"Voici\"\n"
-              . "7. UNIQUE : le titre ne doit pas être générique, il doit être spécifique au sujet\n\n"
-              . "Langue: {$language}. Retourne UNIQUEMENT le titre, sans guillemets ni explication.");
+            : "Tu generes des titres SEO qui correspondent a des VRAIES INTENTIONS DE RECHERCHE Google.\n\n"
+              . "Le titre que tu generes doit etre EXACTEMENT ce qu'un expatrie taperait dans Google quand il a ce probleme ou cette question.\n\n"
+              . "REGLES :\n"
+              . "1. LONGUEUR : 50-90 caracteres. Le titre est COMPLET, jamais coupe.\n"
+              . "2. MOT-CLE PRINCIPAL : \"{$primaryKeyword}\" apparait dans les 5 premiers mots.\n"
+              . "3. ANNEE : inclure \"{$year}\" (signal fraicheur Google).\n"
+              . "4. FORMATS INTERDITS — NE JAMAIS UTILISER :\n"
+              . "   - 'Guide Complet', 'Guide Pratique', 'Guide Essentiel', 'Guide Ultime'\n"
+              . "   - 'Tout Savoir sur', 'Tout ce qu'il faut savoir'\n"
+              . "   - 'Conseils, Demarches et Astuces'\n"
+              . "   - 'Decouvrez', 'Voici', 'Comment'\n"
+              . "   - Tout titre qui commence par 'Guide'\n"
+              . "5. FORMATS A UTILISER — ce sont des REQUETES GOOGLE NATURELLES :\n"
+              . "   - URGENCE : 'Passeport perdu au Maroc : que faire en {$year}'\n"
+              . "   - QUESTION : 'Combien coute un visa de travail en Allemagne ({$year})'\n"
+              . "   - PROBLEME : 'Compte bancaire bloque a l'etranger : solutions {$year}'\n"
+              . "   - COMPARAISON : 'Portugal vs Espagne : ou s'expatrier en {$year}'\n"
+              . "   - DEMARCHE : 'Visa digital nomad Thailande : demarches et couts {$year}'\n"
+              . "   - COUT : 'Cout de la vie a Lisbonne en {$year} : budget detaille'\n"
+              . "   - TEMOIGNAGE : 'S'installer a Berlin a 35 ans : mon experience ({$year})'\n"
+              . "6. Le titre doit donner ENVIE de cliquer — il promet une REPONSE CONCRETE.\n"
+              . "7. Il doit etre SPECIFIQUE au pays/ville mentionne — pas generique.\n\n"
+              . "Langue: {$language}. Retourne UNIQUEMENT le titre, sans guillemets.");
 
         $userPrompt = "Sujet: {$topic}\nMot-clé principal: {$primaryKeyword}\nAnnée: {$year}{$factsContext}";
 
         // Force country name in title for country/city guide articles (anti-duplicate content)
         if ($country && in_array($contentType, ['guide', 'pillar', 'guide_city'], true)) {
             $countryName = $this->geoMeta->getGeoPlacename($country, $language);
-            $userPrompt .= "\n\nOBLIGATOIRE : Le titre DOIT contenir explicitement le nom du pays ou de la ville '{$countryName}'. Exemple : 'Visa pour {$countryName} : Guide Complet {$year}'. Sans ce nom géographique le titre sera REJETÉ."
+            $userPrompt .= "\n\nOBLIGATOIRE : Le titre DOIT contenir explicitement le nom du pays ou de la ville '{$countryName}'. Exemple : 'Visa pour {$countryName} : demarches et couts ({$year})'. Sans ce nom géographique le titre sera REJETÉ."
                 . "\nGRAMMAIRE : Utiliser la BONNE préposition devant le nom de pays (en français : 'au Portugal', 'en France', 'aux États-Unis', 'à Singapour'). Le titre DOIT sonner 100% naturel et natif — JAMAIS de formulation maladroite.";
         }
 
@@ -874,9 +879,24 @@ class ArticleGenerationService
                 }
             }
 
-            // Validation: reject titles starting with forbidden words
-            $forbiddenStarts = ['guide ', 'article ', 'comment ', 'voici '];
+            // Validation: reject generic IA-sounding patterns
+            $forbiddenStarts = ['guide ', 'article ', 'comment ', 'voici ', 'découvrez '];
+            $forbiddenPatterns = ['guide complet', 'guide pratique', 'guide essentiel', 'guide ultime', 'tout savoir'];
             $titleLower = mb_strtolower($title);
+
+            // Strip generic patterns from title
+            foreach ($forbiddenPatterns as $pattern) {
+                if (mb_stripos($titleLower, $pattern) !== false) {
+                    $title = preg_replace('/\s*:?\s*guide (complet|pratique|essentiel|ultime)/iu', '', $title);
+                    $title = preg_replace('/\s*:?\s*tout savoir\s*(sur\s*)?/iu', ' : ', $title);
+                    $title = trim(preg_replace('/\s+/', ' ', $title), ' :');
+                    if (!preg_match('/\d{4}/', $title)) {
+                        $title .= ' (' . date('Y') . ')';
+                    }
+                    $titleLower = mb_strtolower($title);
+                    break;
+                }
+            }
             foreach ($forbiddenStarts as $word) {
                 if (str_starts_with($titleLower, $word)) {
                     // Prepend keyword to reframe the title
