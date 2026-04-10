@@ -5,6 +5,7 @@ namespace App\Enums;
 enum ContactType: string
 {
     // Institutionnel
+    case Ambassade = 'ambassade';
     case Consulat = 'consulat';
     case Association = 'association';
     case Ecole = 'ecole';
