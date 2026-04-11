@@ -1,43 +1,76 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
 import type { ReminderWithInfluenceur } from '../types/influenceur';
 
 const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const REMINDERS_KEY = ['reminders'] as const;
 
+async function fetchReminders(): Promise<ReminderWithInfluenceur[]> {
+  const { data } = await api.get<ReminderWithInfluenceur[]>('/reminders');
+  return data;
+}
+
+/**
+ * useReminders — React Query-backed. Same public API as legacy hook:
+ * { reminders, loading, refresh, dismiss, markDone }
+ *
+ * - Cached at key ['reminders']
+ * - Polls every 5 minutes via refetchInterval
+ * - Optimistic removal on dismiss/markDone
+ */
 export function useReminders() {
-  const [reminders, setReminders] = useState<ReminderWithInfluenceur[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
 
-  const fetchReminders = useCallback(async () => {
-    try {
-      const { data } = await api.get<ReminderWithInfluenceur[]>('/reminders');
-      setReminders(data);
-    } catch (err) {
-      console.error('Failed to fetch reminders:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const query = useQuery({
+    queryKey: REMINDERS_KEY,
+    queryFn: fetchReminders,
+    refetchInterval: POLL_INTERVAL,
+    staleTime: 60_000,
+  });
 
-  // Stable ref to avoid resetting the interval on every render
-  const fetchRef = useRef(fetchReminders);
-  fetchRef.current = fetchReminders;
+  const removeFromCache = useCallback(
+    (id: number) => {
+      qc.setQueryData<ReminderWithInfluenceur[]>(REMINDERS_KEY, (prev) =>
+        prev ? prev.filter((r) => r.id !== id) : prev,
+      );
+    },
+    [qc],
+  );
 
-  useEffect(() => {
-    fetchRef.current();
-    const interval = setInterval(() => fetchRef.current(), POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, []);
+  const dismissMutation = useMutation({
+    mutationFn: async ({ id, notes }: { id: number; notes?: string }) => {
+      await api.post(`/reminders/${id}/dismiss`, { notes });
+      return id;
+    },
+    onSuccess: removeFromCache,
+  });
 
-  const dismiss = useCallback(async (id: number, notes?: string) => {
-    await api.post(`/reminders/${id}/dismiss`, { notes });
-    setReminders(prev => prev.filter(r => r.id !== id));
-  }, []);
+  const doneMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.post(`/reminders/${id}/done`);
+      return id;
+    },
+    onSuccess: removeFromCache,
+  });
 
-  const markDone = useCallback(async (id: number) => {
-    await api.post(`/reminders/${id}/done`);
-    setReminders(prev => prev.filter(r => r.id !== id));
-  }, []);
+  const dismiss = useCallback(
+    (id: number, notes?: string) => dismissMutation.mutateAsync({ id, notes }),
+    [dismissMutation],
+  );
 
-  return { reminders, loading, refresh: fetchReminders, dismiss, markDone };
+  const markDone = useCallback(
+    (id: number) => doneMutation.mutateAsync(id),
+    [doneMutation],
+  );
+
+  const refresh = useCallback(() => qc.invalidateQueries({ queryKey: REMINDERS_KEY }), [qc]);
+
+  return {
+    reminders: query.data ?? [],
+    loading: query.isLoading,
+    refresh,
+    dismiss,
+    markDone,
+  };
 }

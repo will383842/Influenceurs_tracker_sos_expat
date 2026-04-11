@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as contentApi from '../api/contentApi';
 import type {
   GeneratedArticle,
-  Comparative,
   ContentCampaign,
   CostOverview,
   SeoDashboard,
@@ -18,42 +18,70 @@ import type {
 // ARTICLES
 // ============================================================
 
+type ArticleListParams = {
+  status?: string;
+  language?: string;
+  country?: string;
+  search?: string;
+  page?: number;
+};
+
 export function useContentArticles() {
-  const [articles, setArticles] = useState<GeneratedArticle[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; total: number }>({
-    current_page: 1,
-    last_page: 1,
-    total: 0,
+  const qc = useQueryClient();
+  const [params, setParams] = useState<ArticleListParams>({});
+
+  const query = useQuery<PaginatedResponse<GeneratedArticle>>({
+    queryKey: ['content', 'articles', params],
+    queryFn: async () => {
+      const { data } = await contentApi.fetchArticles(params);
+      return data;
+    },
+    enabled: false,
+    staleTime: 30_000,
   });
 
-  const load = useCallback(async (params?: { status?: string; language?: string; country?: string; search?: string; page?: number }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data } = await contentApi.fetchArticles(params);
-      setArticles(data.data);
-      setPagination({ current_page: data.current_page, last_page: data.last_page, total: data.total });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors du chargement des articles';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const invalidate = useCallback(
+    () => qc.invalidateQueries({ queryKey: ['content', 'articles'] }),
+    [qc],
+  );
 
-  const remove = useCallback(async (id: number) => {
-    await contentApi.deleteArticle(id);
-    setArticles(prev => prev.filter(a => a.id !== id));
-  }, []);
+  const removeMutation = useMutation({
+    mutationFn: (id: number) => contentApi.deleteArticle(id),
+    onSuccess: invalidate,
+  });
 
-  const bulkRemove = useCallback(async (ids: number[]) => {
-    await contentApi.bulkDeleteArticles(ids);
-    setArticles(prev => prev.filter(a => !ids.includes(a.id)));
-  }, []);
+  const bulkRemoveMutation = useMutation({
+    mutationFn: (ids: number[]) => contentApi.bulkDeleteArticles(ids),
+    onSuccess: invalidate,
+  });
 
-  return { articles, loading, error, pagination, load, remove, bulkRemove };
+  const load = useCallback(
+    async (newParams?: ArticleListParams) => {
+      if (newParams) setParams(newParams);
+      await query.refetch();
+    },
+    [query],
+  );
+
+  const remove = useCallback((id: number) => removeMutation.mutateAsync(id), [removeMutation]);
+  const bulkRemove = useCallback(
+    (ids: number[]) => bulkRemoveMutation.mutateAsync(ids).then(() => undefined),
+    [bulkRemoveMutation],
+  );
+
+  return {
+    articles: query.data?.data ?? [],
+    loading: query.isFetching,
+    error: query.error ? (query.error as Error).message : null,
+    pagination: {
+      current_page: query.data?.current_page ?? 1,
+      last_page: query.data?.last_page ?? 1,
+      total: query.data?.total ?? 0,
+    },
+    load,
+    remove,
+    bulkRemove,
+  };
 }
 
 // ============================================================
@@ -61,40 +89,54 @@ export function useContentArticles() {
 // ============================================================
 
 export function useContentGeneration() {
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateArticle = useCallback(async (params: GenerateArticleParams) => {
-    setGenerating(true);
-    setError(null);
-    try {
-      const { data } = await contentApi.generateArticle(params);
-      return data;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la génération';
-      setError(message);
-      return null;
-    } finally {
-      setGenerating(false);
-    }
-  }, []);
+  const articleMutation = useMutation({
+    mutationFn: (params: GenerateArticleParams) => contentApi.generateArticle(params),
+    onError: (err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération');
+    },
+  });
 
-  const generateComparative = useCallback(async (params: GenerateComparativeParams) => {
-    setGenerating(true);
-    setError(null);
-    try {
-      const { data } = await contentApi.generateComparative(params);
-      return data;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la génération du comparatif';
-      setError(message);
-      return null;
-    } finally {
-      setGenerating(false);
-    }
-  }, []);
+  const comparativeMutation = useMutation({
+    mutationFn: (params: GenerateComparativeParams) => contentApi.generateComparative(params),
+    onError: (err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération du comparatif');
+    },
+  });
 
-  return { generating, error, generateArticle, generateComparative };
+  const generateArticle = useCallback(
+    async (params: GenerateArticleParams) => {
+      setError(null);
+      try {
+        const { data } = await articleMutation.mutateAsync(params);
+        return data;
+      } catch {
+        return null;
+      }
+    },
+    [articleMutation],
+  );
+
+  const generateComparative = useCallback(
+    async (params: GenerateComparativeParams) => {
+      setError(null);
+      try {
+        const { data } = await comparativeMutation.mutateAsync(params);
+        return data;
+      } catch {
+        return null;
+      }
+    },
+    [comparativeMutation],
+  );
+
+  return {
+    generating: articleMutation.isPending || comparativeMutation.isPending,
+    error,
+    generateArticle,
+    generateComparative,
+  };
 }
 
 // ============================================================
@@ -102,60 +144,75 @@ export function useContentGeneration() {
 // ============================================================
 
 export function useContentCampaigns() {
-  const [campaigns, setCampaigns] = useState<ContentCampaign[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; total: number }>({
-    current_page: 1,
-    last_page: 1,
-    total: 0,
+  const qc = useQueryClient();
+  const [params, setParams] = useState<Record<string, unknown>>({});
+
+  const query = useQuery<PaginatedResponse<ContentCampaign>>({
+    queryKey: ['content', 'campaigns', params],
+    queryFn: async () => {
+      const { data } = await contentApi.fetchCampaigns(params);
+      return data;
+    },
+    enabled: false,
+    staleTime: 30_000,
   });
 
-  const load = useCallback(async (params?: Record<string, unknown>) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data } = await contentApi.fetchCampaigns(params);
-      setCampaigns(data.data);
-      setPagination({ current_page: data.current_page, last_page: data.last_page, total: data.total });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors du chargement des campagnes';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const invalidate = useCallback(
+    () => qc.invalidateQueries({ queryKey: ['content', 'campaigns'] }),
+    [qc],
+  );
 
-  const start = useCallback(async (id: number) => {
-    const { data } = await contentApi.startCampaign(id);
-    setCampaigns(prev => prev.map(c => c.id === id ? data : c));
-    return data;
-  }, []);
+  const load = useCallback(
+    async (newParams?: Record<string, unknown>) => {
+      if (newParams) setParams(newParams);
+      await query.refetch();
+    },
+    [query],
+  );
 
-  const pause = useCallback(async (id: number) => {
-    const { data } = await contentApi.pauseCampaign(id);
-    setCampaigns(prev => prev.map(c => c.id === id ? data : c));
-    return data;
-  }, []);
+  const startMutation = useMutation({
+    mutationFn: (id: number) => contentApi.startCampaign(id),
+    onSuccess: invalidate,
+  });
+  const pauseMutation = useMutation({
+    mutationFn: (id: number) => contentApi.pauseCampaign(id),
+    onSuccess: invalidate,
+  });
+  const resumeMutation = useMutation({
+    mutationFn: (id: number) => contentApi.resumeCampaign(id),
+    onSuccess: invalidate,
+  });
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => contentApi.cancelCampaign(id),
+    onSuccess: invalidate,
+  });
+  const removeMutation = useMutation({
+    mutationFn: (id: number) => contentApi.deleteCampaign(id),
+    onSuccess: invalidate,
+  });
 
-  const resume = useCallback(async (id: number) => {
-    const { data } = await contentApi.resumeCampaign(id);
-    setCampaigns(prev => prev.map(c => c.id === id ? data : c));
-    return data;
-  }, []);
+  const start = useCallback((id: number) => startMutation.mutateAsync(id).then((r) => r.data), [startMutation]);
+  const pause = useCallback((id: number) => pauseMutation.mutateAsync(id).then((r) => r.data), [pauseMutation]);
+  const resume = useCallback((id: number) => resumeMutation.mutateAsync(id).then((r) => r.data), [resumeMutation]);
+  const cancel = useCallback((id: number) => cancelMutation.mutateAsync(id).then((r) => r.data), [cancelMutation]);
+  const remove = useCallback((id: number) => removeMutation.mutateAsync(id).then(() => undefined), [removeMutation]);
 
-  const cancel = useCallback(async (id: number) => {
-    const { data } = await contentApi.cancelCampaign(id);
-    setCampaigns(prev => prev.map(c => c.id === id ? data : c));
-    return data;
-  }, []);
-
-  const remove = useCallback(async (id: number) => {
-    await contentApi.deleteCampaign(id);
-    setCampaigns(prev => prev.filter(c => c.id !== id));
-  }, []);
-
-  return { campaigns, loading, error, pagination, load, start, pause, resume, cancel, remove };
+  return {
+    campaigns: query.data?.data ?? [],
+    loading: query.isFetching,
+    error: query.error ? (query.error as Error).message : null,
+    pagination: {
+      current_page: query.data?.current_page ?? 1,
+      last_page: query.data?.last_page ?? 1,
+      total: query.data?.total ?? 0,
+    },
+    load,
+    start,
+    pause,
+    resume,
+    cancel,
+    remove,
+  };
 }
 
 // ============================================================
@@ -163,19 +220,21 @@ export function useContentCampaigns() {
 // ============================================================
 
 export function useCosts() {
-  const [overview, setOverview] = useState<CostOverview | null>(null);
-  const [loading, setLoading] = useState(false);
+  const query = useQuery<CostOverview>({
+    queryKey: ['content', 'costs'],
+    queryFn: async () => {
+      const { data } = await contentApi.fetchCostOverview();
+      return data;
+    },
+    enabled: false,
+    staleTime: 60_000,
+  });
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await contentApi.fetchCostOverview();
-      setOverview(data);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
+    await query.refetch();
+  }, [query]);
 
-  return { overview, loading, load };
+  return { overview: query.data ?? null, loading: query.isFetching, load };
 }
 
 // ============================================================
@@ -183,19 +242,21 @@ export function useCosts() {
 // ============================================================
 
 export function useSeoDashboard() {
-  const [dashboard, setDashboard] = useState<SeoDashboard | null>(null);
-  const [loading, setLoading] = useState(false);
+  const query = useQuery<SeoDashboard>({
+    queryKey: ['content', 'seo-dashboard'],
+    queryFn: async () => {
+      const { data } = await contentApi.fetchSeoDashboard();
+      return data;
+    },
+    enabled: false,
+    staleTime: 60_000,
+  });
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await contentApi.fetchSeoDashboard();
-      setDashboard(data);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
+    await query.refetch();
+  }, [query]);
 
-  return { dashboard, loading, load };
+  return { dashboard: query.data ?? null, loading: query.isFetching, load };
 }
 
 // ============================================================
@@ -203,19 +264,21 @@ export function useSeoDashboard() {
 // ============================================================
 
 export function useGenerationStats() {
-  const [stats, setStats] = useState<GenerationStats | null>(null);
-  const [loading, setLoading] = useState(false);
+  const query = useQuery<GenerationStats>({
+    queryKey: ['content', 'generation-stats'],
+    queryFn: async () => {
+      const { data } = await contentApi.fetchGenerationStats();
+      return data;
+    },
+    enabled: false,
+    staleTime: 30_000,
+  });
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await contentApi.fetchGenerationStats();
-      setStats(data);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
+    await query.refetch();
+  }, [query]);
 
-  return { stats, loading, load };
+  return { stats: query.data ?? null, loading: query.isFetching, load };
 }
 
 // ============================================================
@@ -223,39 +286,72 @@ export function useGenerationStats() {
 // ============================================================
 
 export function usePublishing() {
-  const [endpoints, setEndpoints] = useState<PublishingEndpoint[]>([]);
-  const [queue, setQueue] = useState<PublicationQueueItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const qc = useQueryClient();
+  const [queueParams, setQueueParams] = useState<Record<string, unknown>>({});
+
+  const endpointsQuery = useQuery<PublishingEndpoint[]>({
+    queryKey: ['publishing', 'endpoints'],
+    queryFn: async () => {
+      const { data } = await contentApi.fetchEndpoints();
+      return data;
+    },
+    enabled: false,
+    staleTime: 60_000,
+  });
+
+  const queueQuery = useQuery<PaginatedResponse<PublicationQueueItem>>({
+    queryKey: ['publishing', 'queue', queueParams],
+    queryFn: async () => {
+      const { data } = await contentApi.fetchPublicationQueue(queueParams);
+      return data;
+    },
+    enabled: false,
+    staleTime: 15_000,
+  });
+
+  const invalidateQueue = useCallback(
+    () => qc.invalidateQueries({ queryKey: ['publishing', 'queue'] }),
+    [qc],
+  );
+
+  const executeMutation = useMutation({
+    mutationFn: (id: number) => contentApi.executeQueueItem(id),
+    onSuccess: invalidateQueue,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => contentApi.cancelQueueItem(id),
+    onSuccess: invalidateQueue,
+  });
 
   const loadEndpoints = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await contentApi.fetchEndpoints();
-      setEndpoints(data);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
+    await endpointsQuery.refetch();
+  }, [endpointsQuery]);
 
-  const loadQueue = useCallback(async (params?: Record<string, unknown>) => {
-    setLoading(true);
-    try {
-      const { data } = await contentApi.fetchPublicationQueue(params);
-      setQueue(data.data);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
+  const loadQueue = useCallback(
+    async (params?: Record<string, unknown>) => {
+      if (params) setQueueParams(params);
+      await queueQuery.refetch();
+    },
+    [queueQuery],
+  );
 
-  const executeItem = useCallback(async (id: number) => {
-    const { data } = await contentApi.executeQueueItem(id);
-    setQueue(prev => prev.map(q => q.id === id ? data : q));
-    return data;
-  }, []);
+  const executeItem = useCallback(
+    (id: number) => executeMutation.mutateAsync(id).then((r) => r.data),
+    [executeMutation],
+  );
+  const cancelItem = useCallback(
+    (id: number) => cancelMutation.mutateAsync(id).then((r) => r.data),
+    [cancelMutation],
+  );
 
-  const cancelItem = useCallback(async (id: number) => {
-    const { data } = await contentApi.cancelQueueItem(id);
-    setQueue(prev => prev.map(q => q.id === id ? data : q));
-    return data;
-  }, []);
-
-  return { endpoints, queue, loading, loadEndpoints, loadQueue, executeItem, cancelItem };
+  return {
+    endpoints: endpointsQuery.data ?? [],
+    queue: queueQuery.data?.data ?? [],
+    loading: endpointsQuery.isFetching || queueQuery.isFetching,
+    loadEndpoints,
+    loadQueue,
+    executeItem,
+    cancelItem,
+  };
 }

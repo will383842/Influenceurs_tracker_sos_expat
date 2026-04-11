@@ -1,39 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import api from '../api/client';
 import { CONTACT_TYPES, mergeApiContactTypes } from '../lib/constants';
 import type { ContactTypeConfig } from '../lib/constants';
 
-let loaded = false;
-
 /**
- * Hook that loads contact types from the API and merges them into the runtime constants.
- * This ensures new types created in admin console (consulat, erasmus, etc.)
- * are immediately available everywhere in the frontend.
+ * useContactTypes — loads contact types from /enums and merges into runtime constants.
+ * Ensures new admin-created types (consulat, erasmus, etc.) are available app-wide.
  *
- * Call this once in the root layout — all components using CONTACT_TYPES
- * or getContactType() will automatically see the merged types.
+ * React Query-backed: cached indefinitely (staleTime: Infinity) since enums rarely change
+ * and are re-hydrated from constants on every mount.
  */
 export function useContactTypes() {
-  const [types, setTypes] = useState<ContactTypeConfig[]>(CONTACT_TYPES);
+  const query = useQuery<ContactTypeConfig[]>({
+    queryKey: ['enums', 'contact-types'],
+    queryFn: async () => {
+      const { data } = await api.get('/enums');
+      if (data?.contact_types && Array.isArray(data.contact_types)) {
+        mergeApiContactTypes(data.contact_types);
+      }
+      return [...CONTACT_TYPES];
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: 0,
+  });
 
-  useEffect(() => {
-    if (loaded) {
-      setTypes(CONTACT_TYPES);
-      return;
-    }
-
-    api.get('/enums')
-      .then(({ data }) => {
-        if (data.contact_types && Array.isArray(data.contact_types)) {
-          mergeApiContactTypes(data.contact_types);
-          setTypes([...CONTACT_TYPES]);
-          loaded = true;
-        }
-      })
-      .catch(() => {
-        // Use defaults on error
-      });
-  }, []);
-
-  return types;
+  return query.data ?? CONTACT_TYPES;
 }

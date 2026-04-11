@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import api from '../api/client';
 import type { StatsData } from '../types/influenceur';
 
+/**
+ * useStats — React Query-backed dashboard stats.
+ * Same public API: { stats, loading }.
+ */
 export function useStats() {
-  const [stats, setStats] = useState<StatsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: ['stats'],
+    queryFn: async () => {
+      const { data } = await api.get<StatsData>('/stats');
+      return data;
+    },
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    api.get<StatsData>('/stats')
-      .then(({ data }) => setStats(data))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { stats, loading };
+  return { stats: query.data ?? null, loading: query.isLoading };
 }
