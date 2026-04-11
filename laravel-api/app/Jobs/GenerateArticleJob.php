@@ -6,6 +6,7 @@ use App\Models\GeneratedArticle;
 use App\Models\PublicationQueueItem;
 use App\Models\PublishingEndpoint;
 use App\Services\Content\ArticleGenerationService;
+use App\Services\Content\ArticleImprovementService;
 use App\Services\Content\QualityGuardService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -87,11 +88,99 @@ class GenerateArticleJob implements ShouldQueue
         $qualityScore = $qualityResult['score'] ?? 0;
         $qualityIssues = $qualityResult['issues'] ?? [];
 
-        // Persist quality result on the article
+        // ── Auto-improvement loop (max 2 passes) ──
+        //
+        // If the initial quality score is below the publication threshold,
+        // ArticleImprovementService applies targeted gpt-4o-mini fixes
+        // (expand content, rewrite AI phrases, generate FAQs, inject internal
+        // links, regenerate meta tags, etc.) and re-runs the quality check.
+        //
+        // Each pass costs ~$0.002-0.005 and can boost score by 15-30 points.
+        // The loop is capped at 2 attempts to avoid runaway cost on truly
+        // irredeemable content. Anti-cannibalization issues abort the loop
+        // immediately (they cannot be auto-fixed).
+        //
+        // If after 2 passes the score is still < 60, the article falls
+        // through to the existing 'review' fallback below — same behavior
+        // as before this enhancement, just with a higher chance of success.
+        $isOriginal = !$article->parent_article_id;
+        $hasContent = !empty($article->content_html) && $article->word_count > 0;
+        $maxImprovementAttempts = 2;
+        $attempt = 0;
+        $allImprovementsApplied = [];
+
+        while (
+            $qualityScore < 60
+            && $attempt < $maxImprovementAttempts
+            && $isOriginal
+            && $hasContent
+        ) {
+            $attempt++;
+            try {
+                $improvementService = app(ArticleImprovementService::class);
+                $newResult = $improvementService->improve($article, $qualityResult);
+
+                // Abort the loop if the improvement service refused to act
+                if (!empty($newResult['aborted'])) {
+                    Log::info('GenerateArticleJob: improvement loop aborted', [
+                        'article_id' => $article->id,
+                        'reason' => $newResult['aborted'],
+                    ]);
+                    break;
+                }
+
+                $previousScore = $qualityScore;
+                $qualityResult = $newResult;
+                $qualityScore = $newResult['score'] ?? $qualityScore;
+                $qualityIssues = $newResult['issues'] ?? [];
+                $allImprovementsApplied = array_merge($allImprovementsApplied, $newResult['improvements_applied'] ?? []);
+                $article->refresh();
+                $hasContent = !empty($article->content_html) && $article->word_count > 0;
+
+                Log::info('GenerateArticleJob: improvement pass complete', [
+                    'article_id' => $article->id,
+                    'attempt' => $attempt,
+                    'score_before' => $previousScore,
+                    'score_after' => $qualityScore,
+                    'delta' => $qualityScore - $previousScore,
+                    'applied' => $newResult['improvements_applied'] ?? [],
+                ]);
+
+                // Stop early if no progress was made (avoid wasting another pass)
+                if ($qualityScore <= $previousScore) {
+                    Log::info('GenerateArticleJob: improvement made no progress, stopping loop', [
+                        'article_id' => $article->id,
+                        'score' => $qualityScore,
+                    ]);
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // Improvement is best-effort. Failing here must NOT crash the
+                // main generation pipeline — fall through to the existing
+                // review-fallback path below.
+                Log::error('GenerateArticleJob: improvement loop exception (non-blocking)', [
+                    'article_id' => $article->id,
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+                break;
+            }
+        }
+
+        // Persist final quality result on the article
         $article->update([
             'quality_score' => $qualityScore,
             'generation_notes' => !empty($qualityIssues) ? json_encode($qualityIssues) : null,
         ]);
+
+        if (!empty($allImprovementsApplied)) {
+            Log::info('GenerateArticleJob: improvement summary', [
+                'article_id' => $article->id,
+                'final_score' => $qualityScore,
+                'attempts' => $attempt,
+                'all_improvements' => array_unique($allImprovementsApplied),
+            ]);
+        }
 
         // Auto-publish if: score >= 60, no brand compliance issues, has content, is original (not translation)
         $canPublish = $qualityScore >= 60
