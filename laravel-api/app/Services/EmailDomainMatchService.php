@@ -61,12 +61,21 @@ class EmailDomainMatchService
 
         foreach ($contacts as $inf) {
             $stats['checked']++;
-            $result = $this->checkMatch($inf);
+            try {
+                $result = $this->checkMatch($inf);
 
-            if ($result === 'mismatch_corrected') {
-                $stats['auto_corrected']++;
-            } elseif ($result === 'mismatch_flagged') {
-                $stats['mismatches']++;
+                if ($result === 'mismatch_corrected') {
+                    $stats['auto_corrected']++;
+                } elseif ($result === 'mismatch_flagged') {
+                    $stats['mismatches']++;
+                }
+            } catch (\Throwable $e) {
+                // Never let a single contact crash the whole batch.
+                Log::error('EmailDomainMatch: unexpected error on contact', [
+                    'id'    => $inf->id,
+                    'email' => $inf->email,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
@@ -106,18 +115,44 @@ class EmailDomainMatchService
         $bestEmail = $this->findBestEmailForSite($scrapedEmails, $siteDomain);
 
         if ($bestEmail) {
-            // Auto-correct: replace with email that matches the site
-            $oldEmail = $inf->email;
-            $inf->update([
-                'email'                 => $bestEmail,
-                'email_verified_status' => 'unverified', // Needs re-verification
-            ]);
-            Log::info('EmailDomainMatch: auto-corrected', [
-                'id'        => $inf->id,
-                'old_email' => $oldEmail,
-                'new_email' => $bestEmail,
-            ]);
-            return 'mismatch_corrected';
+            // Safety check: do not auto-correct to an email already used by another
+            // contact — the `influenceurs_email_unique` constraint would throw and
+            // crash the whole batch. Fall through to the flag-for-review path instead.
+            $conflict = Influenceur::whereRaw('LOWER(email) = ?', [strtolower($bestEmail)])
+                ->where('id', '!=', $inf->id)
+                ->exists();
+
+            if ($conflict) {
+                Log::info('EmailDomainMatch: cannot auto-correct — target email already used by another contact', [
+                    'id'             => $inf->id,
+                    'current_email'  => $inf->email,
+                    'proposed_email' => $bestEmail,
+                ]);
+                // fall through to flag-for-review
+            } else {
+                // Auto-correct: replace with email that matches the site
+                $oldEmail = $inf->email;
+                try {
+                    $inf->update([
+                        'email'                 => $bestEmail,
+                        'email_verified_status' => 'unverified', // Needs re-verification
+                    ]);
+                    Log::info('EmailDomainMatch: auto-corrected', [
+                        'id'        => $inf->id,
+                        'old_email' => $oldEmail,
+                        'new_email' => $bestEmail,
+                    ]);
+                    return 'mismatch_corrected';
+                } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                    // Race condition: another process inserted the same email between
+                    // our check and update. Fall through to flag-for-review rather
+                    // than crashing the batch.
+                    Log::warning('EmailDomainMatch: race condition on auto-correct, flagging instead', [
+                        'id'             => $inf->id,
+                        'proposed_email' => $bestEmail,
+                    ]);
+                }
+            }
         }
 
         // No better email found — flag for review
