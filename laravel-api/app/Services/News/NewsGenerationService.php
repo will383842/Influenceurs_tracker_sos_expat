@@ -13,7 +13,11 @@ use Illuminate\Support\Facades\Log;
 
 class NewsGenerationService
 {
-    private const MODEL_GENERATE       = 'claude-sonnet-4-6';
+    // Primary rewrite model — GPT-4o (was claude-sonnet-4-6, switched 2026-04-11
+    // because Anthropic credit ran out and silently broke the entire news pipeline.
+    // Claude is now the FALLBACK for rewrite, not the primary.)
+    private const MODEL_GENERATE_GPT   = 'gpt-4o';
+    private const MODEL_GENERATE       = 'claude-sonnet-4-6'; // fallback only
     private const MODEL_LIGHT          = 'claude-haiku-4-5-20251001';
     private const MODEL_FALLBACK_GPT   = 'gpt-4o-mini';
 
@@ -245,7 +249,10 @@ Réponds UNIQUEMENT en JSON valide (sans markdown):
 PROMPT;
 
         $kbFull = $this->knowledgeBase->getSystemPrompt('news', $item->country, $lang);
-        $result = $this->callClaude(self::MODEL_GENERATE, $prompt, 5000, $key, $kbFull);
+        // Try GPT-4o first (primary). Fall back to Claude Sonnet only if GPT fails
+        // AND Anthropic credit is available. This isolates the news pipeline from
+        // single-vendor outages.
+        $result = $this->callGptPrimary($prompt, 5000, $kbFull, $key);
         if (! $result) return null;
 
         $json = $this->extractJson($result);
@@ -401,6 +408,47 @@ PROMPT;
         }
 
         return null;
+    }
+
+    /**
+     * Primary GPT-4o call for the rewrite phase, with Claude Sonnet as fallback.
+     * Mirrors callClaude()'s try/fallback logic but with the vendors swapped.
+     * Returns the model's text output, or null if both GPT and Claude fail.
+     */
+    private function callGptPrimary(string $prompt, int $maxTokens, ?string $systemPrompt, string $anthropicKey): ?string
+    {
+        /** @var OpenAiService $openai */
+        $openai = app(OpenAiService::class);
+
+        if ($openai->isConfigured()) {
+            $result = $openai->complete(
+                $systemPrompt ?? '',
+                $prompt,
+                [
+                    'model'      => self::MODEL_GENERATE_GPT,
+                    'max_tokens' => $maxTokens,
+                    'json_mode'  => true,
+                ]
+            );
+
+            if ($result['success'] && ! empty($result['content'])) {
+                Log::info('NewsGenerationService: GPT-4o primary OK', [
+                    'model'         => $result['model'] ?? self::MODEL_GENERATE_GPT,
+                    'tokens_input'  => $result['tokens_input'] ?? 0,
+                    'tokens_output' => $result['tokens_output'] ?? 0,
+                ]);
+                return $result['content'];
+            }
+
+            Log::warning('NewsGenerationService: GPT-4o primary failed, falling back to Claude', [
+                'error' => $result['error'] ?? 'unknown',
+            ]);
+        } else {
+            Log::warning('NewsGenerationService: GPT-4o primary skipped (OpenAI not configured), trying Claude');
+        }
+
+        // Fallback: Claude Sonnet
+        return $this->callClaude(self::MODEL_GENERATE, $prompt, $maxTokens, $anthropicKey, $systemPrompt);
     }
 
     /**

@@ -76,56 +76,27 @@ class GenerateNewsArticleJob implements ShouldQueue
     // ─────────────────────────────────────────
 
     /**
-     * Atomically check quota and increment if allowed.
-     * Uses a Cache lock to prevent race conditions between parallel jobs.
-     * Returns true if a slot was reserved, false if quota exhausted.
+     * Check daily quota by LIVE COUNT of published news today.
+     * No more optimistic increment — failed generations don't burn slots.
+     * See RunNewsGenerationJob::getQuotaInfo() for the rationale.
      */
     private function reserveQuotaSlot(): bool
     {
-        $lock = Cache::lock('news_quota_lock', 10); // lock 10 secondes max
-
         try {
-            $lock->block(5); // attendre max 5s pour obtenir le lock
-
             $raw   = DB::table('settings')->where('key', 'news_daily_quota')->value('value');
             $quota = $raw ? json_decode($raw, true) : [];
+            $quotaLimit = (int) ($quota['quota'] ?? 15);
 
-            $quotaLimit     = (int) ($quota['quota'] ?? 15);
-            $generatedToday = (int) ($quota['generated_today'] ?? 0);
-            $today          = now()->toDateString();
+            $generatedToday = (int) DB::table('rss_feed_items')
+                ->where('status', 'published')
+                ->whereDate('generated_at', now()->toDateString())
+                ->count();
 
-            // Reset si nouveau jour
-            if (($quota['last_reset_date'] ?? '') !== $today) {
-                $generatedToday = 0;
-            }
+            return $generatedToday < $quotaLimit;
 
-            if ($generatedToday >= $quotaLimit) {
-                return false;
-            }
-
-            // Réserver le slot
-            DB::table('settings')->updateOrInsert(
-                ['key' => 'news_daily_quota'],
-                [
-                    'value'      => json_encode([
-                        'quota'           => $quotaLimit,
-                        'generated_today' => $generatedToday + 1,
-                        'last_reset_date' => $today,
-                    ]),
-                    'updated_at' => now(),
-                ]
-            );
-
-            return true;
-
-        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
-            Log::warning('GenerateNewsArticleJob: timeout quota lock, on laisse passer par sécurité');
-            return true;
         } catch (\Throwable $e) {
             Log::warning('GenerateNewsArticleJob: erreur quota', ['error' => $e->getMessage()]);
             return true; // En cas d'erreur DB, on laisse passer
-        } finally {
-            $lock->release();
         }
     }
 }

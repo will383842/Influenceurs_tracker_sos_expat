@@ -93,29 +93,34 @@ class RunNewsGenerationJob implements ShouldQueue
     // QUOTA
     // ─────────────────────────────────────────
 
+    /**
+     * Self-healing daily counter: derive `generated_today` from a LIVE COUNT
+     * of actually-published news items today, instead of trusting a stored
+     * counter that gets incremented optimistically.
+     *
+     * Why this matters: the previous implementation incremented a stored
+     * counter inside `reserveQuotaSlot()` BEFORE the generation actually
+     * succeeded. If the LLM call failed (e.g. Anthropic credit exhausted on
+     * 2026-04-11), the slot was burned without producing anything, and the
+     * pseudo-counter rapidly hit 15/15 with zero real news published, locking
+     * the pipeline for the rest of the day. With a live count, failed
+     * tentatives never inflate the counter.
+     *
+     * `quota` (the daily LIMIT) is still read from settings so it can be
+     * tuned without a deploy.
+     */
     private function getQuotaInfo(): array
     {
         try {
             $raw   = DB::table('settings')->where('key', 'news_daily_quota')->value('value');
             $quota = $raw ? json_decode($raw, true) : [];
+            $quotaLimit = (int) ($quota['quota'] ?? 15);
 
-            $quotaLimit     = (int) ($quota['quota'] ?? 15);
-            $generatedToday = (int) ($quota['generated_today'] ?? 0);
-            $lastResetDate  = $quota['last_reset_date'] ?? '';
-            $today          = now()->toDateString();
-
-            // Reset si nouveau jour
-            if ($lastResetDate !== $today) {
-                $generatedToday = 0;
-                // Persister le reset
-                $quota['generated_today'] = 0;
-                $quota['last_reset_date'] = $today;
-                $quota['quota']           = $quotaLimit;
-                DB::table('settings')->updateOrInsert(
-                    ['key' => 'news_daily_quota'],
-                    ['value' => json_encode($quota), 'updated_at' => now()]
-                );
-            }
+            // LIVE COUNT — only published news from today count against the quota.
+            $generatedToday = (int) DB::table('rss_feed_items')
+                ->where('status', 'published')
+                ->whereDate('generated_at', now()->toDateString())
+                ->count();
 
             return ['quota' => $quotaLimit, 'generated_today' => $generatedToday];
 
