@@ -434,27 +434,57 @@ class ArticleImprovementService
         $injected = 0;
         $blogBase = rtrim((string) config('services.blog.url', 'https://sos-expat.com'), '/');
 
+        // Pre-find all <p>...</p> blocks with their positions in the HTML.
+        // We rebuild the HTML at the end so concurrent injections don't shift offsets.
+        if (!preg_match_all('/<p[^>]*>.*?<\/p>/is', $html, $blockMatches, PREG_OFFSET_CAPTURE)) {
+            return;
+        }
+
+        // Track which paragraph offsets we've already touched to avoid double-linking
+        // the same paragraph (would look unnatural).
+        $touchedOffsets = [];
+
         foreach ($candidates as $candidate) {
             if ($injected >= $needed) break;
             // Already linked? skip
-            if (str_contains($html, $candidate->slug)) continue;
+            if (!empty($candidate->slug) && str_contains($html, $candidate->slug)) continue;
 
             // Try to find a paragraph that mentions a noun from the candidate's title
-            $titleWords = preg_split('/\s+/', $candidate->title ?? '', -1, PREG_SPLIT_NO_EMPTY) ?: [];
-            $longWords = array_filter($titleWords, fn($w) => mb_strlen($w) >= 5);
+            $titleWords = preg_split('/\s+/u', (string) ($candidate->title ?? ''), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $longWords = array_values(array_filter($titleWords, fn($w) => mb_strlen($w) >= 5));
             if (empty($longWords)) continue;
 
-            $anchor = (string) reset($longWords);
+            $anchor = $longWords[0];
             $href = "{$blogBase}/{$candidate->language}-" . strtolower($candidate->country ?? 'fr') . "/articles/{$candidate->slug}";
             $linkHtml = '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($anchor, ENT_QUOTES, 'UTF-8') . '</a>';
 
-            // Replace first occurrence of the anchor word in a <p> (case-insensitive, word boundary)
-            $pattern = '/(?<=<p[^>]{0,200}>)([^<]*?\b)(' . preg_quote($anchor, '/') . ')(\b[^<]*?)(?=<\/p>)/iu';
-            $replaced = preg_replace($pattern, '$1' . $linkHtml . '$3', $html, 1);
+            // Walk paragraphs and find the first one that:
+            //  - hasn't already been touched by a previous injection
+            //  - contains the anchor (case-insensitive, word boundary)
+            //  - doesn't already contain an <a> tag (don't nest links)
+            // Re-fetch blocks each iteration since $html may have changed.
+            if (!preg_match_all('/<p[^>]*>.*?<\/p>/is', $html, $currentBlocks, PREG_OFFSET_CAPTURE)) {
+                break;
+            }
 
-            if ($replaced !== null && $replaced !== $html) {
-                $html = $replaced;
+            foreach ($currentBlocks[0] as $blockMatch) {
+                [$blockHtml, $offset] = $blockMatch;
+
+                // Skip if we've already injected into this exact paragraph slot
+                if (in_array($offset, $touchedOffsets, true)) continue;
+                if (stripos($blockHtml, '<a ') !== false) continue;
+
+                // Word-boundary, case-insensitive match
+                $anchorPattern = '/\b(' . preg_quote($anchor, '/') . ')\b/iu';
+                if (!preg_match($anchorPattern, $blockHtml)) continue;
+
+                $newBlock = preg_replace($anchorPattern, $linkHtml, $blockHtml, 1);
+                if ($newBlock === null || $newBlock === $blockHtml) continue;
+
+                $html = substr_replace($html, $newBlock, $offset, strlen($blockHtml));
+                $touchedOffsets[] = $offset;
                 $injected++;
+                break;
             }
         }
 
