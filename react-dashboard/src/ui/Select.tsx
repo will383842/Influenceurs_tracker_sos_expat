@@ -53,14 +53,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             aria-invalid={!!error}
             aria-describedby={describedBy}
             className={cn(
-              'w-full rounded-lg border bg-surface2 text-text appearance-none pr-10',
-              'transition-colors duration-150 cursor-pointer',
+              'w-full rounded-xl border bg-surface2/70 text-text appearance-none pr-10 shadow-inner-sm',
+              'transition-all duration-200 cursor-pointer',
+              'focus:bg-surface2 focus:shadow-glow-violet',
               'focus-visible:outline-2 focus-visible:outline-violet focus-visible:outline-offset-0',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               sizeStyles[size],
               error
-                ? 'border-danger focus:border-danger'
-                : 'border-border focus:border-violet hover:border-text-muted',
+                ? 'border-danger/60 focus:border-danger'
+                : 'border-border/80 focus:border-violet hover:border-text-muted/60',
               className,
             )}
             {...rest}

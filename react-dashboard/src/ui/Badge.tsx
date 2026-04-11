@@ -13,12 +13,12 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantStyles: Record<Variant, string> = {
-  neutral: 'bg-surface2 text-text-muted border-border',
-  success: 'bg-green-500/10 text-green-400 border-green-500/20',
-  warning: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  danger:  'bg-danger/10 text-danger border-danger/20',
-  info:    'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  violet:  'bg-violet/10 text-violet-light border-violet/20',
+  neutral: 'bg-surface2/80 text-text-muted border-border ring-1 ring-inset ring-white/5',
+  success: 'bg-green-500/12 text-green-300 border-green-500/30 ring-1 ring-inset ring-green-400/10',
+  warning: 'bg-amber-500/12 text-amber-300 border-amber-500/30 ring-1 ring-inset ring-amber-400/10',
+  danger:  'bg-danger/12 text-red-300 border-danger/30 ring-1 ring-inset ring-red-400/10',
+  info:    'bg-blue-500/12 text-blue-300 border-blue-500/30 ring-1 ring-inset ring-blue-400/10',
+  violet:  'bg-violet/12 text-violet-light border-violet/30 ring-1 ring-inset ring-violet/10',
 };
 
 const dotStyles: Record<Variant, string> = {

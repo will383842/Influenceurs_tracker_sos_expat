@@ -37,10 +37,10 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-surface',
+        'rounded-2xl border border-border/80 bg-surface/95 backdrop-blur-[2px]',
         paddingStyles[padding],
         elevationStyles[elevation],
-        interactive && 'transition-all hover:border-violet/50 hover:shadow-md cursor-pointer',
+        interactive && 'transition-all duration-200 hover:border-violet/50 hover:shadow-glow-violet hover:-translate-y-0.5 cursor-pointer',
         className,
       )}
       {...rest}

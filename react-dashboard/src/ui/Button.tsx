@@ -14,11 +14,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<Variant, string> = {
-  primary:   'bg-violet text-white hover:bg-violet-dark active:bg-violet-dark shadow-sm hover:shadow-glow-violet',
-  secondary: 'bg-surface2 text-text hover:bg-border border border-border',
-  ghost:     'bg-transparent text-text hover:bg-surface2',
-  danger:    'bg-danger text-white hover:bg-red-600 active:bg-red-700 shadow-sm',
-  outline:   'bg-transparent text-text border border-border hover:bg-surface2 hover:border-violet',
+  primary:   'bg-gradient-violet text-white shadow-sm hover:shadow-glow-violet active:scale-[0.98] border border-violet/20',
+  secondary: 'bg-surface2 text-text hover:bg-border border border-border hover:border-violet/40 shadow-xs',
+  ghost:     'bg-transparent text-text hover:bg-surface2 hover:text-white',
+  danger:    'bg-gradient-danger text-white shadow-sm hover:shadow-glow-danger active:scale-[0.98] border border-danger/20',
+  outline:   'bg-transparent text-text border border-border hover:bg-surface2 hover:border-violet/60 shadow-xs',
 };
 
 const sizeStyles: Record<Size, string> = {

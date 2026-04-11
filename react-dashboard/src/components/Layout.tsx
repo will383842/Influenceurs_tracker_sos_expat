@@ -218,19 +218,19 @@ export default function Layout() {
 
   const handleNavClick = () => setSidebarOpen(false);
 
-  // Nav link styles
+  // Nav link styles — premium: gradient pill + left accent on active
   const navClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+    `relative flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
       isActive
-        ? 'bg-violet/20 text-white'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+        ? 'bg-gradient-violet-subtle text-white shadow-glow-violet ring-1 ring-violet/30'
+        : 'text-gray-400 hover:bg-white/[0.04] hover:text-white hover:translate-x-0.5'
     }`;
 
   const subNavClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+    `flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all duration-200 ${
       isActive
-        ? 'text-white bg-violet/20 font-medium'
-        : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
+        ? 'text-white bg-violet/15 font-medium ring-1 ring-violet/25'
+        : 'text-gray-500 hover:text-gray-200 hover:bg-white/[0.04] hover:translate-x-0.5'
     }`;
 
   return (
@@ -271,15 +271,20 @@ export default function Layout() {
       <aside
         id="main-sidebar"
         aria-label="Navigation principale"
-        className={`fixed inset-y-0 left-0 z-50 w-60 bg-surface border-r border-border flex flex-col transform transition-transform duration-200 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-50 w-60 bg-surface/90 backdrop-blur-xl border-r border-border/70 flex flex-col transform transition-transform duration-200 ease-in-out shadow-xl ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 md:sticky md:top-0 md:h-screen md:flex-shrink-0`}
       >
         {/* Header */}
-        <div className="p-5 border-b border-border flex items-center justify-between">
-          <div>
-            <h1 className="font-title text-lg font-bold text-white">Mission Control</h1>
-            <p className="text-[10px] text-muted mt-0.5">SOS-Expat CRM</p>
+        <div className="p-5 border-b border-border/70 flex items-center justify-between bg-gradient-to-b from-violet/[0.06] to-transparent">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-violet flex items-center justify-center shadow-glow-violet text-white font-bold font-title text-sm">
+              MC
+            </div>
+            <div>
+              <h1 className="font-title text-[15px] font-bold text-white leading-tight">Mission Control</h1>
+              <p className="text-[10px] text-muted mt-0.5 tracking-wide uppercase">SOS-Expat CRM</p>
+            </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -792,9 +797,9 @@ export default function Layout() {
         </div>
 
         {/* User footer */}
-        <div className="p-3 border-t border-border">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group">
-            <div className="w-8 h-8 rounded-full bg-violet/30 flex items-center justify-center text-violet-light font-bold text-sm flex-shrink-0 ring-1 ring-violet/20">
+        <div className="p-3 border-t border-border/70 bg-gradient-to-t from-violet/[0.06] to-transparent">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/[0.04] transition-all duration-200 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-violet flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-glow-violet ring-1 ring-violet/30">
               {user?.name?.[0]?.toUpperCase() ?? '?'}
             </div>
             <div className="min-w-0 flex-1">

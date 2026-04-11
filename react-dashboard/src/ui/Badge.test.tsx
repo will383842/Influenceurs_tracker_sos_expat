@@ -15,7 +15,7 @@ describe('Badge', () => {
 
   it('applies danger variant classes', () => {
     render(<Badge variant="danger">Fail</Badge>);
-    expect(screen.getByText('Fail').className).toMatch(/text-danger/);
+    expect(screen.getByText('Fail').className).toMatch(/text-red/);
   });
 
   it('renders dot when dot prop is true', () => {

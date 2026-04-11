@@ -47,7 +47,7 @@ function Skeleton({ className = '' }: { className?: string }) {
 
 function KpiSkeleton() {
   return (
-    <div className="bg-surface border border-border rounded-xl p-5 space-y-2">
+    <div className="bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-5 space-y-2 shadow-md">
       <Skeleton className="h-3 w-20" />
       <Skeleton className="h-8 w-16" />
     </div>
@@ -72,7 +72,7 @@ function ChartTooltip({ active, payload, label }: any) {
 // ── Section wrapper ─────────────────────────────────────────
 function DashSection({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-surface border border-border rounded-xl p-5 ${className}`}>
+    <div className={`bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-5 shadow-md ${className}`}>
       <h3 className="font-title font-semibold text-white mb-4">{title}</h3>
       {children}
     </div>
@@ -83,7 +83,7 @@ function DashSection({ title, children, className = '' }: { title: string; child
 function CollapsibleSection({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+    <div className="bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl overflow-hidden shadow-md">
       <button
         onClick={() => setOpen(!open)}
         className="w-full px-5 py-4 flex items-center justify-between hover:bg-surface2/30 transition-colors"
@@ -223,14 +223,14 @@ export default function Dashboard() {
       ═══════════════════════════════════════════════════════ */}
       {user?.role === 'admin' && globalStat ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="group bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:border-violet/40 hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">👥</span>
               <span className="text-[10px] text-muted uppercase tracking-wider">Total contacts</span>
             </div>
             <p className="text-2xl font-bold text-white font-title">{globalStat.total.toLocaleString()}</p>
           </div>
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="group bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:border-violet/40 hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">✉️</span>
               <span className="text-[10px] text-muted uppercase tracking-wider">Avec email</span>
@@ -240,21 +240,21 @@ export default function Dashboard() {
               <span className="text-xs text-muted">{globalStat.email_pct}%</span>
             </div>
           </div>
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="group bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:border-violet/40 hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">📞</span>
               <span className="text-[10px] text-muted uppercase tracking-wider">Avec telephone</span>
             </div>
             <p className="text-2xl font-bold text-emerald-400 font-title">{globalStat.with_phone.toLocaleString()}</p>
           </div>
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="group bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:border-violet/40 hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">📝</span>
               <span className="text-[10px] text-muted uppercase tracking-wider">Avec formulaire</span>
             </div>
             <p className="text-2xl font-bold text-blue-400 font-title">{globalStat.with_form.toLocaleString()}</p>
           </div>
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="group bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:border-violet/40 hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">✓</span>
               <span className="text-[10px] text-muted uppercase tracking-wider">Contactables</span>
@@ -264,7 +264,7 @@ export default function Dashboard() {
               <span className="text-xs text-muted">{globalStat.contactable_pct}%</span>
             </div>
           </div>
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="group bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:border-violet/40 hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">⚠</span>
               <span className="text-[10px] text-muted uppercase tracking-wider">Sans coordonnees</span>
@@ -274,7 +274,7 @@ export default function Dashboard() {
               <span className="text-xs text-muted">{globalStat.total > 0 ? `${Math.round(globalStat.unreachable / globalStat.total * 100)}%` : '0%'}</span>
             </div>
           </div>
-          <div className="bg-surface border border-border rounded-xl p-4">
+          <div className="group bg-surface/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:border-violet/40 hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">📈</span>
               <span className="text-[10px] text-muted uppercase tracking-wider">Taux reponse</span>
@@ -283,8 +283,8 @@ export default function Dashboard() {
           </div>
           <Link
             to="/a-relancer"
-            className={`bg-surface border rounded-xl p-4 transition-colors hover:border-red-500/50 ${
-              urgentReminders > 0 ? 'border-red-500/40' : 'border-border'
+            className={`group bg-surface/80 backdrop-blur-sm border rounded-2xl p-4 shadow-md hover:shadow-glow-violet hover:-translate-y-0.5 transition-all duration-200 ${
+              urgentReminders > 0 ? 'border-red-500/50 hover:border-red-500/70' : 'border-border/80 hover:border-violet/40'
             }`}
           >
             <div className="flex items-center gap-2 mb-1">

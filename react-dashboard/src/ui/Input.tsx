@@ -58,17 +58,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={!!error}
             aria-describedby={describedBy}
             className={cn(
-              'w-full rounded-lg border bg-surface2 text-text',
+              'w-full rounded-xl border bg-surface2/70 text-text shadow-inner-sm',
               'placeholder:text-text-muted',
-              'transition-colors duration-150',
+              'transition-all duration-200',
+              'focus:bg-surface2 focus:shadow-glow-violet',
               'focus-visible:outline-2 focus-visible:outline-violet focus-visible:outline-offset-0',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               sizeStyles[size],
               leftIcon && 'pl-10',
               rightIcon && 'pr-10',
               error
-                ? 'border-danger focus:border-danger'
-                : 'border-border focus:border-violet hover:border-text-muted',
+                ? 'border-danger/60 focus:border-danger'
+                : 'border-border/80 focus:border-violet hover:border-text-muted/60',
               className,
             )}
             {...rest}

@@ -45,7 +45,7 @@ describe('Button', () => {
 
   it('applies danger variant classes', () => {
     render(<Button variant="danger">Delete</Button>);
-    expect(screen.getByRole('button').className).toMatch(/bg-danger/);
+    expect(screen.getByRole('button').className).toMatch(/bg-gradient-danger|bg-danger/);
   });
 
   it('applies fullWidth when requested', () => {
