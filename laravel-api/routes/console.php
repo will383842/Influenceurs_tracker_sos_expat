@@ -94,6 +94,95 @@ Schedule::call(function () {
     }
 })->dailyAt('12:00')->name('news-failed-retry')->withoutOverlapping();
 
+// ══════════════════════════════════════════════════════════════════════
+// NEWS RELEVANCE RETRY (hourly, self-healing)
+// ══════════════════════════════════════════════════════════════════════
+// When the relevance scoring API call fails (OpenAI quota, transient
+// network/timeout, JSON parse error), RssFeedItem ends up with:
+//   status='pending', relevance_score=null, error_message='Relevance ...'
+// FetchRssFeedsJob only evaluates items it has just fetched, so these
+// orphans were stuck forever and never made it into RunNewsGenerationJob
+// (which filters whereNotNull('relevance_score')).
+//
+// This cron picks up such orphans every hour and retries the relevance
+// scoring. Batch limited to 50 to avoid bursts on OpenAI quota recovery.
+Schedule::call(function () {
+    $items = \App\Models\RssFeedItem::with('feed')
+        ->where('status', 'pending')
+        ->whereNull('relevance_score')
+        ->where(function ($q) {
+            $q->whereNotNull('error_message')
+              ->where(function ($qq) {
+                  $qq->where('error_message', 'LIKE', '%Relevance%')
+                     ->orWhere('error_message', 'LIKE', '%relevance%')
+                     ->orWhere('error_message', 'LIKE', '%API call failed%');
+              });
+        })
+        ->orWhere(function ($q) {
+            // Also catch items with no error_message but stuck without score for >2h
+            $q->where('status', 'pending')
+              ->whereNull('relevance_score')
+              ->whereNull('error_message')
+              ->where('created_at', '<', now()->subHours(2));
+        })
+        ->orderByDesc('created_at')
+        ->limit(50)
+        ->get();
+
+    if ($items->isEmpty()) return;
+
+    $filter = app(\App\Services\News\RelevanceFilterService::class);
+    $recovered = 0;
+    $stillFailed = 0;
+    foreach ($items as $item) {
+        try {
+            $filter->evaluate($item);
+            $item->refresh();
+            if ($item->relevance_score !== null) {
+                $recovered++;
+            } else {
+                $stillFailed++;
+            }
+        } catch (\Throwable $e) {
+            $stillFailed++;
+            \Illuminate\Support\Facades\Log::warning("News relevance retry: failed item #{$item->id}", [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+    \Illuminate\Support\Facades\Log::info("News relevance retry: {$recovered} recovered, {$stillFailed} still failed (batch of {$items->count()})");
+})->hourly()->name('news-relevance-retry')->withoutOverlapping();
+
+// ══════════════════════════════════════════════════════════════════════
+// CLEANUP EMPTY ARTICLE SKELETONS (every 30 min)
+// ══════════════════════════════════════════════════════════════════════
+// ArticleGenerationService::generate() now rethrows on failure and the
+// catch block deletes empty skeletons before rethrowing. This cron is the
+// belt-and-braces safety net: if anything ever fails to clean up an empty
+// article (race condition, partial write, manual SQL, etc.) this catches
+// it within 30 minutes and prevents pollution of the publication queue.
+//
+// We only target rows that:
+//   - have no content (word_count = 0 AND content_html empty/null)
+//   - are not translations (parent_article_id IS NULL — translations are
+//     created by the translation worker and may temporarily be empty)
+//   - are at least 30 minutes old (give the active generation job enough
+//     time to complete normally before we touch the row)
+Schedule::call(function () {
+    $deleted = \Illuminate\Support\Facades\DB::table('generated_articles')
+        ->where('word_count', 0)
+        ->where(function ($q) {
+            $q->whereNull('content_html')->orWhere('content_html', '');
+        })
+        ->whereNull('parent_article_id')
+        ->where('created_at', '<', now()->subMinutes(30))
+        ->delete();
+
+    if ($deleted > 0) {
+        \Illuminate\Support\Facades\Log::info("Cleanup empty drafts: deleted {$deleted} skeleton rows");
+    }
+})->everyThirtyMinutes()->name('cleanup-empty-drafts')->withoutOverlapping();
+
 // Source items stale recovery: reset items stuck in 'processing' for >20 min
 // (happens when GenerateArticleJob fails but GenerateFromSourceJob already marked the item)
 Schedule::call(function () {

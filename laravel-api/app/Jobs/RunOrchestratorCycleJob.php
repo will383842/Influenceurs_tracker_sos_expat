@@ -112,11 +112,23 @@ class RunOrchestratorCycleJob implements ShouldQueue
                 $dispatched = $this->generateOne($typeInfo['type'], $config);
 
                 if ($dispatched) {
-                    // NOTE: This records a "dispatch", not a confirmed generation.
-                    // The actual job runs async on queue 'content'. If it fails,
-                    // today_generated will be over-counted. Actual cost is tracked
-                    // by CostTrackerService inside each generation job.
-                    $orchestrator->recordGeneration(0);
+                    // IMPORTANT: We do NOT call recordGeneration() here anymore.
+                    //
+                    // The previous behavior was to increment today_generated at
+                    // dispatch time (before the actual generation completed).
+                    // When OpenAI/Claude failed (quota, timeout, network), the
+                    // counter was inflated and the orchestrator would stop
+                    // dispatching long before the daily target was actually
+                    // reached, blocking the system until midnight.
+                    //
+                    // ContentOrchestratorService::getConfig() now derives
+                    // today_generated from a live COUNT() of generated_articles
+                    // with word_count > 0 — i.e. articles that actually have
+                    // content. This is self-healing: failed generations no
+                    // longer pollute the quota.
+                    //
+                    // We still update the daily log for observability (errors
+                    // are tracked separately in the catch block below).
                     $orchestrator->updateDailyLog($typeInfo['type'], 1, 0, 0, 0);
                     $generated++;
                     Log::info("Orchestrator: dispatched {$typeInfo['type']}", ['label' => $typeInfo['label']]);

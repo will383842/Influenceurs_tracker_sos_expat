@@ -549,19 +549,58 @@ class ArticleGenerationService
             return $article->fresh();
         } catch (\Throwable $e) {
             Log::error('Article generation failed', [
-                'article_id' => $article->id,
+                'article_id' => $article->id ?? null,
                 'phase' => 'unknown',
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'trace' => mb_substr($e->getTraceAsString(), 0, 2000),
             ]);
 
-            // Save partial content as draft
-            $article->update(['status' => 'draft']);
+            // Decision: empty skeleton vs partial content.
+            //
+            // The original behavior was to silently set status='draft' and return
+            // the (often empty) article — this caused two production bugs:
+            //   1. The orchestrator daily quota counter was incremented for an
+            //      article that was never produced, eating up tomorrow's budget.
+            //   2. The publication-engine cron only catches articles in 'review'
+            //      with word_count > 0, so empty drafts stay forever in the DB,
+            //      polluting the queue and never publishing.
+            //
+            // New behavior:
+            //   - Empty skeleton (no html / wc=0) → DELETE the row entirely.
+            //     The exception is rethrown so the calling job (GenerateArticleJob)
+            //     properly fails, triggers Laravel queue retry/backoff, and the
+            //     orchestrator counter (now self-healing in getConfig()) reflects
+            //     the real DB count.
+            //   - Partial content (has html or word_count > 0) → keep as 'draft'
+            //     so a human can recover it manually. Still rethrow so the queue
+            //     records the failure.
+            $isEmpty = empty($article->content_html) || (int) ($article->word_count ?? 0) === 0;
 
-            $this->logPhase($article, 'pipeline', 'error', $e->getMessage());
-            $this->sendTelegramAlert('PIPELINE COMPLET (échec critique)', $e->getMessage(), $article);
+            if ($isEmpty) {
+                $articleId = $article->id;
+                try {
+                    $article->delete();
+                } catch (\Throwable $deleteErr) {
+                    Log::warning('ArticleGenerationService: failed to delete empty skeleton', [
+                        'article_id' => $articleId,
+                        'error' => $deleteErr->getMessage(),
+                    ]);
+                }
+                Log::warning('ArticleGenerationService: deleted empty skeleton on pipeline failure', [
+                    'article_id' => $articleId,
+                    'error' => $e->getMessage(),
+                ]);
+                $this->sendTelegramAlert('PIPELINE COMPLET (échec critique — squelette supprimé)', $e->getMessage(), null);
+            } else {
+                $article->update(['status' => 'draft']);
+                $this->logPhase($article, 'pipeline', 'error', $e->getMessage());
+                $this->sendTelegramAlert('PIPELINE COMPLET (échec critique — contenu partiel conservé)', $e->getMessage(), $article);
+            }
 
-            return $article->fresh();
+            // Rethrow so GenerateArticleJob's failed() handler is invoked,
+            // Laravel queue retry kicks in, and the orchestrator does not
+            // wrongly count this dispatch as a success.
+            throw $e;
         }
     }
 

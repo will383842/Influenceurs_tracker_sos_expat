@@ -45,6 +45,34 @@ class ContentOrchestratorService
             return $this->defaultConfig();
         }
 
+        // SELF-HEALING COUNTER: derive today_generated from a live COUNT() of
+        // generated_articles instead of trusting the stored counter. This
+        // protects against the historical bug where the orchestrator
+        // incremented the counter at dispatch time even when generation
+        // ultimately failed (OpenAI quota, timeout, etc.), causing the system
+        // to wrongly think it had reached the daily target and pause until
+        // midnight.
+        //
+        // We only count "real" articles: with content (word_count > 0 AND
+        // content_html non-empty) and not translations (parent_article_id IS NULL).
+        // Created today in the application timezone.
+        try {
+            $actualToday = DB::table('generated_articles')
+                ->whereDate('created_at', now()->toDateString())
+                ->where('word_count', '>', 0)
+                ->whereNotNull('content_html')
+                ->where('content_html', '!=', '')
+                ->whereNull('parent_article_id')
+                ->count();
+        } catch (\Throwable $e) {
+            // If the live query fails for any reason, fall back to the stored
+            // counter so the system stays operational rather than crashing.
+            \Illuminate\Support\Facades\Log::warning('ContentOrchestratorService: live counter query failed, falling back to stored value', [
+                'error' => $e->getMessage(),
+            ]);
+            $actualToday = $row->today_generated;
+        }
+
         return [
             'id' => $row->id,
             'daily_target' => $row->daily_target,
@@ -55,7 +83,7 @@ class ContentOrchestratorService
             'priority_countries' => json_decode($row->priority_countries, true) ?? [],
             'status' => $row->status,
             'last_run_at' => $row->last_run_at,
-            'today_generated' => $row->today_generated,
+            'today_generated' => $actualToday,
             'today_rss_generated' => $row->today_rss_generated ?? 0,
             'today_cost_cents' => $row->today_cost_cents,
             'telegram_alerts' => (bool) ($row->telegram_alerts ?? true),
