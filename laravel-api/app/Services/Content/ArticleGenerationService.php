@@ -1487,10 +1487,30 @@ class ArticleGenerationService
         $linksHtml = '';
         $usedDomains = [];
 
-        // 1. Inject directory links from country_directory (if article has a country)
+        // Pre-validate ALL candidate URLs in parallel to filter out 404s before
+        // we inject them. Without this, ~25% of injected links were dead, which
+        // is a quality signal Google penalises and looks unprofessional.
+        $validator = app(\App\Services\Content\UrlValidatorService::class);
         $directoryLinks = $this->getDirectoryLinksForArticle($article);
+        $sourcesSlice   = array_slice($sources, 0, 4);
+
+        $candidateUrls = array_filter(array_merge(
+            array_column($directoryLinks, 'url'),
+            array_map(fn ($s) => $s['url'] ?? '', $sourcesSlice),
+        ));
+        $validity = $validator->isValidBatch($candidateUrls);
+        $isAlive = fn (string $url) => $validity[$url] ?? true;
+
+        // 1. Inject directory links from country_directory (if article has a country)
         foreach ($directoryLinks as $dirLink) {
             if (in_array($dirLink['domain'], $usedDomains, true)) {
+                continue;
+            }
+            if (!$isAlive($dirLink['url'])) {
+                Log::info('phase10: dropped dead directory link', [
+                    'article_id' => $article->id,
+                    'url'        => $dirLink['url'],
+                ]);
                 continue;
             }
 
@@ -1518,14 +1538,19 @@ class ArticleGenerationService
             $usedDomains[] = $dirLink['domain'];
         }
 
-        // 2. Add Perplexity research sources (up to 4, skip already-used domains)
-        $selectedSources = array_slice($sources, 0, 4);
-
-        foreach ($selectedSources as $source) {
+        // 2. Add Perplexity research sources (already pre-validated above)
+        foreach ($sourcesSlice as $source) {
             $domain = $source['domain'] ?? parse_url($source['url'] ?? '', PHP_URL_HOST) ?? '';
             $url = $source['url'] ?? '';
 
             if (empty($url) || in_array($domain, $usedDomains, true)) {
+                continue;
+            }
+            if (!$isAlive($url)) {
+                Log::info('phase10: dropped dead research source', [
+                    'article_id' => $article->id,
+                    'url'        => $url,
+                ]);
                 continue;
             }
 
