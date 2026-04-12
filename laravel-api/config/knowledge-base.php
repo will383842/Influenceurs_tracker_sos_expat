@@ -847,7 +847,7 @@ return [
         ],
         'local' => [
             'name' => 'Locale',
-            'description' => 'L\'utilisateur cherche un service DANS un pays/ville precis. Ex: "avocat francais Bangkok", "medecin francophone Lisbonne"',
+            'description' => 'L\'utilisateur cherche un service DANS un pays/ville precis. Ex: "avocat anglophone Bangkok", "medecin international Lisbonne", "notaire Dubai"',
             'format' => [
                 'structure' => 'Fiche locale avec informations pratiques geographiques',
                 'featured_snippet' => 'OBLIGATOIRE — "Pour trouver un {service} a {ville/pays}, voici les options disponibles en 2026"',
@@ -915,11 +915,11 @@ return [
             'Le maillage interne DOIT lier vers la fiche pays + l\'article general sur le sujet',
         ],
         'exemples' => [
-            'informational' => 'comment ouvrir un compte bancaire au Portugal en tant que francais sans NIE',
+            'informational' => 'comment ouvrir un compte bancaire au Portugal en tant qu\'expatrie sans NIE',
             'commercial' => 'assurance sante digital nomad thailande moins de 100 euros par mois comparatif',
             'transactional' => 'prendre rendez-vous avocat immigration canada en ligne',
-            'local' => 'medecin generaliste francophone a Lisbonne quartier Baixa',
-            'urgency' => 'passeport francais vole a Bangkok que faire en urgence etapes',
+            'local' => 'medecin generaliste parlant anglais a Lisbonne quartier Baixa',
+            'urgency' => 'passeport vole a Bangkok que faire en urgence etapes',
         ],
     ],
 

@@ -225,20 +225,87 @@ class ArticleGenerationService
             $article->update(['excerpt' => $excerpt]);
             $this->logPhase($article, 'excerpt', 'success', null, 0, 0, $this->elapsed($phaseStart));
 
-            // Phase 5: Generate content (the big one)
+            // Phase 5: Generate content (multi-prompt pipeline)
             $phaseStart = microtime(true);
-            // Pass LSI keywords to content generation
             $params['lsi_keywords'] = $lsiKeywords;
-            $contentHtml = $this->phase05_generateContent($title, $excerpt, $research['facts'], $params, $typeConfig);
+
+            // 5a: Editorial outline (structure + angle + arc narratif)
+            $phaseStartSub = microtime(true);
+            $outline = $this->phase05a_generateOutline($title, $excerpt, $research['facts'], $params, $typeConfig);
+            $this->logPhase($article, 'content_outline', 'success', count($outline['sections'] ?? []) . ' sections planned', 0, 0, $this->elapsed($phaseStartSub));
+
+            // Store tone guidance for the polish pass
+            $params['_outline_tone'] = $outline['tone_guidance'] ?? '';
+            $params['excerpt'] = $excerpt;
+
+            // 5b: Captivating introduction (storyteller)
+            $phaseStartSub = microtime(true);
+            $introHtml = $this->phase05_generateIntroduction($title, $outline, $research['facts'], $params, $typeConfig);
+            $this->logPhase($article, 'content_intro', 'success', str_word_count(strip_tags($introHtml)) . ' words', 0, 0, $this->elapsed($phaseStartSub));
+
+            // 5c: Body sections (expert, by groups of 2-3)
+            $phaseStartSub = microtime(true);
+            $bodyHtml = $this->phase05c_generateSections($title, $outline, $introHtml, $research['facts'], $params, $typeConfig);
+            $this->logPhase($article, 'content_sections', 'success', str_word_count(strip_tags($bodyHtml)) . ' words', 0, 0, $this->elapsed($phaseStartSub));
+
+            // 5d: Conclusion (conversion copywriter)
+            $phaseStartSub = microtime(true);
+            $conclusionHtml = $this->phase05d_generateConclusion($title, $introHtml, $bodyHtml, $params, $typeConfig);
+            $this->logPhase($article, 'content_conclusion', 'success', str_word_count(strip_tags($conclusionHtml)) . ' words', 0, 0, $this->elapsed($phaseStartSub));
+
+            // Assemble full article
+            $contentHtml = $introHtml . "\n\n" . $bodyHtml . "\n\n" . $conclusionHtml;
+
+            // 5e: Polish pass (editor-in-chief — transitions, anti-AI patterns, coherence)
+            $phaseStartSub = microtime(true);
+            $contentHtml = $this->phase05e_polishAndUnify($contentHtml, $title, $params, $typeConfig);
+            $this->logPhase($article, 'content_polish', 'success', null, 0, 0, $this->elapsed($phaseStartSub));
+
+            // Word count check — if too short after assembly, extend
+            $wordCount = str_word_count(strip_tags($contentHtml));
+            $targetWords = $typeConfig['target_words_range'] ?? '3000-4500';
+            $minWords = (int) (((int) explode('-', $targetWords)[0]) * 0.7);
+            if ($wordCount < $minWords && $wordCount > 100) {
+                Log::info("Phase 5: Content too short ({$wordCount} words, min {$minWords}), extending...", [
+                    'article_topic' => $params['topic'] ?? '',
+                ]);
+                $maxTokens = $typeConfig['max_tokens_content'] ?? 16384;
+                $extendPrompt = "L'article suivant fait seulement {$wordCount} mots. Il DOIT faire MINIMUM {$targetWords} mots. "
+                    . "Developpe-le considerablement : ajoute des sections detaillees, des exemples concrets, "
+                    . "des chiffres, des tableaux comparatifs, des conseils pratiques, des retours d'experience. "
+                    . "Chaque section <h2> doit contenir au minimum 3 paragraphes de 80+ mots chacun.\n\n"
+                    . "ARTICLE A DEVELOPPER :\n" . $contentHtml;
+
+                $extendResult = $this->aiComplete(
+                    $this->kbPrompt . "\n\nTu es un redacteur web expert. Developpe cet article en HTML pour qu'il atteigne {$targetWords} mots minimum.",
+                    $extendPrompt,
+                    [
+                        'model'       => $typeConfig['model'] ?? null,
+                        'temperature' => 0.8,
+                        'max_tokens'  => $maxTokens,
+                    ]
+                );
+
+                if ($extendResult['success']) {
+                    $extended = $this->cleanAiHtml($extendResult['content']);
+                    $newWordCount = str_word_count(strip_tags($extended));
+                    Log::info("Phase 5: Extended from {$wordCount} to {$newWordCount} words");
+                    if ($newWordCount > $wordCount) {
+                        $contentHtml = $extended;
+                    }
+                }
+            }
+
             $article->update([
                 'content_html' => $contentHtml,
                 'word_count' => $this->seoAnalysis->countWords($contentHtml),
                 'reading_time_minutes' => max(1, (int) ceil($this->seoAnalysis->countWords($contentHtml) / 250)),
             ]);
-            $this->logPhase($article, 'content', 'success', 'Generated ' . $article->word_count . ' words', 0, 0, $this->elapsed($phaseStart));
+            $this->logPhase($article, 'content', 'success', 'Generated ' . $article->word_count . ' words via multi-prompt pipeline', 0, 0, $this->elapsed($phaseStart));
 
-            // Phase 5b: Featured snippet definition paragraph
-            $this->phase05b_featuredSnippet($article, $params['keywords'][0] ?? $params['topic'], $params['language'] ?? 'fr');
+            // Phase 5 featured snippet: SKIPPED — already generated by phase05_generateIntroduction
+            // (phase05b_featuredSnippet was producing a duplicate; the intro now includes
+            //  a <div class="featured-snippet"> with intent-specific rules)
 
             // Phase 6: Generate FAQ
             try {
@@ -253,6 +320,9 @@ class ArticleGenerationService
                         $params['country'] ?? null
                     );
                     if (!empty($faqs)) {
+                        // Store in DB — the blog frontend renders FAQs via blade partial
+                        // (faq-section.blade.php) + JSON-LD FAQPage schema, so we do NOT
+                        // inject them into content_html (that would create duplicates).
                         foreach ($faqs as $index => $faq) {
                             GeneratedArticleFaq::create([
                                 'article_id' => $article->id,
@@ -1021,225 +1091,6 @@ class ArticleGenerationService
         return mb_substr($title, 0, 150);
     }
 
-    private function phase05_generateContent(string $title, string $excerpt, array $facts, array $params, array $typeConfig = []): string
-    {
-        $language = $params['language'] ?? 'fr';
-        $tone = $params['tone'] ?? 'professional';
-        $keywords = $params['keywords'] ?? [];
-        $instructions = $params['instructions'] ?? '';
-        $contentType = $params['content_type'] ?? 'article';
-
-        // Target word counts — ambitious for world-class content
-        $targetWords = $typeConfig['target_words_range'] ?? match ($params['length'] ?? $typeConfig['length'] ?? 'long') {
-            'short' => '1500-2000',
-            'medium' => '2000-3000',
-            'long' => '3000-4500',
-            'extra_long' => '4500-7000',
-            default => '3000-4500',
-        };
-
-        $keywordsStr = !empty($keywords) ? implode(', ', $keywords) : '';
-        $factsStr = !empty($facts) ? implode("\n- ", array_slice($facts, 0, 15)) : '';
-
-        $template = $this->getPromptTemplate($contentType, 'content');
-
-        $systemPrompt = $this->kbPrompt . "\n\n" . ($template
-            ? $this->replaceVariables($template->system_message, [
-                'language' => $language,
-                'tone' => $tone,
-                'target_words' => $targetWords,
-                'year' => date('Y'),
-            ])
-            : "Tu es un journaliste expert et rédacteur SEO de classe mondiale. "
-              . "Tu rédiges des articles de référence qui se classent #1 sur Google. "
-              . "Langue: {$language}. Ton: {$tone}.\n\n"
-              . "═══ EXIGENCE ABSOLUE DE LONGUEUR ═══\n"
-              . "L'article DOIT contenir MINIMUM {$targetWords} mots. PAS MOINS.\n"
-              . "Un article de moins de " . explode('-', $targetWords)[0] . " mots sera REJETÉ et tu devras le refaire.\n"
-              . "Pour atteindre cette longueur :\n"
-              . "- 8-12 sections <h2> avec chacune 3-5 paragraphes de 80-120 mots\n"
-              . "- Des sous-sections <h3> dans les sections longues\n"
-              . "- Des exemples concrets, des études de cas, des témoignages\n"
-              . "- Des données chiffrées récentes (" . date('Y') . "), prix, statistiques\n"
-              . "- Des tableaux comparatifs HTML (<table>) quand pertinent\n"
-              . "- Des encadrés 'Bon à savoir' avec <blockquote>\n"
-              . "- Des listes détaillées avec explications pour chaque point\n\n"
-              . "═══ QUALITÉ WORLD-CLASS ═══\n"
-              . "- Chaque affirmation doit être étayée par un fait, un chiffre ou une source\n"
-              . "- Inclus des conseils pratiques que le lecteur peut appliquer immédiatement\n"
-              . "- Anticipe les questions du lecteur et réponds-y dans le texte\n"
-              . "- Utilise des transitions fluides entre les sections\n"
-              . "- Varie le vocabulaire : évite les répétitions\n"
-              . "- Écris pour un humain, pas pour un robot : sois engageant et utile\n\n"
-              . "═══ STRUCTURE HTML ═══\n"
-              . "- Balises: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>\n"
-              . "- 8-12 sections <h2> (PAS de <h1>)\n"
-              . "- Au moins 3 listes (<ul>/<ol>) avec 5+ items chacune\n"
-              . "- Au moins 1 tableau comparatif (<table>) si le sujet s'y prête\n"
-              . "- Au moins 2 <blockquote> pour les conseils importants\n"
-              . "- Premier paragraphe : accroche + mot-clé principal + année " . date('Y') . "\n"
-              . "- Dernier paragraphe : conclusion avec récapitulatif et appel à l'action\n"
-              . "- Pas de <html>, <head>, <body> — seulement le contenu article\n\n"
-              . "═══ SEO AVANCÉ ═══\n"
-              . "- Mot-clé principal dans : premier paragraphe, 2+ titres H2, 1x en <strong>\n"
-              . "- Densité mot-clé principal : 1-2%\n"
-              . "- Mots-clés secondaires répartis naturellement (1 par section minimum)\n"
-              . "- Phrases variées : 15-25 mots en moyenne, alterner courtes/longues\n"
-              . "- Paragraphes de 3-5 lignes max\n"
-              . "- Mentionne '" . date('Y') . "' dans les données chiffrées\n"
-              . "- Dans la conclusion\n"
-              . "- Densité totale : 1-2% (ni trop, ni trop peu)\n"
-              . "Le mot-clé doit apparaître NATURELLEMENT — jamais forcé ou répétitif.");
-
-        // Extract brand names from topic (e.g. "Wise, Airbnb, SOS-Expat.com, Uber")
-        $topicText = $params['topic'] ?? '';
-        $brandsFromTopic = [];
-        if (preg_match_all('/\b(SOS-Expat\.com|Wise|Revolut|Airbnb|Uber|Uber Eats|Booking(?:\.com)?|Skyscanner|Duolingo|N26|PayPal|Stripe|WhatsApp|Google Maps|Google Translate|Nomad List|Notion|Erasmusu|Student Universe|Interactive Brokers|IBKR|Monzo|Starling|Kayak|Expedia|Hostelworld|Couchsurfing|Rome2Rio|Maps\.me)\b/iu', $topicText, $m)) {
-            $brandsFromTopic = array_unique($m[0]);
-        }
-
-        $userPrompt = "Sujet original complet: {$topicText}\n\n"
-            . "Titre généré: {$title}\n\n"
-            . "Introduction (déjà rédigée, à intégrer):\n{$excerpt}\n\n"
-            . (!empty($keywordsStr) ? "Mots-clés à intégrer: {$keywordsStr}\n\n" : '')
-            . (!empty($factsStr) ? "Faits de recherche à utiliser:\n- {$factsStr}\n\n" : '');
-
-        if (!empty($brandsFromTopic)) {
-            $brandList = implode(', ', $brandsFromTopic);
-            $userPrompt .= "═══ MARQUES À CITER OBLIGATOIREMENT ═══\n"
-                . "Tu DOIS citer ces marques RÉELLES par leur NOM EXACT dans l'article : {$brandList}\n"
-                . "- Chaque marque a sa propre section avec ses fonctionnalités réelles et son prix réel.\n"
-                . "- INTERDIT : 'Application A', 'Application B', 'Service X' — utilise UNIQUEMENT les vrais noms.\n"
-                . "- Pour chaque marque, explique concrètement à quoi elle sert et pourquoi elle est utile.\n"
-                . "- SOS-Expat.com doit être présenté comme : service de mise en relation téléphonique avec un avocat ou un expert local, en moins de 5 minutes, 24h/24, dans 197 pays, pour toute situation (juridique, administrative, pratique, médicale, urgence).\n"
-                . "- Ne JAMAIS inventer de chiffres sur SOS-Expat.com (pas de nombre d'avocats, clients, notes).\n\n";
-        }
-
-        $userPrompt .= (!empty($instructions) ? "Instructions supplémentaires: {$instructions}\n\n" : '')
-            . "Année courante: " . date('Y') . ". Mentionne cette année dans le premier paragraphe et les données chiffrées.\n\n"
-            . "Rédige l'article complet en HTML.";
-
-        // Inject country geo context for guide/pillar/guide_city — prevents duplicate content across 197 countries
-        if (!empty($params['country']) && in_array($contentType, ['guide', 'pillar', 'guide_city'], true)) {
-            $geoContext = $this->geoMeta->buildCountryContextForPrompt($params['country'], $language);
-            if (!empty($geoContext)) {
-                $userPrompt = $geoContext . "\n\n" . $userPrompt;
-            }
-        }
-
-        // Append content-type-specific instructions
-        $promptSuffix = $typeConfig['prompt_suffix'] ?? '';
-        if (!empty($promptSuffix)) {
-            $userPrompt .= "\n\nINSTRUCTIONS SUPPLEMENTAIRES DU TYPE DE CONTENU:\n" . $promptSuffix;
-        }
-
-        // Reinforce H2 keyword rule for template-based prompts too
-        $primaryKw = $keywords[0] ?? $params['topic'] ?? '';
-        if (!empty($primaryKw)) {
-            $userPrompt .= "\n\nRÈGLE H2 OBLIGATOIRE : Le mot-clé principal \"{$primaryKw}\" DOIT apparaître dans au moins 2 titres H2 sur les 6-8 (variantes/synonymes acceptés).";
-        }
-
-        // LSI keywords integration
-        $lsiKeywords = $params['lsi_keywords'] ?? [];
-        if (!empty($lsiKeywords)) {
-            $lsiList = implode(', ', array_slice($lsiKeywords, 0, 15));
-            $userPrompt .= "\n\nMOTS-CLÉS SÉMANTIQUES (LSI) à intégrer naturellement dans le texte :\n{$lsiList}\nCes mots doivent apparaître au moins 1 fois chacun dans l'article pour signaler à Google que l'article couvre le sujet en profondeur.";
-        }
-
-        // If source content is provided (full_content items), inject it as GPT reference
-        $sourceContent = $params['source_content'] ?? null;
-        if (!empty($sourceContent)) {
-            $truncated = mb_substr(strip_tags($sourceContent), 0, 3000);
-            $userPrompt .= "\n\n═══ CONTENU SOURCE À ENRICHIR ═══\n"
-                . "Voici le contenu existant sur ce sujet. Ne le recopie PAS — utilise-le comme base "
-                . "pour créer un article BIEN MEILLEUR : plus complet, mieux structuré, avec plus de données, "
-                . "d'exemples concrets et de valeur ajoutée. Réécris et enrichis :\n\n"
-                . $truncated;
-        }
-
-        // Token limits for world-class content (1 French word ≈ 1.8 tokens + HTML overhead ~30%)
-        $maxTokens = $typeConfig['max_tokens_content'] ?? match ($params['length'] ?? $typeConfig['length'] ?? 'long') {
-            'short' => 8000,       // ~2000 words + HTML
-            'medium' => 12000,     // ~3000 words + HTML
-            'long' => 16384,       // ~4500 words + HTML (GPT-4o max output)
-            'extra_long' => 16384, // ~4500+ words (GPT-4o max)
-            default => 16384,
-        };
-
-        $result = $this->aiComplete($systemPrompt, $userPrompt, [
-            'model' => $typeConfig['model'] ?? null,
-            'temperature' => $typeConfig['temperature'] ?? 0.7,
-            'max_tokens' => $maxTokens,
-            'costable_type' => GeneratedArticle::class,
-            'costable_id' => null, // Will be set after creation
-        ]);
-
-        if ($result['success']) {
-            $content = trim($result['content']);
-
-            // Strip markdown code fences that GPT sometimes wraps HTML in
-            $content = preg_replace('/^```(?:html)?\s*\n?/i', '', $content);
-            $content = preg_replace('/\n?```\s*$/i', '', $content);
-
-            // Strip full HTML page wrapper if GPT returned <html>/<head>/<body>/<style>
-            $content = preg_replace('/<html[^>]*>|<\/html>/i', '', $content);
-            $content = preg_replace('/<head>.*?<\/head>/is', '', $content);
-            $content = preg_replace('/<body[^>]*>|<\/body>/i', '', $content);
-            $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
-            $content = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $content);
-            $content = preg_replace('/<!DOCTYPE[^>]*>/i', '', $content);
-            $content = preg_replace('/<title[^>]*>.*?<\/title>/is', '', $content);
-            $content = preg_replace('/<meta[^>]*>/i', '', $content);
-            $content = preg_replace('/<link[^>]*>/i', '', $content);
-
-            // Remove any leftover <h1> (title is separate)
-            $content = preg_replace('/<h1[^>]*>.*?<\/h1>/is', '', $content);
-
-            $content = trim($content);
-
-            // Check word count — if too short, retry with stronger instruction
-            $wordCount = str_word_count(strip_tags($content));
-            $minWords = (int) (((int) explode('-', $targetWords)[0]) * 0.7); // 70% of minimum target
-            if ($wordCount < $minWords && $wordCount > 100) {
-                Log::info("Phase 5: Content too short ({$wordCount} words, min {$minWords}), extending...", [
-                    'article_topic' => $params['topic'] ?? '',
-                ]);
-
-                $extendPrompt = "L'article suivant fait seulement {$wordCount} mots. Il DOIT faire MINIMUM {$targetWords} mots. "
-                    . "Réécris-le en le développant considérablement : ajoute des sections détaillées, des exemples concrets, "
-                    . "des chiffres, des tableaux comparatifs, des conseils pratiques, des retours d'expérience. "
-                    . "Chaque section <h2> doit contenir au minimum 3 paragraphes de 80+ mots chacun.\n\n"
-                    . "ARTICLE À DÉVELOPPER :\n" . $content;
-
-                $extendResult = $this->aiComplete(
-                    $this->kbPrompt . "\n\nTu es un rédacteur web expert. Développe cet article en HTML pour qu'il atteigne {$targetWords} mots minimum.",
-                    $extendPrompt,
-                    [
-                        'model' => $typeConfig['model'] ?? null,
-                        'temperature' => 0.8,
-                        'max_tokens' => $maxTokens,
-                    ]
-                );
-
-                if ($extendResult['success']) {
-                    $extended = trim($extendResult['content']);
-                    $extended = preg_replace('/^```(?:html)?\s*\n?/i', '', $extended);
-                    $extended = preg_replace('/\n?```\s*$/i', '', $extended);
-                    $extended = trim($extended);
-                    $newWordCount = str_word_count(strip_tags($extended));
-                    Log::info("Phase 5: Extended from {$wordCount} to {$newWordCount} words");
-                    if ($newWordCount > $wordCount) {
-                        return $extended;
-                    }
-                }
-            }
-
-            return $content;
-        }
-
-        throw new \RuntimeException('Content generation failed: ' . ($result['error'] ?? 'Unknown error'));
-    }
-
     private function phase05b_featuredSnippet(GeneratedArticle $article, string $primaryKeyword, string $language): string
     {
         $startTime = microtime(true);
@@ -1840,27 +1691,46 @@ class ArticleGenerationService
 
         // Calculate quality score (weighted average)
         $seoWeight = 0.40;
-        $readabilityWeight = 0.25;
+        $readabilityWeight = 0.20;
         $lengthWeight = 0.20;
-        $faqWeight = 0.15;
+        $faqWeight = 0.20;
 
         $seoNormalized = min(100, $seoResult->overall_score);
-        $readabilityNormalized = $readabilityScore;
 
-        // Length score: 100 if 1500-3000 words, scaled otherwise
+        // Readability: French text scores ~15-20 pts lower than English on Flesch-Kincaid.
+        // Compensate with a +15 bonus so well-written French content (raw 40-55) reaches 55-70.
+        $readabilityNormalized = min(100, $readabilityScore + 15);
+
+        // Length score: calibrated per content type (not hardcoded 1500-3000)
         $wordCount = $article->word_count ?? 0;
-        $lengthNormalized = 0;
-        if ($wordCount >= 1500 && $wordCount <= 3000) {
+        $contentType = $article->content_type ?? 'article';
+        $typeTargets = ContentTypeConfig::get($contentType);
+        $minWords = $typeTargets['min_words'] ?? 1200;
+        $maxWords = $typeTargets['max_words'] ?? 5000;
+
+        if ($wordCount >= $minWords && $wordCount <= $maxWords) {
             $lengthNormalized = 100;
-        } elseif ($wordCount >= 1000) {
-            $lengthNormalized = 70;
-        } elseif ($wordCount >= 500) {
+        } elseif ($wordCount >= $minWords * 0.7) {
+            // 70-99% of minimum → scaled 60-99
+            $lengthNormalized = (int) (60 + 40 * (($wordCount - $minWords * 0.7) / ($minWords * 0.3)));
+        } elseif ($wordCount >= $minWords * 0.4) {
             $lengthNormalized = 40;
+        } elseif ($wordCount > 0) {
+            $lengthNormalized = 20;
+        } else {
+            $lengthNormalized = 0;
+        }
+        // Slight penalty for excessively long articles (>150% of max)
+        if ($wordCount > $maxWords * 1.5) {
+            $lengthNormalized = max(70, $lengthNormalized - 10);
         }
 
-        // FAQ completeness: 100 if has 6+ FAQs
+        // FAQ completeness: calibrated per content type
         $faqCount = $article->faqs()->count();
-        $faqNormalized = min(100, ($faqCount / 6) * 100);
+        $expectedFaqs = $typeTargets['faq_count'] ?? 6;
+        $faqNormalized = $expectedFaqs > 0
+            ? min(100, (int) (($faqCount / $expectedFaqs) * 100))
+            : 100; // types with faq_count=0 get full marks
 
         $qualityScore = (int) round(
             ($seoNormalized * $seoWeight)
@@ -1913,6 +1783,730 @@ class ArticleGenerationService
 
         // Sync hreflang after dispatching translations
         $this->hreflang->syncAllTranslations($article);
+    }
+
+    // ============================================================
+    // Phase 5 — Multi-Prompt Content Pipeline
+    // ============================================================
+
+    /**
+     * Strip markdown fences, HTML page wrappers, and leftover H1 from AI output.
+     */
+    private function cleanAiHtml(string $raw): string
+    {
+        $content = trim($raw);
+
+        // Strip markdown code fences that GPT sometimes wraps HTML in
+        $content = preg_replace('/^```(?:html)?\s*\n?/i', '', $content);
+        $content = preg_replace('/\n?```\s*$/i', '', $content);
+
+        // Strip full HTML page wrapper if GPT returned <html>/<head>/<body>/<style>
+        $content = preg_replace('/<html[^>]*>|<\/html>/i', '', $content);
+        $content = preg_replace('/<head>.*?<\/head>/is', '', $content);
+        $content = preg_replace('/<body[^>]*>|<\/body>/i', '', $content);
+        $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
+        $content = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $content);
+        $content = preg_replace('/<!DOCTYPE[^>]*>/i', '', $content);
+        $content = preg_replace('/<title[^>]*>.*?<\/title>/is', '', $content);
+        $content = preg_replace('/<meta[^>]*>/i', '', $content);
+        $content = preg_replace('/<link[^>]*>/i', '', $content);
+
+        // Remove any leftover <h1> (title is separate)
+        $content = preg_replace('/<h1[^>]*>.*?<\/h1>/is', '', $content);
+
+        return trim($content);
+    }
+
+    /**
+     * Phase 5a — Editorial Strategist: generate a structured outline (JSON).
+     *
+     * Returns an associative array with: angle, tone_guidance, narrative_arc, sections[].
+     */
+    private function phase05a_generateOutline(string $title, string $excerpt, array $facts, array $params, array $typeConfig): array
+    {
+        $language    = $params['language'] ?? 'fr';
+        $contentType = $params['content_type'] ?? 'article';
+        $country     = $params['country'] ?? null;
+        $keywords    = $params['keywords'] ?? [];
+        $lsiKeywords = $params['lsi_keywords'] ?? [];
+        $primaryKw   = $keywords[0] ?? $params['topic'] ?? '';
+
+        $h2Range     = $typeConfig['h2_count'] ?? [8, 12];
+        $h2Min       = is_array($h2Range) ? $h2Range[0] : 8;
+        $h2Max       = is_array($h2Range) ? $h2Range[1] : 12;
+        $targetWords = $typeConfig['target_words_range'] ?? '3000-4500';
+
+        $factsStr = !empty($facts) ? implode("\n- ", array_slice($facts, 0, 15)) : '';
+
+        // Summarise prompt_suffix for the strategist (avoid dumping full writing instructions)
+        $promptSuffix = $typeConfig['prompt_suffix'] ?? '';
+        $suffixSummary = $promptSuffix ? mb_substr(strip_tags($promptSuffix), 0, 400) : '';
+
+        // Intent-specific outline guidance
+        $searchIntent = $params['search_intent'] ?? $params['intent'] ?? self::defaultIntent($contentType);
+        $intentOutlineGuide = match ($searchIntent) {
+            'informational' => "INTENTION : INFORMATIONNELLE — l'utilisateur veut APPRENDRE.\n"
+                . "- Structure pedagogique : du simple au complexe.\n"
+                . "- Chaque H2 = une sous-question que l'utilisateur se pose.\n"
+                . "- Prevois des sections : definition, processus, couts, delais, erreurs a eviter, FAQ.\n",
+            'commercial_investigation' => "INTENTION : INVESTIGATION COMMERCIALE — l'utilisateur veut COMPARER.\n"
+                . "- La PREMIERE section DOIT etre un tableau comparatif.\n"
+                . "- Puis 1 section par option comparee (pros/cons).\n"
+                . "- Terminer par un verdict argumente + section 'Comment choisir'.\n",
+            'transactional' => "INTENTION : TRANSACTIONNELLE — l'utilisateur veut AGIR MAINTENANT.\n"
+                . "- Article COURT ({$h2Min}-{$h2Max} sections max).\n"
+                . "- 1ere section = prix/tarifs. 2e section = etapes d'action en <ol>.\n"
+                . "- Chaque section = reponse a 'comment faire' ou 'combien ca coute'.\n",
+            'urgency' => "INTENTION : URGENCE — l'utilisateur a un probleme MAINTENANT.\n"
+                . "- Article COURT ({$h2Min}-{$h2Max} sections max).\n"
+                . "- 1ere section = numeros d'urgence. 2e section = etapes immediates en <ol>.\n"
+                . "- Chaque section = une action concrete et immediate.\n",
+            'local' => "INTENTION : LOCALE — l'utilisateur cherche un service dans un lieu precis.\n"
+                . "- 1ere section = tableau des ressources locales.\n"
+                . "- Sections par type de ressource (ambassade, pros, associations).\n"
+                . "- Focus sur les informations pratiques (adresses, horaires, contacts).\n",
+            default => '',
+        };
+
+        $systemPrompt = $this->kbPrompt . "\n\n"
+            . "Tu es un STRATEGE EDITORIAL pour un magazine international d'expatriation de premier plan.\n"
+            . "Ta mission : concevoir le PLAN STRUCTUREL d'un article de reference.\n\n"
+            . "REGLE CRITIQUE : le contenu s'adresse a TOUTE nationalite d'expatrie (pas uniquement les Francais). "
+            . "Les sections doivent etre formulees de maniere universelle ('votre ambassade', pas 'l'ambassade de France').\n\n"
+            . "Tu ne rediges PAS l'article. Tu crees son architecture editoriale.\n\n"
+            . (!empty($intentOutlineGuide) ? $intentOutlineGuide . "\n" : '')
+            . "REGLES :\n"
+            . "- L'article doit viser {$targetWords} mots au total.\n"
+            . "- Le plan comporte entre {$h2Min} et {$h2Max} sections H2.\n"
+            . "- Le mot-cle principal \"{$primaryKw}\" doit apparaitre dans au moins 2 titres H2 (variantes/synonymes acceptes).\n"
+            . "- Au moins 3 H2 sur {$h2Min} doivent etre formules comme des QUESTIONS GOOGLE reelles (People Also Ask) :\n"
+            . "  'Comment...?', 'Combien coute...?', 'Faut-il...?', 'Quand...?', 'Pourquoi...?'\n"
+            . "- Chaque section doit avoir un OBJECTIF CLAIR : informer, comparer, guider, rassurer, convaincre.\n"
+            . "- Prevois un ARC NARRATIF : l'article doit progresser emotionnellement (curiosite → comprehension → confiance → action).\n"
+            . "- Distribue les mots-cles secondaires et LSI de facon naturelle entre les sections.\n\n"
+            . "Retourne UNIQUEMENT du JSON valide, sans aucun texte avant ou apres.\n"
+            . "Langue: {$language}.\n\n"
+            . "Structure JSON attendue :\n"
+            . "{\n"
+            . "  \"angle\": \"L'angle editorial unique de cet article (1 phrase)\",\n"
+            . "  \"tone_guidance\": \"Directives de ton pour les redacteurs (ami expert, chaleureux, precis)\",\n"
+            . "  \"narrative_arc\": \"Comment l'article progresse emotionnellement du debut a la fin\",\n"
+            . "  \"sections\": [\n"
+            . "    {\n"
+            . "      \"heading\": \"Titre H2 de la section\",\n"
+            . "      \"subheadings\": [\"H3 optionnel\", \"H3 optionnel\"],\n"
+            . "      \"key_points\": [\"point cle 1\", \"point cle 2\", \"point cle 3\"],\n"
+            . "      \"target_words\": 350,\n"
+            . "      \"keywords_to_use\": [\"mot-cle 1\", \"mot-cle 2\"]\n"
+            . "    }\n"
+            . "  ]\n"
+            . "}";
+
+        $userPrompt = "Titre de l'article : {$title}\n"
+            . "Resume : {$excerpt}\n"
+            . "Type de contenu : {$contentType}\n"
+            . "Mot-cle principal : {$primaryKw}\n"
+            . (!empty($keywords) ? "Mots-cles secondaires : " . implode(', ', array_slice($keywords, 1, 5)) . "\n" : '')
+            . (!empty($lsiKeywords) ? "Mots-cles LSI : " . implode(', ', array_slice($lsiKeywords, 0, 15)) . "\n" : '')
+            . (!empty($factsStr) ? "Faits de recherche :\n- {$factsStr}\n" : '')
+            . (!empty($suffixSummary) ? "\nDirectives specifiques au type de contenu :\n{$suffixSummary}\n" : '');
+
+        // Geo context for country-specific guides
+        if ($country && in_array($contentType, ['guide', 'pillar', 'guide_city'], true)) {
+            $geoContext = $this->geoMeta->buildCountryContextForPrompt($country, $language);
+            if (!empty($geoContext)) {
+                $userPrompt = $geoContext . "\n\n" . $userPrompt;
+            }
+        }
+
+        $result = $this->aiComplete($systemPrompt, $userPrompt, [
+            'model'      => $typeConfig['model'] ?? null,
+            'temperature' => $typeConfig['temperature'] ?? 0.7,
+            'max_tokens' => 2500,
+            'json_mode'  => true,
+        ]);
+
+        if ($result['success'] && !empty($result['content'])) {
+            $parsed = json_decode($result['content'], true);
+            if (is_array($parsed) && !empty($parsed['sections'])) {
+                return $parsed;
+            }
+
+            // Try extracting JSON block if wrapped in text
+            if (preg_match('/\{[\s\S]+\}/u', $result['content'], $m)) {
+                $parsed = json_decode($m[0], true);
+                if (is_array($parsed) && !empty($parsed['sections'])) {
+                    return $parsed;
+                }
+            }
+        }
+
+        // Fallback: generic 8-section skeleton
+        Log::warning('phase05a: outline generation failed or invalid JSON, using fallback skeleton', [
+            'topic' => $params['topic'] ?? '',
+        ]);
+
+        $wordBudget = (int) (((int) explode('-', $targetWords)[0]) / 8);
+        return [
+            'angle' => "Article informatif sur {$title}",
+            'tone_guidance' => 'Ami expert, chaleureux mais precis, avec anecdotes concretes',
+            'narrative_arc' => 'Curiosite → Comprehension → Confiance → Action',
+            'sections' => array_map(fn ($i) => [
+                'heading' => "Section {$i}",
+                'subheadings' => [],
+                'key_points' => [],
+                'target_words' => $wordBudget,
+                'keywords_to_use' => $i <= 2 ? [$primaryKw] : [],
+            ], range(1, 8)),
+        ];
+    }
+
+    /**
+     * Phase 5b — Journalist / Storyteller: generate a captivating introduction.
+     *
+     * Returns HTML string (paragraphs only, no H2).
+     */
+    private function phase05_generateIntroduction(string $title, array $outline, array $facts, array $params, array $typeConfig = []): string
+    {
+        $language    = $params['language'] ?? 'fr';
+        $country     = $params['country'] ?? null;
+        $contentType = $params['content_type'] ?? 'article';
+        $topicText   = $params['topic'] ?? '';
+        $year        = date('Y');
+
+        $angle       = $outline['angle'] ?? '';
+        $toneGuide   = $outline['tone_guidance'] ?? '';
+        $narrativeArc = $outline['narrative_arc'] ?? '';
+
+        // Intent-specific featured snippet rules for the opening paragraph
+        $searchIntent = $params['search_intent'] ?? $params['intent'] ?? self::defaultIntent($contentType);
+        $featuredSnippetRule = match ($searchIntent) {
+            'informational' => "FEATURED SNIPPET (CRITIQUE POSITION 0) :\n"
+                . "Le TOUT PREMIER paragraphe de l'intro DOIT etre une reponse directe de 40-60 mots.\n"
+                . "Commence par reformuler le sujet avec reponse complete + chiffre cle.\n"
+                . "Ex: 'Le visa digital nomad en France coute 99EUR en {$year}, s'obtient en 2-4 semaines et ouvre droit a une residence de 1 an renouvelable.'\n"
+                . "Encadre-le dans : <div class=\"featured-snippet\"><p>...</p></div>\n"
+                . "PUIS enchaine avec l'accroche narrative (anecdote, fait surprenant).\n",
+            'commercial_investigation' => "FEATURED SNIPPET (CRITIQUE POSITION 0) :\n"
+                . "Le TOUT PREMIER paragraphe DOIT etre un verdict direct de 40-60 mots.\n"
+                . "Ex: 'En {$year}, le meilleur X est Y pour Z raison. Voici notre comparatif complet.'\n"
+                . "Encadre-le dans : <div class=\"featured-snippet\"><p>...</p></div>\n"
+                . "PUIS enchaine avec le contexte du comparatif.\n",
+            'transactional' => "FEATURED SNIPPET (CRITIQUE POSITION 0) :\n"
+                . "Le TOUT PREMIER paragraphe repond a 'combien ca coute' ou 'comment faire' en 1 phrase (40-60 mots).\n"
+                . "Encadre-le dans : <div class=\"featured-snippet\"><p>...</p></div>\n"
+                . "JUSTE APRES, ajoute le pricing box :\n"
+                . "<div class=\"pricing-box\"><p><strong>Tarif</strong></p><p>Avocat : 49EUR/55USD (20 min) | Expert local : 19EUR/25USD (30 min)</p></div>\n",
+            'urgency' => "FEATURED SNIPPET (CRITIQUE POSITION 0) :\n"
+                . "Le TOUT PREMIER paragraphe = action immediate (40-60 mots).\n"
+                . "Ex: 'En cas de passeport perdu au Maroc, appelez immediatement le +212-537-XXX. Voici les 5 etapes a suivre.'\n"
+                . "Encadre-le dans : <div class=\"featured-snippet\"><p>...</p></div>\n"
+                . "JUSTE APRES, ajoute l'encadre urgence :\n"
+                . "<div class=\"emergency-box\"><p><strong>Numeros d'urgence</strong></p><ul><li><strong>Police :</strong> ...</li><li><strong>Ambulance :</strong> ...</li><li><strong>Ambassade :</strong> ...</li></ul></div>\n",
+            default => "Le TOUT PREMIER paragraphe doit etre une reponse directe de 40-60 mots encadree dans <div class=\"featured-snippet\"><p>...</p></div>\n",
+        };
+
+        $systemPrompt = $this->kbPrompt . "\n\n"
+            . "Tu es un JOURNALISTE DU NEW YORK TIMES specialise en mobilite internationale.\n"
+            . "Tu ecris des introductions qui CAPTIVENT le lecteur des la premiere phrase.\n\n"
+            . "TON OBJECTIF : que le lecteur ne puisse PAS s'arreter de lire apres l'intro.\n\n"
+            . $featuredSnippetRule . "\n"
+            . "APRES LE FEATURED SNIPPET, enchaine avec l'accroche narrative :\n"
+            . "- UNE de ces approches (choisis la plus pertinente) :\n"
+            . "  a) Une ANECDOTE CONCRETE avec un prenom local ou international (PAS un prenom francais) : 'Quand Aisha a debarque a Dubai...', 'Lorsque Carlos a atterri a Berlin...', 'Quand Priya est arrivee a Londres...'\n"
+            . "  b) Un FAIT SURPRENANT : 'En {$year}, 73% des expatries decouvrent que...'\n"
+            . "  c) Une SITUATION VECUE universelle : 'Vous venez de recevoir votre contrat de travail a l'etranger...'\n"
+            . "  d) Une QUESTION PROVOCANTE : 'Et si tout ce que vous pensiez savoir sur [sujet] etait faux ?'\n\n"
+            . "PUIS ajoute un RESUME EN BREF apres l'accroche :\n"
+            . "<div class=\"summary-box\"><p><strong>En bref</strong></p><ul><li>Point cle 1 avec chiffre</li><li>Point cle 2</li><li>Point cle 3</li></ul></div>\n\n"
+            . "REGLES :\n"
+            . "- L'intro COMPLETE fait 250-400 mots (featured snippet + accroche + summary box + promesse).\n"
+            . "- Termine par une PROMESSE CLAIRE de ce que l'article va apporter au lecteur.\n"
+            . "- Mentionne l'annee {$year} naturellement.\n"
+            . "- HTML : <div class=\"featured-snippet\">, <div class=\"summary-box\">, <p>. PAS de <h2>.\n"
+            . "- Phrases courtes (max 20 mots). Paragraphes courts (3-4 lignes max).\n\n"
+            . "STRICTEMENT INTERDIT (ces formules trahissent un texte IA) :\n"
+            . "- 'Dans cet article, nous allons...'\n"
+            . "- 'Bienvenue dans notre guide...'\n"
+            . "- 'Que vous soyez... ou...'\n"
+            . "- 'Il est important de noter que...'\n"
+            . "- 'Decouvrez dans ce guide...'\n"
+            . "- 'Vous vous demandez peut-etre...'\n"
+            . "- 'Plongeons dans...'\n"
+            . "- 'Dans un monde de plus en plus globalise...'\n"
+            . "- Toute phrase generique applicable a n'importe quel pays/sujet\n\n"
+            . "Langue: {$language}. Retourne UNIQUEMENT le HTML de l'introduction.";
+
+        $factsSnippet = !empty($facts) ? implode('. ', array_slice($facts, 0, 5)) : '';
+
+        $userPrompt = "Titre de l'article : {$title}\n"
+            . "Sujet original : {$topicText}\n"
+            . "Angle editorial : {$angle}\n"
+            . "Ton souhaite : {$toneGuide}\n"
+            . "Arc narratif : {$narrativeArc}\n"
+            . (!empty($factsSnippet) ? "Faits de recherche : {$factsSnippet}\n" : '')
+            . "Annee : {$year}\n";
+
+        // Brand mention in intro (just SOS-Expat if present in topic)
+        if (stripos($topicText, 'SOS-Expat') !== false || stripos($topicText, 'sos-expat') !== false) {
+            $userPrompt .= "\nMentionne SOS-Expat.com naturellement dans la promesse de l'intro (service de mise en relation telephonique avec un avocat ou expert local en moins de 5 minutes, 24h/24, 197 pays).\n";
+        }
+
+        // Geo context
+        if ($country && in_array($contentType, ['guide', 'pillar', 'guide_city'], true)) {
+            $geoContext = $this->geoMeta->buildCountryContextForPrompt($country, $language);
+            if (!empty($geoContext)) {
+                $userPrompt = $geoContext . "\n\n" . $userPrompt;
+            }
+        }
+
+        // Intro needs slightly higher creativity than the base type temperature
+        $introTemp = min(1.0, ($typeConfig['temperature'] ?? 0.7) + 0.1);
+        $result = $this->aiComplete($systemPrompt, $userPrompt, [
+            'model'       => $typeConfig['model'] ?? null,
+            'temperature' => $introTemp,
+            'max_tokens'  => 1500,
+        ]);
+
+        if ($result['success'] && !empty($result['content'])) {
+            return $this->cleanAiHtml($result['content']);
+        }
+
+        // Fallback: use the excerpt wrapped in a paragraph
+        Log::warning('phase05_generateIntroduction: failed, falling back to excerpt', [
+            'topic' => $params['topic'] ?? '',
+        ]);
+        return '<p>' . e($params['excerpt'] ?? $title) . '</p>';
+    }
+
+    /**
+     * Phase 5c — Subject Matter Expert: generate body sections in groups of 2-3.
+     *
+     * Returns concatenated HTML of all body sections.
+     */
+    private function phase05c_generateSections(string $title, array $outline, string $introHtml, array $facts, array $params, array $typeConfig): string
+    {
+        $language    = $params['language'] ?? 'fr';
+        $contentType = $params['content_type'] ?? 'article';
+        $country     = $params['country'] ?? null;
+        $keywords    = $params['keywords'] ?? [];
+        $primaryKw   = $keywords[0] ?? $params['topic'] ?? '';
+        $lsiKeywords = $params['lsi_keywords'] ?? [];
+        $instructions = $params['instructions'] ?? '';
+        $topicText   = $params['topic'] ?? '';
+        $year        = date('Y');
+        $toneGuide   = $outline['tone_guidance'] ?? '';
+        $promptSuffix = $typeConfig['prompt_suffix'] ?? '';
+
+        $sections = $outline['sections'] ?? [];
+        if (empty($sections)) {
+            throw new \RuntimeException('No sections in outline — cannot generate body content');
+        }
+
+        // Build the base system prompt (shared by all groups)
+        $baseSystemPrompt = $this->kbPrompt . "\n\n"
+            . "Tu es un EXPERT THEMATIQUE en expatriation et mobilite internationale.\n"
+            . "Tu rediges des sections d'article de REFERENCE — le contenu le plus complet et utile du web sur ce sujet.\n\n"
+            . "TON : {$toneGuide}\n"
+            . "ANNEE : {$year}\n\n"
+            . "REGLE CRITIQUE — MULTI-NATIONALITE :\n"
+            . "- SOS-Expat.com est une plateforme MONDIALE. Le contenu s'adresse a TOUTE personne de TOUTE nationalite.\n"
+            . "- JAMAIS ecrire uniquement pour les Francais. Un article en francais s'adresse a TOUS les francophones (France, Belgique, Suisse, Canada, Afrique).\n"
+            . "- Dire 'votre ambassade' ou 'l'ambassade de votre pays', JAMAIS 'l'ambassade de France'.\n"
+            . "- Utiliser des prenoms internationaux varies dans les exemples (Aisha, Carlos, Priya, Kenji, Fatima...), PAS uniquement des prenoms francais.\n"
+            . "- Mentionner les demarches/conventions de PLUSIEURS pays d'origine, pas uniquement la France.\n"
+            . "- Formuler les conseils de maniere universelle : 'verifiez aupres de votre consulat' (pas 'le consulat de France').\n\n"
+            . "QUALITE REDACTIONNELLE ABSOLUE :\n"
+            . "- Chaque phrase apporte une INFORMATION NOUVELLE. Zero remplissage. Zero platitude.\n"
+            . "- Utilise des ANECDOTES CONCRETES et des SITUATIONS VECUES pour illustrer (prenoms internationaux).\n"
+            . "- Donne des CHIFFRES PRECIS, DATES, SOURCES pour chaque affirmation factuelle.\n"
+            . "- Phrases courtes (max 25 mots). Paragraphes courts (max 4 lignes).\n"
+            . "- Au moins 1 info SURPRENANTE ou PEU CONNUE par section.\n"
+            . "- Des TRANSITIONS NARRATIVES entre les sections (pas juste des H2 qui se succedent).\n\n"
+            . "STRUCTURE HTML (utilise ces CLASSES CSS EXACTES) :\n"
+            . "- Chaque section H2 : 3-5 paragraphes de 80-120 mots\n"
+            . "- Au moins 1 liste (<ul>/<ol>) par groupe de sections avec 5+ items\n"
+            . "- <strong> pour les termes cles et chiffres importants\n"
+            . "- PAS de <h1>. PAS de <html>/<body>/<head>. PAS de classes Tailwind.\n\n"
+            . "ENCADRES OBLIGATOIRES (utilise ces classes EXACTES) :\n"
+            . "- Conseil : <blockquote class=\"callout-info\"><p><strong>Bon a savoir</strong></p><p>texte</p></blockquote>\n"
+            . "- Avertissement : <blockquote class=\"callout-warning\"><p><strong>Attention</strong></p><p>texte</p></blockquote>\n"
+            . "- Conseil pratique : <blockquote class=\"callout-tip\"><p><strong>Conseil pratique</strong></p><p>texte</p></blockquote>\n"
+            . "- Au moins 2 encadres callout par groupe de sections (info, warning, ou tip).\n"
+            . "- 1 tableau comparatif <table> avec <thead>/<tbody> par article si le sujet s'y prete.\n\n"
+            . "SEO AVANCE :\n"
+            . "- Mot-cle principal \"{$primaryKw}\" : 1-2% densite naturelle\n"
+            . "- Mots-cles secondaires repartis naturellement (fournis par section)\n"
+            . "- Chaque question H2 trouve sa reponse dans les 60 premiers mots de sa section (featured snippet interne)\n\n"
+            . "STRICTEMENT INTERDIT :\n"
+            . "- 'Il est important de noter', 'Il convient de souligner', 'Force est de constater'\n"
+            . "- 'N'hesitez pas a', 'Dans un monde de plus en plus'\n"
+            . "- Toute enumeration exactement en 3 items quand le sujet en merite 5+\n"
+            . "- Phrases passe-partout applicables a n'importe quel pays\n\n"
+            . "Langue: {$language}. Retourne UNIQUEMENT le HTML des sections demandees.";
+
+        // Add type-specific suffix
+        if (!empty($promptSuffix)) {
+            $baseSystemPrompt .= "\n\nINSTRUCTIONS SPECIFIQUES AU TYPE DE CONTENU :\n" . $promptSuffix;
+        }
+
+        // Intent-specific HTML element enforcement
+        $searchIntent = $params['search_intent'] ?? $params['intent'] ?? self::defaultIntent($contentType);
+        if ($searchIntent === 'commercial_investigation' || !empty($typeConfig['comparison_table'])) {
+            $baseSystemPrompt .= "\n\nOBLIGATOIRE — INTENTION COMPARAISON :\n"
+                . "- Un tableau comparatif <table> avec <thead>/<tbody> DOIT apparaitre dans le PREMIER groupe de sections.\n"
+                . "- Colonnes = options comparees. Lignes = criteres (prix, couverture, avantages, inconvenients, note).\n"
+                . "- Ajoute un encadre verdict pour chaque option : pros et cons.\n";
+        }
+        if ($searchIntent === 'transactional') {
+            $baseSystemPrompt .= "\n\nOBLIGATOIRE — INTENTION TRANSACTIONNELLE :\n"
+                . "- Etapes concretes en <ol> (max 5-7 etapes). Chaque etape = 1 phrase d'action.\n"
+                . "- Encadre confiance : <blockquote class=\"callout-info\"><p><strong>Bon a savoir</strong></p><p>197 pays, 24h/24, 9 langues, avis verifies.</p></blockquote>\n"
+                . "- COURT et DIRECT — zero jargon, chaque phrase mene a l'action.\n";
+        }
+        if ($searchIntent === 'urgency') {
+            $baseSystemPrompt .= "\n\nOBLIGATOIRE — INTENTION URGENCE :\n"
+                . "- Etapes numerotees en <ol> — chaque etape = 1 phrase d'action immediate.\n"
+                . "- Encadre erreurs a eviter : <blockquote class=\"callout-warning\"><p><strong>Attention</strong></p><p>Les erreurs a ne PAS commettre...</p></blockquote>\n"
+                . "- Ton calme, directif. Chaque phrase = une action concrete.\n";
+        }
+        if ($searchIntent === 'local') {
+            $baseSystemPrompt .= "\n\nOBLIGATOIRE — INTENTION LOCALE :\n"
+                . "- Tableau <table> avec colonnes : Nom, Adresse, Contact, Langues, Horaires.\n"
+                . "- Listes de ressources officielles (ambassade, consulat, associations).\n"
+                . "- Encadre liens officiels : <div class=\"official-links\"><p><strong>Sources officielles</strong></p><ul><li><a href=\"...\">...</a></li></ul></div>\n";
+        }
+
+        // Extract brand names from topic
+        $brandsFromTopic = [];
+        if (preg_match_all('/\b(SOS-Expat\.com|Wise|Revolut|Airbnb|Uber|Uber Eats|Booking(?:\.com)?|Skyscanner|Duolingo|N26|PayPal|Stripe|WhatsApp|Google Maps|Google Translate|Nomad List|Notion|Erasmusu|Student Universe|Interactive Brokers|IBKR|Monzo|Starling|Kayak|Expedia|Hostelworld|Couchsurfing|Rome2Rio|Maps\.me)\b/iu', $topicText, $m)) {
+            $brandsFromTopic = array_unique($m[0]);
+        }
+
+        // Divide sections into groups of 3
+        $groups = array_chunk($sections, 3);
+
+        // Distribute LSI keywords across groups
+        $lsiChunks = array_chunk($lsiKeywords, max(1, (int) ceil(count($lsiKeywords) / count($groups))));
+
+        $allSectionsHtml = '';
+        $previousSummary = mb_substr(strip_tags($introHtml), 0, 300);
+
+        // Determine which group gets brands (the one whose headings match best)
+        $brandGroupIndex = 0;
+        if (!empty($brandsFromTopic)) {
+            $bestScore = 0;
+            foreach ($groups as $gi => $group) {
+                $score = 0;
+                $headingsText = implode(' ', array_column($group, 'heading'));
+                foreach ($brandsFromTopic as $brand) {
+                    if (stripos($headingsText, $brand) !== false) {
+                        $score++;
+                    }
+                }
+                if ($score > $bestScore) {
+                    $bestScore = $score;
+                    $brandGroupIndex = $gi;
+                }
+            }
+        }
+
+        foreach ($groups as $groupIndex => $group) {
+            // Build the section specs for this group
+            $sectionSpecs = '';
+            $groupWordBudget = 0;
+            foreach ($group as $si => $section) {
+                $sNum = ($groupIndex * 3) + $si + 1;
+                $heading = $section['heading'] ?? "Section {$sNum}";
+                $targetW = $section['target_words'] ?? 350;
+                $groupWordBudget += $targetW;
+                $keyPoints = !empty($section['key_points']) ? implode(', ', $section['key_points']) : '';
+                $subheadings = !empty($section['subheadings']) ? implode(', ', $section['subheadings']) : '';
+                $sectionKw = !empty($section['keywords_to_use']) ? implode(', ', $section['keywords_to_use']) : '';
+
+                $sectionSpecs .= "\n--- SECTION {$sNum} ---\n"
+                    . "H2 : {$heading}\n"
+                    . ($subheadings ? "Sous-sections H3 : {$subheadings}\n" : '')
+                    . "Points cles a couvrir : {$keyPoints}\n"
+                    . "Mots-cles a integrer : {$sectionKw}\n"
+                    . "Objectif : ~{$targetW} mots\n";
+            }
+
+            // Build user prompt for this group
+            $userPrompt = "ARTICLE : {$title}\n"
+                . "SUJET : {$topicText}\n\n"
+                . "CONTEXTE PRECEDENT (resume de ce qui a deja ete ecrit) :\n{$previousSummary}\n\n"
+                . "SECTIONS A REDIGER MAINTENANT :\n{$sectionSpecs}\n";
+
+            // Upcoming sections outline for forward coherence
+            $upcomingSections = [];
+            for ($ui = $groupIndex + 1; $ui < count($groups); $ui++) {
+                foreach ($groups[$ui] as $us) {
+                    $upcomingSections[] = $us['heading'] ?? '';
+                }
+            }
+            if (!empty($upcomingSections)) {
+                $userPrompt .= "\nSECTIONS QUI SUIVRONT (pour coherence — ne les redige PAS) :\n- " . implode("\n- ", $upcomingSections) . "\n";
+            }
+
+            // Facts (distribute: more facts to first group)
+            $factsSlice = $groupIndex === 0
+                ? array_slice($facts, 0, 10)
+                : array_slice($facts, 5 + ($groupIndex * 3), 5);
+            if (!empty($factsSlice)) {
+                $userPrompt .= "\nFaits de recherche a utiliser :\n- " . implode("\n- ", $factsSlice) . "\n";
+            }
+
+            // Source content (first group only)
+            if ($groupIndex === 0 && !empty($params['source_content'])) {
+                $truncated = mb_substr(strip_tags($params['source_content']), 0, 2000);
+                $userPrompt .= "\nCONTENU SOURCE A ENRICHIR (ne pas recopier — utiliser comme base pour creer MIEUX) :\n{$truncated}\n";
+            }
+
+            // LSI keywords for this group
+            $groupLsi = $lsiChunks[$groupIndex] ?? [];
+            if (!empty($groupLsi)) {
+                $userPrompt .= "\nMots-cles semantiques (LSI) a integrer naturellement : " . implode(', ', $groupLsi) . "\n";
+            }
+
+            // Brands injection
+            if (!empty($brandsFromTopic) && $groupIndex === $brandGroupIndex) {
+                $brandList = implode(', ', $brandsFromTopic);
+                $userPrompt .= "\nMARQUES A CITER OBLIGATOIREMENT par leur NOM EXACT : {$brandList}\n"
+                    . "- Chaque marque a sa propre sous-section avec ses fonctionnalites reelles et son prix reel.\n"
+                    . "- INTERDIT : 'Application A', 'Service X' — utilise UNIQUEMENT les vrais noms.\n"
+                    . "- SOS-Expat.com : service de mise en relation telephonique avec un avocat ou expert local, en moins de 5 minutes, 24h/24, 197 pays.\n"
+                    . "- Ne JAMAIS inventer de chiffres sur SOS-Expat.com.\n";
+            }
+
+            // Additional instructions
+            if (!empty($instructions) && $groupIndex === 0) {
+                $userPrompt .= "\nInstructions supplementaires : {$instructions}\n";
+            }
+
+            // Geo context for guide types
+            if ($country && in_array($contentType, ['guide', 'pillar', 'guide_city'], true) && $groupIndex === 0) {
+                $geoContext = $this->geoMeta->buildCountryContextForPrompt($country, $language);
+                if (!empty($geoContext)) {
+                    $userPrompt = $geoContext . "\n\n" . $userPrompt;
+                }
+            }
+
+            $userPrompt .= "\nAnnee courante : {$year}. Mentionne cette annee dans les donnees chiffrees.\n"
+                . "\nRedige UNIQUEMENT les sections demandees en HTML. Commence directement par le premier <h2>.";
+
+            // Token budget for this group
+            $groupMaxTokens = (int) ceil($groupWordBudget * 2.5);
+            $groupMaxTokens = max(3000, min(16384, $groupMaxTokens));
+
+            try {
+                $result = $this->aiComplete($baseSystemPrompt, $userPrompt, [
+                    'model'       => $typeConfig['model'] ?? null,
+                    'temperature' => $typeConfig['temperature'] ?? 0.7,
+                    'max_tokens'  => $groupMaxTokens,
+                ]);
+
+                if ($result['success'] && !empty($result['content'])) {
+                    $groupHtml = $this->cleanAiHtml($result['content']);
+                    $allSectionsHtml .= ($allSectionsHtml ? "\n\n" : '') . $groupHtml;
+
+                    // Update summary for next group
+                    $previousSummary = mb_substr(strip_tags($allSectionsHtml), -500);
+                } else {
+                    Log::warning("phase05c: group {$groupIndex} generation failed", [
+                        'error' => $result['error'] ?? 'Empty response',
+                        'topic' => $topicText,
+                    ]);
+                    $this->sendTelegramAlert("5c — Sections groupe {$groupIndex}", $result['error'] ?? 'Empty response');
+                }
+            } catch (\Throwable $e) {
+                Log::warning("phase05c: group {$groupIndex} exception", [
+                    'error' => $e->getMessage(),
+                    'topic' => $topicText,
+                ]);
+                $this->sendTelegramAlert("5c — Sections groupe {$groupIndex}", $e->getMessage());
+            }
+        }
+
+        if (empty($allSectionsHtml)) {
+            throw new \RuntimeException('Content generation failed: all section groups failed');
+        }
+
+        return $allSectionsHtml;
+    }
+
+    /**
+     * Phase 5d — Conversion Copywriter: generate a compelling conclusion.
+     *
+     * Returns HTML string (may include a final H2).
+     */
+    private function phase05d_generateConclusion(string $title, string $introHtml, string $bodyHtml, array $params, array $typeConfig): string
+    {
+        $language    = $params['language'] ?? 'fr';
+        $country     = $params['country'] ?? null;
+        $topicText   = $params['topic'] ?? '';
+        $year        = date('Y');
+
+        $introSummary = mb_substr(strip_tags($introHtml), 0, 200);
+        $bodySummary  = mb_substr(strip_tags($bodyHtml), 0, 1200);
+
+        // Intent-specific CTA and conclusion style
+        $searchIntent = $params['search_intent'] ?? $params['intent'] ?? self::defaultIntent($params['content_type'] ?? 'article');
+        $ctaInstruction = match ($searchIntent) {
+            'informational' => "CTA (1 seul, naturel et soft) :\n"
+                . "  Integre un CTA subtil vers SOS-Expat.com en fin de conclusion.\n"
+                . "  Ex: 'Pour un accompagnement personnalise, SOS-Expat.com vous met en relation avec un avocat ou expert local en moins de 5 minutes.'\n"
+                . "  Utilise le template : <div class=\"cta-box\"><p><strong>Besoin d'aide ?</strong></p><p>Un expert disponible en 5 min, 24h/24, 197 pays.</p><p><a href=\"https://sos-expat.com\" class=\"cta-button\">Consulter un expert</a></p></div>\n",
+            'commercial_investigation' => "CTA (1, guide vers l'action) :\n"
+                . "  Ex: 'Besoin d'aide pour choisir ? Un expert SOS-Expat vous guide en moins de 5 minutes.'\n"
+                . "  Utilise le template : <div class=\"cta-box\"><p><strong>Besoin d'aide pour choisir ?</strong></p><p>Un expert vous guide en 5 min.</p><p><a href=\"https://sos-expat.com\" class=\"cta-button\">Consulter un expert</a></p></div>\n",
+            'transactional' => "CTA (2-3, agressifs mais honnetes) :\n"
+                . "  L'utilisateur veut AGIR — mets un CTA SOS-Expat au milieu ET en fin de conclusion.\n"
+                . "  Template : <div class=\"cta-box\"><p><strong>Pret a agir ?</strong></p><p>Avocat ou expert local en moins de 5 min.</p><p><a href=\"https://sos-expat.com\" class=\"cta-button\">Agir maintenant</a></p></div>\n",
+            'urgency' => "CTA URGENT (1, direct et rassurant) :\n"
+                . "  L'utilisateur a un probleme MAINTENANT.\n"
+                . "  Template : <div class=\"cta-box\"><p><strong>Besoin d'un avocat MAINTENANT ?</strong></p><p>SOS-Expat.com : mise en relation en moins de 5 min, 24h/24.</p><p><a href=\"https://sos-expat.com\" class=\"cta-button\">Appeler un expert</a></p></div>\n",
+            default => "Integre un CTA naturel vers SOS-Expat.com via : <div class=\"cta-box\">...</div>\n",
+        };
+
+        $systemPrompt = $this->kbPrompt . "\n\n"
+            . "Tu es un COPYWRITER DE CONVERSION expert en expatriation.\n"
+            . "Tu rediges la conclusion d'un article de reference.\n\n"
+            . "OBJECTIF : que le lecteur se sente EQUIPE et CONFIANT pour passer a l'action.\n\n"
+            . "REGLES :\n"
+            . "- 150-300 mots maximum.\n"
+            . "- Commence par un recap des 3-4 insights les PLUS IMPORTANTS (pas tout restater — les points cles seulement).\n"
+            . "- Donne 3-5 PROCHAINES ETAPES ACTIONNABLES que le lecteur peut faire immediatement.\n"
+            . "- " . $ctaInstruction
+            . "- Termine par une phrase TOURNEE VERS L'AVENIR (pas un resume).\n"
+            . "- Tu peux utiliser un H2 comme 'Vos prochaines etapes' ou 'Passer a l'action' (PAS 'Conclusion' ou 'En resume').\n\n"
+            . "STRICTEMENT INTERDIT :\n"
+            . "- 'En conclusion', 'Pour conclure', 'Pour recapituler'\n"
+            . "- 'N'hesitez pas a', 'Nous esperons que cet article'\n"
+            . "- 'Comme nous l'avons vu dans cet article'\n"
+            . "- Toute formule qui sonne comme une dissertation scolaire\n\n"
+            . "HTML : <h2> (optionnel, ex: 'Vos prochaines etapes'), <p>, <ol>/<ul> pour les etapes, <strong> pour l'emphase, <div class=\"cta-box\"> pour le CTA.\n"
+            . "DISCLAIMER : si l'article traite de droit, fiscalite ou sante, TERMINE par :\n"
+            . "<div class=\"disclaimer-box\"><p><strong>Avertissement</strong></p><p>Cet article est fourni a titre informatif uniquement et ne constitue pas un conseil juridique. Consultez un professionnel qualifie pour votre situation specifique.</p></div>\n\n"
+            . "Langue: {$language}. Retourne UNIQUEMENT le HTML de la conclusion.";
+
+        $userPrompt = "ARTICLE : {$title}\n"
+            . "SUJET : {$topicText}\n"
+            . "ANNEE : {$year}\n\n"
+            . "INTRODUCTION (resume) :\n{$introSummary}\n\n"
+            . "CORPS DE L'ARTICLE (resume) :\n{$bodySummary}\n";
+
+        $result = $this->aiComplete($systemPrompt, $userPrompt, [
+            'model'       => $typeConfig['model'] ?? null,
+            'temperature' => $typeConfig['temperature'] ?? 0.7,
+            'max_tokens'  => 1000,
+        ]);
+
+        if ($result['success'] && !empty($result['content'])) {
+            return $this->cleanAiHtml($result['content']);
+        }
+
+        // Fallback: minimal conclusion
+        Log::warning('phase05d: conclusion generation failed, using fallback', ['topic' => $topicText]);
+        $ctaText = $country
+            ? "Pour un accompagnement personnalise, <a href=\"https://www.sos-expat.com\" target=\"_blank\" rel=\"noopener\">SOS-Expat.com</a> vous met en relation avec un expert local en moins de 5 minutes."
+            : "Pour toute question, <a href=\"https://www.sos-expat.com\" target=\"_blank\" rel=\"noopener\">SOS-Expat.com</a> vous met en relation avec un avocat ou expert local, 24h/24, dans 197 pays.";
+        return "<h2>Passer a l'action</h2>\n<p>{$ctaText}</p>";
+    }
+
+    /**
+     * Phase 5e — Editor-in-Chief: polish transitions, eliminate AI patterns, ensure consistency.
+     *
+     * Returns the final polished HTML. Skipped for low-value content types.
+     */
+    private function phase05e_polishAndUnify(string $fullHtml, string $title, array $params, array $typeConfig): string
+    {
+        // Skip polish for fast/low-value content types
+        if (!empty($typeConfig['skip_polish'])) {
+            return $fullHtml;
+        }
+
+        $language  = $params['language'] ?? 'fr';
+        $toneGuide = $params['_outline_tone'] ?? 'Ami expert, chaleureux mais precis';
+        $year      = date('Y');
+
+        $prePolishWordCount = str_word_count(strip_tags($fullHtml));
+
+        $systemPrompt = $this->kbPrompt . "\n\n"
+            . "Tu es le REDACTEUR EN CHEF d'un magazine international d'expatriation premium.\n"
+            . "On te confie un article assemble a partir de plusieurs sections redigees separement.\n\n"
+            . "TA MISSION : POLIR l'article pour qu'il lise comme s'il avait ete ecrit D'UNE SEULE TRAITE par un journaliste humain.\n"
+            . "Tu ne REECRIS PAS. Tu POLIS.\n\n"
+            . "CE QUE TU DOIS FAIRE :\n"
+            . "1. TRANSITIONS : ajoute 1 phrase-pont entre les sections qui semblent deconnectees.\n"
+            . "   Exemples : 'Mais avant de signer votre bail, un point crucial merite votre attention.'\n"
+            . "              'Cette complexite administrative a un corollaire direct sur votre quotidien.'\n"
+            . "2. ELIMINER LES PATTERNS IA : detecte et reecris CHAQUE occurrence de ces formules :\n"
+            . "   - 'Il est important de noter que' → reformule avec le fait directement\n"
+            . "   - 'Il convient de souligner' → supprime et garde le contenu\n"
+            . "   - 'Dans le paysage actuel' → remplace par un fait precis\n"
+            . "   - 'En ce qui concerne' → reformule directement\n"
+            . "   - 'Force est de constater' → supprime\n"
+            . "   - 'Il est essentiel de' → reformule avec une action concrete\n"
+            . "   - 'N'hesitez pas a' → remplace par un imperatif direct\n"
+            . "   - 'Au fil des annees' → donne une date precise\n"
+            . "   - 'Dans un monde de plus en plus' → supprime, commence par le fait\n"
+            . "   - 'Il va sans dire' → supprime completement\n"
+            . "   - 'Tout d'abord... Ensuite... Enfin...' → varie les connecteurs\n"
+            . "   - 'Plongeons dans' / 'Sans plus attendre' → supprime\n"
+            . "   - 'Vous vous demandez peut-etre' → pose la question directement\n"
+            . "   - 'Cela dit' / 'Ceci etant dit' → reformule\n"
+            . "   - 'A noter que' / 'Notons que' → integre le fait dans la phrase\n"
+            . "   - 'En effet' en debut de phrase → supprime ou reformule\n"
+            . "   - 'Ainsi' en debut de phrase (trop frequent) → varier\n"
+            . "   - Tout paragraphe qui commence par 'Il est' suivi d'un adjectif\n"
+            . "   - Toute enumeration exactement en 3 points quand le sujet en merite 5+\n"
+            . "3. COHERENCE DE TON : verifie que le ton est uniforme du debut a la fin ({$toneGuide}).\n"
+            . "4. RYTHME : varie la longueur des phrases (alternance 8-10 mots / 20-25 mots).\n"
+            . "5. HTML : corrige les balises mal fermees ou la structure cassee.\n\n"
+            . "CE QUE TU NE DOIS ABSOLUMENT PAS FAIRE :\n"
+            . "- NE PAS ajouter de nouvelles sections H2\n"
+            . "- NE PAS supprimer de sections\n"
+            . "- NE PAS changer significativement le contenu factuel\n"
+            . "- NE PAS ajouter d'introduction ou de conclusion (elles sont deja la)\n"
+            . "- Garder le MEME NOMBRE DE MOTS (+/- 5%). L'article fait ~{$prePolishWordCount} mots.\n\n"
+            . "Langue: {$language}. Retourne UNIQUEMENT le HTML complet de l'article poli.";
+
+        $userPrompt = "TITRE : {$title}\nANNEE : {$year}\n\nARTICLE A POLIR :\n\n{$fullHtml}";
+
+        // Token budget: accommodate the full article
+        $maxTokens = (int) ceil(mb_strlen($fullHtml) / 3.5);
+        $maxTokens = max(4000, min(16384, $maxTokens));
+
+        // Polish needs lower temperature than generation for precision (cap at 0.5)
+        $polishTemp = min(0.5, ($typeConfig['temperature'] ?? 0.6) - 0.2);
+        $result = $this->aiComplete($systemPrompt, $userPrompt, [
+            'model'       => $typeConfig['model'] ?? null,
+            'temperature' => max(0.2, $polishTemp),
+            'max_tokens'  => $maxTokens,
+        ]);
+
+        if ($result['success'] && !empty($result['content'])) {
+            $polished = $this->cleanAiHtml($result['content']);
+            $polishedWordCount = str_word_count(strip_tags($polished));
+
+            // Safety: if polish lost more than 15% of content, keep pre-polish version
+            if ($polishedWordCount < $prePolishWordCount * 0.85) {
+                Log::warning('phase05e: polish lost too many words, keeping pre-polish version', [
+                    'pre_polish' => $prePolishWordCount,
+                    'post_polish' => $polishedWordCount,
+                ]);
+                return $fullHtml;
+            }
+
+            return $polished;
+        }
+
+        // Fallback: keep pre-polish HTML (already decent from specialized prompts)
+        Log::warning('phase05e: polish failed, keeping pre-polish version', [
+            'error' => $result['error'] ?? 'Unknown',
+        ]);
+        return $fullHtml;
     }
 
     // ============================================================

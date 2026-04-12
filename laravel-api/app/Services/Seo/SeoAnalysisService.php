@@ -249,16 +249,16 @@ class SeoAnalysisService
             $issues[] = "Multiple H1 tags found ({$h1Count}), should be exactly 1";
         }
 
-        // Check 4-8 h2s
+        // Check 4-12 h2s (multi-prompt pipeline targets 8-12 sections)
         if ($h2Count === 0) {
             $score -= 3;
             $issues[] = 'No H2 tags found — content needs section headings';
         } elseif ($h2Count < 4) {
             $score -= 2;
-            $issues[] = "Only {$h2Count} H2 tags (aim for 4-8 sections)";
-        } elseif ($h2Count > 8) {
+            $issues[] = "Only {$h2Count} H2 tags (aim for 6-12 sections)";
+        } elseif ($h2Count > 15) {
             $score -= 1;
-            $issues[] = "Too many H2 tags ({$h2Count}), consider consolidating sections";
+            $issues[] = "Many H2 tags ({$h2Count}), consider consolidating some sections";
         }
 
         // Check proper hierarchy (no h3 without preceding h2)
@@ -302,20 +302,18 @@ class SeoAnalysisService
         $text = $this->extractTextFromHtml($html);
         $wordCount = $this->countWords($text);
 
-        // Check word count (1500-3000 for articles)
+        // Check word count — generous ranges for multi-prompt pipeline (targets 2000-7000 by type)
         if ($wordCount < 500) {
             $score -= 6;
-            $issues[] = "Content very short ({$wordCount} words, aim for 1500-3000)";
+            $issues[] = "Content very short ({$wordCount} words, aim for 1500+)";
         } elseif ($wordCount < 1000) {
-            $score -= 4;
-            $issues[] = "Content short ({$wordCount} words, aim for 1500-3000)";
+            $score -= 3;
+            $issues[] = "Content short ({$wordCount} words, aim for 1500+)";
         } elseif ($wordCount < 1500) {
-            $score -= 2;
-            $issues[] = "Content slightly short ({$wordCount} words, aim for 1500+)";
-        } elseif ($wordCount > 3500) {
             $score -= 1;
-            $issues[] = "Content very long ({$wordCount} words), consider splitting";
+            $issues[] = "Content slightly short ({$wordCount} words)";
         }
+        // No penalty for long content — pillar articles target 4000-7000 words
 
         // Check primary keyword density (1-2%)
         if (!empty($primaryKeyword)) {
@@ -378,12 +376,13 @@ class SeoAnalysisService
             $issues[] = 'No lists or tables found — structured content improves readability';
         }
 
-        // Readability check
+        // Readability check — French scores ~15pts lower than English on Flesch-Kincaid,
+        // so thresholds are adjusted downward (30→20, 50→35)
         $readability = $this->calculateReadability($text);
-        if ($readability < 30) {
+        if ($readability < 20) {
             $score -= 2;
             $issues[] = "Readability score very low ({$readability}) — content may be too complex";
-        } elseif ($readability < 50) {
+        } elseif ($readability < 35) {
             $score -= 1;
             $issues[] = "Readability score low ({$readability}) — consider simplifying sentences";
         }

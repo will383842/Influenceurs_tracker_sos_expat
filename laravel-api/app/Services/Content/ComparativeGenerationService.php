@@ -393,6 +393,9 @@ class ComparativeGenerationService
 
         $systemPrompt = $this->kbPrompt . "\n\nTu es un rédacteur web expert en comparatifs. Rédige un article comparatif complet en HTML. "
             . "Langue: {$language}.\n\n"
+            . "REGLE CRITIQUE MULTI-NATIONALITE : le contenu s'adresse a TOUTE personne de TOUTE nationalite, "
+            . "pas uniquement les Francais. Dire 'votre ambassade' (pas 'l'ambassade de France'), utiliser des exemples universels, "
+            . "mentionner les specificites de PLUSIEURS pays d'origine si pertinent.\n\n"
             . "STRUCTURE ATTENDUE:\n"
             . "- Introduction (2-3 paragraphes)\n"
             . "- Le tableau de comparaison est déjà fourni (intègre-le tel quel)\n"

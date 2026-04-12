@@ -52,8 +52,8 @@ class QualityGuardService
     private const MIN_INTERNAL_LINKS = 2;
     private const MIN_H2_COUNT = 3;
     private const MIN_FAQ_COUNT = 3;
-    private const FEATURED_SNIPPET_MIN_WORDS = 35;
-    private const FEATURED_SNIPPET_MAX_WORDS = 65;
+    private const FEATURED_SNIPPET_MIN_WORDS = 30;
+    private const FEATURED_SNIPPET_MAX_WORDS = 80;
 
     /**
      * Run full quality check on a generated article.
@@ -94,7 +94,7 @@ class QualityGuardService
         // ── 3. FEATURED SNIPPET (first paragraph) ──
         $checks['featured_snippet'] = $this->checkFeaturedSnippet($html);
         if (!$checks['featured_snippet']) {
-            $warnings[] = "Featured snippet non optimal: le 1er paragraphe doit faire 35-65 mots et repondre directement a l'intention";
+            $warnings[] = "Featured snippet non optimal: le 1er paragraphe doit faire 30-80 mots et repondre directement a l'intention";
         }
 
         // ── 4. INTERNAL LINKS ──
@@ -167,12 +167,15 @@ class QualityGuardService
             'il est crucial', 'il est recommandé', 'il est recommande',
             'dans cet article', "n'hésitez pas", "n'hesitez pas",
             'en conclusion,', 'cela signifie que', 'il est à noter',
+            'force est de constater', 'dans le paysage actuel',
+            'dans un monde de plus en plus', 'il va sans dire',
+            'plongeons dans', 'sans plus attendre',
             'it is important to', 'it is essential', 'it is crucial',
             'in this article', 'in conclusion,',
         ] as $pattern) {
             $aiPatterns += mb_substr_count($textLower, $pattern);
         }
-        $checks['natural_writing'] = $aiPatterns < 5;
+        $checks['natural_writing'] = $aiPatterns < 3;
         if (!$checks['natural_writing']) {
             $issues[] = "Contenu IA détecté: {$aiPatterns} formules robotiques ('il est important de', 'il convient de', etc.)";
         }

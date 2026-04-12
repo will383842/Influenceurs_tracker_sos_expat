@@ -232,7 +232,8 @@ Titre Q/R : "{$title}"
 Catégorie  : {$category}
 {$countryCtx}
 
-Public : expatriés, voyageurs longue durée, nomades numériques, travailleurs internationaux.
+Public : expatriés de TOUTES nationalités (pas uniquement les Français), voyageurs longue durée, nomades numériques, travailleurs internationaux.
+MULTI-NATIONALITE : dire "votre ambassade" (PAS "l'ambassade de France"), utiliser des exemples universels, mentionner les démarches de PLUSIEURS pays d'origine.
 
 RÈGLES :
 - content_html : min 600 mots, HTML avec <h2>, <h3>, <ul>, <strong>, <p>. PAS de <h1>.
