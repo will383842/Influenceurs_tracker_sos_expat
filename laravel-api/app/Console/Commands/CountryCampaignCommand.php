@@ -309,6 +309,7 @@ class CountryCampaignCommand extends Command
         $counts = GeneratedArticle::where('language', 'fr')
             ->whereIn('status', ['review', 'published', 'approved'])
             ->whereNotNull('country')
+            ->where('word_count', '>', 0)
             ->groupBy('country')
             ->selectRaw('country, COUNT(*) as total')
             ->pluck('total', 'country')
@@ -331,8 +332,9 @@ class CountryCampaignCommand extends Command
     private function showStatus(): int
     {
         $counts = GeneratedArticle::where('language', 'fr')
-            ->whereIn('status', ['review', 'published', 'approved', 'generating'])
+            ->whereIn('status', ['review', 'published', 'approved'])
             ->whereNotNull('country')
+            ->where('word_count', '>', 0)
             ->groupBy('country')
             ->selectRaw('country, COUNT(*) as total')
             ->pluck('total', 'country')

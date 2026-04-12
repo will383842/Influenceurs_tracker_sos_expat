@@ -560,10 +560,8 @@ class ContentTypeConfig
             ],
         };
 
-        // Append anti-generic-title instruction to every prompt_suffix
-        if (!empty($config['prompt_suffix'])) {
-            $config['prompt_suffix'] .= self::TITLE_INSTRUCTION;
-        }
+        // Append anti-generic-title + multi-nationality instruction to EVERY prompt_suffix (including default)
+        $config['prompt_suffix'] = ($config['prompt_suffix'] ?? '') . self::TITLE_INSTRUCTION;
 
         return $config;
     }
