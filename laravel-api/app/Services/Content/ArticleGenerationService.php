@@ -1908,7 +1908,10 @@ class ArticleGenerationService
             . "Mot-cle principal : {$primaryKw}\n"
             . (!empty($keywords) ? "Mots-cles secondaires : " . implode(', ', array_slice($keywords, 1, 5)) . "\n" : '')
             . (!empty($lsiKeywords) ? "Mots-cles LSI : " . implode(', ', array_slice($lsiKeywords, 0, 15)) . "\n" : '')
-            . (!empty($factsStr) ? "Faits de recherche :\n- {$factsStr}\n" : '')
+            . (!empty($factsStr)
+                ? "Faits de recherche :\n- {$factsStr}\n"
+                : "AUCUN fait de recherche disponible. Utilise tes PROPRES connaissances pour creer un plan COMPLET et DETAILLE. "
+                  . "Chaque section doit avoir 3-5 key_points concrets. Vise le MAXIMUM de sections ({$h2Max}).\n")
             . (!empty($suffixSummary) ? "\nDirectives specifiques au type de contenu :\n{$suffixSummary}\n" : '');
 
         // Geo context for country-specific guides
@@ -2140,9 +2143,17 @@ class ArticleGenerationService
             . "- Chaque question H2 trouve sa reponse dans les 60 premiers mots de sa section (featured snippet interne)\n\n"
             . "STRICTEMENT INTERDIT :\n"
             . "- 'Il est important de noter', 'Il convient de souligner', 'Force est de constater'\n"
+            . "- 'Il est important de comprendre', 'il est essentiel de', 'il est crucial de'\n"
             . "- 'N'hesitez pas a', 'Dans un monde de plus en plus'\n"
+            . "- 'Dans cet article, nous allons', 'Dans cet article nous explorons'\n"
+            . "- 'Plongeons dans', 'Sans plus attendre', 'Vous vous demandez peut-etre'\n"
             . "- Toute enumeration exactement en 3 items quand le sujet en merite 5+\n"
-            . "- Phrases passe-partout applicables a n'importe quel pays\n\n"
+            . "- Phrases passe-partout applicables a n'importe quel pays\n"
+            . "- JAMAIS de <div class=\"featured-snippet\"> dans les sections (c'est reserve a l'introduction)\n"
+            . "- JAMAIS de <div class=\"summary-box\"> dans les sections (c'est reserve a l'introduction)\n"
+            . "- JAMAIS de <div class=\"cta-box\"> ni de <div class=\"disclaimer-box\"> dans les sections (c'est reserve a la conclusion)\n"
+            . "- JAMAIS de <div class=\"pricing-box\"> dans les sections (c'est reserve a l'introduction)\n"
+            . "- NE JAMAIS repeter une section deja redigee dans un groupe precedent\n\n"
             . "Langue: {$language}. Retourne UNIQUEMENT le HTML des sections demandees.";
 
         // Add type-specific suffix
@@ -2190,7 +2201,8 @@ class ArticleGenerationService
         $lsiChunks = array_chunk($lsiKeywords, max(1, (int) ceil(count($lsiKeywords) / count($groups))));
 
         $allSectionsHtml = '';
-        $previousSummary = mb_substr(strip_tags($introHtml), 0, 300);
+        $previousSummary = "Introduction deja redigee (ne pas repeter) :\n" . mb_substr(strip_tags($introHtml), 0, 300);
+        $writtenH2s = []; // Track H2 headings already generated to prevent duplication
 
         // Determine which group gets brands (the one whose headings match best)
         $brandGroupIndex = 0;
@@ -2235,7 +2247,7 @@ class ArticleGenerationService
             // Build user prompt for this group
             $userPrompt = "ARTICLE : {$title}\n"
                 . "SUJET : {$topicText}\n\n"
-                . "CONTEXTE PRECEDENT (resume de ce qui a deja ete ecrit) :\n{$previousSummary}\n\n"
+                . "CONTEXTE PRECEDENT (DEJA REDIGE — NE PAS REPETER ces sujets) :\n{$previousSummary}\n\n"
                 . "SECTIONS A REDIGER MAINTENANT :\n{$sectionSpecs}\n";
 
             // Upcoming sections outline for forward coherence
@@ -2310,8 +2322,12 @@ class ArticleGenerationService
                     $groupHtml = $this->cleanAiHtml($result['content']);
                     $allSectionsHtml .= ($allSectionsHtml ? "\n\n" : '') . $groupHtml;
 
-                    // Update summary for next group
-                    $previousSummary = mb_substr(strip_tags($allSectionsHtml), -500);
+                    // Track written H2s and update summary for next group
+                    if (preg_match_all('/<h2[^>]*>(.*?)<\/h2>/is', $groupHtml, $h2matches)) {
+                        $writtenH2s = array_merge($writtenH2s, $h2matches[1]);
+                    }
+                    $h2List = !empty($writtenH2s) ? "\nH2 DEJA REDIGES (ne PAS les repeter) :\n- " . implode("\n- ", array_map('strip_tags', $writtenH2s)) : '';
+                    $previousSummary = mb_substr(strip_tags($allSectionsHtml), -400) . $h2List;
                 } else {
                     Log::warning("phase05c: group {$groupIndex} generation failed", [
                         'error' => $result['error'] ?? 'Empty response',
@@ -2399,11 +2415,36 @@ class ArticleGenerationService
         $result = $this->aiComplete($systemPrompt, $userPrompt, [
             'model'       => $typeConfig['model'] ?? null,
             'temperature' => $typeConfig['temperature'] ?? 0.7,
-            'max_tokens'  => 1000,
+            'max_tokens'  => 1500,
         ]);
 
         if ($result['success'] && !empty($result['content'])) {
-            return $this->cleanAiHtml($result['content']);
+            $conclusion = $this->cleanAiHtml($result['content']);
+            $wordCount = str_word_count(strip_tags($conclusion));
+
+            // If conclusion is too short (<80 words), retry with stronger instruction
+            if ($wordCount < 80) {
+                Log::info("phase05d: conclusion too short ({$wordCount} words), retrying...");
+                $retryResult = $this->aiComplete(
+                    $systemPrompt,
+                    $userPrompt . "\n\nATTENTION : la conclusion DOIT faire entre 150 et 300 mots. "
+                        . "Elle DOIT contenir : 1) un recap de 3-4 points cles, 2) une liste de prochaines etapes en <ol>, "
+                        . "3) un <div class=\"cta-box\"> avec lien vers SOS-Expat, 4) un <div class=\"disclaimer-box\"> si juridique.",
+                    [
+                        'model'       => $typeConfig['model'] ?? null,
+                        'temperature' => ($typeConfig['temperature'] ?? 0.7) + 0.1,
+                        'max_tokens'  => 1500,
+                    ]
+                );
+                if ($retryResult['success'] && !empty($retryResult['content'])) {
+                    $retry = $this->cleanAiHtml($retryResult['content']);
+                    if (str_word_count(strip_tags($retry)) > $wordCount) {
+                        return $retry;
+                    }
+                }
+            }
+
+            return $conclusion;
         }
 
         // Fallback: minimal conclusion
@@ -2464,12 +2505,19 @@ class ArticleGenerationService
             . "3. COHERENCE DE TON : verifie que le ton est uniforme du debut a la fin ({$toneGuide}).\n"
             . "4. RYTHME : varie la longueur des phrases (alternance 8-10 mots / 20-25 mots).\n"
             . "5. HTML : corrige les balises mal fermees ou la structure cassee.\n\n"
+            . "6. DOUBLONS : si tu trouves des sections H2 au contenu similaire/redondant, FUSIONNE-les (garde la meilleure version).\n"
+            . "7. COMPOSANTS : il ne doit y avoir qu'UN SEUL <div class=\"featured-snippet\"> (dans l'intro) et UN SEUL <div class=\"summary-box\"> (dans l'intro). "
+            . "Si tu en trouves d'autres dans le corps ou la conclusion, SUPPRIME les doublons.\n"
+            . "8. PATTERNS IA SUPPLEMENTAIRES a eliminer :\n"
+            . "   - 'Dans cet article, nous allons' → supprime toute la phrase\n"
+            . "   - 'Il est important de comprendre que' → reformule avec le fait directement\n"
+            . "   - 'il est essentiel de' → reformule en imperatif\n\n"
             . "CE QUE TU NE DOIS ABSOLUMENT PAS FAIRE :\n"
             . "- NE PAS ajouter de nouvelles sections H2\n"
-            . "- NE PAS supprimer de sections\n"
             . "- NE PAS changer significativement le contenu factuel\n"
             . "- NE PAS ajouter d'introduction ou de conclusion (elles sont deja la)\n"
-            . "- Garder le MEME NOMBRE DE MOTS (+/- 5%). L'article fait ~{$prePolishWordCount} mots.\n\n"
+            . "- Tu PEUX fusionner des sections redondantes (c'est meme encourage)\n"
+            . "- Garder le MEME NOMBRE DE MOTS (+/- 10%). L'article fait ~{$prePolishWordCount} mots.\n\n"
             . "Langue: {$language}. Retourne UNIQUEMENT le HTML complet de l'article poli.";
 
         $userPrompt = "TITRE : {$title}\nANNEE : {$year}\n\nARTICLE A POLIR :\n\n{$fullHtml}";
@@ -2490,8 +2538,9 @@ class ArticleGenerationService
             $polished = $this->cleanAiHtml($result['content']);
             $polishedWordCount = str_word_count(strip_tags($polished));
 
-            // Safety: if polish lost more than 15% of content, keep pre-polish version
-            if ($polishedWordCount < $prePolishWordCount * 0.85) {
+            // Safety: if polish lost more than 25% of content, keep pre-polish version
+            // (allow up to 25% reduction because polish may remove duplicate sections)
+            if ($polishedWordCount < $prePolishWordCount * 0.75) {
                 Log::warning('phase05e: polish lost too many words, keeping pre-polish version', [
                     'pre_polish' => $prePolishWordCount,
                     'post_polish' => $polishedWordCount,
