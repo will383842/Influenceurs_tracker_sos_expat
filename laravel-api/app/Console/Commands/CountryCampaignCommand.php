@@ -84,6 +84,9 @@ class CountryCampaignCommand extends Command
         $cities = self::TOP_CITIES[$countryCode] ?? ['la capitale', 'la deuxieme ville', 'la troisieme ville'];
 
         return [
+            // ── FICHE PAYS (1) — Pure country data, non-expat ──
+            ['type' => 'guide', 'intent' => 'informational', 'topic' => "{$countryName} : superficie, population, langues, monnaie, economie et chiffres cles ({$year})"],
+
             // ── PILLAR CONTENT / GUIDES (5) — Foundation of the cluster ──
             ['type' => 'guide', 'intent' => 'informational', 'topic' => "S'expatrier en {$countryName} : guide complet {$year}"],
             ['type' => 'guide', 'intent' => 'informational', 'topic' => "Cout de la vie en {$countryName} en {$year} : budget detaille"],
@@ -162,7 +165,6 @@ class CountryCampaignCommand extends Command
             ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quelle est la meilleure ville pour vivre en {$countryName} ? ({$year})"],
             ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment scolariser ses enfants en {$countryName} ? ({$year})"],
             ['type' => 'qa', 'intent' => 'informational', 'topic' => "Combien de temps peut-on rester en {$countryName} sans visa ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Faut-il parler la langue locale pour vivre en {$countryName} ? ({$year})"],
             ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment trouver du travail en {$countryName} en tant qu'etranger ? ({$year})"],
             ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels sont les impots a payer en {$countryName} pour un expatrie ? ({$year})"],
 
@@ -176,13 +178,11 @@ class CountryCampaignCommand extends Command
             ['type' => 'tutorial', 'intent' => 'transactional', 'topic' => "Souscrire une assurance sante en {$countryName} : guide pas a pas ({$year})"],
             ['type' => 'tutorial', 'intent' => 'transactional', 'topic' => "Declaration d'impots en {$countryName} : guide pour expatries ({$year})"],
 
-            // ── DIGITAL NOMAD / LIFESTYLE (8) — Growing segment ──
+            // ── DIGITAL NOMAD / LIFESTYLE (6) — Growing segment ──
             ['type' => 'article', 'intent' => 'informational', 'topic' => "Digital nomad en {$countryName} : visa, coworking et cout de vie ({$year})"],
             ['type' => 'article', 'intent' => 'informational', 'topic' => "Retraite en {$countryName} : visa, fiscalite et qualite de vie ({$year})"],
             ['type' => 'article', 'intent' => 'informational', 'topic' => "Etudier en {$countryName} : universites, bourses et vie etudiante ({$year})"],
-            ['type' => 'article', 'intent' => 'informational', 'topic' => "Vie nocturne en {$countryName} : bars, clubs et sorties ({$year})"],
             ['type' => 'article', 'intent' => 'informational', 'topic' => "Gastronomie en {$countryName} : plats typiques et ou manger ({$year})"],
-            ['type' => 'article', 'intent' => 'informational', 'topic' => "Sport et activites en plein air en {$countryName} ({$year})"],
             ['type' => 'article', 'intent' => 'informational', 'topic' => "Benevolat en {$countryName} : associations et missions pour expatries ({$year})"],
             ['type' => 'article', 'intent' => 'informational', 'topic' => "Apprendre la langue locale en {$countryName} : ecoles et methodes ({$year})"],
 
@@ -194,21 +194,27 @@ class CountryCampaignCommand extends Command
             ['type' => 'statistics', 'intent' => 'informational', 'topic' => "Criminalite et securite en {$countryName} : statistiques ({$year})"],
             ['type' => 'statistics', 'intent' => 'informational', 'topic' => "Qualite de vie en {$countryName} : classement et indicateurs ({$year})"],
 
-            // ── OUTREACH (5) — Affiliate recruitment ──
+            // ── OUTREACH (6) — Affiliate recruitment ──
             ['type' => 'outreach', 'intent' => 'informational', 'topic' => "Devenir chatter SOS-Expat en {$countryName} : aider les expatries et gagner de l'argent ({$year})"],
             ['type' => 'outreach', 'intent' => 'informational', 'topic' => "Influenceur expatriation en {$countryName} : rejoindre le programme SOS-Expat ({$year})"],
+            ['type' => 'outreach', 'intent' => 'informational', 'topic' => "Blogueur voyage en {$countryName} : monetiser votre blog avec SOS-Expat ({$year})"],
             ['type' => 'outreach', 'intent' => 'informational', 'topic' => "Admin de groupe expat en {$countryName} : monetiser votre communaute ({$year})"],
             ['type' => 'outreach', 'intent' => 'informational', 'topic' => "Avocat en {$countryName} : devenir partenaire SOS-Expat ({$year})"],
             ['type' => 'outreach', 'intent' => 'informational', 'topic' => "Expat en {$countryName} : aidez d'autres expatries et gagnez des commissions ({$year})"],
 
-            // ── TEMOIGNAGES (5) — Social proof ──
+            // ── TEMOIGNAGES (4) — Social proof ──
             ['type' => 'testimonial', 'intent' => 'informational', 'topic' => "Temoignage : mon expatriation en {$countryName}, les debuts ({$year})"],
             ['type' => 'testimonial', 'intent' => 'informational', 'topic' => "Temoignage : travailler en {$countryName} en tant qu'etranger ({$year})"],
             ['type' => 'testimonial', 'intent' => 'informational', 'topic' => "Temoignage : s'installer en famille en {$countryName} ({$year})"],
-            ['type' => 'testimonial', 'intent' => 'informational', 'topic' => "Temoignage : retraite en {$countryName}, le bilan apres un an ({$year})"],
             ['type' => 'testimonial', 'intent' => 'informational', 'topic' => "Temoignage : digital nomad en {$countryName}, avantages et difficultes ({$year})"],
+
+            // ── BRAND CONTENT (2) — SOS-Expat positioning ──
+            ['type' => 'article', 'intent' => 'commercial_investigation', 'topic' => "SOS-Expat en {$countryName} : comment ca marche et pourquoi les expatries l'utilisent ({$year})"],
+            ['type' => 'article', 'intent' => 'commercial_investigation', 'topic' => "Assistance juridique en {$countryName} : SOS-Expat vs avocat local vs assurance ({$year})"],
         ];
-        // Total: 5 + 3 + 12 + 10 + 10 + 8 + 20 + 8 + 8 + 6 + 5 + 5 = 100
+        // Total: fiche(1) + guides(5) + city(3) + juridique(12) + pratique(10) + pain(10)
+        //       + comparatif(8) + Q/R(19) + tutorial(8) + lifestyle(6) + stats(6)
+        //       + outreach(6) + temoignages(4) + brand(2) = 100
     }
 
     /**
