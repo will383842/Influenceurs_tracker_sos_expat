@@ -737,8 +737,8 @@ class ArticleGenerationService
             'guide', 'pillar', 'guide_city',
             'article', 'tutorial', 'news',
             'comparative', 'qa', 'qa_needs',
-            'testimonial',
-            'outreach', 'affiliation',
+            'testimonial', 'statistics', 'pain_point',
+            'outreach', 'affiliation', 'brand_content',
             'landing', 'press', 'press_release',
         ];
         if (!empty($params['content_type']) && !in_array($params['content_type'], $validTypes, true)) {
