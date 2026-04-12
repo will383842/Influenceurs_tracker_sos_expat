@@ -489,14 +489,22 @@ class ArticleGenerationService
                 $this->sendTelegramAlert('12 — Images Unsplash', $e->getMessage(), $article);
             }
 
-            // Ensure featured_image_url is set from images relation if not already
+            // Ensure featured_image_url is set from images relation if not already.
+            // Build a clean alt text from the article title instead of reusing
+            // $firstImage->alt_text — historically that field could contain a
+            // concatenation with the Unsplash photographer's English caption,
+            // which pollutes French/Spanish/Arabic articles. The page-context
+            // title is always in the correct language.
             $article->refresh();
             if (!$article->featured_image_url) {
                 $firstImage = $article->images()->first();
                 if ($firstImage) {
+                    $fallbackAlt = mb_substr(trim(
+                        $article->title . ($article->country ? ' (' . $article->country . ')' : '')
+                    ), 0, 125);
                     $article->update([
                         'featured_image_url' => $firstImage->url,
-                        'featured_image_alt' => $firstImage->alt_text,
+                        'featured_image_alt' => $fallbackAlt,
                         'featured_image_attribution' => $firstImage->attribution ?? null,
                     ]);
                     Log::info('Featured image fallback: set from first image in relation', ['article_id' => $article->id]);
@@ -1714,11 +1722,14 @@ class ArticleGenerationService
             ]);
 
             if ($result['success']) {
-                // Keyword-optimized alt text
-                $altText = ($article->keywords_primary ? ucfirst($article->keywords_primary) . ' - ' : '')
-                    . $article->title
+                // Alt text = article title in the article's language, plus the
+                // country in parentheses. Intentionally drops the historical
+                // "keyword prefix" because keywords_primary may contain legacy
+                // template artifacts ("cout de la vie en en budget detaille")
+                // that would end up in user-visible alt text.
+                $altText = $article->title
                     . ($article->country ? ' (' . $article->country . ')' : '');
-                $altText = mb_substr($altText, 0, 125);
+                $altText = mb_substr(trim($altText), 0, 125);
 
                 $image = $article->images()->create([
                     'url' => $result['url'],
@@ -1765,11 +1776,15 @@ class ArticleGenerationService
                 $firstImageAlt = null;
 
                 foreach ($result['images'] as $index => $image) {
-                    // Keyword-enriched alt text
-                    $altText = $article->keywords_primary
-                        ? ucfirst($article->keywords_primary) . ' - ' . ($image['alt_text'] ?? $article->title)
-                        : ($image['alt_text'] ?? $article->title);
-                    $altText = mb_substr($altText, 0, 125);
+                    // Alt text = article title (in the article's language) + optional country.
+                    // We deliberately do NOT concatenate $image['alt_text'] because it comes
+                    // from the Unsplash photographer's English caption ("a wooden table topped
+                    // with scrabble tiles ...") and pollutes French/Spanish/Arabic articles.
+                    // For accessibility + SEO, the page-context title is a better descriptor
+                    // than an unrelated stock-photo caption in a foreign language.
+                    $altText = $article->title
+                        . ($article->country ? ' (' . $article->country . ')' : '');
+                    $altText = mb_substr(trim($altText), 0, 125);
 
                     $article->images()->create([
                         'url' => $image['url'],

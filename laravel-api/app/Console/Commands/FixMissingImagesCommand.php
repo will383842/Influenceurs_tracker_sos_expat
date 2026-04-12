@@ -105,10 +105,13 @@ class FixMissingImagesCommand extends Command
                 } else {
                     $image = $result['images'][0];
 
-                    $altText = $article->keywords_primary
-                        ? ucfirst($article->keywords_primary) . ' - ' . ($image['alt_text'] ?? $article->title)
-                        : ($image['alt_text'] ?? $article->title);
-                    $altText = mb_substr($altText, 0, 125);
+                    // Alt = article title (+ country). See ArticleGenerationService
+                    // phase12_addImages for the same pattern. Do not concat the
+                    // Unsplash image alt_text (English) or the keywords_primary
+                    // (may contain legacy template artifacts).
+                    $altText = mb_substr(trim(
+                        $article->title . ($article->country ? ' (' . $article->country . ')' : '')
+                    ), 0, 125);
 
                     $imageData = [
                         'featured_image_url'         => $image['url'],

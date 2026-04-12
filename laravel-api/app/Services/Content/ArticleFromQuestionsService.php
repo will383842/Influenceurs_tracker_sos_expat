@@ -392,7 +392,10 @@ class ArticleFromQuestionsService
         }
 
         foreach ($result['images'] as $i => $img) {
-            $altText = ($article->keywords_primary ? ucfirst($article->keywords_primary) . ' - ' : '') . ($img['alt_text'] ?? $article->title);
+            // Alt = article title (+ country). Do NOT concat Unsplash's English
+            // alt_text (photographer caption) or keywords_primary (may be
+            // polluted). See ArticleGenerationService::phase12_addImages.
+            $altText = $article->title . ($article->country ? ' (' . $article->country . ')' : '');
             GeneratedArticleImage::create([
                 'article_id' => $article->id,
                 'url' => $img['url'],
