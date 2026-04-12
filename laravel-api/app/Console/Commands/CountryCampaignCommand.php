@@ -78,7 +78,7 @@ class CountryCampaignCommand extends Command
      * Content plan template: 100 articles per country, diversified by type and intent.
      * {country} and {country_name} are replaced at runtime.
      */
-    private function getContentPlan(string $countryCode, string $countryName): array
+    public function getContentPlan(string $countryCode, string $countryName): array
     {
         $year = date('Y');
         $cities = self::TOP_CITIES[$countryCode] ?? ['la capitale', 'la deuxieme ville', 'la troisieme ville'];
@@ -227,7 +227,7 @@ class CountryCampaignCommand extends Command
     /**
      * Country priority order for auto mode.
      */
-    private const COUNTRY_ORDER = [
+    public const COUNTRY_ORDER = [
         // Tier 1: Highest search volume for expat content
         'TH' => 'Thailande',
         'VN' => 'Vietnam',
@@ -541,7 +541,7 @@ class CountryCampaignCommand extends Command
      * Extract core keywords for dedup comparison.
      * Strips country name, year, accents, stopwords — returns array of significant words.
      */
-    private function extractDedupKeywords(string $text, string $countryName): array
+    public function extractDedupKeywords(string $text, string $countryName): array
     {
         // Normalize: lowercase, strip accents, remove year, remove country name
         $text = mb_strtolower($text);
@@ -569,7 +569,7 @@ class CountryCampaignCommand extends Command
     /**
      * Strip accents from a string (e→e, ï→i, etc.)
      */
-    private function stripAccents(string $str): string
+    public function stripAccents(string $str): string
     {
         $transliterator = \Transliterator::create('NFD; [:Nonspacing Mark:] Remove; NFC');
         return $transliterator ? $transliterator->transliterate($str) : $str;
@@ -578,7 +578,7 @@ class CountryCampaignCommand extends Command
     /**
      * Extract keywords from a topic string.
      */
-    private function extractKeywords(string $topic, string $countryName): array
+    public function extractKeywords(string $topic, string $countryName): array
     {
         // Remove year, country name, and common words to get keywords
         $clean = preg_replace('/\(\d{4}\)|\d{4}/', '', $topic);

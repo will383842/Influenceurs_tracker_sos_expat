@@ -77,7 +77,22 @@ class RunOrchestratorCycleJob implements ShouldQueue
         // Check stock levels and alert if sources running low
         $this->checkStockLevels($orchestrator);
 
-        // Determine which types to generate based on % distribution
+        // ── CAMPAIGN MODE: if a country campaign is active, use its plan instead of random distribution ──
+        $campaignCountry = $this->getCurrentCampaignCountry();
+        $useCampaignPlan = $campaignCountry !== null;
+
+        if ($useCampaignPlan) {
+            $campaignArticles = $this->getNextCampaignArticles($campaignCountry, $articlesThisCycle);
+            if (!empty($campaignArticles)) {
+                Log::info("Orchestrator: CAMPAIGN MODE — {$campaignCountry}, dispatching " . count($campaignArticles) . " from plan");
+                $this->dispatchCampaignArticles($campaignArticles, $campaignCountry, $orchestrator);
+                return;
+            }
+            // If campaign plan is exhausted (all 100 done), fall through to normal distribution
+            Log::info("Orchestrator: campaign plan exhausted for {$campaignCountry}, falling back to distribution");
+        }
+
+        // Determine which types to generate based on % distribution (normal mode)
         $typesToGenerate = $this->selectTypes($config, $articlesThisCycle);
 
         $generated = 0;
@@ -463,10 +478,106 @@ class RunOrchestratorCycleJob implements ShouldQueue
     }
 
     /**
+     * Get next articles from the CountryCampaignCommand plan that haven't been generated yet.
+     * Uses the same dedup logic as the command (keyword-based matching).
+     */
+    private function getNextCampaignArticles(string $countryCode, int $count): array
+    {
+        $command = new \App\Console\Commands\CountryCampaignCommand();
+        $name = \App\Console\Commands\CountryCampaignCommand::COUNTRY_ORDER[$countryCode] ?? $countryCode;
+
+        $plan = $command->getContentPlan($countryCode, $name);
+
+        // Get existing articles for dedup
+        $existingTitles = \App\Models\GeneratedArticle::where('country', $countryCode)
+            ->where('language', 'fr')
+            ->whereIn('status', ['generating', 'review', 'published', 'approved'])
+            ->pluck('title')
+            ->toArray();
+
+        // Keyword-based dedup
+        $existingKeywordSets = array_map(fn ($t) => $command->extractDedupKeywords($t, $name), $existingTitles);
+
+        $toGenerate = [];
+        foreach ($plan as $item) {
+            $topicKeywords = $command->extractDedupKeywords($item['topic'], $name);
+            $isDuplicate = false;
+            foreach ($existingKeywordSets as $existingKw) {
+                if (count(array_intersect($topicKeywords, $existingKw)) >= 2) {
+                    $isDuplicate = true;
+                    break;
+                }
+            }
+            if (!$isDuplicate) {
+                $toGenerate[] = $item;
+            }
+            if (count($toGenerate) >= $count) {
+                break;
+            }
+        }
+
+        return $toGenerate;
+    }
+
+    /**
+     * Dispatch campaign articles directly via GenerateArticleJob.
+     */
+    private function dispatchCampaignArticles(array $articles, string $countryCode, $orchestrator): void
+    {
+        $command = new \App\Console\Commands\CountryCampaignCommand();
+        $countryName = \App\Console\Commands\CountryCampaignCommand::COUNTRY_ORDER[$countryCode] ?? $countryCode;
+
+        $generated = 0;
+        $errors = [];
+
+        foreach ($articles as $i => $item) {
+            try {
+                $keywords = $command->extractKeywords($item['topic'], $countryName);
+
+                \App\Jobs\GenerateArticleJob::dispatch([
+                    'topic'          => $item['topic'],
+                    'content_type'   => $item['type'],
+                    'language'       => 'fr',
+                    'country'        => $countryCode,
+                    'keywords'       => $keywords,
+                    'search_intent'  => $item['intent'],
+                    'force_generate' => true,
+                    'image_source'   => 'unsplash',
+                ])->delay(now()->addSeconds($i * 45)); // Stagger to avoid rate limits
+
+                $orchestrator->updateDailyLog($item['type'], 1, 0, 0, 0);
+                $generated++;
+                Log::info("Orchestrator Campaign: dispatched [{$item['type']}] {$item['topic']}");
+            } catch (\Throwable $e) {
+                $errors[] = "{$item['topic']}: {$e->getMessage()}";
+                $orchestrator->updateDailyLog($item['type'], 0, 1, 0, 0);
+                Log::error("Orchestrator Campaign: error", ['topic' => $item['topic'], 'error' => $e->getMessage()]);
+            }
+
+            // Pause between dispatches
+            if ($i < count($articles) - 1) {
+                sleep(rand(3, 8));
+            }
+        }
+
+        if (!empty($errors)) {
+            $orchestrator->sendTelegramAlert(
+                "Campaign {$countryCode}: {$generated} dispatches, " . count($errors) . " erreur(s)\n"
+                . implode("\n", array_map(fn($e) => "• {$e}", array_slice($errors, 0, 5))),
+                'error'
+            );
+        }
+
+        if ($generated > 0) {
+            Log::info("Orchestrator Campaign: {$generated} articles dispatched for {$countryCode}");
+        }
+    }
+
+    /**
      * Country Campaign Mode: return the current focus country.
      *
      * Picks the first country in priority order that has < N articles (threshold from DB).
-     * When a country reaches 50, auto-advances to the next.
+     * When a country reaches N, auto-advances to the next.
      * Returns null when all campaign countries are complete.
      */
     private function getCurrentCampaignCountry(): ?string
