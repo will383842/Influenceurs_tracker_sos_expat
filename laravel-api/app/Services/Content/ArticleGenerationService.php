@@ -2447,12 +2447,26 @@ class ArticleGenerationService
             return $conclusion;
         }
 
-        // Fallback: minimal conclusion
+        // Fallback: rich conclusion with CTA + disclaimer (used when both GPT and Claude fail)
         Log::warning('phase05d: conclusion generation failed, using fallback', ['topic' => $topicText]);
-        $ctaText = $country
-            ? "Pour un accompagnement personnalise, <a href=\"https://www.sos-expat.com\" target=\"_blank\" rel=\"noopener\">SOS-Expat.com</a> vous met en relation avec un expert local en moins de 5 minutes."
-            : "Pour toute question, <a href=\"https://www.sos-expat.com\" target=\"_blank\" rel=\"noopener\">SOS-Expat.com</a> vous met en relation avec un avocat ou expert local, 24h/24, dans 197 pays.";
-        return "<h2>Passer a l'action</h2>\n<p>{$ctaText}</p>";
+        $langLabel = match ($language) { 'en' => 'Next steps', 'es' => 'Proximos pasos', 'de' => 'Nachste Schritte', default => 'Vos prochaines etapes' };
+        $fallback = "<h2>{$langLabel}</h2>\n"
+            . "<p>Face a cette situation, voici les etapes essentielles a suivre :</p>\n"
+            . "<ol>\n"
+            . "<li><strong>Rassemblez tous vos documents</strong> pertinents (contrats, preuves, correspondances).</li>\n"
+            . "<li><strong>Contactez votre ambassade</strong> ou consulat pour connaitre vos droits locaux.</li>\n"
+            . "<li><strong>Consultez un professionnel local</strong> pour un avis adapte a votre situation.</li>\n"
+            . "</ol>\n"
+            . "<div class=\"cta-box\">\n"
+            . "<p><strong>Besoin d'aide ?</strong></p>\n"
+            . "<p>Un avocat ou expert local disponible en moins de 5 minutes, 24h/24, dans 197 pays.</p>\n"
+            . "<p><a href=\"https://sos-expat.com\" class=\"cta-button\">Consulter un expert</a></p>\n"
+            . "</div>\n"
+            . "<div class=\"disclaimer-box\">\n"
+            . "<p><strong>Avertissement</strong></p>\n"
+            . "<p>Cet article est fourni a titre informatif uniquement et ne constitue pas un conseil juridique. Consultez un professionnel qualifie pour votre situation specifique.</p>\n"
+            . "</div>";
+        return $fallback;
     }
 
     /**
