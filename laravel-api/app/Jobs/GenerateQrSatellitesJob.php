@@ -117,7 +117,13 @@ class GenerateQrSatellitesJob implements ShouldQueue
     {
         $contentSnippet = mb_substr(strip_tags($article->content_html ?? ''), 0, 2000);
 
-        $prompt = "Analyse cet article et genere exactement 5 questions 'People Also Ask' que des expatries/voyageurs de TOUTE nationalite (pas uniquement francophones) taperaient dans Google. "
+        $qLang = match($article->language ?? 'fr') {
+            'fr'=>'français','en'=>'anglais','es'=>'espagnol','de'=>'allemand',
+            'pt'=>'portugais','ru'=>'russe','zh'=>'chinois','hi'=>'hindi','ar'=>'arabe',
+            default=>'français',
+        };
+        $prompt = "⚠️ LANGUE : {$qLang}. Les 5 questions DOIVENT être rédigées en {$qLang}.\n\n"
+            . "Analyse cet article et genere exactement 5 questions 'People Also Ask' que des expatries/voyageurs de TOUTE nationalite taperaient dans Google en {$qLang}. "
             . "Questions COMPLEMENTAIRES au sujet (pas la meme question reformulee). 4+ mots minimum. "
             . "Inclure le nom du pays/ville si l'article est specifique. "
             . "S'adresser a des personnes de TOUTE nationalite vivant ou voyageant a l'etranger. "
@@ -148,7 +154,13 @@ class GenerateQrSatellitesJob implements ShouldQueue
 
         $parentLink = $article->slug ? "<a href=\"/articles/{$article->slug}\">{$article->title}</a>" : '';
 
+        $langName = match($article->language ?? 'fr') {
+            'fr'=>'français','en'=>'anglais','es'=>'espagnol','de'=>'allemand',
+            'pt'=>'portugais','ru'=>'russe','zh'=>'chinois','hi'=>'hindi','ar'=>'arabe',
+            default=>'français',
+        };
         $prompt = "Tu es expert en expatriation internationale. Redige une page Q/R SEO courte et directe.\n\n"
+            . "⚠️ LANGUE OBLIGATOIRE : {$langName}. TOUT le contenu (titre, texte, FAQ, meta) DOIT être rédigé en {$langName}. Même si la question ci-dessous est en anglais, tu DOIS rédiger ENTIÈREMENT en {$langName}.\n\n"
             . "Question: \"{$question}\"\n"
             . ($country ? "Pays: {$country}. TOUTES les infos doivent etre specifiques a ce pays.\n" : '')
             . "Article parent: \"{$article->title}\"\n\n"

@@ -225,8 +225,16 @@ PROMPT;
             ? "Pays ciblé : {$country}. TOUTES les informations doivent être spécifiques à ce pays. Jamais de réponses génériques."
             : "Applicable à plusieurs pays : infos générales valides pour l'expatriation en général.";
 
+        $langCode = $question->language ?? 'fr';
+        $langName = match($langCode) {
+            'fr'=>'français','en'=>'anglais','es'=>'espagnol','de'=>'allemand',
+            'pt'=>'portugais','ru'=>'russe','zh'=>'chinois','hi'=>'hindi','ar'=>'arabe',
+            default=>'français',
+        };
         $prompt = <<<PROMPT
 Tu es expert en expatriation et droit international. Tu rédiges une page Q/R SEO pour sos-expat.com.
+
+⚠️ LANGUE OBLIGATOIRE : {$langName}. TOUT le contenu (titre, texte, FAQ, meta_title, meta_description, excerpt, ai_summary) DOIT être rédigé en {$langName}. Même si le titre ci-dessous est en anglais, tu DOIS rédiger ENTIÈREMENT en {$langName}.
 
 Titre Q/R : "{$title}"
 Catégorie  : {$category}
