@@ -215,6 +215,12 @@ class GenerationSchedulerService
     {
         $score = 50; // base
 
+        // Country Campaign bonus: current focus country gets +100 (always first)
+        $focusCountry = $this->getCurrentFocusCountry();
+        if ($focusCountry && $country && strtoupper($country) === $focusCountry) {
+            $score += 100;
+        }
+
         // Country priority bonus (0-40)
         if ($country) {
             $tier1 = array_slice(self::PRIORITY_COUNTRIES, 0, 7);
@@ -251,5 +257,37 @@ class GenerationSchedulerService
         $cases[] = "ELSE 999";
 
         return implode(' ', $cases);
+    }
+
+    /**
+     * Get the current Country Campaign focus country (< 50 articles).
+     * Cached for 10 minutes.
+     */
+    private function getCurrentFocusCountry(): ?string
+    {
+        return Cache::remember('country_campaign_focus', 600, function () {
+            $campaignOrder = [
+                'TH', 'VN', 'PT', 'ES', 'ID', 'MX', 'MA', 'AE', 'SG', 'JP',
+                'DE', 'GB', 'US', 'CA', 'AU', 'BR', 'CO', 'CR', 'GR', 'HR',
+                'IT', 'NL', 'BE', 'CH', 'TR', 'PH', 'MY', 'KH', 'IN', 'PL',
+            ];
+
+            $counts = GeneratedArticle::where('language', 'fr')
+                ->whereIn('status', ['review', 'published', 'approved'])
+                ->whereNotNull('country')
+                ->where('word_count', '>', 0)
+                ->groupBy('country')
+                ->selectRaw('country, COUNT(*) as total')
+                ->pluck('total', 'country')
+                ->toArray();
+
+            foreach ($campaignOrder as $code) {
+                if (($counts[$code] ?? 0) < 50) {
+                    return $code;
+                }
+            }
+
+            return null;
+        });
     }
 }

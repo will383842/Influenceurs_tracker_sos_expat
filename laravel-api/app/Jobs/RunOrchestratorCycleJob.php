@@ -239,21 +239,20 @@ class RunOrchestratorCycleJob implements ShouldQueue
     private function generateOne(string $type, array $config): bool
     {
         $blogUrl = rtrim(config('services.blog.url', ''), '/');
-        $countries = $config['priority_countries'] ?? [];
 
-        // Empty countries list = all 197 countries — pick random from DB
-        if (empty($countries)) {
-            $allCountries = \App\Models\ContentCountry::pluck('country_code')->filter()->toArray();
-            $countries = !empty($allCountries) ? $allCountries : ['FR'];
-        }
+        // ── COUNTRY CAMPAIGN MODE (2026-04-12) ──
+        // Focus on ONE country at a time until it has 50 articles.
+        // This builds topical authority per country cluster (2026 SEO best practice).
+        $country = $this->getCurrentCampaignCountry();
 
-        // Pick a random priority country for country-specific content
-        $country = $countries[array_rand($countries)] ?? 'FR';
-
-        // Pain point articles: prioritize francophone countries first (higher conversion)
-        if ($type === 'pain_point') {
-            $francophones = ['FR', 'BE', 'CH', 'CA', 'MA', 'TN', 'SN', 'CI', 'CM', 'MG', 'ML', 'BF', 'NE', 'TD', 'CG', 'CD', 'GA', 'DJ', 'KM', 'MU', 'LU', 'MC'];
-            $country = $francophones[array_rand($francophones)];
+        if (!$country) {
+            // All campaign countries have 50+ articles — fall back to random from config
+            $countries = $config['priority_countries'] ?? [];
+            if (empty($countries)) {
+                $allCountries = \App\Models\ContentCountry::pluck('country_code')->filter()->toArray();
+                $countries = !empty($allCountries) ? $allCountries : ['FR'];
+            }
+            $country = $countries[array_rand($countries)] ?? 'FR';
         }
 
         // Map orchestrator type → actual generation method
@@ -461,5 +460,45 @@ class RunOrchestratorCycleJob implements ShouldQueue
     private function formatCents(int $cents): string
     {
         return number_format($cents / 100, 2);
+    }
+
+    /**
+     * Country Campaign Mode: return the current focus country.
+     *
+     * Picks the first country in priority order that has < 50 articles.
+     * When a country reaches 50, auto-advances to the next.
+     * Returns null when all campaign countries are complete.
+     */
+    private function getCurrentCampaignCountry(): ?string
+    {
+        // Same order as CountryCampaignCommand — Topical Authority priority
+        $campaignOrder = [
+            'TH', 'VN', 'PT', 'ES', 'ID', 'MX', 'MA', 'AE', 'SG', 'JP',
+            'DE', 'GB', 'US', 'CA', 'AU', 'BR', 'CO', 'CR', 'GR', 'HR',
+            'IT', 'NL', 'BE', 'CH', 'TR', 'PH', 'MY', 'KH', 'IN', 'PL',
+        ];
+
+        // Cache the counts for 10 minutes to avoid querying on every cycle
+        $counts = \Illuminate\Support\Facades\Cache::remember('country_campaign_counts', 600, function () {
+            return \App\Models\GeneratedArticle::where('language', 'fr')
+                ->whereIn('status', ['review', 'published', 'approved'])
+                ->whereNotNull('country')
+                ->where('word_count', '>', 0)
+                ->groupBy('country')
+                ->selectRaw('country, COUNT(*) as total')
+                ->pluck('total', 'country')
+                ->toArray();
+        });
+
+        foreach ($campaignOrder as $code) {
+            $existing = $counts[$code] ?? 0;
+            if ($existing < 50) {
+                Log::info("Orchestrator: Country Campaign focus → {$code} ({$existing}/50 articles)");
+                return $code;
+            }
+        }
+
+        Log::info('Orchestrator: all campaign countries have 50+ articles');
+        return null;
     }
 }
