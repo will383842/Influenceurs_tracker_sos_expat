@@ -82,7 +82,10 @@ class RunOrchestratorCycleJob implements ShouldQueue
         $useCampaignPlan = $campaignCountry !== null;
 
         if ($useCampaignPlan) {
-            $campaignArticles = $this->getNextCampaignArticles($campaignCountry, $articlesThisCycle);
+            // CRITICAL: dispatch exactly 1 article per cycle to prevent:
+            // 1. Rate limit 429 (30K TPM with GPT-4o tier 1)
+            // 2. Duplicate generation (next cycle will pick the next plan item)
+            $campaignArticles = $this->getNextCampaignArticles($campaignCountry, 1);
             if (!empty($campaignArticles)) {
                 Log::info("Orchestrator: CAMPAIGN MODE — {$campaignCountry}, dispatching " . count($campaignArticles) . " from plan");
                 $this->dispatchCampaignArticles($campaignArticles, $campaignCountry, $orchestrator);
@@ -488,21 +491,32 @@ class RunOrchestratorCycleJob implements ShouldQueue
 
         $plan = $command->getContentPlan($countryCode, $name);
 
-        // Get existing articles for dedup
+        // Get existing articles for dedup — include ALL statuses to prevent re-generation
         $existingTitles = \App\Models\GeneratedArticle::where('country', $countryCode)
             ->where('language', 'fr')
-            ->whereIn('status', ['generating', 'review', 'published', 'approved'])
+            ->whereIn('status', ['generating', 'review', 'published', 'approved', 'deleted', 'draft', 'failed'])
             ->pluck('title')
             ->toArray();
 
-        // Keyword-based dedup
-        $existingKeywordSets = array_map(fn ($t) => $command->extractDedupKeywords($t, $name), $existingTitles);
+        // Also include the PLAN topics of already-dispatched items (prevent same-cycle duplicates)
+        // We track dispatched topics in a static array within this job execution
+        static $dispatchedTopics = [];
+        $allTitles = array_merge($existingTitles, $dispatchedTopics);
+
+        // Keyword-based dedup — threshold 1 keyword overlap (was 2, too lenient)
+        $existingKeywordSets = array_map(fn ($t) => $command->extractDedupKeywords($t, $name), $allTitles);
 
         $toGenerate = [];
         foreach ($plan as $item) {
             $topicKeywords = $command->extractDedupKeywords($item['topic'], $name);
             $isDuplicate = false;
             foreach ($existingKeywordSets as $existingKw) {
+                // 1 overlapping keyword = duplicate (was 2, which missed "expatrier" alone)
+                if (count(array_intersect($topicKeywords, $existingKw)) >= 1 && count($topicKeywords) <= 3) {
+                    $isDuplicate = true;
+                    break;
+                }
+                // For topics with many keywords, require 2 overlap
                 if (count(array_intersect($topicKeywords, $existingKw)) >= 2) {
                     $isDuplicate = true;
                     break;
@@ -510,6 +524,9 @@ class RunOrchestratorCycleJob implements ShouldQueue
             }
             if (!$isDuplicate) {
                 $toGenerate[] = $item;
+                // Track this topic so it's not dispatched again in the same cycle
+                $dispatchedTopics[] = $item['topic'];
+                $existingKeywordSets[] = $topicKeywords;
             }
             if (count($toGenerate) >= $count) {
                 break;
