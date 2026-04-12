@@ -201,7 +201,16 @@ return [
             'refugies' => 'Refugies et demandeurs d\'asile — droit d\'asile, protection, demarches',
         ],
         'key_message' => 'SOS-Expat.com s\'adresse a TOUTE personne de TOUTE nationalite qui se trouve ou va se rendre a l\'etranger et a besoin d\'aide locale professionnelle.',
-        'multi_nationality_rule' => 'CRITIQUE : NE JAMAIS ecrire du contenu uniquement pour les Francais. SOS-Expat.com est une plateforme MONDIALE. Un article en francais s\'adresse a TOUS les francophones (France, Belgique, Suisse, Canada, Afrique). Un article en anglais s\'adresse a TOUS les anglophones (US, UK, Australie, Inde, Afrique du Sud). Quand on parle d\'ambassade, dire "votre ambassade" ou "l\'ambassade de votre pays", PAS "l\'ambassade de France". Quand on parle de fiscalite, mentionner les conventions fiscales DE PLUSIEURS PAYS, pas uniquement la France.',
+        'multi_nationality_rule' => 'CRITIQUE : NE JAMAIS ecrire du contenu uniquement pour les Francais. SOS-Expat.com est une plateforme MONDIALE. Un article en francais s\'adresse a TOUS les francophones (France, Belgique, Suisse, Canada, Afrique) ET a tous les expatries de toute nationalite qui lisent en francais. Un article en anglais s\'adresse a TOUS les anglophones (US, UK, Australie, Inde, Afrique du Sud). Quand on parle d\'ambassade, dire "votre ambassade" ou "l\'ambassade de votre pays", PAS "l\'ambassade de France". Quand on parle de fiscalite, mentionner les conventions fiscales DE PLUSIEURS PAYS, pas uniquement la France.',
+        'anti_france_centric_rule' => 'INTERDIT ABSOLU — NE JAMAIS mentionner ces termes specifiques au systeme francais (SAUF si l\'article concerne SPECIFICEMENT la France comme pays de destination) : '
+            . 'CFE (Caisse des Francais de l\'Etranger), CPAM, securite sociale francaise, mutuelle francaise, '
+            . 'Pole Emploi, CAF, RSA, APL, impots en France, administration fiscale francaise, systeme francais, droit francais, '
+            . 'convention franco-*, consulat de France, ambassade de France. '
+            . 'A LA PLACE utiliser des termes UNIVERSELS : "le systeme de protection sociale de votre pays d\'origine", '
+            . '"votre caisse d\'assurance maladie nationale", "l\'administration fiscale de votre pays", '
+            . '"votre consulat", "votre ambassade". '
+            . 'RAISON : un expatrie Allemand en Thailande, un Bresilien au Japon, ou un Indien a Dubai ne connait PAS le CFE. '
+            . 'Le contenu doit etre utile a TOUS, pas seulement aux Francais.',
         'grammar_preposition_rule' => 'CRITIQUE pour les TITRES et CONTENU : utiliser la BONNE preposition devant chaque nom de pays dans CHAQUE langue. En francais : "au Portugal", "en France", "aux Etats-Unis", "a Singapour", "au Japon", "en Thailande". En anglais : "in Portugal", "in France", "in the USA", "in Singapore". En allemand : "in Portugal", "in Frankreich", "in den USA". CHAQUE langue a ses propres regles de preposition et d\'article devant les noms de pays. Le titre et le contenu DOIVENT sonner 100% natifs, comme si un locuteur natif les avait ecrits. JAMAIS de traduction mot-a-mot.',
     ],
 
