@@ -174,6 +174,16 @@ class DeduplicationService
     }
 
     /**
+     * Jaccard similarity threshold for Q/A duplicate detection.
+     * Lowered from 0.5 to 0.35 on 2026-04-14 after observing 9 near-duplicate
+     * "Avantages de..." titles for TH that all passed the previous threshold.
+     * With 0.35, titles sharing ~35% of normalized keywords are flagged as duplicates,
+     * which catches semantic variations like "Avantages de travailler" vs "Avantages
+     * de vivre" vs "Avantages de s'expatrier" in the same country/topic space.
+     */
+    public const QA_JACCARD_THRESHOLD = 0.35;
+
+    /**
      * Check if a Q&A on this question already exists.
      */
     public function findDuplicateQa(string $question, string $language): ?QaEntry
@@ -186,7 +196,7 @@ class DeduplicationService
             ->first();
         if ($existing) return $existing;
 
-        // 2. Title similarity
+        // 2. Title similarity via Jaccard (0.35 threshold — see QA_JACCARD_THRESHOLD)
         $questionWords = $this->normalizeWords($question);
         $candidates = QaEntry::where('language', $language)
             ->whereNull('parent_qa_id')
@@ -197,10 +207,35 @@ class DeduplicationService
         foreach ($candidates as $candidate) {
             $candidateWords = $this->normalizeWords($candidate->question);
             $similarity = $this->jaccardSimilarity($questionWords, $candidateWords);
-            if ($similarity > 0.5) return $candidate;
+            if ($similarity >= self::QA_JACCARD_THRESHOLD) return $candidate;
         }
 
         return null;
+    }
+
+    /**
+     * Fetch the most recently generated Q/A titles for a given country + language.
+     * Used by GenerateQrBlogJob::optimizeTitle() to give the LLM awareness of what
+     * was just generated so it doesn't keep reusing the same template pattern
+     * (e.g. "Avantages de…", "Conseils pour…") 20 times in the same batch.
+     *
+     * @param  string|null $country ISO 2-letter country code, or null for language-wide
+     * @param  string      $language language code ('fr', 'en', ...)
+     * @param  int         $limit number of recent titles to return (default 20)
+     * @return array<string> list of recent Q/A titles, newest first
+     */
+    public function getRecentQaTitles(?string $country, string $language, int $limit = 20): array
+    {
+        $q = QaEntry::where('language', $language)
+            ->whereNull('parent_qa_id')
+            ->whereIn('status', ['draft', 'review', 'published']);
+        if ($country) {
+            $q->where('country', strtoupper($country));
+        }
+        return $q->orderByDesc('created_at')
+            ->limit($limit)
+            ->pluck('question')
+            ->toArray();
     }
 
     /**

@@ -191,12 +191,32 @@ class GenerateQrBlogJob implements ShouldQueue
 
     private function optimizeTitle(array $q, string $key): array
     {
+        // Fetch the 20 most recent Q/A titles for this country+language so the LLM
+        // knows what patterns were just generated and can avoid reusing them.
+        // Example: if the last 20 titles include "Avantages de travailler…",
+        // "Avantages de vivre…", etc., the LLM should NOT produce another
+        // "Avantages de X" variation — it must use a different lead word or skip.
+        $dedup = app(\App\Services\Content\DeduplicationService::class);
+        $recent = $dedup->getRecentQaTitles($q['country'] ?? null, 'fr', 20);
+        $recentBlock = '';
+        if (!empty($recent)) {
+            $recentList = implode("\n", array_map(fn ($t) => " - {$t}", $recent));
+            $recentBlock = <<<RECENT
+
+
+Titres Q/R déjà générés récemment pour ce pays/langue (NE PAS reproduire ces patterns) :
+{$recentList}
+
+RÈGLE ANTI-REPETITION : si ta reformulation commence par les MÊMES 2-3 mots qu'un des titres ci-dessus (ex: "Avantages de...", "Conseils pour...", "Comment...", "Cout de..."), tu dois soit (a) utiliser un angle différent avec un verbe/nom différent en début de titre, soit (b) skip=true avec reason="pattern_repetition". Le but est la diversité éditoriale, pas 10 variations du même template.
+RECENT;
+        }
+
         $prompt = <<<PROMPT
 Tu analyses une question de forum d'expatriés pour décider si elle mérite une page Q/R SEO.
 
 Question source : "{$q['title']}"
 Pays associé    : {$q['country']}
-Vues forum      : {$q['views']} | Réponses : {$q['replies']}
+Vues forum      : {$q['views']} | Réponses : {$q['replies']}{$recentBlock}
 
 1. Est-elle pertinente pour un public large d'expatriés/voyageurs ? Si trop personnelle ou hors sujet → skip.
 2. Reformuler le titre pour Google : mot-clé principal en début, intention claire, naturel, max 65 chars.
