@@ -1106,10 +1106,35 @@ class ArticleGenerationService
             return $m[1] . mb_strtoupper($m[2]);
         }, $title);
 
-        // 7. Capitalize city/country names (words after "à", "en", "au", "aux", "de")
-        $title = preg_replace_callback('/\b(à|en|au|aux|de|du)\s+([a-zàâäéèêëïîôùûüÿæœç])/u', function ($m) {
-            return $m[1] . ' ' . mb_strtoupper($m[2]);
-        }, $title);
+        // 7. Capitalize city/country names after locative prepositions.
+        //    "à Paris", "en France", "au Portugal", "aux États-Unis" are
+        //    always followed by a place, so capitalising the next letter is
+        //    safe. "de"/"du" are trickier — they appear both before places
+        //    ("du Portugal", "de Bangkok") AND before articles that are NOT
+        //    places ("de la vie", "de le marché", "du côté de"). A blind
+        //    regex capitalises "L" of "la" and produces monstrosities like
+        //    "Coût de La Vie en Thaïlande". Fix: negative lookahead that
+        //    skips "de/du" when followed by a French article.
+        $title = preg_replace_callback(
+            '/\b(à|en|au|aux)\s+([a-zàâäéèêëïîôùûüÿæœç])/u',
+            fn ($m) => $m[1] . ' ' . mb_strtoupper($m[2]),
+            $title
+        );
+        $title = preg_replace_callback(
+            '/\b(de|du)\s+(?!(?:la|le|les|l[\'’]|à|en|au|aux|ce|cet|cette|ces|ma|mon|mes|ta|ton|tes|sa|son|ses|nos|vos|leurs?)\b)([a-zàâäéèêëïîôùûüÿæœç])/u',
+            fn ($m) => $m[1] . ' ' . mb_strtoupper($m[2]),
+            $title
+        );
+
+        // 7b. Undo wrong title-casing on French articles that the LLM or a
+        //     previous cleanup step may have applied ("de La Vie" → "de la
+        //     vie"). We lowercase any capitalised article that appears
+        //     after "de/du/à/en/au/aux".
+        $title = preg_replace_callback(
+            '/\b(de|du|à|en|au|aux)\s+(La|Le|Les|L[\'’])\b/u',
+            fn ($m) => $m[1] . ' ' . mb_strtolower($m[2]),
+            $title
+        );
 
         // 8. Ensure year is present
         if (!preg_match('/\d{4}/', $title)) {
@@ -1971,6 +1996,27 @@ class ArticleGenerationService
         // Remove any leftover <h1> (title is separate)
         $content = preg_replace('/<h1[^>]*>.*?<\/h1>/is', '', $content);
 
+        // Strip hallucinated image captions that the LLM sometimes injects
+        // inline in the prose (e.g. "Vue sur Bangkok depuis un gratte-ciel
+        // Photo by John Doe on Unsplash"). Images are added by phase12 as
+        // <figure> elements, not as text. These patterns appear:
+        //   - "Photo by <Name> on Unsplash"
+        //   - "Image: <anything>" or "[Image: ...]"
+        //   - "Crédit photo: <Name>" / "Photo credit: <Name>"
+        //   - "Source: Unsplash" / "via Unsplash"
+        $imageCaptionPatterns = [
+            '/\s*Photo by [^.\n<]{1,80}? on Unsplash\.?/iu',
+            '/\s*Crédit(s)? photo\s*:\s*[^.\n<]{1,80}\.?/iu',
+            '/\s*Photo credit\s*:\s*[^.\n<]{1,80}\.?/iu',
+            '/\s*Source\s*:\s*Unsplash\.?/iu',
+            '/\s*\(via Unsplash\)/iu',
+            '/\s*\[Image\s*:[^\]]*\]/iu',
+            '/\s*Image\s*:\s*[^.\n<]{1,80}\.?/iu',
+        ];
+        foreach ($imageCaptionPatterns as $pattern) {
+            $content = preg_replace($pattern, '', $content);
+        }
+
         return trim($content);
     }
 
@@ -2310,7 +2356,11 @@ class ArticleGenerationService
             . "- JAMAIS de <div class=\"summary-box\"> dans les sections (c'est reserve a l'introduction)\n"
             . "- JAMAIS de <div class=\"cta-box\"> ni de <div class=\"disclaimer-box\"> dans les sections (c'est reserve a la conclusion)\n"
             . "- JAMAIS de <div class=\"pricing-box\"> dans les sections (c'est reserve a l'introduction)\n"
-            . "- NE JAMAIS repeter une section deja redigee dans un groupe precedent\n\n"
+            . "- NE JAMAIS repeter une section deja redigee dans un groupe precedent\n"
+            . "- JAMAIS mentionner d'images, de photos, d'Unsplash, ou de credits photographe dans le texte.\n"
+            . "  NE PAS ecrire des legendes comme 'Photo by X on Unsplash', 'Vue sur [ville]', 'Image : ...'.\n"
+            . "  NE PAS inserer de description d'image en plein milieu d'un paragraphe.\n"
+            . "  Les images sont ajoutees SEPAREMENT par une autre phase — tu redigs uniquement le TEXTE.\n\n"
             . "Langue: {$language}. Retourne UNIQUEMENT le HTML des sections demandees.";
 
         // Add type-specific suffix
@@ -2890,17 +2940,54 @@ class ArticleGenerationService
             || str_contains(strtolower($gptError), 'timeout');
 
         if ($isRateLimit || $isTransient) {
-            Log::info('aiComplete: GPT rate-limited/transient, retrying in 3s', [
+            // Parse "Please try again in 5.354s" from OpenAI's error message
+            // to wait exactly the amount they're asking for, + jitter.
+            $waitSeconds = 3.0;
+            if (preg_match('/try again in ([\d.]+)s/i', $gptError, $m)) {
+                $waitSeconds = min(30.0, (float) $m[1] + 1.0); // cap at 30s
+            }
+            Log::info('aiComplete: GPT rate-limited/transient, retrying', [
                 'model' => $gptModel,
+                'wait'  => $waitSeconds,
                 'error' => mb_substr($gptError, 0, 100),
             ]);
-            usleep(3_000_000); // 3 seconds
+            usleep((int) ($waitSeconds * 1_000_000));
 
             $result = $this->openAi->complete($systemPrompt, $userPrompt, $gptOptions);
             if (!empty($result['success']) && !empty($result['content'])) {
                 return $result;
             }
             $gptError = $result['error'] ?? 'unknown';
+
+            // Second retry with exponential backoff
+            if (str_contains($gptError, '429') || str_contains(strtolower($gptError), 'rate')) {
+                $waitSeconds2 = $waitSeconds * 2;
+                Log::info('aiComplete: still rate-limited, second retry with longer wait', [
+                    'wait' => $waitSeconds2,
+                ]);
+                usleep((int) ($waitSeconds2 * 1_000_000));
+                $result = $this->openAi->complete($systemPrompt, $userPrompt, $gptOptions);
+                if (!empty($result['success']) && !empty($result['content'])) {
+                    return $result;
+                }
+                $gptError = $result['error'] ?? 'unknown';
+            }
+
+            // Third attempt: downgrade to gpt-4o-mini which has a 10x higher
+            // TPM quota than gpt-4o. Only done for non-critical section
+            // writing — other phases (title, meta) already use gpt-4o-mini.
+            if (($isRateLimit || str_contains($gptError, '429'))
+                && $gptModel === 'gpt-4o') {
+                Log::warning('aiComplete: sustained rate limit on gpt-4o, falling back to gpt-4o-mini', [
+                    'original_model' => $gptModel,
+                ]);
+                $gptOptions['model'] = 'gpt-4o-mini';
+                $result = $this->openAi->complete($systemPrompt, $userPrompt, $gptOptions);
+                if (!empty($result['success']) && !empty($result['content'])) {
+                    return $result;
+                }
+                $gptError = $result['error'] ?? 'unknown';
+            }
         }
 
         // Check if GPT has a billing/quota problem — only then try Claude
