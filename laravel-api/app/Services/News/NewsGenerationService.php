@@ -8,6 +8,8 @@ use App\Services\Content\GenerationSchedulerService;
 use App\Services\Content\KnowledgeBaseService;
 use App\Services\News\SimilarityCheckerService;
 use App\Services\AI\OpenAiService;
+use App\Services\AI\UnsplashService;
+use App\Services\AI\UnsplashUsageTracker;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -287,12 +289,14 @@ PROMPT;
 
         $qm = $content['quality_metrics'] ?? [];
 
+        $title = $content['title'] ?? $content['meta_title'] ?? $item->title;
+
         $payload = [
             'uuid'               => $uuid,
             'event'              => 'create',
             'content_type'       => 'news',
             'language'           => $item->language,
-            'title'              => $content['title'] ?? $content['meta_title'] ?? $item->title,
+            'title'              => $title,
             'content_html'       => $content['content_html'] ?? '',
             'excerpt'            => $content['excerpt'] ?? null,
             'meta_title'         => $content['meta_title'] ?? null,
@@ -314,6 +318,15 @@ PROMPT;
 
         if ($item->country) {
             $payload['country'] = strtoupper($item->country);
+        }
+
+        // Fetch a fresh, never-reused Unsplash image and include it in the
+        // payload. Without this, the blog falls back to its own searchPhoto()
+        // which returns the same cached result for similar queries, causing
+        // dozens of news to share the same photo.
+        $image = $this->fetchUniqueImageForNews($item, $title, $content['keywords_primary'] ?? null);
+        if ($image) {
+            $payload = array_merge($payload, $image);
         }
 
         $response = Http::withToken($blogKey)->timeout(60)
@@ -508,5 +521,85 @@ PROMPT;
         } catch (\JsonException) {
             return null;
         }
+    }
+
+    /**
+     * Fetch a never-before-used Unsplash image for this news item and mark it
+     * as used so no other article picks it up. Returns an array of payload
+     * fields ready to merge into the blog webhook payload, or null if no
+     * image could be obtained.
+     */
+    private function fetchUniqueImageForNews(RssFeedItem $item, string $title, ?string $keywordsPrimary): ?array
+    {
+        $unsplash = app(UnsplashService::class);
+        if (!$unsplash->isConfigured()) {
+            return null;
+        }
+
+        $tracker = app(UnsplashUsageTracker::class);
+        $country = $item->country ? strtoupper($item->country) : null;
+
+        // Keyword strategies from narrow to broad, same approach as
+        // ArticleGenerationService::phase12_addImages so we exhaust
+        // specific queries before falling back to generic ones.
+        $base = $keywordsPrimary ?: $title;
+        $strategies = array_filter([
+            $base,
+            $country ? ($base . ' ' . $country) : null,
+            $country ? ('news ' . $country) : null,
+            $country ? ('city ' . $country) : null,
+            'international news',
+        ]);
+
+        $result = ['success' => false, 'images' => []];
+        $usedQuery = '';
+        foreach ($strategies as $terms) {
+            $result = $unsplash->searchUnique($terms, 1, 'landscape', 5);
+            if (!empty($result['success']) && !empty($result['images'])) {
+                $usedQuery = $terms;
+                break;
+            }
+        }
+
+        if (empty($result['success']) || empty($result['images'])) {
+            Log::warning('NewsGenerationService: no unique Unsplash image found', [
+                'item_id' => $item->id,
+                'title'   => $title,
+            ]);
+            return null;
+        }
+
+        $img = $result['images'][0];
+        $url = $img['url'] ?? null;
+        if (!$url) return null;
+
+        // Mark the photo so no other article will reuse it
+        $tracker->markUsed(
+            $url,
+            null, // news items don't have a GeneratedArticle id (they go straight to blog)
+            $item->language,
+            $country,
+            $usedQuery,
+            $img['photographer_name'] ?? null,
+            $img['photographer_url'] ?? null,
+        );
+
+        $alt = mb_substr(trim($title . ($country ? ' (' . $country . ')' : '')), 0, 125);
+
+        Log::info('NewsGenerationService: unique Unsplash image assigned', [
+            'item_id'      => $item->id,
+            'query'        => $usedQuery,
+            'photographer' => $img['photographer_name'] ?? 'unknown',
+        ]);
+
+        return array_filter([
+            'featured_image_url'  => $url,
+            'featured_image_alt'  => $alt,
+            'image_width'         => $img['width'] ?? null,
+            'image_height'        => $img['height'] ?? null,
+            'photographer_name'   => $img['photographer_name'] ?? null,
+            'photographer_url'    => $img['photographer_url'] ?? null,
+            'unsplash_photo_url'  => $img['unsplash_url'] ?? null,
+        ], fn($v) => $v !== null);
     }
 }
