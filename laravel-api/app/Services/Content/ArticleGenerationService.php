@@ -1996,16 +1996,22 @@ class ArticleGenerationService
         // Remove any leftover <h1> (title is separate)
         $content = preg_replace('/<h1[^>]*>.*?<\/h1>/is', '', $content);
 
+        // Strip <img>, <figure>, <picture> tags — images are added by
+        // phase12 separately as featured images. The LLM should not embed
+        // them inline in sections. Remove both the tag itself AND any
+        // "Photo by ... on Unsplash" attribution text that follows.
+        $content = preg_replace('/<figure[^>]*>.*?<\/figure>/is', '', $content);
+        $content = preg_replace('/<picture[^>]*>.*?<\/picture>/is', '', $content);
+        $content = preg_replace('/<img[^>]*>/i', '', $content);
+
         // Strip hallucinated image captions that the LLM sometimes injects
-        // inline in the prose (e.g. "Vue sur Bangkok depuis un gratte-ciel
-        // Photo by John Doe on Unsplash"). Images are added by phase12 as
-        // <figure> elements, not as text. These patterns appear:
-        //   - "Photo by <Name> on Unsplash"
-        //   - "Image: <anything>" or "[Image: ...]"
-        //   - "Crédit photo: <Name>" / "Photo credit: <Name>"
-        //   - "Source: Unsplash" / "via Unsplash"
+        // inline in the prose (text form OR HTML-wrapped with <a> links):
+        //   "Photo by John Doe on Unsplash"
+        //   "Photo by <a href="...">John Doe</a> on <a href="...">Unsplash</a>"
+        //   "Crédit photo: ...", "Source: Unsplash", "[Image: ...]", etc.
         $imageCaptionPatterns = [
-            '/\s*Photo by [^.\n<]{1,80}? on Unsplash\.?/iu',
+            // HTML-wrapped "Photo by <a>Name</a> on <a>Unsplash</a>"
+            '/\s*Photo by\s*(<a[^>]*>[^<]*<\/a>|[^.\n<]{1,80}?)\s*on\s*(<a[^>]*>Unsplash<\/a>|Unsplash)\s*\.?/iu',
             '/\s*Crédit(s)? photo\s*:\s*[^.\n<]{1,80}\.?/iu',
             '/\s*Photo credit\s*:\s*[^.\n<]{1,80}\.?/iu',
             '/\s*Source\s*:\s*Unsplash\.?/iu',
@@ -2016,6 +2022,20 @@ class ArticleGenerationService
         foreach ($imageCaptionPatterns as $pattern) {
             $content = preg_replace($pattern, '', $content);
         }
+
+        // Convert leaked markdown headers to HTML. The LLM sometimes mixes
+        // markdown syntax ("### Section title") in its HTML output when it
+        // gets lazy. Convert to <h3>/<h2> instead of leaving raw pounds.
+        // Only convert lines that start with # (not mid-sentence hashtags).
+        $content = preg_replace('/^####\s+(.+)$/m', '<h4>$1</h4>', $content);
+        $content = preg_replace('/^###\s+(.+)$/m', '<h3>$1</h3>', $content);
+        $content = preg_replace('/^##\s+(.+)$/m', '<h2>$1</h2>', $content);
+        // Standalone # title at line start = h1 which we don't allow in body
+        $content = preg_replace('/^#\s+(.+)$/m', '<h2>$1</h2>', $content);
+
+        // Clean up any now-empty paragraphs left by tag stripping
+        $content = preg_replace('/<p>\s*<\/p>/i', '', $content);
+        $content = preg_replace('/<div>\s*<\/div>/i', '', $content);
 
         return trim($content);
     }
@@ -2357,10 +2377,14 @@ class ArticleGenerationService
             . "- JAMAIS de <div class=\"cta-box\"> ni de <div class=\"disclaimer-box\"> dans les sections (c'est reserve a la conclusion)\n"
             . "- JAMAIS de <div class=\"pricing-box\"> dans les sections (c'est reserve a l'introduction)\n"
             . "- NE JAMAIS repeter une section deja redigee dans un groupe precedent\n"
-            . "- JAMAIS mentionner d'images, de photos, d'Unsplash, ou de credits photographe dans le texte.\n"
-            . "  NE PAS ecrire des legendes comme 'Photo by X on Unsplash', 'Vue sur [ville]', 'Image : ...'.\n"
-            . "  NE PAS inserer de description d'image en plein milieu d'un paragraphe.\n"
-            . "  Les images sont ajoutees SEPAREMENT par une autre phase — tu redigs uniquement le TEXTE.\n\n"
+            . "- JAMAIS inclure de balises <img>, <figure>, <picture>, <source>. Les images\n"
+            . "  sont ajoutees par une phase separee — tu NE RETOURNES QUE du texte HTML.\n"
+            . "- JAMAIS mentionner d'images, de photos, d'Unsplash, ou de credits photographe.\n"
+            . "  NE PAS ecrire 'Photo by X on Unsplash', 'Credit photo :', 'Vue sur [ville]',\n"
+            . "  'Image : ...', ni aucune legende ou attribution.\n"
+            . "- JAMAIS utiliser la syntaxe markdown (# titre, ## titre, ### titre, **gras**,\n"
+            . "  *italique*, [lien](url)). TOUT doit etre en HTML : <h2>, <h3>, <strong>,\n"
+            . "  <em>, <a href=\"...\">. Le markdown est INTERDIT dans la sortie.\n\n"
             . "Langue: {$language}. Retourne UNIQUEMENT le HTML des sections demandees.";
 
         // Add type-specific suffix
