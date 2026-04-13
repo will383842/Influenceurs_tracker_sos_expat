@@ -592,7 +592,7 @@ class ArticleGenerationService
 
             // Phase 15: Auto-dispatch translations to all 8 target languages
             try {
-                $targetLanguages = ['en', 'es', 'de', 'pt', 'ru', 'zh', 'ar', 'hi'];
+                $targetLanguages = ['fr', 'en', 'es', 'de', 'pt', 'ru', 'zh', 'ar', 'hi'];
                 $article->refresh();
                 $this->phase15_dispatchTranslations($article, $targetLanguages);
                 Log::info('Phase 15: translations dispatched for 8 languages', ['article_id' => $article->id]);
