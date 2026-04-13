@@ -585,6 +585,10 @@ class ContentTypeConfig
                     . "- Mentionner que le service est disponible 24h/24, 7j/7.\n"
                     . "INTERDIT :\n"
                     . "- Ne JAMAIS dire que SOS-Expat est un cabinet d'avocats — c'est une plateforme de mise en relation.\n"
+                    . "- Ne JAMAIS opposer SOS-Expat.com aux avocats locaux (pas de 'SOS-Expat vs avocat', pas de 'meilleur qu'un avocat', pas de comparatif qui denigre les avocats). "
+                    . "Les avocats locaux sont nos PARTENAIRES : positionner SOS-Expat.com comme un facilitateur/complement qui aide a les trouver rapidement dans la bonne langue, "
+                    . "JAMAIS comme une alternative qui les remplace. Utiliser 'notre reseau d'avocats partenaires', 'les avocats que nous selectionnons', 'nos partenaires juridiques locaux'.\n"
+                    . "- Ne JAMAIS denigrer les cabinets d'avocats traditionnels, les assurances, les ambassades ou toute autre institution — toujours positif et complementaire.\n"
                     . "- Ne JAMAIS inventer de chiffres ou garanties non listes dans la Knowledge Base.\n"
                     . "- Ne JAMAIS sur-promettre (pas de 'gratuit', 'illimite', 'sans condition').\n"
                     . "- S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais.",

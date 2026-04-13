@@ -637,7 +637,7 @@ class CountryCampaignCommand extends Command
             ['type' => 'brand_content', 'intent' => 'informational', 'topic' => "SOS-Expat.com {$en} : programme d'affiliation et comment devenir partenaire ({$year})"],
 
             // ── BRAND-CONVERSION (8) — Commercial investigation + urgency ──
-            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "SOS-Expat.com vs avocat local {$en} : comparatif prix, delai et langue ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "SOS-Expat.com et les avocats partenaires {$en} : notre reseau verifie et comment trouver le bon profil ({$year})"],
             ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "SOS-Expat.com vs assurance expatries {$en} : quelles differences ({$year})"],
             ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "SOS-Expat.com vs ambassade {$en} : qui contacter selon votre urgence ({$year})"],
             ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Urgence juridique {$en} : pourquoi appeler SOS-Expat.com en premier ({$year})"],
@@ -782,7 +782,7 @@ class CountryCampaignCommand extends Command
      * "aux" (plural), "a" (islands/cities). Used in templates: "S'expatrier {prep} {country}".
      * Defaults to "en" for any country not listed here.
      */
-    private const COUNTRY_PREP = [
+    public const COUNTRY_PREP = [
         // Priority 11
         'TH' => 'en',  'VN' => 'au',  'SG' => 'a',   'MY' => 'en',  'PH' => 'aux',
         'JP' => 'au',  'AU' => 'en',  'MX' => 'au',  'BR' => 'au',  'CR' => 'au',  'US' => 'aux',
