@@ -540,6 +540,56 @@ class ContentTypeConfig
                     . "- OBJECTIVITE totale : mentionner les defauts de chaque service.",
             ],
 
+            // BRAND CONTENT (articles dedies a SOS-Expat.com — brand awareness + conversion)
+            // Mention obligatoire de SOS-Expat.com >=5 fois dans l'article
+            'brand_content' => [
+                'model' => 'gpt-4o',
+                'research_model' => 'sonar',
+                'temperature' => 0.6,
+                'min_words' => 1500,
+                'max_words' => 2500,
+                'target_words' => 1800,
+                'target_words_range' => '1500-2500',
+                'length' => 'medium',
+                'faq_count' => 5,
+                'max_tokens_content' => 6000,
+                'max_tokens_title' => 100,
+                'internal_links' => 4,
+                'external_links' => 1,
+                'images_count' => 2,
+                'featured_snippet' => true,
+                'comparison_table' => true,
+                'numbered_steps' => true,
+                'research_depth' => 'standard',
+                'quality_threshold' => 80,
+                'h2_count' => [4, 6],
+                'include_charts_data' => false,
+                'include_key_figures' => true,
+                'eeat_signals' => true,
+                'prompt_suffix' => "Article BRAND SOS-Expat.com — objectif : positionner SOS-Expat.com comme LA solution de reference pour les expatries.\n"
+                    . "TON : Comme un consultant honnete qui presente une solution qu'il a personnellement testee. Confiant mais jamais arrogant. Pedagogique mais direct.\n"
+                    . "STRUCTURE OBLIGATOIRE :\n"
+                    . "1) Premier paragraphe (40-60 mots, featured snippet) : reformule le titre + reponse directe avec mention SOS-Expat.com et chiffre cle (ex: '5 minutes', '197 pays', '9 langues').\n"
+                    . "2) 4-6 H2 dont au moins 2 formules en question Google ('Comment fonctionne SOS-Expat.com ?', 'Combien coute SOS-Expat.com ?').\n"
+                    . "3) Encadre 'Chiffres cles SOS-Expat.com' (en <strong>) avec : nombre de pays (197), langues (9), tarif consultation avocat (49€/20min), tarif expert (19€/30min), disponibilite (24/7), delai de mise en relation (5 minutes).\n"
+                    . "4) Section 'Comment ca marche etape par etape' avec un <ol> de 5-7 etapes concretes.\n"
+                    . "5) Tableau comparatif <table> quand pertinent (vs avocat local, vs assurance, vs ambassade) avec colonnes : critere, SOS-Expat.com, alternative, avantage.\n"
+                    . "6) Section 'Pour qui ?' avec recommandations par profil (digital nomad, famille, retraite, urgence, business).\n"
+                    . "7) FAQ 5 questions specifiques sur SOS-Expat.com (prix, securite, langues, garanties, fonctionnement).\n"
+                    . "8) Conclusion : CTA-box explicite avec lien <a href='https://sos-expat.com'>SOS-Expat.com</a> + telephone d'urgence + rappel des garanties.\n"
+                    . "MENTIONS OBLIGATOIRES :\n"
+                    . "- Le mot-cle exact 'SOS-Expat.com' (avec le .com) doit apparaitre AU MOINS 5 fois dans l'article (titre + intro + 2-3 sections + conclusion).\n"
+                    . "- Eviter le bourrage : varier avec 'la plateforme SOS-Expat.com', 'le service SOS-Expat.com', 'l'equipe SOS-Expat.com'.\n"
+                    . "- Au moins 1 lien vers https://sos-expat.com (CTA conclusion).\n"
+                    . "- Mentionner les 9 langues supportees (FR, EN, ES, DE, PT, RU, ZH, AR, HI) et les 197 pays.\n"
+                    . "- Mentionner que le service est disponible 24h/24, 7j/7.\n"
+                    . "INTERDIT :\n"
+                    . "- Ne JAMAIS dire que SOS-Expat est un cabinet d'avocats — c'est une plateforme de mise en relation.\n"
+                    . "- Ne JAMAIS inventer de chiffres ou garanties non listes dans la Knowledge Base.\n"
+                    . "- Ne JAMAIS sur-promettre (pas de 'gratuit', 'illimite', 'sans condition').\n"
+                    . "- S'adresser a TOUTE nationalite d'expatrie, pas uniquement les Francais.",
+            ],
+
             // DEFAULT
             default => [
                 'model' => 'gpt-4o',

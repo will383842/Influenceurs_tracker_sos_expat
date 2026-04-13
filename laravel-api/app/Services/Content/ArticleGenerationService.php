@@ -1654,6 +1654,7 @@ class ArticleGenerationService
             'article'         => ['immigration', 'sante', 'logement', 'emploi'],
             'comparative'     => ['banque', 'logement', 'telecom'],
             'qa'              => ['immigration', 'urgences', 'sante'],
+            'brand_content'   => ['ambassade', 'immigration', 'sante', 'urgences', 'juridique'],
             default           => ['ambassade', 'immigration'],
         };
 

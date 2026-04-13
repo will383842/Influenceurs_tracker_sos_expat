@@ -299,9 +299,9 @@ export default function CountryCampaignManager() {
           <input
             type="number"
             min={10}
-            max={500}
+            max={1000}
             value={editThreshold}
-            onChange={(e) => setEditThreshold(Math.max(10, parseInt(e.target.value) || 100))}
+            onChange={(e) => setEditThreshold(Math.max(10, parseInt(e.target.value) || 220))}
             className="w-20 bg-bg border border-border rounded-lg px-3 py-1.5 text-white text-center text-sm"
           />
           <button

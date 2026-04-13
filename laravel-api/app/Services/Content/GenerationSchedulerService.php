@@ -269,7 +269,7 @@ class GenerationSchedulerService
             // Read campaign queue and threshold from DB (configurable via dashboard)
             $config = \Illuminate\Support\Facades\DB::table('content_orchestrator_config')->first();
             $campaignOrder = json_decode($config->campaign_country_queue ?? '[]', true);
-            $threshold = (int) ($config->campaign_articles_per_country ?? 100);
+            $threshold = (int) ($config->campaign_articles_per_country ?? 220);
 
             // Fallback: if queue is empty, use priority_countries
             if (empty($campaignOrder)) {

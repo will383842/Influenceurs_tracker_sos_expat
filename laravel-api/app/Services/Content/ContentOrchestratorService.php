@@ -89,7 +89,7 @@ class ContentOrchestratorService
             'today_cost_cents' => $row->today_cost_cents,
             'telegram_alerts' => (bool) ($row->telegram_alerts ?? true),
             'campaign_country_queue' => json_decode($row->campaign_country_queue ?? '[]', true) ?: [],
-            'campaign_articles_per_country' => (int) ($row->campaign_articles_per_country ?? 100),
+            'campaign_articles_per_country' => (int) ($row->campaign_articles_per_country ?? 220),
             'type_labels' => self::TYPE_LABELS,
         ];
     }
@@ -429,7 +429,7 @@ class ContentOrchestratorService
             'today_cost_cents' => 0,
             'telegram_alerts' => true,
             'campaign_country_queue' => [],
-            'campaign_articles_per_country' => 100,
+            'campaign_articles_per_country' => 220,
             'type_labels' => self::TYPE_LABELS,
         ];
     }
