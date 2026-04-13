@@ -11,15 +11,17 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Country Campaign — Generate 220 articles for one country (200 SEO topical + 20 brand SOS-Expat.com),
- * then move to the next country.
+ * Country Campaign — Generate 240 articles for one country (200 SEO topical + 40 brand SOS-Expat.com),
+ * then move to the next country. Covers all 197 countries (priority queue first, then random).
  *
  * Strategy: Topical Authority SEO 2026. Google ranks sites higher when they have
- * comprehensive coverage of a topic (country). 220 diverse articles per country
+ * comprehensive coverage of a topic (country). 240 diverse articles per country
  * (200 SEO across guides, articles juridiques, pratiques, pain points, comparatifs, Q/R,
  * tutoriels, lifestyle, statistiques, sante, fiscalite, education, famille, outreach,
- * temoignages — plus 20 brand SOS-Expat.com articles dedicated to brand awareness)
- * build a topical cluster that outranks sites with fewer articles per country.
+ * temoignages — plus 40 brand SOS-Expat.com articles : 12 brand-info, 8 brand-conversion,
+ * and 20 brand pain-solution covering a wide variety of expat problems and how the
+ * platform solves them) build a topical cluster that outranks sites with fewer articles
+ * per country, while maximizing brand-keyword coverage on Google for "SOS-Expat".
  *
  * Usage:
  *   php artisan content:country-campaign TH          # Generate for Thailand
@@ -37,7 +39,7 @@ class CountryCampaignCommand extends Command
         {--limit=0 : Override articles limit (0 = use DB config)}
         {--resume : Resume a paused/incomplete campaign}';
 
-    protected $description = 'Generate a complete country content cluster (220 articles: 200 SEO + 20 brand SOS-Expat.com)';
+    protected $description = 'Generate a complete country content cluster (240 articles: 200 SEO + 40 brand SOS-Expat.com)';
 
     /**
      * Top 6 expat cities per country for city guides.
@@ -358,78 +360,244 @@ class CountryCampaignCommand extends Command
             ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Visa refuse {$en} : comment SOS-Expat.com peut vous aider a faire appel ({$year})"],
             ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Litige avec un employeur {$en} : etapes et accompagnement SOS-Expat.com ({$year})"],
             ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Hospitalisation d'urgence {$en} : assistance SOS-Expat.com pour les demarches administratives ({$year})"],
+
+            // ══════════════════════════════════════════════════════════════════
+            // PARTIE 3 — BRAND PAIN-SOLUTION SOS-EXPAT.COM (20 articles)
+            // Format : "Probleme X {en} : la solution avec SOS-Expat.com"
+            // Couvre une multitude de problemes typiques d'expatriation
+            // ══════════════════════════════════════════════════════════════════
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Visa expire {$en} et risque d'expulsion : la solution avec SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Conflit avec votre proprietaire {$en} (caution, expulsion, charges) : la solution SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Refus de soins ou litige medical {$en} : SOS-Expat.com vous accompagne ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Discrimination a l'embauche {$en} : vos recours legaux avec SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Diplome francais non reconnu {$en} : la solution SOS-Expat.com pour faire valoir vos droits ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Urgence medicale sans assurance {$en} : que faire et qui appeler — SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Litige avec une ecole internationale {$en} (frais, exclusion) : la solution SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Conflit familial transfrontalier {$en} : SOS-Expat.com et nos avocats specialises ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Garde d'enfant apres divorce international {$en} : assistance immediate SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Deces d'un proche {$en} (rapatriement, succession) : SOS-Expat.com vous guide ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Arnaque immobiliere {$en} : porter plainte avec SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Vol d'identite ou cyberattaque {$en} : la solution avec SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Compte bancaire bloque {$en} : debloquer la situation avec SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Litige fiscal {$en} (double imposition, redressement) : SOS-Expat.com et nos experts fiscaux ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Refus d'entree a la frontiere {$en} : reagir en urgence avec SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Accident de la route avec un local {$en} : assistance SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Litige successoral entre pays {$en} : la solution avec SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Faillite personnelle ou commerciale {$en} : SOS-Expat.com et nos avocats partenaires ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'commercial_investigation', 'topic' => "Harcelement au travail {$en} : porter plainte avec l'aide de SOS-Expat.com ({$year})"],
+            ['type' => 'brand_content', 'intent' => 'urgency', 'topic' => "Enfant disparu ou enleve {$en} : assistance immediate SOS-Expat.com ({$year})"],
         ];
         // SEO total (200): statistics(2) + guide(10) + guide_city(6) + juridique(22) + pratique(20)
         //                + pain_point(18) + comparatif(17) + qa(35) + tutorial(14) + lifestyle(12)
         //                + statistics_data(12) + outreach(6) + testimonial(8) + sante(5)
         //                + fiscalite(5) + education(4) + famille(4) = 200
-        // Brand SOS-Expat.com (20): brand-info(12) + brand-conversion(8) = 20
-        // GRAND TOTAL: 220 articles per country
+        // Brand SOS-Expat.com (40): brand-info(12) + brand-conversion(8) + brand-pain-solution(20) = 40
+        // GRAND TOTAL: 240 articles per country
     }
 
     /**
-     * Country priority order for auto mode.
+     * Country order for auto mode — 197 sovereign states + main territories.
+     * The first 11 codes are the user-defined PRIORITY queue (Asia + Pacific + Americas),
+     * the rest follow alphabetically by ISO code (the actual queue order in DB
+     * is set by the migration that shuffles the non-priority countries).
      */
     public const COUNTRY_ORDER = [
-        // Tier 1: Highest search volume for expat content
+        // ── PRIORITY 11 (user-defined order) ──
         'TH' => 'Thailande',
         'VN' => 'Vietnam',
-        'PT' => 'Portugal',
-        'ES' => 'Espagne',
-        'ID' => 'Indonesie',
-        'MX' => 'Mexique',
-        'MA' => 'Maroc',
-        'AE' => 'Emirats arabes unis',
         'SG' => 'Singapour',
-        'JP' => 'Japon',
-        // Tier 2
-        'DE' => 'Allemagne',
-        'GB' => 'Royaume-Uni',
-        'US' => 'Etats-Unis',
-        'CA' => 'Canada',
-        'AU' => 'Australie',
-        'BR' => 'Bresil',
-        'CO' => 'Colombie',
-        'CR' => 'Costa Rica',
-        'GR' => 'Grece',
-        'HR' => 'Croatie',
-        // Tier 3
-        'IT' => 'Italie',
-        'NL' => 'Pays-Bas',
-        'BE' => 'Belgique',
-        'CH' => 'Suisse',
-        'TR' => 'Turquie',
-        'PH' => 'Philippines',
         'MY' => 'Malaisie',
-        'KH' => 'Cambodge',
-        'IN' => 'Inde',
-        'PL' => 'Pologne',
+        'PH' => 'Philippines',
+        'JP' => 'Japon',
+        'AU' => 'Australie',
+        'MX' => 'Mexique',
+        'BR' => 'Bresil',
+        'CR' => 'Costa Rica',
+        'US' => 'Etats-Unis',
+
+        // ── EUROPE (other) ──
+        'AL' => 'Albanie',           'AD' => 'Andorre',          'AT' => 'Autriche',
+        'BE' => 'Belgique',          'BA' => 'Bosnie-Herzegovine','BG' => 'Bulgarie',
+        'HR' => 'Croatie',           'CY' => 'Chypre',           'CZ' => 'Republique tcheque',
+        'DK' => 'Danemark',          'EE' => 'Estonie',          'FI' => 'Finlande',
+        'FR' => 'France',            'DE' => 'Allemagne',        'GR' => 'Grece',
+        'HU' => 'Hongrie',           'IS' => 'Islande',          'IE' => 'Irlande',
+        'IT' => 'Italie',            'XK' => 'Kosovo',           'LV' => 'Lettonie',
+        'LI' => 'Liechtenstein',     'LT' => 'Lituanie',         'LU' => 'Luxembourg',
+        'MT' => 'Malte',             'MD' => 'Moldavie',         'MC' => 'Monaco',
+        'ME' => 'Montenegro',        'NL' => 'Pays-Bas',         'MK' => 'Macedoine du Nord',
+        'NO' => 'Norvege',           'PL' => 'Pologne',          'PT' => 'Portugal',
+        'RO' => 'Roumanie',          'RU' => 'Russie',           'SM' => 'Saint-Marin',
+        'RS' => 'Serbie',            'SK' => 'Slovaquie',        'SI' => 'Slovenie',
+        'ES' => 'Espagne',           'SE' => 'Suede',            'CH' => 'Suisse',
+        'UA' => 'Ukraine',           'GB' => 'Royaume-Uni',      'VA' => 'Vatican',
+        'BY' => 'Bielorussie',
+
+        // ── ASIE (other) ──
+        'AF' => 'Afghanistan',       'AM' => 'Armenie',          'AZ' => 'Azerbaidjan',
+        'BH' => 'Bahrein',           'BD' => 'Bangladesh',       'BT' => 'Bhoutan',
+        'BN' => 'Brunei',            'KH' => 'Cambodge',         'CN' => 'Chine',
+        'GE' => 'Georgie',           'HK' => 'Hong Kong',        'IN' => 'Inde',
+        'ID' => 'Indonesie',         'IR' => 'Iran',             'IQ' => 'Irak',
+        'IL' => 'Israel',            'JO' => 'Jordanie',         'KZ' => 'Kazakhstan',
+        'KP' => 'Coree du Nord',     'KR' => 'Coree du Sud',     'KW' => 'Koweit',
+        'KG' => 'Kirghizistan',      'LA' => 'Laos',             'LB' => 'Liban',
+        'MO' => 'Macao',             'MV' => 'Maldives',         'MN' => 'Mongolie',
+        'MM' => 'Birmanie',          'NP' => 'Nepal',            'OM' => 'Oman',
+        'PK' => 'Pakistan',          'PS' => 'Palestine',        'QA' => 'Qatar',
+        'SA' => 'Arabie saoudite',   'LK' => 'Sri Lanka',        'SY' => 'Syrie',
+        'TW' => 'Taiwan',            'TJ' => 'Tadjikistan',      'TL' => 'Timor oriental',
+        'TR' => 'Turquie',           'TM' => 'Turkmenistan',     'AE' => 'Emirats arabes unis',
+        'UZ' => 'Ouzbekistan',       'YE' => 'Yemen',
+
+        // ── AMERIQUES (other) ──
+        'AG' => 'Antigua-et-Barbuda','AR' => 'Argentine',        'BS' => 'Bahamas',
+        'BB' => 'Barbade',           'BZ' => 'Belize',           'BO' => 'Bolivie',
+        'CA' => 'Canada',            'CL' => 'Chili',            'CO' => 'Colombie',
+        'CU' => 'Cuba',              'DM' => 'Dominique',        'DO' => 'Republique dominicaine',
+        'EC' => 'Equateur',          'SV' => 'El Salvador',      'GD' => 'Grenade',
+        'GT' => 'Guatemala',         'GY' => 'Guyana',           'HT' => 'Haiti',
+        'HN' => 'Honduras',          'JM' => 'Jamaique',         'NI' => 'Nicaragua',
+        'PA' => 'Panama',            'PY' => 'Paraguay',         'PE' => 'Perou',
+        'KN' => 'Saint-Christophe-et-Nieves', 'LC' => 'Sainte-Lucie',
+        'VC' => 'Saint-Vincent-et-les-Grenadines',
+        'SR' => 'Suriname',          'TT' => 'Trinite-et-Tobago','UY' => 'Uruguay',
+        'VE' => 'Venezuela',
+
+        // ── AFRIQUE ──
+        'DZ' => 'Algerie',           'AO' => 'Angola',           'BJ' => 'Benin',
+        'BW' => 'Botswana',          'BF' => 'Burkina Faso',     'BI' => 'Burundi',
+        'CM' => 'Cameroun',          'CV' => 'Cap-Vert',         'CF' => 'Centrafrique',
+        'TD' => 'Tchad',             'KM' => 'Comores',          'CD' => 'Republique democratique du Congo',
+        'CG' => 'Congo',             'CI' => 'Cote d\'Ivoire',   'DJ' => 'Djibouti',
+        'EG' => 'Egypte',            'GQ' => 'Guinee equatoriale','ER' => 'Erythree',
+        'SZ' => 'Eswatini',          'ET' => 'Ethiopie',         'GA' => 'Gabon',
+        'GM' => 'Gambie',            'GH' => 'Ghana',            'GN' => 'Guinee',
+        'GW' => 'Guinee-Bissau',     'KE' => 'Kenya',            'LS' => 'Lesotho',
+        'LR' => 'Liberia',           'LY' => 'Libye',            'MG' => 'Madagascar',
+        'MW' => 'Malawi',            'ML' => 'Mali',             'MR' => 'Mauritanie',
+        'MU' => 'Maurice',           'MA' => 'Maroc',            'MZ' => 'Mozambique',
+        'NA' => 'Namibie',           'NE' => 'Niger',            'NG' => 'Nigeria',
+        'RW' => 'Rwanda',            'ST' => 'Sao Tome-et-Principe','SN' => 'Senegal',
+        'SC' => 'Seychelles',        'SL' => 'Sierra Leone',     'SO' => 'Somalie',
+        'ZA' => 'Afrique du Sud',    'SS' => 'Soudan du Sud',    'SD' => 'Soudan',
+        'TZ' => 'Tanzanie',          'TG' => 'Togo',             'TN' => 'Tunisie',
+        'UG' => 'Ouganda',           'ZM' => 'Zambie',           'ZW' => 'Zimbabwe',
+
+        // ── OCEANIE ──
+        'FJ' => 'Fidji',             'KI' => 'Kiribati',         'MH' => 'Iles Marshall',
+        'FM' => 'Micronesie',        'NR' => 'Nauru',            'NZ' => 'Nouvelle-Zelande',
+        'PW' => 'Palaos',            'PG' => 'Papouasie-Nouvelle-Guinee',
+        'WS' => 'Samoa',             'SB' => 'Iles Salomon',     'TO' => 'Tonga',
+        'TV' => 'Tuvalu',            'VU' => 'Vanuatu',
     ];
 
     /**
-     * French prepositions for countries: "en" (feminine/vowel), "au" (masc sing), "aux" (plural).
-     * Used in templates: "S'expatrier {prep} {country}"
+     * French prepositions for countries: "en" (feminine/vowel), "au" (masc sing),
+     * "aux" (plural), "a" (islands/cities). Used in templates: "S'expatrier {prep} {country}".
+     * Defaults to "en" for any country not listed here.
      */
     private const COUNTRY_PREP = [
-        'TH' => 'en',  'VN' => 'au',  'PT' => 'au',  'ES' => 'en',  'ID' => 'en',
-        'MX' => 'au',  'MA' => 'au',  'AE' => 'aux', 'SG' => 'a',   'JP' => 'au',
-        'DE' => 'en',  'GB' => 'au',  'US' => 'aux', 'CA' => 'au',  'AU' => 'en',
-        'BR' => 'au',  'CO' => 'en',  'CR' => 'au',  'GR' => 'en',  'HR' => 'en',
-        'IT' => 'en',  'NL' => 'aux', 'BE' => 'en',  'CH' => 'en',  'TR' => 'en',
-        'PH' => 'aux', 'MY' => 'en',  'KH' => 'au',  'IN' => 'en',  'PL' => 'en',
+        // Priority 11
+        'TH' => 'en',  'VN' => 'au',  'SG' => 'a',   'MY' => 'en',  'PH' => 'aux',
+        'JP' => 'au',  'AU' => 'en',  'MX' => 'au',  'BR' => 'au',  'CR' => 'au',  'US' => 'aux',
+        // Europe
+        'AL' => 'en',  'AD' => 'en',  'AT' => 'en',  'BE' => 'en',  'BA' => 'en',
+        'BG' => 'en',  'HR' => 'en',  'CY' => 'a',   'CZ' => 'en',  'DK' => 'au',
+        'EE' => 'en',  'FI' => 'en',  'FR' => 'en',  'DE' => 'en',  'GR' => 'en',
+        'HU' => 'en',  'IS' => 'en',  'IE' => 'en',  'IT' => 'en',  'XK' => 'au',
+        'LV' => 'en',  'LI' => 'au',  'LT' => 'en',  'LU' => 'au',  'MT' => 'a',
+        'MD' => 'en',  'MC' => 'a',   'ME' => 'au',  'NL' => 'aux', 'MK' => 'en',
+        'NO' => 'en',  'PL' => 'en',  'PT' => 'au',  'RO' => 'en',  'RU' => 'en',
+        'SM' => 'a',   'RS' => 'en',  'SK' => 'en',  'SI' => 'en',  'ES' => 'en',
+        'SE' => 'en',  'CH' => 'en',  'UA' => 'en',  'GB' => 'au',  'VA' => 'au',  'BY' => 'en',
+        // Asie
+        'AF' => 'en',  'AM' => 'en',  'AZ' => 'en',  'BH' => 'a',   'BD' => 'au',
+        'BT' => 'au',  'BN' => 'au',  'KH' => 'au',  'CN' => 'en',  'GE' => 'en',
+        'HK' => 'a',   'IN' => 'en',  'ID' => 'en',  'IR' => 'en',  'IQ' => 'en',
+        'IL' => 'en',  'JO' => 'en',  'KZ' => 'au',  'KP' => 'en',  'KR' => 'en',
+        'KW' => 'au',  'KG' => 'au',  'LA' => 'au',  'LB' => 'au',  'MO' => 'a',
+        'MV' => 'aux', 'MN' => 'en',  'MM' => 'en',  'NP' => 'au',  'OM' => 'a',
+        'PK' => 'au',  'PS' => 'en',  'QA' => 'au',  'SA' => 'en',  'LK' => 'au',
+        'SY' => 'en',  'TW' => 'a',   'TJ' => 'au',  'TL' => 'au',  'TR' => 'en',
+        'TM' => 'au',  'AE' => 'aux', 'UZ' => 'en',  'YE' => 'au',
+        // Ameriques
+        'AG' => 'a',   'AR' => 'en',  'BS' => 'aux', 'BB' => 'a',   'BZ' => 'au',
+        'BO' => 'en',  'CA' => 'au',  'CL' => 'au',  'CO' => 'en',  'CU' => 'a',
+        'DM' => 'a',   'DO' => 'en',  'EC' => 'en',  'SV' => 'au',  'GD' => 'a',
+        'GT' => 'au',  'GY' => 'au',  'HT' => 'en',  'HN' => 'au',  'JM' => 'a',
+        'NI' => 'au',  'PA' => 'au',  'PY' => 'au',  'PE' => 'au',  'KN' => 'a',
+        'LC' => 'a',   'VC' => 'a',   'SR' => 'au',  'TT' => 'a',   'UY' => 'en',  'VE' => 'au',
+        // Afrique
+        'DZ' => 'en',  'AO' => 'en',  'BJ' => 'au',  'BW' => 'au',  'BF' => 'au',
+        'BI' => 'au',  'CM' => 'au',  'CV' => 'au',  'CF' => 'en',  'TD' => 'au',
+        'KM' => 'aux', 'CD' => 'en',  'CG' => 'au',  'CI' => 'en',  'DJ' => 'a',
+        'EG' => 'en',  'GQ' => 'en',  'ER' => 'en',  'SZ' => 'en',  'ET' => 'en',
+        'GA' => 'au',  'GM' => 'en',  'GH' => 'au',  'GN' => 'en',  'GW' => 'en',
+        'KE' => 'au',  'LS' => 'au',  'LR' => 'au',  'LY' => 'en',  'MG' => 'a',
+        'MW' => 'au',  'ML' => 'au',  'MR' => 'en',  'MU' => 'a',   'MA' => 'au',
+        'MZ' => 'au',  'NA' => 'en',  'NE' => 'au',  'NG' => 'au',  'RW' => 'au',
+        'ST' => 'a',   'SN' => 'au',  'SC' => 'aux', 'SL' => 'en',  'SO' => 'en',
+        'ZA' => 'en',  'SS' => 'au',  'SD' => 'au',  'TZ' => 'en',  'TG' => 'au',
+        'TN' => 'en',  'UG' => 'en',  'ZM' => 'en',  'ZW' => 'au',
+        // Oceanie
+        'FJ' => 'aux', 'KI' => 'aux', 'MH' => 'aux', 'FM' => 'en',  'NR' => 'a',
+        'NZ' => 'en',  'PW' => 'aux', 'PG' => 'en',  'WS' => 'aux', 'SB' => 'aux',
+        'TO' => 'au',  'TV' => 'a',   'VU' => 'au',
     ];
 
     /**
-     * French preposition "de" variants: "de" (vowel/fem), "du" (masc), "des" (plural).
-     * Used in templates: "Expulsion {de_prep} {country}"
+     * French preposition "de" variants: "de" (vowel/fem), "du" (masc), "des" (plural),
+     * "d'" (vowel-starting). Used in templates: "Expulsion {de_prep} {country}".
+     * Defaults to "de" for any country not listed here.
      */
     private const COUNTRY_DE_PREP = [
-        'TH' => 'de',  'VN' => 'du',  'PT' => 'du',  'ES' => "d'",  'ID' => "d'",
-        'MX' => 'du',  'MA' => 'du',  'AE' => 'des', 'SG' => 'de',  'JP' => 'du',
-        'DE' => "d'",  'GB' => 'du',  'US' => 'des', 'CA' => 'du',  'AU' => "d'",
-        'BR' => 'du',  'CO' => 'de',  'CR' => 'du',  'GR' => 'de',  'HR' => 'de',
-        'IT' => "d'",  'NL' => 'des', 'BE' => 'de',  'CH' => 'de',  'TR' => 'de',
-        'PH' => 'des', 'MY' => 'de',  'KH' => 'du',  'IN' => "d'",  'PL' => 'de',
+        // Priority 11
+        'TH' => 'de',  'VN' => 'du',  'SG' => 'de',  'MY' => 'de',  'PH' => 'des',
+        'JP' => 'du',  'AU' => "d'",  'MX' => 'du',  'BR' => 'du',  'CR' => 'du',  'US' => 'des',
+        // Europe
+        'AL' => "d'",  'AD' => "d'",  'AT' => "d'",  'BE' => 'de',  'BA' => 'de',
+        'BG' => 'de',  'HR' => 'de',  'CY' => 'de',  'CZ' => 'de',  'DK' => 'du',
+        'EE' => "d'",  'FI' => 'de',  'FR' => 'de',  'DE' => "d'",  'GR' => 'de',
+        'HU' => 'de',  'IS' => "d'",  'IE' => "d'",  'IT' => "d'",  'XK' => 'du',
+        'LV' => 'de',  'LI' => 'du',  'LT' => 'de',  'LU' => 'du',  'MT' => 'de',
+        'MD' => 'de',  'MC' => 'de',  'ME' => 'du',  'NL' => 'des', 'MK' => 'de',
+        'NO' => 'de',  'PL' => 'de',  'PT' => 'du',  'RO' => 'de',  'RU' => 'de',
+        'SM' => 'de',  'RS' => 'de',  'SK' => 'de',  'SI' => 'de',  'ES' => "d'",
+        'SE' => 'de',  'CH' => 'de',  'UA' => "d'",  'GB' => 'du',  'VA' => 'du',  'BY' => 'de',
+        // Asie
+        'AF' => "d'",  'AM' => "d'",  'AZ' => "d'",  'BH' => 'de',  'BD' => 'du',
+        'BT' => 'du',  'BN' => 'du',  'KH' => 'du',  'CN' => 'de',  'GE' => 'de',
+        'HK' => 'de',  'IN' => "d'",  'ID' => "d'",  'IR' => "d'",  'IQ' => "d'",
+        'IL' => "d'",  'JO' => 'de',  'KZ' => 'du',  'KP' => 'de',  'KR' => 'de',
+        'KW' => 'du',  'KG' => 'du',  'LA' => 'du',  'LB' => 'du',  'MO' => 'de',
+        'MV' => 'des', 'MN' => 'de',  'MM' => 'de',  'NP' => 'du',  'OM' => "d'",
+        'PK' => 'du',  'PS' => 'de',  'QA' => 'du',  'SA' => "d'",  'LK' => 'du',
+        'SY' => 'de',  'TW' => 'de',  'TJ' => 'du',  'TL' => 'du',  'TR' => 'de',
+        'TM' => 'du',  'AE' => 'des', 'UZ' => "d'",  'YE' => 'du',
+        // Ameriques
+        'AG' => "d'",  'AR' => "d'",  'BS' => 'des', 'BB' => 'de',  'BZ' => 'du',
+        'BO' => 'de',  'CA' => 'du',  'CL' => 'du',  'CO' => 'de',  'CU' => 'de',
+        'DM' => 'de',  'DO' => 'de',  'EC' => "d'",  'SV' => 'du',  'GD' => 'de',
+        'GT' => 'du',  'GY' => 'du',  'HT' => "d'",  'HN' => 'du',  'JM' => 'de',
+        'NI' => 'du',  'PA' => 'du',  'PY' => 'du',  'PE' => 'du',  'KN' => 'de',
+        'LC' => 'de',  'VC' => 'de',  'SR' => 'du',  'TT' => 'de',  'UY' => "d'",  'VE' => 'du',
+        // Afrique
+        'DZ' => "d'",  'AO' => "d'",  'BJ' => 'du',  'BW' => 'du',  'BF' => 'du',
+        'BI' => 'du',  'CM' => 'du',  'CV' => 'du',  'CF' => 'de',  'TD' => 'du',
+        'KM' => 'des', 'CD' => 'de',  'CG' => 'du',  'CI' => 'de',  'DJ' => 'de',
+        'EG' => "d'",  'GQ' => 'de',  'ER' => "d'",  'SZ' => "d'",  'ET' => "d'",
+        'GA' => 'du',  'GM' => 'de',  'GH' => 'du',  'GN' => 'de',  'GW' => 'de',
+        'KE' => 'du',  'LS' => 'du',  'LR' => 'du',  'LY' => 'de',  'MG' => 'de',
+        'MW' => 'du',  'ML' => 'du',  'MR' => 'de',  'MU' => 'de',  'MA' => 'du',
+        'MZ' => 'du',  'NA' => 'de',  'NE' => 'du',  'NG' => 'du',  'RW' => 'du',
+        'ST' => 'de',  'SN' => 'du',  'SC' => 'des', 'SL' => 'de',  'SO' => 'de',
+        'ZA' => "d'",  'SS' => 'du',  'SD' => 'du',  'TZ' => 'de',  'TG' => 'du',
+        'TN' => 'de',  'UG' => "d'",  'ZM' => 'de',  'ZW' => 'du',
+        // Oceanie
+        'FJ' => 'des', 'KI' => 'des', 'MH' => 'des', 'FM' => 'de',  'NR' => 'de',
+        'NZ' => 'de',  'PW' => 'des', 'PG' => 'de',  'WS' => 'des', 'SB' => 'des',
+        'TO' => 'des', 'TV' => 'de',  'VU' => 'du',
     ];
 
     /**
@@ -438,7 +606,7 @@ class CountryCampaignCommand extends Command
     private function getThreshold(): int
     {
         $config = DB::table('content_orchestrator_config')->first();
-        return (int) ($config->campaign_articles_per_country ?? 220);
+        return (int) ($config->campaign_articles_per_country ?? 240);
     }
 
     /**

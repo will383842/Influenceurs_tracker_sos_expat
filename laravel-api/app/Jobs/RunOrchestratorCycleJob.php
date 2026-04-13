@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Log;
  *
  * Spreading logic: 15min intervals × ~16h active window = ~64 cycles/day
  * If daily_target = 50, that's ~0.78 articles per cycle → 1 article per cycle
- * If daily_target = 220, that's ~3.4 per cycle → 3 articles per cycle
+ * If daily_target = 240, that's ~3.7 per cycle → 4 articles per cycle
  */
 class RunOrchestratorCycleJob implements ShouldQueue
 {
@@ -602,7 +602,7 @@ class RunOrchestratorCycleJob implements ShouldQueue
         // Read campaign queue and threshold from DB (configurable via dashboard)
         $config = \Illuminate\Support\Facades\DB::table('content_orchestrator_config')->first();
         $campaignOrder = json_decode($config->campaign_country_queue ?? '[]', true);
-        $threshold = (int) ($config->campaign_articles_per_country ?? 220);
+        $threshold = (int) ($config->campaign_articles_per_country ?? 240);
 
         // Fallback: if queue is empty, use priority_countries from config
         if (empty($campaignOrder)) {
