@@ -182,20 +182,51 @@ class GenerateArticleJob implements ShouldQueue
             ]);
         }
 
-        // Auto-publish if: score >= 60, no brand compliance issues, has content, is original (not translation)
-        $canPublish = $qualityScore >= 60
-            && empty($qualityIssues)
+        // Auto-publish gate — must clear 3 thresholds:
+        //   1. Mechanical quality_score >= 60 (SEO/readability/length/FAQ)
+        //   2. Editorial judge overall >= 70 (title/meta/content/facts/intent)
+        //   3. No brand compliance issues, has content, not a translation
+        // The editorial judge (phase14b) runs after phase14 and writes
+        // $article->editorial_score. If it's null (judge was skipped or
+        // unreachable) we fall back to the mechanical score only — i.e.
+        // the gate degrades gracefully to previous behaviour.
+        $article->refresh();
+        $editorialScore = $article->editorial_score;
+        $editorialReport = $article->editorial_review ?? [];
+
+        $mechanicalOk = $qualityScore >= 60;
+        $editorialOk = $editorialScore === null || $editorialScore >= 70;
+        $baseConditions = empty($qualityIssues)
             && !$article->parent_article_id
             && !empty($article->content_html)
             && $article->word_count > 0;
 
+        $canPublish = $mechanicalOk && $editorialOk && $baseConditions;
+
+        // Build a list of blocking reasons for logging + Telegram context
+        $blockingReasons = [];
+        if (!$mechanicalOk) {
+            $blockingReasons[] = "mechanical_quality={$qualityScore}<60";
+        }
+        if (!$editorialOk && $editorialScore !== null) {
+            $blockingReasons[] = "editorial_score={$editorialScore}<70";
+            if (!empty($editorialReport['issues']) && is_array($editorialReport['issues'])) {
+                $blockingReasons[] = 'issues: ' . implode(', ', array_slice($editorialReport['issues'], 0, 3));
+            }
+        }
+        if (!empty($qualityIssues)) {
+            $blockingReasons[] = 'compliance: ' . implode(', ', array_slice($qualityIssues, 0, 2));
+        }
+
         if (!$canPublish && !$article->parent_article_id && $article->word_count > 0) {
             // Has content but quality issues → review (not lost, can be published manually)
             $article->update(['status' => 'review']);
-            Log::info('GenerateArticleJob: article set to review', [
+            Log::info('GenerateArticleJob: article set to review (blocked from auto-publish)', [
                 'article_id' => $article->id,
                 'quality_score' => $qualityScore,
+                'editorial_score' => $editorialScore,
                 'issues' => $qualityIssues,
+                'blocking_reasons' => $blockingReasons,
             ]);
         }
 

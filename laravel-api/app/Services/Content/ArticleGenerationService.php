@@ -545,6 +545,36 @@ class ArticleGenerationService
                 $this->logPhase($article, 'quality', 'warning', $e->getMessage(), 0, 0, $this->elapsed($phaseStart));
             }
 
+            // Phase 14b: LLM editorial judge (title/meta/content/facts/intent)
+            // Non-blocking — if judge fails, article keeps its mechanical
+            // quality_score and proceeds. The publication gate in
+            // GenerateArticleJob::autoPublish() reads editorial_score to
+            // decide whether to push to the blog or keep for manual review.
+            $phaseStart = microtime(true);
+            try {
+                $judgeReport = $this->phase14b_editorialJudge($article->fresh());
+                $overall = $judgeReport['overall'] ?? 0;
+                $this->logPhase(
+                    $article,
+                    'editorial_judge',
+                    'success',
+                    "editorial_score={$overall} title={$judgeReport['title_score']} meta={$judgeReport['meta_score']} content={$judgeReport['content_score']} facts={$judgeReport['fact_score']} intent={$judgeReport['intent_score']}",
+                    0, 0,
+                    $this->elapsed($phaseStart)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Phase 14b: editorial judge failed (non-blocking)', [
+                    'article_id' => $article->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Only alert Telegram if the judge crashed with an unexpected
+                // error (not a rate limit or API timeout — those are noise).
+                if (!str_contains(strtolower($e->getMessage()), 'rate') && !str_contains(strtolower($e->getMessage()), 'timeout')) {
+                    $this->sendTelegramAlert('14b — Editorial Judge', $e->getMessage(), $article);
+                }
+                $this->logPhase($article, 'editorial_judge', 'warning', $e->getMessage(), 0, 0, $this->elapsed($phaseStart));
+            }
+
             // Plagiarism check
             $dedup = app(DeduplicationService::class);
             $plagiarismResult = $dedup->checkContentOriginality($article);
@@ -1939,6 +1969,151 @@ class ArticleGenerationService
         }
     }
 
+    /**
+     * Phase 14b — LLM Editorial Judge.
+     *
+     * Grades the finalised article against strict editorial criteria that
+     * mechanical scoring (phase14) cannot catch: does the title match a real
+     * Google search query? Is the meta_description compelling? Is the prose
+     * free of AI-pattern filler? Are the numbers plausible?
+     *
+     * Returns an associative array with per-dimension scores /100, an overall
+     * score /100, and a list of concrete issues. Results are persisted on the
+     * article (editorial_score + editorial_review JSON) so the publication
+     * gate in GenerateArticleJob::autoPublish() can block low-scoring pieces.
+     */
+    private function phase14b_editorialJudge(GeneratedArticle $article): array
+    {
+        $title = $article->title ?? '';
+        $metaTitle = $article->meta_title ?? '';
+        $metaDesc = $article->meta_description ?? '';
+        $contentText = mb_substr(strip_tags($article->content_html ?? ''), 0, 6000);
+        $country = $article->country ?? '';
+        $contentType = $article->content_type ?? 'article';
+        $language = $article->language ?? 'fr';
+        $year = date('Y');
+
+        $systemPrompt = "Tu es un RÉDACTEUR EN CHEF d'un magazine international d'expatriation. "
+            . "Tu évalues un article déjà rédigé selon 5 critères stricts. "
+            . "Tu retournes UNIQUEMENT un JSON valide, sans commentaire.\n\n"
+            . "Format JSON exigé :\n"
+            . "{\n"
+            . "  \"title_score\": 0-100,\n"
+            . "  \"title_feedback\": \"une phrase précise\",\n"
+            . "  \"meta_score\": 0-100,\n"
+            . "  \"meta_feedback\": \"une phrase précise\",\n"
+            . "  \"content_score\": 0-100,\n"
+            . "  \"content_feedback\": \"une phrase précise\",\n"
+            . "  \"fact_score\": 0-100,\n"
+            . "  \"fact_feedback\": \"une phrase précise\",\n"
+            . "  \"intent_score\": 0-100,\n"
+            . "  \"intent_feedback\": \"une phrase précise\",\n"
+            . "  \"overall\": 0-100,\n"
+            . "  \"issues\": [\"probleme1\", \"probleme2\", ...],\n"
+            . "  \"recommended_title\": \"suggestion si title_score<70, sinon null\",\n"
+            . "  \"recommended_meta_title\": \"suggestion si meta_score<70, sinon null\",\n"
+            . "  \"recommended_meta_description\": \"suggestion si meta_score<70, sinon null\"\n"
+            . "}\n\n"
+            . "RÈGLES DE NOTATION STRICTES :\n\n"
+            . "1. TITLE (title_score) — est-ce une VRAIE requête Google ?\n"
+            . "   - 90-100 : le titre EST exactement ce qu'un utilisateur tape dans Google (ex: 'Comment obtenir un visa pour le Japon ?').\n"
+            . "   - 70-89 : proche d'une requête naturelle, contient le mot-clé + pays + année.\n"
+            . "   - 50-69 : descriptif plat, fonctionnel mais pas engageant (ex: 'Visa Japon 2026').\n"
+            . "   - 30-49 : mal formulé, grammaire bancale, ou générique type 'Guide complet'.\n"
+            . "   - 0-29  : cassé, tronqué, keyword-stuffing évident.\n\n"
+            . "2. META (meta_score) — meta_title + meta_description compelling ?\n"
+            . "   - 90-100 : meta_title 50-60 chars avec hook + année + mot-clé ; meta_description 140-155 chars avec verbe d'action + bénéfice concret + CTA.\n"
+            . "   - 70-89 : acceptable mais manque un élément (pas de CTA, longueur sous-optimale, etc.).\n"
+            . "   - 50-69 : fonctionnel mais générique (commence par 'Découvrez...' générique).\n"
+            . "   - 0-49  : vide, cassé, duplication du titre, patterns IA évidents.\n\n"
+            . "3. CONTENT (content_score) — prose libre de patterns IA ?\n"
+            . "   - Pénalise : 'Il est important de noter', 'Il convient de souligner', 'Dans cet article nous allons', 'N'hésitez pas à', 'Plongeons dans'.\n"
+            . "   - Pénalise : répétition de sections, phrases passe-partout applicables à n'importe quel pays.\n"
+            . "   - 90-100 : phrases variées, anecdotes concrètes, chiffres précis, zéro pattern IA.\n"
+            . "   - 50-69 : lisible mais présence de 2-3 patterns IA.\n"
+            . "   - 0-49  : patterns IA massifs, contenu générique, remplissage.\n\n"
+            . "4. FACTS (fact_score) — les chiffres et affirmations sont-ils plausibles ?\n"
+            . "   - 90-100 : tous les chiffres sont dans l'ordre de grandeur attendu pour {$country} ({$year}).\n"
+            . "   - 70-89 : la plupart plausibles, 1 ou 2 doutes mineurs.\n"
+            . "   - 50-69 : 1-2 chiffres suspects (ex: 'loyer à Bangkok = 10 000 USD' — hors-sol).\n"
+            . "   - 0-49  : chiffres visiblement hallucinés ou contradictoires.\n\n"
+            . "5. INTENT (intent_score) — le titre et le contenu matchent-ils l'intention de recherche ?\n"
+            . "   - Un titre 'Comment obtenir X' doit répondre au processus.\n"
+            . "   - Un titre 'Meilleur X' doit comparer et recommander.\n"
+            . "   - Un titre 'Combien coûte X' doit donner un prix précis.\n"
+            . "   - 90-100 : content répond EXACTEMENT à la promesse du titre.\n"
+            . "   - 50-69 : content tangente le sujet mais ne répond pas directement.\n"
+            . "   - 0-49  : content hors-sujet par rapport au titre.\n\n"
+            . "overall = moyenne pondérée : title×25% + meta×15% + content×25% + facts×20% + intent×15%";
+
+        $userPrompt = "Pays : {$country} | Langue : {$language} | Type : {$contentType} | Année : {$year}\n\n"
+            . "TITRE : {$title}\n"
+            . "META_TITLE : {$metaTitle}\n"
+            . "META_DESCRIPTION : {$metaDesc}\n\n"
+            . "EXTRAIT DU CONTENU (6000 chars max) :\n{$contentText}";
+
+        try {
+            $result = $this->aiComplete($systemPrompt, $userPrompt, [
+                'model' => 'gpt-4o-mini',   // fast + cheap, sufficient for scoring
+                'temperature' => 0.3,       // low temp for stable scoring
+                'max_tokens' => 900,
+                'json_mode' => true,
+            ]);
+
+            if (empty($result['success']) || empty($result['content'])) {
+                Log::warning('phase14b: editorial judge call failed, defaulting to pass', [
+                    'article_id' => $article->id,
+                    'error' => $result['error'] ?? 'unknown',
+                ]);
+                return ['overall' => 75, 'skipped' => true, 'reason' => 'judge_unavailable'];
+            }
+
+            $report = json_decode($result['content'], true);
+            if (!is_array($report) || !isset($report['overall'])) {
+                Log::warning('phase14b: judge returned invalid JSON', [
+                    'article_id' => $article->id,
+                    'raw' => mb_substr((string) $result['content'], 0, 200),
+                ]);
+                return ['overall' => 75, 'skipped' => true, 'reason' => 'judge_invalid_json'];
+            }
+
+            // Clamp all scores to 0-100
+            foreach (['title_score', 'meta_score', 'content_score', 'fact_score', 'intent_score', 'overall'] as $key) {
+                if (isset($report[$key])) {
+                    $report[$key] = max(0, min(100, (int) $report[$key]));
+                }
+            }
+
+            $report['judged_at'] = now()->toIso8601String();
+            $report['judge_model'] = 'gpt-4o-mini';
+
+            // Persist on the article for the gate in GenerateArticleJob
+            $article->update([
+                'editorial_score'  => (int) $report['overall'],
+                'editorial_review' => $report,
+            ]);
+
+            Log::info('phase14b: editorial judge completed', [
+                'article_id' => $article->id,
+                'overall'    => $report['overall'],
+                'title'      => $report['title_score'] ?? null,
+                'meta'       => $report['meta_score'] ?? null,
+                'content'    => $report['content_score'] ?? null,
+                'facts'      => $report['fact_score'] ?? null,
+                'intent'     => $report['intent_score'] ?? null,
+                'issues'     => $report['issues'] ?? [],
+            ]);
+
+            return $report;
+        } catch (\Throwable $e) {
+            Log::error('phase14b: editorial judge exception', [
+                'article_id' => $article->id,
+                'error' => $e->getMessage(),
+            ]);
+            return ['overall' => 75, 'skipped' => true, 'reason' => 'judge_exception'];
+        }
+    }
+
     private function phase15_dispatchTranslations(GeneratedArticle $article, array $languages): void
     {
         foreach ($languages as $targetLang) {
@@ -2892,10 +3067,35 @@ class ArticleGenerationService
             $chatId = config('services.telegram_alerts.chat_id');
             if (!$botToken || !$chatId) return;
 
+            $article->refresh();
+            $editorial = $article->editorial_score;
+            $editorialReport = $article->editorial_review ?? [];
+            $editorialLine = '';
+            if ($editorial !== null) {
+                $emoji = $editorial >= 85 ? '🟢' : ($editorial >= 70 ? '🟡' : '🔴');
+                $editorialLine = "Éditorial: {$emoji} {$editorial}/100";
+                if (!empty($editorialReport) && is_array($editorialReport)) {
+                    $t = $editorialReport['title_score'] ?? '?';
+                    $m = $editorialReport['meta_score'] ?? '?';
+                    $c = $editorialReport['content_score'] ?? '?';
+                    $f = $editorialReport['fact_score'] ?? '?';
+                    $i = $editorialReport['intent_score'] ?? '?';
+                    $editorialLine .= " (T:{$t} M:{$m} C:{$c} F:{$f} I:{$i})";
+                }
+                $editorialLine .= "\n";
+
+                // Flag concrete issues found by the judge
+                if (!empty($editorialReport['issues']) && is_array($editorialReport['issues'])) {
+                    $topIssues = array_slice($editorialReport['issues'], 0, 3);
+                    $editorialLine .= "Issues: " . implode(' · ', $topIssues) . "\n";
+                }
+            }
+
             $text = "✅ *Nouvel article généré*\n\n"
                 . "Titre: {$article->title}\n"
                 . "Type: {$article->content_type} | Langue: {$article->language} | Pays: {$article->country}\n"
                 . "Mots: {$article->word_count} | SEO: {$article->seo_score}/100 | Qualité: {$article->quality_score}/100\n"
+                . $editorialLine
                 . "Image: " . ($article->featured_image_url ? '✅' : '❌') . "\n"
                 . "FAQs: " . $article->faqs()->count() . "\n"
                 . "Status: {$article->status}\n"
