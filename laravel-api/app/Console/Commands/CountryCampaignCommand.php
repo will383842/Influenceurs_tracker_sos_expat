@@ -274,9 +274,130 @@ class CountryCampaignCommand extends Command
     ];
 
     /**
+     * PAA réelles si disponibles, sinon 35 templates.
+     * Merge intelligent : on prend les PAA en premier, on complète avec les templates
+     * si on n'a pas assez (min 20 questions pour couvrir les types manquants).
+     */
+    private function loadPaaQuestionsOrFallback(string $countryCode, string $en, string $year): array
+    {
+        $paa = $this->loadPaaQuestions($countryCode);
+
+        if (count($paa) >= 20) {
+            // Assez de PAA → on les utilise directement (max 35)
+            return array_slice($paa, 0, 35);
+        }
+
+        // Fallback complet ou complément : templates classiques
+        $templates = $this->getQaTemplates($en, $year);
+
+        if (empty($paa)) {
+            return $templates; // Aucune PAA → 100% templates
+        }
+
+        // Merge : PAA en premier, templates pour compléter jusqu'à 35
+        $paaTitles = array_map(fn ($p) => mb_strtolower($p['topic']), $paa);
+        $extra = [];
+        foreach ($templates as $t) {
+            $tLower = mb_strtolower($t['topic']);
+            // Éviter les doublons sémantiques grossiers
+            $isDuplicate = false;
+            foreach ($paaTitles as $pt) {
+                if (similar_text($tLower, $pt) / max(mb_strlen($tLower), mb_strlen($pt)) > 0.7) {
+                    $isDuplicate = true;
+                    break;
+                }
+            }
+            if (!$isDuplicate) {
+                $extra[] = $t;
+            }
+            if (count($paa) + count($extra) >= 35) break;
+        }
+
+        return array_merge($paa, $extra);
+    }
+
+    /** Templates Q/R classiques (fallback quand aucune PAA en DB). */
+    private function getQaTemplates(string $en, string $year): array
+    {
+        return [
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Faut-il un visa pour aller {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Combien coute la vie {$en} par mois ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on travailler {$en} avec un visa touristique ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment obtenir un permis de travail {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel budget pour s'installer {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Est-ce dangereux de vivre {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment trouver un logement {$en} depuis l'etranger ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels vaccins pour aller {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment envoyer de l'argent {$en} pas cher ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on acheter un bien immobilier {$en} en tant qu'etranger ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel est le salaire moyen {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment ouvrir un compte bancaire {$en} sans residence ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Faut-il un permis de conduire international {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment se faire soigner {$en} en tant qu'etranger ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quelle est la meilleure ville pour vivre {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment scolariser ses enfants {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Combien de temps peut-on rester {$en} sans visa ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment trouver du travail {$en} en tant qu'etranger ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels sont les impots a payer {$en} pour un expatrie ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel est le cout d'un logement {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels documents pour louer un logement {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment fonctionne la securite sociale {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on ramener son chien {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment s'inscrire au consulat de son pays {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel est le climat {$en} toute l'annee ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quelle langue parler {$en} pour s'integrer ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Faut-il declarer ses revenus etrangers {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment obtenir la residence permanente {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels droits pour une famille {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on conduire {$en} avec un permis de conduire etranger ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels sont les meilleurs hopitaux {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment trouver une ecole francophone {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Combien coute une consultation medicale {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment fonctionne le marche immobilier {$en} ? ({$year})"],
+            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels sont les pieges a eviter quand on s'installe {$en} ? ({$year})"],
+        ];
+    }
+
+    /**
+     * Charger les questions PAA réelles depuis la DB (Google Suggest).
+     * Retourne un tableau de topics formatés pour le plan de contenu.
+     * Fallback sur les 35 questions templates si la DB est vide pour ce pays.
+     */
+    private function loadPaaQuestions(string $countryCode, string $lang = 'fr'): array
+    {
+        try {
+            $rows = \Illuminate\Support\Facades\DB::table('country_paa_questions')
+                ->where('country_code', strtoupper($countryCode))
+                ->where('language', $lang)
+                ->where('used', false)
+                ->orderBy('score') // 0 = plus populaire selon Google
+                ->limit(50)        // On prend les 50 meilleures
+                ->get(['question', 'intent', 'content_type']);
+
+            if ($rows->isEmpty()) {
+                return []; // Fallback aux templates si aucune question en DB
+            }
+
+            return $rows->map(fn ($r) => [
+                'type'   => $r->content_type,
+                'intent' => $r->intent,
+                'topic'  => $r->question,
+                '_paa'   => true, // Marqueur pour le dedup et le logging
+            ])->toArray();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("CountryCampaignCommand: PAA load failed for {$countryCode}", [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Content plan template: 220 articles per country (200 SEO topical + 20 brand SOS-Expat.com),
      * diversified by type and intent.
      * {country} and {country_name} are replaced at runtime.
+     *
+     * Les 35 Q/R templates sont remplacés par les vraies requêtes Google (PAA) si disponibles.
      */
     public function getContentPlan(string $countryCode, string $countryName): array
     {
@@ -404,42 +525,10 @@ class CountryCampaignCommand extends Command
             ['type' => 'comparative', 'intent' => 'commercial_investigation', 'topic' => "Operateurs internet fibre {$en} : comparatif debit, prix, fiabilite ({$year})"],
             ['type' => 'comparative', 'intent' => 'commercial_investigation', 'topic' => "Cliniques privees {$en} : comparatif tarifs et specialites ({$year})"],
 
-            // ── Q/R — QUESTIONS GOOGLE (35) — Featured snippets ──
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Faut-il un visa pour aller {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Combien coute la vie {$en} par mois ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on travailler {$en} avec un visa touristique ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment obtenir un permis de travail {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel budget pour s'installer {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Est-ce dangereux de vivre {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment trouver un logement {$en} depuis l'etranger ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels vaccins pour aller {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment envoyer de l'argent {$en} pas cher ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on acheter un bien immobilier {$en} en tant qu'etranger ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel est le salaire moyen {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment ouvrir un compte bancaire {$en} sans residence ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Faut-il un permis de conduire international {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment se faire soigner {$en} en tant qu'etranger ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quelle est la meilleure ville pour vivre {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment scolariser ses enfants {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Combien de temps peut-on rester {$en} sans visa ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment trouver du travail {$en} en tant qu'etranger ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels sont les impots a payer {$en} pour un expatrie ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel est le cout d'un logement {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels documents pour louer un logement {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment fonctionne la securite sociale {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on ramener son chien {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment s'inscrire au consulat de son pays {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quel est le climat {$en} toute l'annee ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quelle langue parler {$en} pour s'integrer ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Faut-il declarer ses revenus etrangers {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment obtenir la residence permanente {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels droits pour une famille {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Peut-on conduire {$en} avec un permis de conduire etranger ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels sont les meilleurs hopitaux {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment trouver une ecole francophone {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Combien coute une consultation medicale {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Comment fonctionne le marche immobilier {$en} ? ({$year})"],
-            ['type' => 'qa', 'intent' => 'informational', 'topic' => "Quels sont les pieges a eviter quand on s'installe {$en} ? ({$year})"],
+            // ── Q/R — VRAIES REQUÊTES GOOGLE (35) — Featured snippets ──
+            // Priorité : questions réelles Google Suggest (paa:discover) → fallback templates
+            // Les questions PAA sont exactement ce que les internautes tapent → intent natif
+            ...($this->loadPaaQuestionsOrFallback($countryCode, $en, $year)),
 
             // ── TUTORIELS (14) — Step-by-step, how-to schema ──
             ['type' => 'tutorial', 'intent' => 'transactional', 'topic' => "Comment obtenir un visa pour {$countryName} etape par etape ({$year})"],
