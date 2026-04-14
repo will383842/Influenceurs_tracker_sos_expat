@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class LinkedInPostComment extends Model
 {
+    protected $table = 'linkedin_post_comments'; // Laravel auto-pluralizes to linked_in_post_comments — override
+
     protected $fillable = [
         'linkedin_post_id',
         'comment_urn',

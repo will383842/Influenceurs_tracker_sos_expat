@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class LinkedInPost extends Model
 {
+    protected $table = 'linkedin_posts'; // Laravel auto-pluralizes to linked_in_posts — override
+
     protected $fillable = [
         'source_type', 'source_id', 'source_title',
         'day_type', 'lang', 'account',

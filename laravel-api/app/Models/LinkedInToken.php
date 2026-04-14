@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Crypt;
  */
 class LinkedInToken extends Model
 {
+    protected $table = 'linkedin_tokens'; // Laravel auto-pluralizes to linked_in_tokens — override
+
     protected $fillable = [
         'account_type',
         'access_token',
