@@ -77,41 +77,111 @@ class GenerateLinkedInPostJob implements ShouldQueue
 
 {$audienceContext}
 
-Tu es un expert LinkedIn de niveau international (top 1% des créateurs LinkedIn 2026).
-Tu crées du contenu LinkedIn pour SOS-Expat.com — mise en relation expatriés × avocats/experts dans 197 pays.
+═══════════════════════════════════════════════════════
+TU ES : le ghostwriter LinkedIn #1 Europe francophone.
+Tes clients : fondateurs de scale-ups, dirigeants expatriés, experts indépendants.
+Référence de style : voix de fondateur authentique, pas de marque.
+Tes posts génèrent 200+ commentaires. Les posts "commerciaux" génèrent 0.
+═══════════════════════════════════════════════════════
 
-RÈGLES ABSOLUES LINKEDIN 2026 :
-- Hook IRRÉSISTIBLE sur 2-3 lignes (avant "Voir plus" — MAX 140 caractères)
-- Corps total (hook + body) : 1 200–1 800 caractères
-- JAMAIS de lien dans le post (le lien va en 1er commentaire, JAMAIS dans le post)
-- 3-5 hashtags de niche pertinents — PAS de hashtags génériques
-- CTA doux : question ouverte finale pour générer les commentaires
-- Style : humain, empathique, conversationnel, pratique
-- Texte brut LinkedIn (INTERDIT : Markdown, **, ##, *, _)
-- Ligne vide entre chaque paragraphe (lisibilité mobile)
-- Toujours mentionner SOS-Expat.com comme ressource (avec le .com)
-- Le pays est un CONTEXTE dans le corps, jamais le sujet principal
+MISSION ABSOLUE :
+Tu écris pour le FONDATEUR de SOS-Expat.com — sa voix personnelle, son expertise,
+ses observations de terrain. PAS pour la marque. PAS une pub.
+La marque SOS-Expat n'apparaît JAMAIS dans le post (uniquement dans le 1er commentaire).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOOK — MAX 140 CARACTÈRES ABSOLUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Crée une friction irrésistible avec UN de ces patterns éprouvés :
+→ CONFESSION     : "J'ai fait une erreur qui a coûté X à un expatrié. Voici ce que j'ai appris."
+→ PARADOXE       : "[Vérité contre-intuitive sur l'expatriation] — personne ne vous le dira."
+→ CHIFFRE CHOC   : "X% des expatriés ignorent [problème précis]. Les conséquences sont lourdes."
+→ PROVOCATION    : "Le conseil que tout le monde donne sur [sujet] est faux."
+→ TENSION BRUTE  : "[Situation dramatique en 1 phrase courte et coupante.]"
+JAMAIS de "Quand Marc/Sophie/Ahmed..." — les prénoms inventés sonnent faux.
+JAMAIS de question dans le hook — l'affirmation forte performe 3× mieux.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CORPS — OBLIGATOIREMENT 1000-1500 CARACTÈRES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Structure narrative en 4 actes (paragraphes de 1-3 lignes, ligne vide entre chaque) :
+
+ACTE 1 — LA SCÈNE (2-3 lignes) :
+Contexte précis et ancré : pays, situation réelle, moment précis.
+Donne au lecteur l'impression d'être là.
+
+ACTE 2 — LE PROBLÈME (3-4 lignes) :
+La douleur concrète. Ce que ça coûte vraiment (temps, argent, stress, famille).
+Pas de généralités — des faits, des chiffres, des détails.
+
+ACTE 3 — L'INSIGHT RARE (4-5 lignes) :
+Ce que peu de gens savent. La solution contre-intuitive.
+Le truc que seul quelqu'un avec 10 ans d'expérience terrain connaît.
+Peut inclure 3-4 points courts avec "→" si et seulement si < 4 items.
+
+ACTE 4 — LA LEÇON + CTA (2-3 lignes) :
+1 principe universel que le lecteur peut appliquer aujourd'hui.
+Puis UNE question ULTRA-SPÉCIFIQUE (jamais "partagez votre expérience") :
+  ✓ "Dans quel pays avez-vous eu le plus de mal à régulariser votre statut ?"
+  ✓ "Quel document vous a pris le plus longtemps à obtenir à l'étranger ?"
+  ✗ "Et vous, avez-vous déjà vécu ça ?" (trop vague, 0 engagement)
+  ✗ "Partagez en commentaire !" (cliché mortel)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INTERDITS ABSOLUS (chaque violation détruit la portée)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✗ "SOS-Expat" dans le post — va dans le 1er commentaire UNIQUEMENT
+✗ Tout mot de pub : "découvrez", "notre service", "notre plateforme", "solution"
+✗ Histoires en 3ème personne avec prénom inventé ("Marc a découvert...")
+✗ CTA génériques : "partagez", "n'hésitez pas", "likez si vous êtes d'accord"
+✗ "Résultat ?" seul sur une ligne — cliché 2018
+✗ "Le secret de..." — idem
+✗ Markdown, **, ##, *, _ — LinkedIn rend tout en texte brut
+✗ Plus de 2 émojis dans tout le post
+✗ URL ou liens dans le post (UNIQUEMENT dans first_comment)
+✗ Listes à puces si > 4 items — listicle = portée divisée par 5
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HASHTAGS — 3 À 5, ULTRA-NICHE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAS #expat #expatriation (trop génériques, 0 trafic ciblé).
+OUI : #visa #droitdutravail #fiscaliteinternationale #mobiliteinternationale #expatrie
+Adapte aux mots-clés de la source.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1ER COMMENTAIRE (posté 3 min après)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+C'est ICI que SOS-Expat.com apparaît — naturellement, pas comme pub :
+"Pour ceux qui veulent aller plus loin sur ce sujet → [URL ou SOS-Expat.com]"
++ 1 question de rebond pour relancer les commentaires.
+150-250 caractères.
 SYSTEM;
 
             $userPrompt = <<<USER
-Génère un post LinkedIn en {$langLabel} pour SOS-Expat.com.
+Génère un post LinkedIn en {$langLabel} — voix de fondateur expert, ZÉRO commercial.
 
-JOUR : {$dayType}
-FORMAT : {$dayInstructions}
-ANGLE : {$angleInstructions}
+JOUR/FORMAT : {$dayType} — {$dayInstructions}
+ANGLE ÉDITORIAL : {$angleInstructions}
 
-SOURCE :
+SOURCE (inspire-toi, ne recopie pas) :
 Titre : {$source['title']}
 Contenu : {$source['content']}
 Mots-clés : {$source['keywords']}
-URL blog (pour le 1er commentaire) : {$source['url']}
+URL (pour le 1er commentaire UNIQUEMENT) : {$source['url']}
 
-Retourne UNIQUEMENT un objet JSON valide avec exactement ces 4 clés :
+RAPPEL CRITIQUE :
+- Hook ≤ 140 chars, première personne "Je", tension immédiate
+- SOS-Expat n'apparaît JAMAIS dans hook ni body — uniquement dans first_comment
+- Corps 1000-1500 chars, 4 actes, paragraphes courts
+- CTA = question précise sur une situation réelle vécue
+- Max 2 émojis dans tout le post
+
+Retourne UNIQUEMENT un JSON valide :
 {
-  "hook": "2-3 lignes d'accroche avant Voir plus (max 140 chars, aucun saut de ligne)",
-  "body": "Corps complet sans le hook (900-1500 chars, \\n entre paragraphes)",
-  "hashtags": ["expatriation", "expat", "sosexpat"],
-  "first_comment": "Commentaire à poster 3 min après le post : question ouverte à la communauté + lien blog si disponible + révèle la suite non dite dans le post. 150-300 chars."
+  "hook": "accroche ≤140 chars, sans saut de ligne, en {$langLabel}",
+  "body": "corps 1000-1500 chars, \\n entre paragraphes, en {$langLabel}",
+  "hashtags": ["mot1", "mot2", "mot3"],
+  "first_comment": "question rebond + lien discret vers SOS-Expat.com ou URL source, 150-250 chars, en {$langLabel}"
 }
 USER;
 
@@ -337,13 +407,15 @@ CRITIQUE;
     }
 
     /**
-     * Score a generated post 0-100 based on LinkedIn best practices.
+     * Score a generated post 0-100 based on LinkedIn TOP 1% criteria.
      *
-     * Hook ≤ 140 chars       → 25 pts
-     * No URL in body         → 25 pts
-     * Body 1200-1800 chars   → 20 pts
-     * 3-5 hashtags           → 15 pts
-     * First comment present  → 15 pts
+     * Hook ≤ 140 chars                    → 20 pts
+     * No brand/URL in body               → 20 pts  ← KEY: SOS-Expat must NOT appear
+     * Body 1000-1600 chars total         → 20 pts
+     * First-person voice (je/j'/I )      → 15 pts
+     * 3-5 hashtags                       → 10 pts
+     * First comment ≥ 100 chars          → 10 pts
+     * No commercial clichés in body      →  5 pts
      */
     private function scorePost(array $data): int
     {
@@ -352,34 +424,46 @@ CRITIQUE;
         $body         = $data['body']          ?? '';
         $hashtags     = $data['hashtags']       ?? [];
         $firstComment = $data['first_comment'] ?? '';
+        $fullBody     = $hook . "\n\n" . $body;
 
-        // Hook ≤ 140 chars (LinkedIn "see more" threshold)
-        if (mb_strlen($hook) > 0 && mb_strlen($hook) <= 140) $score += 25;
-        elseif (mb_strlen($hook) <= 160)                      $score += 12; // partial
+        // 1. Hook ≤ 140 chars
+        $hookLen = mb_strlen($hook);
+        if ($hookLen > 0 && $hookLen <= 140) $score += 20;
+        elseif ($hookLen <= 155)             $score += 10;
 
-        // No URL in body (algorithmic penalty on LinkedIn)
-        if (!preg_match('#https?://|www\.#i', $body)) $score += 25;
+        // 2. No brand / URL in post body (SOS-Expat must be in first_comment only)
+        $hasBrand = preg_match('/sos.?expat|notre (service|plateforme|solution)|découvrez notre/i', $body);
+        $hasUrl   = preg_match('#https?://|www\.#i', $body);
+        if (!$hasBrand && !$hasUrl) $score += 20;
+        elseif (!$hasUrl)           $score += 8; // URL penalty harsher than brand
 
-        // Body length 1200-1800 chars
-        $bodyLen = mb_strlen($hook . "\n\n" . $body);
-        if ($bodyLen >= 1200 && $bodyLen <= 1800)      $score += 20;
-        elseif ($bodyLen >= 900 && $bodyLen <= 2200)   $score += 10; // acceptable
+        // 3. Body length 1000-1600 chars total
+        $totalLen = mb_strlen($fullBody);
+        if ($totalLen >= 1000 && $totalLen <= 1600)  $score += 20;
+        elseif ($totalLen >= 800 && $totalLen <= 1900) $score += 10;
 
-        // Hashtag count 3-5
+        // 4. First-person voice
+        if (preg_match('/\bje\b|\bj\'|\bI /i', $hook . ' ' . $body)) $score += 15;
+        elseif (preg_match('/\bnous\b|\bnotre\b/i', $hook . ' ' . $body)) $score += 5;
+
+        // 5. Hashtag count 3-5
         $hashCount = count(is_array($hashtags) ? $hashtags : []);
-        if ($hashCount >= 3 && $hashCount <= 5)        $score += 15;
-        elseif ($hashCount >= 1 && $hashCount <= 7)    $score += 7;
+        if ($hashCount >= 3 && $hashCount <= 5) $score += 10;
+        elseif ($hashCount >= 2 && $hashCount <= 6) $score += 5;
 
-        // First comment with content
-        if (mb_strlen($firstComment) >= 50)            $score += 15;
-        elseif (mb_strlen($firstComment) > 0)          $score += 7;
+        // 6. First comment substantive (≥ 100 chars)
+        if (mb_strlen($firstComment) >= 100) $score += 10;
+        elseif (mb_strlen($firstComment) >= 50) $score += 5;
+
+        // 7. No commercial clichés
+        $clichés = preg_match('/résultat \?|le secret de|partagez votre expérience|n\'hésitez pas|likez si/i', $body);
+        if (!$clichés) $score += 5;
 
         return min(100, $score);
     }
 
     /**
-     * Return a human-readable critique string listing what failed QA.
-     * Empty string means the post passed all checks.
+     * Return a human-readable critique for the regeneration loop.
      */
     private function buildCritique(array $data, string $lang): string
     {
@@ -389,27 +473,33 @@ CRITIQUE;
         $hashtags     = $data['hashtags']       ?? [];
         $firstComment = $data['first_comment'] ?? '';
         $hookLen      = mb_strlen($hook);
-        $bodyLen      = mb_strlen($hook . "\n\n" . $body);
+        $totalLen     = mb_strlen($hook . "\n\n" . $body);
         $hashCount    = count(is_array($hashtags) ? $hashtags : []);
 
         if ($hookLen > 140)
-            $issues[] = "- Hook trop long ({$hookLen} chars, max 140). Raccourcis le hook.";
+            $issues[] = "HOOK TROP LONG ({$hookLen} chars, max 140 absolus). Raccourcis-le radicalement — chaque mot compte.";
         if ($hookLen === 0)
-            $issues[] = "- Hook manquant. Crée une accroche percutante en 2-3 lignes.";
+            $issues[] = "HOOK MANQUANT. Crée une accroche en première personne, tension immédiate, ≤140 chars.";
+        if (!preg_match('/\bje\b|\bj\'|\bI /i', $hook . ' ' . $body))
+            $issues[] = "VOIX MANQUANTE. Écris en première personne (Je/J'). Un post à la 3ème personne ou impersonnel ne performe pas.";
+        if (preg_match('/sos.?expat|notre (service|plateforme|solution)|découvrez notre/i', $body))
+            $issues[] = "CONTENU COMMERCIAL DÉTECTÉ. 'SOS-Expat', 'notre service' etc. sont INTERDITS dans le post. Mets-les UNIQUEMENT dans first_comment. Le post doit être 100% éducatif/expert.";
         if (preg_match('#https?://|www\.#i', $body))
-            $issues[] = "- Le corps contient une URL. JAMAIS de lien dans le post — mets le lien UNIQUEMENT dans first_comment.";
-        if ($bodyLen < 1200)
-            $issues[] = "- Corps trop court ({$bodyLen} chars, min 1200). Développe avec exemples et conseils pratiques.";
-        if ($bodyLen > 1800)
-            $issues[] = "- Corps trop long ({$bodyLen} chars, max 1800). Condense sans perdre la valeur.";
+            $issues[] = "URL DANS LE CORPS. Retire tout lien — LinkedIn pénalise algorithmiquement. Le lien va UNIQUEMENT dans first_comment.";
+        if ($totalLen < 1000)
+            $issues[] = "CORPS TROP COURT ({$totalLen} chars, minimum 1000). Développe l'acte 2 (le problème réel) et l'acte 3 (l'insight rare) avec des détails concrets.";
+        if ($totalLen > 1700)
+            $issues[] = "CORPS TROP LONG ({$totalLen} chars, max 1600). Coupe les transitions inutiles et les listes trop longues.";
         if ($hashCount < 3)
-            $issues[] = "- Trop peu de hashtags ({$hashCount}, besoin de 3-5 hashtags de niche).";
+            $issues[] = "HASHTAGS INSUFFISANTS ({$hashCount}). Ajoute 3-5 hashtags de niche (visa, droitdutravail, mobiliteinternationale...).";
         if ($hashCount > 5)
-            $issues[] = "- Trop de hashtags ({$hashCount}, maximum 5). Garde uniquement les plus pertinents.";
-        if (mb_strlen($firstComment) < 50)
-            $issues[] = "- Premier commentaire trop court ou absent. Ajoute une question ouverte + le lien de l'article.";
+            $issues[] = "TROP DE HASHTAGS ({$hashCount}, max 5). Garde uniquement les 5 plus ciblés.";
+        if (mb_strlen($firstComment) < 100)
+            $issues[] = "PREMIER COMMENTAIRE TROP COURT. Doit inclure : question de rebond + lien SOS-Expat.com + accroche vers l'article. Minimum 100 chars.";
+        if (preg_match('/résultat \?|le secret de|partagez votre expérience|n\'hésitez pas/i', $body))
+            $issues[] = "CLICHÉS LINKEDIN DÉTECTÉS. Supprime 'Résultat ?', 'Le secret de', 'Partagez votre expérience' — ce sont des marqueurs de contenu amateur 2018.";
 
-        return implode("\n", $issues);
+        return empty($issues) ? '' : "CORRECTIONS OBLIGATOIRES pour le prochain essai :\n" . implode("\n", $issues);
     }
 
     /** Build a decent post from the source content without any AI */
