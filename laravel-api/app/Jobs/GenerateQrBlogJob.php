@@ -23,8 +23,8 @@ class GenerateQrBlogJob implements ShouldQueue
     public int $tries   = 1;
 
     private const PROGRESS_KEY   = 'qr_blog_generation_progress';
-    private const MODEL_GENERATE = 'claude-sonnet-4-6';
-    private const MODEL_TRANSLATE = 'claude-haiku-4-5-20251001';
+    private const MODEL_GENERATE  = 'gpt-4o';      // GPT primary; callClaude() fallback → claude-sonnet
+    private const MODEL_TRANSLATE = 'gpt-4o-mini'; // GPT primary; callClaude() fallback → claude-haiku
     private const LANGUAGES = ['fr', 'en', 'es', 'de', 'pt', 'ru', 'zh', 'hi', 'ar'];
     private const LANGUAGE_NAMES = [
         'fr' => 'French',    'en' => 'English',   'es' => 'Spanish',
@@ -245,7 +245,7 @@ PROMPT;
             ? "Pays ciblé : {$country}. TOUTES les informations doivent être spécifiques à ce pays. Jamais de réponses génériques."
             : "Applicable à plusieurs pays : infos générales valides pour l'expatriation en général.";
 
-        $langCode = $question->language ?? 'fr';
+        $langCode = 'fr'; // generateFrContent génère toujours du contenu français
         $langName = match($langCode) {
             'fr'=>'français','en'=>'anglais','es'=>'espagnol','de'=>'allemand',
             'pt'=>'portugais','ru'=>'russe','zh'=>'chinois','hi'=>'hindi','ar'=>'arabe',
@@ -396,14 +396,16 @@ PROMPT;
      */
     private function callClaude(string $model, string $prompt, int $maxTokens, string $key, ?string $systemPrompt = null): ?string
     {
-        $gptModel = str_contains($model, 'haiku') ? 'gpt-4o-mini' : 'gpt-4o';
+        // $model est maintenant un nom GPT (gpt-4o ou gpt-4o-mini).
+        // Le fallback Claude utilise l'équivalent Anthropic.
+        $claudeFallbackModel = ($model === 'gpt-4o-mini') ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
 
         /** @var \App\Services\AI\OpenAiService $openai */
         $openai = app(\App\Services\AI\OpenAiService::class);
 
         if ($openai->isConfigured()) {
             $result = $openai->complete($systemPrompt ?? '', $prompt, [
-                'model'      => $gptModel,
+                'model'      => $model,
                 'max_tokens' => $maxTokens,
                 'json_mode'  => true,
             ]);
@@ -418,7 +420,7 @@ PROMPT;
 
         // Fallback: Claude
         $body = [
-            'model'      => $model,
+            'model'      => $claudeFallbackModel,
             'max_tokens' => $maxTokens,
             'messages'   => [['role' => 'user', 'content' => $prompt]],
         ];

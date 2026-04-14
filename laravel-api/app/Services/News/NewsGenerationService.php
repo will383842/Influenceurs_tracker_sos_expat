@@ -38,10 +38,14 @@ class NewsGenerationService
      */
     public function generate(RssFeedItem $item): bool
     {
-        $anthropicKey = config('services.anthropic.api_key') ?: config('services.claude.api_key');
+        // GPT est primaire — Anthropic n'est nécessaire qu'en fallback.
+        // On requiert au moins l'une des deux clés, pas forcément Anthropic.
+        $anthropicKey = config('services.anthropic.api_key') ?: config('services.claude.api_key') ?: null;
+        /** @var OpenAiService $openaiCheck */
+        $openaiCheck = app(OpenAiService::class);
 
-        if (! $anthropicKey) {
-            $item->update(['status' => 'failed', 'error_message' => 'ANTHROPIC_API_KEY manquant']);
+        if (! $openaiCheck->isConfigured() && ! $anthropicKey) {
+            $item->update(['status' => 'failed', 'error_message' => 'Aucune clé AI configurée (OPENAI_API_KEY ou ANTHROPIC_API_KEY)']);
             return false;
         }
 
@@ -259,9 +263,9 @@ PROMPT;
 
         $json = $this->extractJson($result);
 
-        // Vérifier minimum ~400 mots (≈ 2400 chars) — le prompt demande 600 mots
+        // Vérifier minimum 400 mots — le prompt demande 600 mots, on accepte 400 minimum
         $textContent = strip_tags($json['content_html'] ?? '');
-        if (! $json || str_word_count($textContent) < 150) {
+        if (! $json || str_word_count($textContent) < 400) {
             Log::warning('NewsGenerationService: contenu trop court', [
                 'words' => str_word_count($textContent),
             ]);
