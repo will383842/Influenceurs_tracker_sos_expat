@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\LinkedInPost;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
@@ -61,6 +62,11 @@ class QaEntry extends Model
     // ============================================================
     // Relationships
     // ============================================================
+
+    public function linkedinPosts(): HasMany
+    {
+        return $this->hasMany(LinkedInPost::class, 'source_id')->where('source_type', 'faq');
+    }
 
     public function parentArticle(): BelongsTo
     {

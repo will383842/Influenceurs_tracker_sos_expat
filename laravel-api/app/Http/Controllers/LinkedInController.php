@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateLinkedInPostJob;
+use App\Models\GeneratedArticle;
 use App\Models\LinkedInPost;
+use App\Models\QaEntry;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Http;
 
 class LinkedInController extends Controller
 {
@@ -13,11 +15,8 @@ class LinkedInController extends Controller
 
     public function stats(): JsonResponse
     {
-        $weekStart = now()->startOfWeek();
-        $weekEnd   = now()->endOfWeek();
-
-        $postsThisWeek = LinkedInPost::whereBetween('scheduled_at', [$weekStart, $weekEnd])
-            ->orWhereBetween('created_at', [$weekStart, $weekEnd])
+        $postsThisWeek = LinkedInPost::whereBetween('scheduled_at', [now()->startOfWeek(), now()->endOfWeek()])
+            ->orWhereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
             ->count();
         $scheduled     = LinkedInPost::where('status', 'scheduled')->count();
         $published     = LinkedInPost::where('status', 'published')->count();
@@ -30,17 +29,37 @@ class LinkedInController extends Controller
             ->orderByDesc('avg_eng')
             ->value('day_type');
 
+        $usedArticleIds = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
+            ->where('source_type', 'article')
+            ->whereNotNull('source_id')
+            ->pluck('source_id');
+
+        $usedFaqIds = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
+            ->where('source_type', 'faq')
+            ->whereNotNull('source_id')
+            ->pluck('source_id');
+
+        $availableArticles = GeneratedArticle::published()
+            ->whereNotIn('id', $usedArticleIds)
+            ->count();
+
+        $availableFaqs = QaEntry::published()
+            ->whereNotIn('id', $usedFaqIds)
+            ->count();
+
         return response()->json([
             'posts_this_week'      => $postsThisWeek,
             'posts_scheduled'      => $scheduled,
             'posts_published'      => $published,
-            'total_reach'          => $totalReach,
+            'total_reach'          => (int) $totalReach,
             'avg_engagement_rate'  => round($avgEngagement, 2),
             'top_performing_day'   => $topDay ?? 'monday',
+            'available_articles'   => $availableArticles,
+            'available_faqs'       => $availableFaqs,
         ]);
     }
 
-    // ── Queue ──────────────────────────────────────────────────────────
+    // ── Queue (paginated) ──────────────────────────────────────────────
 
     public function queue(Request $request): JsonResponse
     {
@@ -50,46 +69,128 @@ class LinkedInController extends Controller
             $query->where('status', $request->status);
         }
 
-        return response()->json($query->limit(50)->get());
+        $perPage = min((int) ($request->per_page ?? 25), 50);
+
+        return response()->json($query->paginate($perPage));
     }
 
-    // ── Generate with AI ───────────────────────────────────────────────
+    // ── Auto-select best unpublished source ───────────────────────────
+
+    public function autoSelect(Request $request): JsonResponse
+    {
+        $request->validate([
+            'source_type' => 'required|in:article,faq,tip',
+            'lang'        => 'required|in:fr,en,both',
+        ]);
+
+        $lang       = $request->lang === 'both' ? 'fr' : $request->lang;
+        $sourceType = $request->source_type;
+
+        if ($sourceType === 'article') {
+            $usedIds = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
+                ->where('source_type', 'article')
+                ->whereNotNull('source_id')
+                ->pluck('source_id');
+
+            $source = GeneratedArticle::published()
+                ->where('language', $lang)
+                ->whereNotIn('id', $usedIds)
+                ->orderByDesc('editorial_score')
+                ->first(['id', 'title', 'language', 'country', 'editorial_score', 'quality_score', 'keywords_primary']);
+
+            $availableCount = GeneratedArticle::published()
+                ->where('language', $lang)
+                ->whereNotIn('id', $usedIds)
+                ->count();
+
+            return response()->json([
+                'found'           => $source !== null,
+                'source_type'     => 'article',
+                'source_id'       => $source?->id,
+                'title'           => $source?->title,
+                'country'         => $source?->country,
+                'editorial_score' => $source?->editorial_score,
+                'quality_score'   => $source?->quality_score,
+                'available_count' => $availableCount,
+            ]);
+        }
+
+        if ($sourceType === 'faq') {
+            $usedIds = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
+                ->where('source_type', 'faq')
+                ->whereNotNull('source_id')
+                ->pluck('source_id');
+
+            $source = QaEntry::published()
+                ->where('language', $lang)
+                ->whereNotIn('id', $usedIds)
+                ->orderByDesc('seo_score')
+                ->first(['id', 'question', 'language', 'country', 'seo_score', 'keywords_primary']);
+
+            $availableCount = QaEntry::published()
+                ->where('language', $lang)
+                ->whereNotIn('id', $usedIds)
+                ->count();
+
+            return response()->json([
+                'found'           => $source !== null,
+                'source_type'     => 'faq',
+                'source_id'       => $source?->id,
+                'title'           => $source?->question,
+                'country'         => $source?->country,
+                'seo_score'       => $source?->seo_score,
+                'available_count' => $availableCount,
+            ]);
+        }
+
+        // tip — free generation, no source needed
+        return response()->json([
+            'found'           => true,
+            'source_type'     => 'tip',
+            'source_id'       => null,
+            'title'           => 'Génération libre (conseil / tip)',
+            'available_count' => 999,
+        ]);
+    }
+
+    // ── Generate (async) ───────────────────────────────────────────────
 
     public function generate(Request $request): JsonResponse
     {
         $request->validate([
-            'source_type' => 'required|in:article,faq,testimonial,news,case_study,tip',
+            'source_type' => 'required|in:article,faq,tip,news,case_study',
             'source_id'   => 'nullable|integer',
             'day_type'    => 'required|in:monday,tuesday,wednesday,thursday,friday',
             'lang'        => 'required|in:fr,en,both',
             'account'     => 'required|in:page,personal,both',
         ]);
 
-        $sourceContent = $this->fetchSourceContent($request->source_type, $request->source_id);
-        $generated     = $this->generateWithAI($request->all(), $sourceContent);
+        $sourceTitle = $this->resolveSourceTitle($request->source_type, $request->source_id);
 
         $post = LinkedInPost::create([
             'source_type'  => $request->source_type,
             'source_id'    => $request->source_id,
-            'source_title' => $sourceContent['title'] ?? null,
+            'source_title' => $sourceTitle,
             'day_type'     => $request->day_type,
             'lang'         => $request->lang,
             'account'      => $request->account,
-            'hook'         => $generated['hook'],
-            'body'         => $generated['body'],
-            'hashtags'     => $generated['hashtags'],
-            'status'       => 'draft',
-            'phase'        => 1,
+            'hook'         => '',
+            'body'         => '',
+            'hashtags'     => [],
+            'status'       => 'generating',
+            'phase'        => (int) ($request->phase ?? 1),
         ]);
 
-        return response()->json($post, 201);
+        GenerateLinkedInPostJob::dispatch($post->id);
+
+        return response()->json($post, 202);
     }
 
     // ── Update ─────────────────────────────────────────────────────────
 
     public function update(Request $request, LinkedInPost $post): JsonResponse
     {
-        $post->update($request->only(['hook', 'body', 'hashtags', 'lang', 'account', 'day_type']));
+        $post->update($request->only(['hook', 'body', 'hashtags', 'lang', 'account', 'day_type', 'status']));
         return response()->json($post);
     }
 
@@ -102,19 +203,15 @@ class LinkedInController extends Controller
         return response()->json($post);
     }
 
-    // ── Publish ────────────────────────────────────────────────────────
+    // ── Publish (manual / OAuth future) ───────────────────────────────
 
     public function publish(LinkedInPost $post): JsonResponse
     {
-        // Will call LinkedIn API when OAuth tokens are configured
-        // For now, mark as published (manual flow)
+        // TODO: integrate LinkedIn API v2 when OAuth tokens are configured.
         $post->update([
             'status'       => 'published',
             'published_at' => now(),
         ]);
-
-        // TODO: integrate LinkedIn API v2
-        // $this->publishToLinkedIn($post);
 
         return response()->json($post);
     }
@@ -129,138 +226,20 @@ class LinkedInController extends Controller
 
     // ── Private helpers ────────────────────────────────────────────────
 
-    private function fetchSourceContent(string $type, ?int $id): array
+    private function resolveSourceTitle(string $type, ?int $id): ?string
     {
         if (!$id) {
-            return ['title' => null, 'content' => null];
+            return null;
         }
 
-        return match ($type) {
-            'article'     => $this->fetchArticle($id),
-            'faq'         => $this->fetchFaq($id),
-            'testimonial' => $this->fetchTestimonial($id),
-            default       => ['title' => null, 'content' => null],
-        };
-    }
-
-    private function fetchArticle(int $id): array
-    {
         try {
-            $article = \DB::table('generated_articles')->find($id);
-            return ['title' => $article?->title ?? '', 'content' => $article?->content ?? ''];
+            return match ($type) {
+                'article' => GeneratedArticle::find($id)?->title,
+                'faq'     => QaEntry::find($id)?->question,
+                default   => null,
+            };
         } catch (\Throwable) {
-            return ['title' => '', 'content' => ''];
+            return null;
         }
-    }
-
-    private function fetchFaq(int $id): array
-    {
-        try {
-            $faq = \DB::table('qa_entries')->find($id);
-            return ['title' => $faq?->question ?? '', 'content' => $faq?->answer ?? ''];
-        } catch (\Throwable) {
-            return ['title' => '', 'content' => ''];
-        }
-    }
-
-    private function fetchTestimonial(int $id): array
-    {
-        try {
-            $t = \DB::table('testimonials')->find($id);
-            return ['title' => $t?->title ?? '', 'content' => $t?->content ?? ''];
-        } catch (\Throwable) {
-            return ['title' => '', 'content' => ''];
-        }
-    }
-
-    private function generateWithAI(array $params, array $source): array
-    {
-        $lang      = $params['lang'];
-        $dayType   = $params['day_type'];
-        $langLabel = $lang === 'fr' ? 'français' : ($lang === 'en' ? 'anglais' : 'français et anglais');
-
-        $dayInstructions = match ($dayType) {
-            'monday'    => 'Format carrousel/liste "Les X erreurs/conseils pour les expats". Style pratique et informatif.',
-            'tuesday'   => 'Story fictive avec personnage ("Marie/Paul voulait s\'installer à [pays]..."). Hook émotionnel fort.',
-            'wednesday' => 'Liste d\'actualité visa/légale. Format "🚨 [N] changements importants". Concis et factuel.',
-            'thursday'  => 'Q&A format. Commencer par la question, répondre avec structure claire et valeur ajoutée.',
-            'friday'    => 'Témoignage court ou tip rapide. Ton inspirant, finir sur une note positive.',
-        };
-
-        $prompt = "Tu es expert en marketing LinkedIn. Écris un post LinkedIn parfait en {$langLabel} pour SOS-Expat (plateforme de mise en relation avec avocats et expats aidants).
-
-RÈGLES ABSOLUES :
-- Hook puissant (2-3 premières lignes, avant \"Voir plus\")
-- 1200-1800 caractères total
-- JAMAIS de lien dans le post (il va en commentaire)
-- 3-5 hashtags pertinents (expatriation, expat, etc.)
-- CTA doux en fin (pas agressif)
-- Style humain, empathique, pratique
-
-JOUR : {$dayType}
-INSTRUCTIONS : {$dayInstructions}
-
-SOURCE :
-Titre : " . ($source['title'] ?? 'Générer librement') . "
-Contenu : " . substr($source['content'] ?? '', 0, 800) . "
-
-Retourne JSON avec : hook (string), body (string, le post complet sans le hook), hashtags (array de strings sans #)";
-
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.openai.api_key'),
-                'Content-Type'  => 'application/json',
-            ])->post('https://api.openai.com/v1/chat/completions', [
-                'model'       => 'gpt-4o-mini',
-                'messages'    => [['role' => 'user', 'content' => $prompt]],
-                'response_format' => ['type' => 'json_object'],
-                'max_tokens'  => 1200,
-                'temperature' => 0.8,
-            ]);
-
-            $result = json_decode($response->json('choices.0.message.content'), true);
-
-            return [
-                'hook'     => $result['hook']     ?? $this->defaultHook($dayType, $lang),
-                'body'     => $result['body']     ?? $this->defaultBody($dayType, $lang),
-                'hashtags' => $result['hashtags'] ?? ['expatriation', 'expat', 'vivraetranger', 'sosexpat'],
-            ];
-        } catch (\Throwable $e) {
-            return [
-                'hook'     => $this->defaultHook($dayType, $lang),
-                'body'     => $this->defaultBody($dayType, $lang),
-                'hashtags' => ['expatriation', 'expat', 'vivraetranger', 'sosexpat'],
-            ];
-        }
-    }
-
-    private function defaultHook(string $day, string $lang): string
-    {
-        $hooks = [
-            'fr' => [
-                'monday'    => "5 erreurs que font 90% des expatriés à leur arrivée (et comment les éviter)",
-                'tuesday'   => "Elle voulait tout quitter pour s'installer au Vietnam. Voici ce que personne ne lui a dit.",
-                'wednesday' => "🚨 3 changements visa importants à connaître ce mois-ci",
-                'thursday'  => "La question la plus posée cette semaine : comment ouvrir un compte bancaire à l'étranger ?",
-                'friday'    => "Il y a 2 ans, il avait peur de tout quitter. Aujourd'hui, il ne regrette rien.",
-            ],
-            'en' => [
-                'monday'    => "5 mistakes 90% of expats make when they first arrive abroad (and how to avoid them)",
-                'tuesday'   => "She wanted to start a new life in Thailand. Here's what nobody told her.",
-                'wednesday' => "🚨 3 important visa changes you need to know about this month",
-                'thursday'  => "Most asked question this week: how to open a bank account abroad without a fixed address?",
-                'friday'    => "2 years ago, he was afraid to leave everything. Today, he has no regrets.",
-            ],
-        ];
-
-        $langKey = $lang === 'en' ? 'en' : 'fr';
-        return $hooks[$langKey][$day] ?? $hooks['fr']['monday'];
-    }
-
-    private function defaultBody(string $day, string $lang): string
-    {
-        return $lang === 'en'
-            ? "SOS-Expat helps expats navigate legal and administrative challenges abroad.\n\nOur network of partner lawyers and experienced expat helpers is available to guide you.\n\n→ Whether it's visa issues, tax questions, or simply finding the right contact: we're here.\n\nHave you faced this situation? Share your experience in the comments 👇\n\n(Link in first comment)"
-            : "SOS-Expat aide les expatriés à naviguer dans les défis juridiques et administratifs à l'étranger.\n\nNotre réseau d'avocats partenaires et d'expats aidants expérimentés est disponible pour vous guider.\n\n→ Que ce soit pour des questions de visa, de fiscalité ou simplement pour trouver le bon interlocuteur : nous sommes là.\n\nVous avez vécu cette situation ? Partagez votre expérience en commentaire 👇\n\n(Lien en premier commentaire)";
     }
 }

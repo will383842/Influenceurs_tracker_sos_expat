@@ -4,7 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\AsArray;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * LinkedIn post record.
+ *
+ * status: generating | draft | scheduled | published | failed
+ * phase:  1 = Francophone clients (FR dominant)
+ *         2 = Global expansion (FR + EN)
+ */
 class LinkedInPost extends Model
 {
     protected $fillable = [
@@ -21,5 +29,23 @@ class LinkedInPost extends Model
         'hashtags'     => AsArray::class,
         'scheduled_at' => 'datetime',
         'published_at' => 'datetime',
+        'phase'        => 'integer',
+        'reach'        => 'integer',
+        'likes'        => 'integer',
+        'comments'     => 'integer',
+        'shares'       => 'integer',
+        'clicks'       => 'integer',
     ];
+
+    // ── Relationships ──────────────────────────────────────────────────
+
+    public function article(): BelongsTo
+    {
+        return $this->belongsTo(GeneratedArticle::class, 'source_id');
+    }
+
+    public function faq(): BelongsTo
+    {
+        return $this->belongsTo(QaEntry::class, 'source_id');
+    }
 }

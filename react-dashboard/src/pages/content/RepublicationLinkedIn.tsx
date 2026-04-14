@@ -1,630 +1,783 @@
-/**
- * RepublicationLinkedIn — Dashboard complet stratégie LinkedIn SOS-Expat
- *
- * Rythme 5 jours, file d'attente, adaptation contenu, paramètres
- * Phase 1 (maintenant→août) : clients francophones
- * Phase 2 (septembre+) : partenaires avocats/helpers anglophones + brand
- */
-
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../api/client';
+import api from '../../lib/api';
+import { Modal } from '../../ui/Modal';
+import { Button } from '../../ui/Button';
+import { Badge } from '../../ui/Badge';
+import { Select } from '../../ui/Select';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
-type DayType = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
-type AccountType = 'page' | 'personal' | 'both';
-type Lang = 'fr' | 'en' | 'both';
-
-interface LinkedInPost {
-  id: number;
-  source_type: 'article' | 'faq' | 'testimonial' | 'news' | 'case_study' | 'tip';
-  source_id?: number;
-  source_title?: string;
-  day_type: DayType;
-  lang: Lang;
-  account: AccountType;
-  hook: string;
-  body: string;
-  hashtags: string[];
-  status: PostStatus;
-  scheduled_at?: string;
-  published_at?: string;
-  reach?: number;
-  likes?: number;
-  comments?: number;
-  shares?: number;
-}
-
-interface LinkedInStats {
+interface LiStats {
   posts_this_week: number;
   posts_scheduled: number;
   posts_published: number;
   total_reach: number;
   avg_engagement_rate: number;
   top_performing_day: string;
+  available_articles: number;
+  available_faqs: number;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────────
+interface LiPost {
+  id: number;
+  source_type: string;
+  source_id: number | null;
+  source_title: string | null;
+  day_type: string;
+  lang: string;
+  account: string;
+  hook: string;
+  body: string;
+  hashtags: string[];
+  status: 'generating' | 'draft' | 'scheduled' | 'published' | 'failed';
+  scheduled_at: string | null;
+  published_at: string | null;
+  reach: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  engagement_rate: number;
+  phase: number;
+  error_message: string | null;
+  created_at: string;
+}
 
-const DAY_CONFIG: Record<DayType, { label: string; emoji: string; format: string; source: string; color: string }> = {
-  monday:    { label: 'Lundi',    emoji: '📄', format: 'Carrousel blog',        source: 'Article blog',           color: 'bg-violet/10 border-violet/30 text-violet' },
-  tuesday:   { label: 'Mardi',    emoji: '🎭', format: 'Story fictive',         source: 'Cas pratique fictif',    color: 'bg-blue-500/10 border-blue-500/30 text-blue-600' },
-  wednesday: { label: 'Mercredi', emoji: '🚨', format: 'Liste actu visa',       source: 'Actu légale/visa pays',  color: 'bg-amber-500/10 border-amber-500/30 text-amber-600' },
-  thursday:  { label: 'Jeudi',    emoji: '❓', format: 'Q&A expat',             source: 'FAQ base de données',    color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' },
-  friday:    { label: 'Vendredi', emoji: '💬', format: 'Témoignage / tip',      source: 'Témoignages DB',         color: 'bg-pink-500/10 border-pink-500/30 text-pink-600' },
-};
+interface PaginatedPosts {
+  data: LiPost[];
+  current_page: number;
+  last_page: number;
+  total: number;
+  per_page: number;
+}
 
-const STATUS_CONFIG: Record<PostStatus, { label: string; color: string }> = {
-  draft:     { label: 'Brouillon',  color: 'bg-gray-100 text-gray-600' },
-  scheduled: { label: 'Planifié',   color: 'bg-blue-100 text-blue-700' },
-  published: { label: 'Publié',     color: 'bg-emerald-100 text-emerald-700' },
-  failed:    { label: 'Échec',      color: 'bg-red-100 text-red-700' },
-};
+interface AutoSelectResult {
+  found: boolean;
+  source_type: string;
+  source_id: number | null;
+  title: string | null;
+  country: string | null;
+  editorial_score?: number;
+  seo_score?: number;
+  available_count: number;
+}
 
-const ACCOUNT_LABELS: Record<AccountType, string> = {
-  page:     '🏢 Page SOS-Expat',
-  personal: '👤 Profil perso',
-  both:     '🏢👤 Les deux',
-};
+interface GenerateParams {
+  source_type: string;
+  source_id: number | null;
+  day_type: string;
+  lang: string;
+  account: string;
+}
 
-const BEST_HOOKS = [
-  "Elle voulait tout quitter pour s'installer à l'étranger. Voici ce que personne ne lui a dit.",
-  "5 erreurs que font 90% des expats en arrivant au Vietnam (et comment les éviter)",
-  "🚨 Visa changement important : ce qui change en [mois] pour les Français à [pays]",
-  "La question la plus posée cette semaine : comment ouvrir un compte bancaire à l'étranger sans adresse fixe ?",
-  "Il y a 2 ans, Marc a tout perdu. Aujourd'hui, il vit sa meilleure vie à Bangkok.",
-];
-
-// ── API calls ──────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const BASE = '/content-gen/linkedin';
-const fetchLinkedInStats  = () => api.get<LinkedInStats>(`${BASE}/stats`).then(r => r.data);
-const fetchLinkedInQueue  = (status?: string) => api.get<LinkedInPost[]>(`${BASE}/queue`, { params: { status } }).then(r => r.data);
-const generateLinkedInPost = (params: { source_type: string; source_id?: number; day_type: DayType; lang: Lang; account: AccountType }) =>
-  api.post<LinkedInPost>(`${BASE}/generate`, params).then(r => r.data);
-const updateLinkedInPost  = (id: number, data: Partial<LinkedInPost>) => api.put(`${BASE}/posts/${id}`, data).then(r => r.data);
-const scheduleLinkedInPost = (id: number, scheduled_at: string) => api.post(`${BASE}/posts/${id}/schedule`, { scheduled_at }).then(r => r.data);
-const publishLinkedInPost = (id: number) => api.post(`${BASE}/posts/${id}/publish`).then(r => r.data);
-const deleteLinkedInPost  = (id: number) => api.delete(`${BASE}/posts/${id}`).then(r => r.data);
 
-// ── Sub-components ──────────────────────────────────────────────────────────
+const DAYS = [
+  { value: 'monday',    label: '📋 Lundi — Carrousel conseils' },
+  { value: 'tuesday',   label: '💬 Mardi — Story fictive' },
+  { value: 'wednesday', label: '🚨 Mercredi — Actu légale' },
+  { value: 'thursday',  label: '❓ Jeudi — Q&A' },
+  { value: 'friday',    label: '✨ Vendredi — Témoignage/tip' },
+];
 
-function StatCard({ icon, label, value, sub }: { icon: string; label: string; value: string | number; sub?: string }) {
-  return (
-    <div className="bg-surface border border-border rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xl">{icon}</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
-      </div>
-      <div className="text-2xl font-bold text-foreground">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
-    </div>
-  );
+const SOURCE_TYPES = [
+  { value: 'article', label: '📄 Article de blog' },
+  { value: 'faq',     label: '❓ FAQ / Q&A' },
+  { value: 'tip',     label: '💡 Génération libre (tip/conseil)' },
+  { value: 'news',    label: '📰 Actualité (libre)' },
+];
+
+const STATUS_META: Record<string, { label: string; variant: 'neutral' | 'info' | 'warning' | 'success' | 'danger' }> = {
+  generating: { label: 'Génération...', variant: 'info' },
+  draft:      { label: 'Brouillon',     variant: 'neutral' },
+  scheduled:  { label: 'Planifié',      variant: 'warning' },
+  published:  { label: 'Publié',        variant: 'success' },
+  failed:     { label: 'Échec',         variant: 'danger' },
+};
+
+const DAY_SHORT: Record<string, string> = {
+  monday: 'Lun', tuesday: 'Mar', wednesday: 'Mer', thursday: 'Jeu', friday: 'Ven',
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getCurrentWeekday(): string {
+  const map = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const d = map[new Date().getDay()];
+  return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(d) ? d : 'monday';
 }
 
-function WeeklyRhythm({ onGenerate }: { onGenerate: (day: DayType) => void }) {
-  return (
-    <div className="bg-surface border border-border rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-foreground">🗓️ Rythme de publication</h3>
-        <span className="text-xs text-muted-foreground bg-violet/10 text-violet px-2 py-0.5 rounded-full font-medium">Best practices 2026</span>
-      </div>
-      <div className="space-y-2">
-        {(Object.entries(DAY_CONFIG) as [DayType, typeof DAY_CONFIG[DayType]][]).map(([day, cfg]) => (
-          <div key={day} className={`flex items-center justify-between p-3 rounded-lg border ${cfg.color}`}>
-            <div className="flex items-center gap-3">
-              <span className="text-lg">{cfg.emoji}</span>
-              <div>
-                <span className="font-semibold text-sm">{cfg.label}</span>
-                <span className="text-xs text-muted-foreground ml-2">— {cfg.format}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden sm:block">{cfg.source}</span>
-              <button
-                onClick={() => onGenerate(day)}
-                className="text-xs px-2 py-1 rounded-md bg-white/70 border border-current/20 hover:bg-white transition-colors font-medium"
-              >
-                Générer
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="text-[11px] text-muted-foreground mt-3">
-        ⚡ Lien externe toujours en 1er commentaire · Heure cible : 7h30 ou 12h15 · 3-5 hashtags max
-      </p>
-    </div>
-  );
-}
-
-function PostCard({ post, onSchedule, onPublish, onDelete }: {
-  post: LinkedInPost;
-  onSchedule: (id: number) => void;
-  onPublish: (id: number) => void;
-  onDelete: (id: number) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const cfg = DAY_CONFIG[post.day_type];
-  const status = STATUS_CONFIG[post.status];
-
-  return (
-    <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${cfg.color}`}>
-            {cfg.emoji} {cfg.label}
-          </span>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.color}`}>
-            {status.label}
-          </span>
-          <span className="text-xs text-muted-foreground">{ACCOUNT_LABELS[post.account]}</span>
-          <span className="text-xs font-semibold uppercase text-violet">{post.lang === 'both' ? 'FR + EN' : post.lang.toUpperCase()}</span>
-        </div>
-        <div className="flex gap-1 shrink-0">
-          {post.status === 'draft' && (
-            <>
-              <button onClick={() => onSchedule(post.id)} className="text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors">
-                Planifier
-              </button>
-              <button onClick={() => onPublish(post.id)} className="text-xs px-2 py-1 rounded bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 transition-colors">
-                Publier
-              </button>
-            </>
-          )}
-          {post.status === 'scheduled' && (
-            <button onClick={() => onPublish(post.id)} className="text-xs px-2 py-1 rounded bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 transition-colors">
-              Publier maintenant
-            </button>
-          )}
-          <button onClick={() => onDelete(post.id)} className="text-xs px-2 py-1 rounded bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors">
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* Hook */}
-      <div className="bg-[#0A66C2]/5 border border-[#0A66C2]/20 rounded-lg p-3">
-        <p className="text-sm font-semibold text-foreground leading-snug">{post.hook}</p>
-      </div>
-
-      {/* Body preview */}
-      <div>
-        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-          {expanded ? post.body : post.body.slice(0, 200) + (post.body.length > 200 ? '…' : '')}
-        </p>
-        {post.body.length > 200 && (
-          <button onClick={() => setExpanded(!expanded)} className="text-xs text-violet hover:underline mt-1">
-            {expanded ? 'Voir moins' : 'Voir plus'}
-          </button>
-        )}
-      </div>
-
-      {/* Hashtags */}
-      {post.hashtags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {post.hashtags.map(h => (
-            <span key={h} className="text-xs text-[#0A66C2] hover:underline cursor-default">#{h}</span>
-          ))}
-        </div>
-      )}
-
-      {/* Stats if published */}
-      {post.status === 'published' && (post.reach || post.likes) && (
-        <div className="flex gap-4 pt-1 border-t border-border text-xs text-muted-foreground">
-          {post.reach    && <span>👁️ {post.reach.toLocaleString()} vues</span>}
-          {post.likes    && <span>👍 {post.likes} likes</span>}
-          {post.comments && <span>💬 {post.comments} commentaires</span>}
-          {post.shares   && <span>🔁 {post.shares} partages</span>}
-        </div>
-      )}
-
-      {post.scheduled_at && post.status === 'scheduled' && (
-        <p className="text-xs text-muted-foreground">📅 Planifié le {new Date(post.scheduled_at).toLocaleString('fr-FR')}</p>
-      )}
-    </div>
-  );
-}
-
-function GenerateModal({ onClose, onGenerate }: {
-  onClose: () => void;
-  onGenerate: (params: { source_type: string; day_type: DayType; lang: Lang; account: AccountType }) => void;
-}) {
-  const [dayType, setDayType] = useState<DayType>('monday');
-  const [lang, setLang] = useState<Lang>('fr');
-  const [account, setAccount] = useState<AccountType>('both');
-  const [sourceType, setSourceType] = useState('article');
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-border rounded-2xl w-full max-w-lg p-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-foreground">✍️ Générer un post LinkedIn</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-1.5">Jour / Format</label>
-            <div className="grid grid-cols-5 gap-1">
-              {(Object.entries(DAY_CONFIG) as [DayType, typeof DAY_CONFIG[DayType]][]).map(([day, cfg]) => (
-                <button
-                  key={day}
-                  onClick={() => setDayType(day)}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-colors ${dayType === day ? `${cfg.color} font-semibold` : 'border-border text-muted-foreground hover:bg-white/5'}`}
-                >
-                  <span className="text-base">{cfg.emoji}</span>
-                  <span>{cfg.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5">Format : {DAY_CONFIG[dayType].format} · Source : {DAY_CONFIG[dayType].source}</p>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-1.5">Source de contenu</label>
-            <select value={sourceType} onChange={e => setSourceType(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-              <option value="article">Article blog publié</option>
-              <option value="faq">FAQ base de données</option>
-              <option value="testimonial">Témoignage</option>
-              <option value="news">Actu légale / visa</option>
-              <option value="case_study">Cas pratique fictif (IA)</option>
-              <option value="tip">Tip rapide (IA)</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-1.5">Langue</label>
-              <div className="flex gap-1">
-                {(['fr', 'en', 'both'] as Lang[]).map(l => (
-                  <button key={l} onClick={() => setLang(l)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${lang === l ? 'bg-violet text-white border-violet' : 'border-border text-muted-foreground hover:bg-white/5'}`}>
-                    {l === 'both' ? 'FR+EN' : l.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-1.5">Compte</label>
-              <div className="flex flex-col gap-1">
-                {(['both', 'page', 'personal'] as AccountType[]).map(a => (
-                  <button key={a} onClick={() => setAccount(a)} className={`py-1 rounded-lg text-xs font-medium border transition-colors ${account === a ? 'bg-violet text-white border-violet' : 'border-border text-muted-foreground hover:bg-white/5'}`}>
-                    {a === 'both' ? '🏢👤 Les deux' : a === 'page' ? '🏢 Page' : '👤 Perso'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-border pt-4">
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-4 text-xs text-amber-700">
-            💡 <strong>Règles LinkedIn 2026 appliquées automatiquement :</strong> Hook accrocheur, zéro lien dans le post, 3-5 hashtags, 1200-1800 caractères, CTA doux.
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Annuler</button>
-            <button
-              onClick={() => { onGenerate({ source_type: sourceType, day_type: dayType, lang, account, source_id: undefined }); onClose(); }}
-              className="px-5 py-2 bg-[#0A66C2] text-white text-sm font-semibold rounded-lg hover:bg-[#0A66C2]/90 transition-colors"
-            >
-              🚀 Générer avec IA
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Component ──────────────────────────────────────────────────────────
-
-type Tab = 'dashboard' | 'queue' | 'strategy' | 'settings';
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function RepublicationLinkedIn() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'queue' | 'strategy'>('dashboard');
+  const [queueStatus, setQueueStatus] = useState('all');
+  const [queuePage, setQueuePage] = useState(1);
+
   const [showGenModal, setShowGenModal] = useState(false);
-  const [defaultDay, setDefaultDay] = useState<DayType>('monday');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [phase, setPhase] = useState<1 | 2>(1);
-
-  const { data: stats } = useQuery({ queryKey: ['linkedin-stats'], queryFn: fetchLinkedInStats, retry: false });
-  const { data: queue = [], isLoading } = useQuery({
-    queryKey: ['linkedin-queue', filterStatus],
-    queryFn: () => fetchLinkedInQueue(filterStatus === 'all' ? undefined : filterStatus),
-    retry: false,
+  const [genParams, setGenParams] = useState<GenerateParams>({
+    source_type: 'article',
+    source_id: null,
+    day_type: getCurrentWeekday(),
+    lang: 'fr',
+    account: 'page',
   });
 
-  const mutatePub  = useMutation({ mutationFn: (id: number) => publishLinkedInPost(id),  onSuccess: () => qc.invalidateQueries({ queryKey: ['linkedin-queue'] }) });
-  const mutateDel  = useMutation({ mutationFn: (id: number) => deleteLinkedInPost(id),   onSuccess: () => qc.invalidateQueries({ queryKey: ['linkedin-queue'] }) });
-  const mutateGen  = useMutation({ mutationFn: generateLinkedInPost, onSuccess: () => { qc.invalidateQueries({ queryKey: ['linkedin-queue'] }); setTab('queue'); } });
-  const mutateSched = useMutation({
-    mutationFn: ({ id, date }: { id: number; date: string }) => scheduleLinkedInPost(id, date),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['linkedin-queue'] }),
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [scheduleModal, setScheduleModal] = useState<{ postId: number; date: string } | null>(null);
+  const [weekGenProgress, setWeekGenProgress] = useState<string | null>(null);
+
+  // ── Queries ───────────────────────────────────────────────────────────
+
+  const { data: stats } = useQuery<LiStats>({
+    queryKey: ['li-stats'],
+    queryFn: () => api.get(BASE + '/stats').then(r => r.data),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
-  const handleGenerate = (day: DayType) => { setDefaultDay(day); setShowGenModal(true); };
+  const { data: queue, isLoading: queueLoading } = useQuery<PaginatedPosts>({
+    queryKey: ['li-queue', queueStatus, queuePage],
+    queryFn: () =>
+      api.get(BASE + '/queue', { params: { status: queueStatus, page: queuePage, per_page: 25 } }).then(r => r.data),
+    staleTime: 15_000,
+    refetchInterval: (query) => {
+      const posts = (query.state.data as PaginatedPosts | undefined)?.data ?? [];
+      return posts.some(p => p.status === 'generating') ? 5_000 : false;
+    },
+  });
 
-  const TABS: { id: Tab; label: string }[] = [
-    { id: 'dashboard', label: '📊 Tableau de bord' },
-    { id: 'queue',     label: `⏰ File d'attente${queue.filter(p => p.status !== 'published').length > 0 ? ` (${queue.filter(p => p.status !== 'published').length})` : ''}` },
-    { id: 'strategy',  label: '🗺️ Stratégie' },
-    { id: 'settings',  label: '⚙️ Paramètres' },
-  ];
+  const { data: autoSelect, isLoading: autoSelLoading } = useQuery<AutoSelectResult>({
+    queryKey: ['li-auto-select', genParams.source_type, genParams.lang],
+    queryFn: () =>
+      api.get(BASE + '/auto-select', { params: { source_type: genParams.source_type, lang: genParams.lang } }).then(r => r.data),
+    enabled: showGenModal && genParams.source_type !== 'tip' && genParams.source_type !== 'news',
+    staleTime: 60_000,
+  });
+
+  // Sync auto-selected source_id into params (only if user didn't pick manually)
+  useEffect(() => {
+    if (autoSelect?.found && !genParams.source_id) {
+      setGenParams(p => ({ ...p, source_id: autoSelect.source_id }));
+    }
+  }, [autoSelect]);
+
+  // Reset source_id when source_type or lang changes
+  useEffect(() => {
+    setGenParams(p => ({ ...p, source_id: null }));
+  }, [genParams.source_type, genParams.lang]);
+
+  // ── Mutations ─────────────────────────────────────────────────────────
+
+  const mutateGenerate = useMutation({
+    mutationFn: (params: GenerateParams) => api.post(BASE + '/generate', params).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['li-queue'] });
+      qc.invalidateQueries({ queryKey: ['li-stats'] });
+    },
+  });
+
+  const mutatePublish = useMutation({
+    mutationFn: (id: number) => api.post(`${BASE}/posts/${id}/publish`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['li-queue'] });
+      qc.invalidateQueries({ queryKey: ['li-stats'] });
+    },
+  });
+
+  const mutateSchedule = useMutation({
+    mutationFn: ({ id, date }: { id: number; date: string }) =>
+      api.post(`${BASE}/posts/${id}/schedule`, { scheduled_at: date }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['li-queue'] });
+      setScheduleModal(null);
+    },
+  });
+
+  const mutateDelete = useMutation({
+    mutationFn: (id: number) => api.delete(`${BASE}/posts/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['li-queue'] });
+      qc.invalidateQueries({ queryKey: ['li-stats'] });
+    },
+  });
+
+  // ── Actions ───────────────────────────────────────────────────────────
+
+  function handleGenerate() {
+    mutateGenerate.mutate(genParams, {
+      onSuccess: () => {
+        setShowGenModal(false);
+        setTab('queue');
+      },
+    });
+  }
+
+  async function handleGenerateWeek() {
+    const daySourceMap: [string, string][] = [
+      ['monday',    'article'],
+      ['tuesday',   'faq'],
+      ['wednesday', 'article'],
+      ['thursday',  'faq'],
+      ['friday',    'tip'],
+    ];
+
+    setWeekGenProgress('Démarrage...');
+    for (const [day, sourceType] of daySourceMap) {
+      setWeekGenProgress(`Génération ${DAY_SHORT[day]}...`);
+      await mutateGenerate.mutateAsync({
+        source_type: sourceType,
+        source_id: null,
+        day_type: day,
+        lang: genParams.lang,
+        account: genParams.account,
+      });
+      await new Promise(res => setTimeout(res, 300));
+    }
+    setWeekGenProgress(null);
+    setTab('queue');
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-2xl">💼</span>
-            <h1 className="text-2xl font-bold text-foreground">LinkedIn — Republication</h1>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/20">SOS-Expat</span>
-          </div>
-          <p className="text-sm text-muted-foreground">Republication automatique · Page entreprise + Profil personnel · FR & EN</p>
+          <h1 className="text-2xl font-bold text-text font-title">💼 LinkedIn Republication</h1>
+          <p className="text-text-muted text-sm mt-1">
+            Publication automatique — page SOS-Expat + profil personnel
+          </p>
         </div>
-        <button
-          onClick={() => setShowGenModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0A66C2] text-white text-sm font-semibold rounded-lg hover:bg-[#0A66C2]/90 transition-colors shadow-sm"
-        >
-          ✍️ Générer un post
-        </button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleGenerateWeek}
+            loading={weekGenProgress !== null}
+            disabled={weekGenProgress !== null}
+          >
+            {weekGenProgress ?? '📅 Générer la semaine'}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              setGenParams(p => ({ ...p, source_id: null, day_type: getCurrentWeekday() }));
+              setShowGenModal(true);
+            }}
+          >
+            ✨ Nouveau post
+          </Button>
+        </div>
       </div>
 
       {/* Phase banner */}
-      <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${phase === 1 ? 'bg-violet/5 border-violet/30' : 'bg-amber-500/5 border-amber-500/30'}`}>
+      <div className="rounded-xl border border-blue-500/30 bg-blue-500/8 p-4 flex items-start gap-3">
+        <span className="text-xl shrink-0">🎯</span>
         <div>
-          <p className={`text-sm font-semibold ${phase === 1 ? 'text-violet' : 'text-amber-600'}`}>
-            {phase === 1 ? '🎯 Phase 1 — Clients francophones (maintenant → août 2026)' : '🌍 Phase 2 — Expansion globale (septembre 2026+)'}
+          <p className="text-blue-300 font-semibold text-sm">Phase 1 — Clients francophones (Now → Août 2026)</p>
+          <p className="text-text-muted text-xs mt-0.5">
+            Posts dominants en FR · Expatriés francophones worldwide ·{' '}
+            <span className="text-text-muted">Phase 2 (Sept 2026+) : expansion EN+FR, avocats et helpers partenaires, API LinkedIn v2</span>
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {phase === 1
-              ? 'Objectif : acquérir des clients FR dans le monde entier. Posts majoritairement en français.'
-              : 'Objectif : partenaires avocats/helpers anglophones + brand awareness mondial FR+EN.'}
-          </p>
-        </div>
-        <div className="flex gap-1 shrink-0">
-          <button onClick={() => setPhase(1)} className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${phase === 1 ? 'bg-violet text-white border-violet' : 'border-border text-muted-foreground hover:bg-white/5'}`}>Phase 1</button>
-          <button onClick={() => setPhase(2)} className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${phase === 2 ? 'bg-amber-500 text-white border-amber-500' : 'border-border text-muted-foreground hover:bg-white/5'}`}>Phase 2</button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${tab === t.id ? 'border-[#0A66C2] text-[#0A66C2]' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}`}>
-            {t.label}
+      <div className="flex gap-1 border-b border-border">
+        {(['dashboard', 'queue', 'strategy'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+              tab === t
+                ? 'text-violet-light border-b-2 border-violet bg-surface2'
+                : 'text-text-muted hover:text-text'
+            }`}
+          >
+            {t === 'dashboard' ? '📊 Dashboard' : t === 'queue' ? "📋 File d'attente" : '🧭 Stratégie'}
+            {t === 'queue' && queue && queue.total > 0 && (
+              <span className="ml-1.5 bg-surface2 text-text-muted text-xs rounded-full px-1.5 py-0.5 border border-border">
+                {queue.total}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* ── TAB: DASHBOARD ── */}
+      {/* ── DASHBOARD ────────────────────────────────────────────────── */}
       {tab === 'dashboard' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard icon="📬" label="Cette semaine" value={stats?.posts_this_week ?? '—'} sub="posts générés" />
-            <StatCard icon="⏰" label="Planifiés" value={stats?.posts_scheduled ?? '—'} sub="en attente" />
-            <StatCard icon="👁️" label="Reach total" value={stats?.total_reach ? stats.total_reach.toLocaleString() : '—'} sub="vues" />
-            <StatCard icon="📈" label="Engagement" value={stats?.avg_engagement_rate ? `${stats.avg_engagement_rate}%` : '—'} sub="taux moyen" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Cette semaine" value={stats?.posts_this_week ?? 0} icon="📅" />
+            <StatCard label="Planifiés" value={stats?.posts_scheduled ?? 0} icon="⏰" color="text-amber-300" />
+            <StatCard label="Publiés" value={stats?.posts_published ?? 0} icon="✅" color="text-green-300" />
+            <StatCard label="Portée totale" value={stats?.total_reach ?? 0} icon="👁" color="text-blue-300" />
           </div>
 
-          <WeeklyRhythm onGenerate={handleGenerate} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-surface2 rounded-xl p-4 border border-border">
+              <p className="text-text-muted text-xs mb-1">Engagement moyen</p>
+              <p className="text-2xl font-bold text-text">{stats?.avg_engagement_rate ?? 0}%</p>
+              <p className="text-text-muted text-xs mt-1">
+                Meilleur jour : <span className="text-text capitalize">{DAY_SHORT[stats?.top_performing_day ?? ''] ?? stats?.top_performing_day ?? '—'}</span>
+              </p>
+            </div>
+            <div className="bg-surface2 rounded-xl p-4 border border-border">
+              <p className="text-text-muted text-xs mb-1">Articles disponibles</p>
+              <p className="text-2xl font-bold text-green-300">{stats?.available_articles ?? 0}</p>
+              <p className="text-text-muted text-xs mt-1">Non encore republié</p>
+            </div>
+            <div className="bg-surface2 rounded-xl p-4 border border-border">
+              <p className="text-text-muted text-xs mb-1">FAQs disponibles</p>
+              <p className="text-2xl font-bold text-violet-light">{stats?.available_faqs ?? 0}</p>
+              <p className="text-text-muted text-xs mt-1">Non encore republié</p>
+            </div>
+          </div>
 
-          {/* Best hooks reference */}
-          <div className="bg-surface border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground mb-3">💡 Formules de hooks performants (top LinkedIn 2026)</h3>
-            <div className="space-y-2">
-              {BEST_HOOKS.map((hook, i) => (
-                <div key={i} className="flex gap-2 items-start text-sm p-2 rounded-lg hover:bg-white/5 transition-colors">
-                  <span className="text-muted-foreground shrink-0 text-xs mt-0.5">{i + 1}.</span>
-                  <span className="text-foreground">{hook}</span>
+          {/* Weekly rhythm */}
+          <div>
+            <h2 className="text-lg font-semibold text-text mb-3">Rythme hebdomadaire</h2>
+            <div className="grid grid-cols-5 gap-3">
+              {DAYS.map(day => (
+                <div key={day.value} className="bg-surface2 rounded-xl p-4 border border-border text-center">
+                  <p className="text-text font-bold">{DAY_SHORT[day.value]}</p>
+                  <p className="text-text-muted text-xs mt-1 leading-tight">{day.label.split('—')[1]?.trim()}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-3 w-full text-xs"
+                    onClick={() => {
+                      setGenParams(p => ({ ...p, day_type: day.value, source_id: null }));
+                      setShowGenModal(true);
+                    }}
+                  >
+                    Générer
+                  </Button>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-3">Ces formules sont injectées automatiquement lors de la génération IA.</p>
           </div>
 
-          {/* LinkedIn rules */}
-          <div className="bg-[#0A66C2]/5 border border-[#0A66C2]/20 rounded-xl p-5">
-            <h3 className="font-semibold text-[#0A66C2] mb-3">📋 Règles LinkedIn 2026 appliquées automatiquement</h3>
-            <div className="grid sm:grid-cols-2 gap-2 text-sm text-foreground">
+          {/* Rules reminder */}
+          <div className="rounded-xl border border-border bg-surface2 p-5">
+            <h3 className="text-sm font-semibold text-text mb-3">📖 Règles LinkedIn 2026 (Top 1%)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-text-muted">
               {[
-                ['🚫', 'Zéro lien dans le post', '(→ 1er commentaire)'],
-                ['⏰', 'Heure optimale', '7h30 ou 12h15 (fuseau cible)'],
-                ['📏', 'Longueur idéale', '1200–1800 caractères'],
-                ['#️⃣', 'Hashtags', '3–5 max, pertinents'],
-                ['🎯', 'Hook', '2–3 premières lignes = tout'],
-                ['👤', 'Profil perso', '8–10x plus de reach que la page'],
-                ['💬', 'Commentaires', 'Répondre dans les 60 premières minutes'],
-                ['📄', 'Carrousel PDF', '3–5x plus de reach que texte pur'],
-              ].map(([icon, title, detail]) => (
-                <div key={title} className="flex items-start gap-2 p-2 rounded-lg bg-white/5">
-                  <span>{icon}</span>
-                  <span><strong>{title}</strong> <span className="text-muted-foreground">{detail}</span></span>
-                </div>
-              ))}
+                '✅ Hook : 2-3 lignes avant "Voir plus" (max 140 chars)',
+                '✅ Corps total : 1 200–1 800 caractères',
+                '✅ JAMAIS de lien dans le post (→ 1er commentaire)',
+                '✅ 3-5 hashtags de niche pertinents',
+                '✅ Ligne vide entre chaque paragraphe (mobile)',
+                '✅ CTA : question ouverte pour les commentaires',
+                '✅ Style : humain, empathique, conversationnel',
+                '✅ Horaires optimaux : 07h30 et 12h15',
+              ].map(r => <p key={r}>{r}</p>)}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── TAB: QUEUE ── */}
+      {/* ── QUEUE ────────────────────────────────────────────────────── */}
       {tab === 'queue' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex gap-1 flex-wrap">
-              {['all', 'draft', 'scheduled', 'published', 'failed'].map(s => (
-                <button key={s} onClick={() => setFilterStatus(s)}
-                  className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors capitalize ${filterStatus === s ? 'bg-violet text-white border-violet' : 'border-border text-muted-foreground hover:bg-white/5'}`}>
-                  {s === 'all' ? 'Tous' : STATUS_CONFIG[s as PostStatus]?.label ?? s}
-                  <span className="ml-1 opacity-60">
-                    ({s === 'all' ? queue.length : queue.filter(p => p.status === s).length})
-                  </span>
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setShowGenModal(true)} className="text-xs px-3 py-1.5 bg-[#0A66C2] text-white rounded-lg font-semibold hover:bg-[#0A66C2]/90 transition-colors">
-              + Générer
-            </button>
+          <div className="flex gap-2 flex-wrap">
+            {['all', 'generating', 'draft', 'scheduled', 'published', 'failed'].map(s => (
+              <button
+                key={s}
+                onClick={() => { setQueueStatus(s); setQueuePage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  queueStatus === s
+                    ? 'bg-violet/20 text-violet-light border border-violet/40'
+                    : 'bg-surface2 text-text-muted border border-border hover:text-text'
+                }`}
+              >
+                {s === 'all' ? 'Tous' : STATUS_META[s]?.label ?? s}
+              </button>
+            ))}
           </div>
 
-          {isLoading && <p className="text-muted-foreground text-sm">Chargement…</p>}
-          {!isLoading && queue.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <p className="text-4xl mb-3">💼</p>
-              <p className="font-semibold">Aucun post dans la file</p>
-              <p className="text-sm mt-1">Cliquez sur "Générer" pour créer votre premier post LinkedIn.</p>
-              <button onClick={() => setShowGenModal(true)} className="mt-4 px-4 py-2 bg-[#0A66C2] text-white text-sm font-semibold rounded-lg hover:bg-[#0A66C2]/90 transition-colors">
-                ✍️ Générer un post
-              </button>
+          {queueLoading && <div className="text-center py-12 text-text-muted">Chargement...</div>}
+
+          {!queueLoading && (!queue || queue.data.length === 0) && (
+            <div className="text-center py-12 text-text-muted">
+              <p className="text-4xl mb-3">📭</p>
+              <p>Aucun post dans cette file</p>
+              <Button variant="secondary" size="sm" className="mt-4" onClick={() => setShowGenModal(true)}>
+                Générer un premier post
+              </Button>
             </div>
           )}
-          {queue.map(post => (
-            <PostCard key={post.id} post={post}
-              onSchedule={(id) => mutateSched.mutate({ id, date: new Date(Date.now() + 86400000).toISOString() })}
-              onPublish={(id) => mutatePub.mutate(id)}
-              onDelete={(id) => { if (confirm('Supprimer ce post ?')) mutateDel.mutate(id); }}
+
+          {queue?.data.map(post => (
+            <PostCard
+              key={post.id}
+              post={post}
+              expanded={expandedId === post.id}
+              onToggleExpand={() => setExpandedId(expandedId === post.id ? null : post.id)}
+              onPublish={() => mutatePublish.mutate(post.id)}
+              onSchedule={() => {
+                const d = new Date();
+                d.setDate(d.getDate() + 1);
+                d.setHours(7, 30, 0, 0);
+                setScheduleModal({ postId: post.id, date: d.toISOString().slice(0, 16) });
+              }}
+              onDelete={() => {
+                if (window.confirm('Supprimer ce post définitivement ?')) {
+                  mutateDelete.mutate(post.id);
+                }
+              }}
             />
           ))}
+
+          {queue && queue.last_page > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-text-muted text-sm">
+                {queue.total} posts · page {queue.current_page}/{queue.last_page}
+              </p>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" disabled={queue.current_page <= 1} onClick={() => setQueuePage(p => p - 1)}>
+                  ← Précédent
+                </Button>
+                <Button variant="secondary" size="sm" disabled={queue.current_page >= queue.last_page} onClick={() => setQueuePage(p => p + 1)}>
+                  Suivant →
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── TAB: STRATEGY ── */}
-      {tab === 'strategy' && (
-        <div className="space-y-6">
-          <div className="bg-surface border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground mb-4">🗺️ Plan stratégique LinkedIn SOS-Expat</h3>
-            <div className="space-y-4">
-              <div className="border border-violet/30 rounded-xl p-4 bg-violet/5">
-                <h4 className="font-semibold text-violet mb-2">Phase 1 — Maintenant → Août 2026</h4>
-                <ul className="text-sm space-y-1 text-foreground">
-                  <li>🎯 <strong>Objectif principal :</strong> Trouver des clients francophones dans le monde entier</li>
-                  <li>🌍 <strong>Cibles :</strong> Expatriés francophones, futurs expats, communautés françaises à l'étranger</li>
-                  <li>🗣️ <strong>Langue dominante :</strong> Français (80% FR, 20% EN)</li>
-                  <li>📢 <strong>Ton :</strong> Empathique, pratique, rassurant. "On vous comprend, on est là."</li>
-                  <li>📄 <strong>CTA principal :</strong> "Réservez un appel avec un avocat expat" / "Découvrez SOS-Expat"</li>
-                </ul>
-              </div>
-              <div className="border border-amber-500/30 rounded-xl p-4 bg-amber-500/5">
-                <h4 className="font-semibold text-amber-600 mb-2">Phase 2 — Septembre 2026+</h4>
-                <ul className="text-sm space-y-1 text-foreground">
-                  <li>🤝 <strong>Recrutement :</strong> Avocats partenaires + Expats aidants anglophones</li>
-                  <li>🌐 <strong>Langue :</strong> 50% FR / 50% EN</li>
-                  <li>📣 <strong>Brand awareness :</strong> SOS-Expat = référence mondiale pour les expatriés</li>
-                  <li>🎯 <strong>Audiences :</strong> Avocats spécialisés expat, helpers, communautés anglophones</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+      {/* ── STRATEGY ─────────────────────────────────────────────────── */}
+      {tab === 'strategy' && <StrategyTab />}
 
-          <div className="bg-surface border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground mb-3">📅 Calendrier éditorial hebdomadaire</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 pr-4 text-muted-foreground font-semibold text-xs uppercase">Jour</th>
-                    <th className="text-left py-2 pr-4 text-muted-foreground font-semibold text-xs uppercase">Format</th>
-                    <th className="text-left py-2 pr-4 text-muted-foreground font-semibold text-xs uppercase">Source</th>
-                    <th className="text-left py-2 pr-4 text-muted-foreground font-semibold text-xs uppercase">Compte</th>
-                    <th className="text-left py-2 text-muted-foreground font-semibold text-xs uppercase">Langue</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {[
-                    ['📄 Lundi',    'Carrousel 5-7 slides',     'Article blog',        '🏢 + 👤', 'FR'],
-                    ['🎭 Mardi',    'Story fictive (hook fort)', 'Cas pratique IA',     '👤 Perso', 'FR'],
-                    ['🚨 Mercredi', 'Liste actu visa',          'Actu légale',         '🏢 Page',  'FR + EN'],
-                    ['❓ Jeudi',    'Q&A expat',                'FAQ base de données', '👤 Perso', 'FR'],
-                    ['💬 Vendredi', 'Témoignage / tip rapide',  'Témoignages DB',      '🏢 + 👤', 'FR'],
-                  ].map(([jour, format, source, compte, langue]) => (
-                    <tr key={jour}>
-                      <td className="py-2.5 pr-4 font-medium">{jour}</td>
-                      <td className="py-2.5 pr-4 text-muted-foreground">{format}</td>
-                      <td className="py-2.5 pr-4 text-muted-foreground">{source}</td>
-                      <td className="py-2.5 pr-4 text-muted-foreground">{compte}</td>
-                      <td className="py-2.5 font-medium text-violet">{langue}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── GENERATE MODAL ───────────────────────────────────────────── */}
+      <Modal
+        open={showGenModal}
+        onClose={() => setShowGenModal(false)}
+        title="✨ Générer un post LinkedIn"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowGenModal(false)}>Annuler</Button>
+            <Button onClick={handleGenerate} loading={mutateGenerate.isPending} disabled={mutateGenerate.isPending}>
+              Générer (async)
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Select
+            label="Jour de publication"
+            options={DAYS}
+            value={genParams.day_type}
+            onChange={e => setGenParams(p => ({ ...p, day_type: e.target.value }))}
+          />
 
-      {/* ── TAB: SETTINGS ── */}
-      {tab === 'settings' && (
-        <div className="space-y-5">
-          <div className="bg-surface border border-border rounded-xl p-5 space-y-4">
-            <h3 className="font-semibold text-foreground">🔗 Comptes LinkedIn connectés</h3>
-            <div className="space-y-3">
-              {[
-                { name: '🏢 Page SOS-Expat', sub: 'Page entreprise LinkedIn', connected: false },
-                { name: '👤 Profil personnel', sub: 'Compte personnel (Manon)', connected: false },
-              ].map(account => (
-                <div key={account.name} className="flex items-center justify-between p-3 rounded-lg border border-border">
+          <Select
+            label="Type de source"
+            options={SOURCE_TYPES}
+            value={genParams.source_type}
+            onChange={e => setGenParams(p => ({ ...p, source_type: e.target.value }))}
+          />
+
+          {/* Auto-select preview */}
+          {genParams.source_type !== 'tip' && genParams.source_type !== 'news' && (
+            <div className="rounded-lg bg-surface border border-border/60 p-3 text-sm">
+              {autoSelLoading && (
+                <p className="text-text-muted animate-pulse">Recherche de la meilleure source...</p>
+              )}
+              {!autoSelLoading && autoSelect && (
+                autoSelect.found ? (
                   <div>
-                    <p className="font-medium text-sm text-foreground">{account.name}</p>
-                    <p className="text-xs text-muted-foreground">{account.sub}</p>
+                    <p className="text-green-300 font-medium text-xs mb-1">✅ Meilleure source sélectionnée automatiquement</p>
+                    <p className="text-text truncate">{autoSelect.title}</p>
+                    <p className="text-text-muted text-xs mt-1">
+                      {autoSelect.editorial_score !== undefined && `Score éditorial : ${autoSelect.editorial_score}/100 · `}
+                      {autoSelect.seo_score !== undefined && `Score SEO : ${autoSelect.seo_score}/100 · `}
+                      {autoSelect.available_count} sources disponibles
+                    </p>
                   </div>
-                  <button className={`text-xs px-3 py-1.5 rounded-lg font-semibold border transition-colors ${account.connected ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' : 'bg-[#0A66C2] text-white border-[#0A66C2] hover:bg-[#0A66C2]/90'}`}>
-                    {account.connected ? '✓ Connecté' : 'Connecter via OAuth'}
-                  </button>
-                </div>
-              ))}
+                ) : (
+                  <p className="text-amber-300 text-xs">⚠️ Aucune source disponible — génération libre sans source</p>
+                )
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">La connexion OAuth LinkedIn nécessite une app LinkedIn Developer avec les scopes <code className="bg-white/10 px-1 rounded">w_member_social</code> et <code className="bg-white/10 px-1 rounded">r_organization_social</code>.</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Langue"
+              options={[
+                { value: 'fr',   label: '🇫🇷 Français' },
+                { value: 'en',   label: '🇬🇧 Anglais' },
+                { value: 'both', label: '🌍 FR + EN (deux posts)' },
+              ]}
+              value={genParams.lang}
+              onChange={e => setGenParams(p => ({ ...p, lang: e.target.value }))}
+            />
+            <Select
+              label="Compte de publication"
+              options={[
+                { value: 'page',     label: '🏢 Page SOS-Expat' },
+                { value: 'personal', label: '👤 Profil personnel' },
+                { value: 'both',     label: '🔀 Les deux' },
+              ]}
+              value={genParams.account}
+              onChange={e => setGenParams(p => ({ ...p, account: e.target.value }))}
+            />
           </div>
 
-          <div className="bg-surface border border-border rounded-xl p-5 space-y-3">
-            <h3 className="font-semibold text-foreground">⏰ Fréquence & horaires</h3>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Posts / semaine</label>
-                <select className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-                  <option value="3">3 posts/semaine</option>
-                  <option value="4">4 posts/semaine</option>
-                  <option value="5">5 posts/semaine (recommandé)</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Heure de publication</label>
-                <select className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-                  <option value="07:30">07h30 (meilleure portée)</option>
-                  <option value="12:15">12h15 (pause déjeuner)</option>
-                  <option value="18:00">18h00 (fin journée)</option>
-                </select>
-              </div>
-            </div>
+          <p className="text-text-muted text-xs">
+            💡 La génération est asynchrone — le post apparaîtra dans la file d'attente sous 10-30 secondes.
+          </p>
+        </div>
+      </Modal>
+
+      {/* ── SCHEDULE MODAL ───────────────────────────────────────────── */}
+      <Modal
+        open={scheduleModal !== null}
+        onClose={() => setScheduleModal(null)}
+        title="⏰ Planifier la publication"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setScheduleModal(null)}>Annuler</Button>
+            <Button
+              onClick={() => scheduleModal && mutateSchedule.mutate({ id: scheduleModal.postId, date: scheduleModal.date })}
+              loading={mutateSchedule.isPending}
+              disabled={mutateSchedule.isPending}
+            >
+              Planifier
+            </Button>
+          </>
+        }
+      >
+        {scheduleModal && (
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-text">Date et heure de publication</label>
+            <input
+              type="datetime-local"
+              className="w-full h-11 rounded-lg border border-border bg-surface2 px-3.5 text-sm text-text focus:outline-none focus:border-violet"
+              value={scheduleModal.date}
+              min={new Date().toISOString().slice(0, 16)}
+              onChange={e => setScheduleModal(s => s ? { ...s, date: e.target.value } : null)}
+            />
+            <p className="text-text-muted text-xs">
+              💡 Horaires optimaux LinkedIn : <strong className="text-text">07h30</strong> (matin) ou <strong className="text-text">12h15</strong> (déjeuner)
+            </p>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function StatCard({
+  label, value, icon, color = 'text-text',
+}: {
+  label: string; value: number; icon: string; color?: string;
+}) {
+  return (
+    <div className="bg-surface2 rounded-xl p-4 border border-border">
+      <p className="text-text-muted text-xs mb-1">{icon} {label}</p>
+      <p className={`text-2xl font-bold ${color}`}>{value.toLocaleString('fr-FR')}</p>
+    </div>
+  );
+}
+
+function PostCard({
+  post,
+  expanded,
+  onToggleExpand,
+  onPublish,
+  onSchedule,
+  onDelete,
+}: {
+  post: LiPost;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onPublish: () => void;
+  onSchedule: () => void;
+  onDelete: () => void;
+}) {
+  const s = STATUS_META[post.status] ?? { label: post.status, variant: 'neutral' as const };
+
+  return (
+    <div className={`bg-surface2 rounded-xl border overflow-hidden transition-all ${
+      post.status === 'generating' ? 'border-blue-500/40' : 'border-border'
+    }`}>
+      {/* Card header — always visible, click to expand */}
+      <div
+        className="flex items-start gap-3 p-4 cursor-pointer hover:bg-white/[0.02]"
+        onClick={onToggleExpand}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+            <Badge variant={s.variant} dot={post.status === 'generating' || post.status === 'scheduled'} size="sm">
+              {s.label}
+            </Badge>
+            <span className="text-text-muted text-xs">{DAY_SHORT[post.day_type] ?? post.day_type}</span>
+            <span className="text-text-muted text-xs uppercase font-mono">{post.lang}</span>
+            <span className="text-text-muted text-xs">
+              {post.account === 'page' ? '🏢 Page' : post.account === 'personal' ? '👤 Perso' : '🔀 Les deux'}
+            </span>
+            {post.source_title && (
+              <span className="text-text-muted text-xs truncate max-w-[180px]" title={post.source_title}>
+                📄 {post.source_title}
+              </span>
+            )}
           </div>
 
-          <div className="bg-surface border border-border rounded-xl p-5 space-y-3">
-            <h3 className="font-semibold text-foreground">#️⃣ Hashtags par défaut</h3>
-            <div className="flex flex-wrap gap-2">
-              {['expatriation', 'vivraetranger', 'expat', 'expatrié', 'sosexpat', 'conseijuridique', 'avocat', 'international', 'français', 'vietnam', 'thaïlande', 'canada'].map(h => (
-                <span key={h} className="text-xs px-2 py-1 rounded-full bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/20 cursor-pointer hover:bg-[#0A66C2]/20 transition-colors">
+          {post.status === 'generating' ? (
+            <p className="text-blue-300 text-sm animate-pulse">Génération IA en cours (Claude Haiku)...</p>
+          ) : post.status === 'failed' ? (
+            <p className="text-red-300 text-sm line-clamp-1">{post.error_message ?? 'Échec de génération'}</p>
+          ) : (
+            <p className="text-text text-sm font-medium line-clamp-2">{post.hook || '(Hook vide)'}</p>
+          )}
+
+          {post.scheduled_at && post.status === 'scheduled' && (
+            <p className="text-amber-300 text-xs mt-1">
+              📅 {new Date(post.scheduled_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+          {post.published_at && (
+            <p className="text-green-300 text-xs mt-1">
+              ✅ Publié le {new Date(post.published_at).toLocaleDateString('fr-FR')}
+            </p>
+          )}
+        </div>
+
+        <span className="text-text-muted text-xs shrink-0 pt-1">{expanded ? '▲' : '▼'}</span>
+      </div>
+
+      {/* Expanded content */}
+      {expanded && post.status !== 'generating' && (
+        <div className="border-t border-border p-4 space-y-4">
+          {post.hook && (
+            <div>
+              <p className="text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">Hook</p>
+              <div className="bg-surface rounded-lg p-3 text-sm text-text font-medium border border-border/50">
+                {post.hook}
+              </div>
+            </div>
+          )}
+
+          {post.body && (
+            <div>
+              <p className="text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">Corps du post</p>
+              <div className="bg-surface rounded-lg p-3 text-sm text-text whitespace-pre-line border border-border/50 max-h-48 overflow-y-auto">
+                {post.body}
+              </div>
+            </div>
+          )}
+
+          {post.hashtags.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {post.hashtags.map(h => (
+                <span key={h} className="text-blue-300 text-xs bg-blue-500/10 rounded-full px-2.5 py-1 border border-blue-500/20">
                   #{h}
                 </span>
               ))}
-              <button className="text-xs px-2 py-1 rounded-full border border-dashed border-border text-muted-foreground hover:bg-white/5 transition-colors">+ Ajouter</button>
             </div>
+          )}
+
+          {post.status === 'published' && (post.reach > 0 || post.likes > 0) && (
+            <div className="flex gap-4 text-xs text-text-muted border-t border-border pt-3">
+              {post.reach > 0 && <span>👁 {post.reach.toLocaleString()} vues</span>}
+              {post.likes > 0 && <span>👍 {post.likes}</span>}
+              {post.comments > 0 && <span>💬 {post.comments}</span>}
+              {post.shares > 0 && <span>🔁 {post.shares}</span>}
+              {post.engagement_rate > 0 && <span>📈 {post.engagement_rate}%</span>}
+            </div>
+          )}
+
+          <div className="flex gap-2 flex-wrap pt-1">
+            {(post.status === 'draft' || post.status === 'scheduled') && (
+              <>
+                <Button variant="secondary" size="sm" onClick={onSchedule}>⏰ Planifier</Button>
+                <Button size="sm" onClick={onPublish}>🚀 Publier maintenant</Button>
+              </>
+            )}
+            <Button variant="danger" size="sm" onClick={onDelete}>🗑</Button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Modal génération */}
-      {showGenModal && (
-        <GenerateModal
-          onClose={() => setShowGenModal(false)}
-          onGenerate={(params) => mutateGen.mutate(params)}
-        />
-      )}
+function StrategyTab() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-surface2 rounded-xl border border-border p-5">
+          <h3 className="font-semibold text-text mb-4">📅 Rythme 5 jours/semaine</h3>
+          <div className="space-y-4">
+            {[
+              { day: 'Lundi',    format: 'Carrousel "Les X erreurs/conseils"', source: 'generated_articles (editorial_score DESC)', emoji: '📋' },
+              { day: 'Mardi',    format: 'Story fictive + hook émotionnel fort', source: 'qa_entries (seo_score DESC)', emoji: '💬' },
+              { day: 'Mercredi', format: '"🚨 N changements importants"', source: 'generated_articles (récents)', emoji: '⚖️' },
+              { day: 'Jeudi',    format: 'Q&A structuré, valeur max', source: 'qa_entries (seo_score DESC)', emoji: '❓' },
+              { day: 'Vendredi', format: 'Tip rapide / témoignage inspirant', source: 'génération libre', emoji: '✨' },
+            ].map(row => (
+              <div key={row.day} className="flex gap-3 items-start">
+                <span className="text-xl shrink-0">{row.emoji}</span>
+                <div>
+                  <p className="text-text text-sm font-medium">{row.day}</p>
+                  <p className="text-text-muted text-xs">{row.format}</p>
+                  <p className="text-violet-light text-xs font-mono mt-0.5">{row.source}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="bg-surface2 rounded-xl border border-border p-5">
+            <h3 className="font-semibold text-text mb-3">🤖 Sélection intelligente automatique</h3>
+            <div className="space-y-2 text-sm text-text-muted">
+              <p>• Choisit la source avec le <strong className="text-text">meilleur score éditorial</strong></p>
+              <p>• Filtre les sources <strong className="text-text">déjà republié</strong> sur LinkedIn</p>
+              <p>• Adapte selon la <strong className="text-text">langue + audience nationale</strong></p>
+              <p>• Injecte la <strong className="text-text">Knowledge Base SOS-Expat v2.0</strong></p>
+              <p>• Hashtags dérivés des <strong className="text-text">mots-clés primaires</strong></p>
+              <p>• Génération async via <strong className="text-text">Claude Haiku 4.5</strong></p>
+            </div>
+          </div>
+
+          <div className="bg-surface2 rounded-xl border border-border p-5">
+            <h3 className="font-semibold text-text mb-3">🎯 Phase 1 → Phase 2</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-blue-300 text-sm font-medium">Phase 1 — Now → Août 2026</p>
+                <div className="text-text-muted text-xs space-y-1 mt-1">
+                  <p>• Langue : FR dominant</p>
+                  <p>• Cible : clients expatriés francophones</p>
+                  <p>• 5 posts/semaine · Page SOS-Expat</p>
+                  <p>• Horaires : 07h30 et 12h15</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-violet-light text-sm font-medium">Phase 2 — Sept 2026+</p>
+                <div className="text-text-muted text-xs space-y-1 mt-1">
+                  <p>• Langues : FR + EN en alternance</p>
+                  <p>• Cible : avocats partenaires + helpers</p>
+                  <p>• Page + profil personnel</p>
+                  <p>• API LinkedIn v2 OAuth connectée</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

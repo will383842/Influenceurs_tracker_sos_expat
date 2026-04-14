@@ -272,3 +272,10 @@ Schedule::call(function () {
 // withoutOverlapping(7200) = lock 2h max pour éviter les doublons si le job tourne long.
 // ══════════════════════════════════════════════════════════════════════
 Schedule::job(new \App\Jobs\RunLandingCampaignJob)->dailyAt('05:00')->withoutOverlapping(7200);
+
+// ══════════════════════════════════════════════════════════════════════
+// LINKEDIN AUTO-PUBLISH — toutes les 5 minutes
+// Publie les posts en status='scheduled' dont scheduled_at <= now().
+// Optimal posting times : 07h30 et 12h15 heure locale → planifier depuis l'UI.
+// ══════════════════════════════════════════════════════════════════════
+Schedule::command('linkedin:auto-publish')->everyFiveMinutes()->withoutOverlapping();

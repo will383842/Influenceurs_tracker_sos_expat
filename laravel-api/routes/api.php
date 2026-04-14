@@ -689,6 +689,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('linkedin')->group(function () {
             Route::get('/stats',                    [LinkedInController::class, 'stats']);
             Route::get('/queue',                    [LinkedInController::class, 'queue']);
+            Route::get('/auto-select',              [LinkedInController::class, 'autoSelect']);
             Route::post('/generate',                [LinkedInController::class, 'generate']);
             Route::put('/posts/{post}',             [LinkedInController::class, 'update']);
             Route::post('/posts/{post}/schedule',   [LinkedInController::class, 'schedule']);
@@ -713,7 +714,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{type}/add/{country_code}',       [LandingCampaignController::class, 'addCountry']);
             Route::delete('/{type}/remove/{country_code}',  [LandingCampaignController::class, 'removeCountry']);
             Route::put('/{type}/reorder',                   [LandingCampaignController::class, 'reorder']);
-        })->where('type', 'clients|lawyers|helpers|matching');
+        })->where('type', 'clients|lawyers|helpers|matching|category_pillar|profile|emergency|nationality');
 
         // Landing Problems — Lecture pour filtres de config
         Route::prefix('landing-problems')->group(function () {
