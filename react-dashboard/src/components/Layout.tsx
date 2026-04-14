@@ -117,8 +117,6 @@ const DEFAULT_SUBGROUPS: Record<string, boolean> = {
   content_piloter    : true,
   content_contenu    : true,
   content_affiliation: true,
-  content_landing    : true,
-  content_republication: true,
   content_publish    : true,
 };
 
@@ -145,7 +143,9 @@ export default function Layout() {
     contacts: path.startsWith('/contacts') || path === '/a-relancer' || path.startsWith('/influenceurs'),
     acquisition: false,
     scraping: path === '/directories' || path === '/contacts/journalistes' || path === '/admin/scraper' || path.startsWith('/content/sites') || path.startsWith('/content/businesses') || path.startsWith('/content/lawyers') || path.startsWith('/content/country-directory') || path.startsWith('/scraping') || path.startsWith('/content/sources') || path.startsWith('/content/countries') || path.startsWith('/content/cities') || path.startsWith('/content/questions') || path.startsWith('/content/affiliates') || path.startsWith('/admin/campaigns') || path === '/ai-research' || path === '/admin/avancement' || path.startsWith('/content/contacts') || path.startsWith('/content/links'),
-    contentEngine: (path.startsWith('/content') && !path.startsWith('/content/sources') && !path.startsWith('/content/countries') && !path.startsWith('/content/cities') && !path.startsWith('/content/questions') && !path.startsWith('/content/affiliates') && !path.startsWith('/content/sites') && !path.startsWith('/content/lawyers') && !path.startsWith('/content/businesses') && !path.startsWith('/content/country-directory')) || path.startsWith('/content/landing-generator') || path.startsWith('/seo') || path === '/publishing' || path === '/media' || path === '/costs' || path === '/translations',
+    contentEngine: (path.startsWith('/content') && !path.startsWith('/content/sources') && !path.startsWith('/content/countries') && !path.startsWith('/content/cities') && !path.startsWith('/content/questions') && !path.startsWith('/content/affiliates') && !path.startsWith('/content/sites') && !path.startsWith('/content/lawyers') && !path.startsWith('/content/businesses') && !path.startsWith('/content/country-directory') && !path.startsWith('/content/landing-generator') && !path.startsWith('/content/landings') && !path.startsWith('/content/republication-rs')) || path.startsWith('/seo') || path === '/publishing' || path === '/media' || path === '/costs' || path === '/translations',
+    landingGenerator: path.startsWith('/content/landing-generator') || path.startsWith('/content/landings'),
+    republication: path.startsWith('/content/republication-rs'),
     prospection: path.startsWith('/prospection') || path === '/outreach',
     monetiser: path.startsWith('/affiliates'),
     parametres: path.startsWith('/admin/types') || path.startsWith('/admin/prompts') || path.startsWith('/admin/prompt-templates') || path.startsWith('/admin/presets') || path === '/equipe' || path === '/journal',
@@ -620,48 +620,6 @@ export default function Layout() {
                     </NavLink>
                   </NavSubGroup>
 
-                  <NavSubGroup label="Landing Generator" isOpen={openSubGroups.content_landing} onToggle={() => toggleSubGroup('content_landing')}>
-                    <NavLink to="/content/landing-generator" end className={subNavClass} onClick={handleNavClick}>
-                      🏠 Vue d'ensemble
-                    </NavLink>
-                    <NavLink to="/content/landing-generator/clients" className={subNavClass} onClick={handleNavClick}>
-                      👤 Clients
-                    </NavLink>
-                    <NavLink to="/content/landing-generator/avocats" className={subNavClass} onClick={handleNavClick}>
-                      ⚖️ Avocats
-                    </NavLink>
-                    <NavLink to="/content/landing-generator/helpers" className={subNavClass} onClick={handleNavClick}>
-                      🧳 Helpers
-                    </NavLink>
-                    <NavLink to="/content/landing-generator/matching" className={subNavClass} onClick={handleNavClick}>
-                      🎯 Matching
-                    </NavLink>
-                    <NavLink to="/content/landings" className={subNavClass} onClick={handleNavClick}>
-                      📄 Toutes les LPs
-                    </NavLink>
-                  </NavSubGroup>
-
-                  <NavSubGroup label="Republication RS" isOpen={openSubGroups.content_republication} onToggle={() => toggleSubGroup('content_republication')}>
-                    <NavLink to="/content/republication-rs/linkedin" className={subNavClass} onClick={handleNavClick}>
-                      💼 LinkedIn
-                    </NavLink>
-                    <NavLink to="/content/republication-rs/pinterest" className={subNavClass} onClick={handleNavClick}>
-                      📌 Pinterest
-                    </NavLink>
-                    <NavLink to="/content/republication-rs/threads" className={subNavClass} onClick={handleNavClick}>
-                      🧵 Threads
-                    </NavLink>
-                    <NavLink to="/content/republication-rs/facebook" className={subNavClass} onClick={handleNavClick}>
-                      📘 Facebook
-                    </NavLink>
-                    <NavLink to="/content/republication-rs/instagram" className={subNavClass} onClick={handleNavClick}>
-                      📸 Instagram
-                    </NavLink>
-                    <NavLink to="/content/republication-rs/reddit" className={subNavClass} onClick={handleNavClick}>
-                      🤖 Reddit
-                    </NavLink>
-                  </NavSubGroup>
-
                   <NavSubGroup label="Optimiser & Publier" isOpen={openSubGroups.content_publish} onToggle={() => toggleSubGroup('content_publish')}>
                     <NavLink to="/content/quality" className={subNavClass} onClick={handleNavClick}>
                       ✅ Qualité
@@ -691,6 +649,62 @@ export default function Layout() {
                       🧩 Templates
                     </NavLink>
                   </NavSubGroup>
+                </NavGroup>
+              )}
+
+              {isAdmin && (
+                <NavGroup
+                  label="Landing Generator"
+                  icon="🎯"
+                  isOpen={openGroups.landingGenerator}
+                  onToggle={() => toggleGroup('landingGenerator')}
+                >
+                  <NavLink to="/content/landing-generator" end className={subNavClass} onClick={handleNavClick}>
+                    🏠 Vue d'ensemble
+                  </NavLink>
+                  <NavLink to="/content/landing-generator/clients" className={subNavClass} onClick={handleNavClick}>
+                    👤 Clients
+                  </NavLink>
+                  <NavLink to="/content/landing-generator/avocats" className={subNavClass} onClick={handleNavClick}>
+                    ⚖️ Avocats
+                  </NavLink>
+                  <NavLink to="/content/landing-generator/helpers" className={subNavClass} onClick={handleNavClick}>
+                    🧳 Helpers
+                  </NavLink>
+                  <NavLink to="/content/landing-generator/matching" className={subNavClass} onClick={handleNavClick}>
+                    🎯 Matching
+                  </NavLink>
+                  <NavLink to="/content/landings" className={subNavClass} onClick={handleNavClick}>
+                    📄 Toutes les LPs
+                  </NavLink>
+                </NavGroup>
+              )}
+
+              {isAdmin && (
+                <NavGroup
+                  label="Republication RS"
+                  icon="📣"
+                  isOpen={openGroups.republication}
+                  onToggle={() => toggleGroup('republication')}
+                >
+                  <NavLink to="/content/republication-rs/linkedin" className={subNavClass} onClick={handleNavClick}>
+                    💼 LinkedIn
+                  </NavLink>
+                  <NavLink to="/content/republication-rs/pinterest" className={subNavClass} onClick={handleNavClick}>
+                    📌 Pinterest
+                  </NavLink>
+                  <NavLink to="/content/republication-rs/threads" className={subNavClass} onClick={handleNavClick}>
+                    🧵 Threads
+                  </NavLink>
+                  <NavLink to="/content/republication-rs/facebook" className={subNavClass} onClick={handleNavClick}>
+                    📘 Facebook
+                  </NavLink>
+                  <NavLink to="/content/republication-rs/instagram" className={subNavClass} onClick={handleNavClick}>
+                    📸 Instagram
+                  </NavLink>
+                  <NavLink to="/content/republication-rs/reddit" className={subNavClass} onClick={handleNavClick}>
+                    🤖 Reddit
+                  </NavLink>
                 </NavGroup>
               )}
 
