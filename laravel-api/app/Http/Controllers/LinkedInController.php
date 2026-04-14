@@ -408,8 +408,8 @@ USER;
             $slot = $candidate->copy()->setHour(7)->setMinute(30)->setSecond(0);
             if ($slot->isPast()) continue;
 
-            // Only one post per calendar day — check for ANY scheduled post that day
-            $conflict = LinkedInPost::where('status', 'scheduled')
+            // Only one post per calendar day — block generating AND scheduled posts
+            $conflict = LinkedInPost::whereIn('status', ['scheduled', 'generating'])
                 ->whereDate('scheduled_at', $slot->toDateString())
                 ->exists();
 

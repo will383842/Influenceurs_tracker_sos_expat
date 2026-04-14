@@ -412,14 +412,12 @@ USER;
             if ($score >= $threshold || $round === $maxRounds) break;
 
             // Build corrective prompt for next round
-            $langLabel      = $lang === 'en' ? 'English' : 'français';
-            $currentPrompt  = $userPrompt . "\n\n" . <<<CRITIQUE
-CRITIQUE DU POST PRÉCÉDENT (score: {$score}/100) :
-{$critique}
-
-Régénère le post en {$langLabel} en corrigeant UNIQUEMENT ces points.
-Garde le même sujet et la même structure JSON.
-CRITIQUE;
+            $langLabel     = $lang === 'en' ? 'English' : 'français';
+            $currentPrompt = $userPrompt
+                . "\n\nCRITIQUE DU POST PRÉCÉDENT (score: {$score}/100) :\n"
+                . $critique
+                . "\n\nRégénère le post en {$langLabel} en corrigeant UNIQUEMENT ces points.\n"
+                . "Garde le même sujet et la même structure JSON.";
         }
 
         if ($bestScore < $threshold) {
@@ -829,7 +827,7 @@ CRITIQUE;
 
         $en = [
             'monday'    => '"X mistakes / tips for expats" carousel format. Start with a shocking stat. Practical style, numbered list.',
-            'Founder\'s own story or a relatable expat archetype (no invented first names). Strong emotional hook. Structure: Situation → Problem → Rare insight → Actionable lesson. No mention of any service or platform — value comes from the experience itself.',
+            'tuesday'   => 'Founder\'s own story or a relatable expat archetype (no invented first names). Strong emotional hook. Structure: Situation → Problem → Rare insight → Actionable lesson. No mention of any service or platform — value comes from the experience itself.',
             'wednesday' => 'Legal/visa news OR strong opinion. "🚨 N important changes" or provocative statement. Concise, factual, figures when possible.',
             'thursday'  => 'Q&A or shocking statistic. Start with a question or surprising figure. Structured answer with maximum value. Survey stats if available.',
             'friday'    => 'Testimonial / tip / partner story. Inspiring, positive tone. End on pride or hope. Or a lawyer/helper partner story.',
