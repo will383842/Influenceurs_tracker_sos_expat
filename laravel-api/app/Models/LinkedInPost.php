@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\AsArray;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
@@ -37,8 +36,8 @@ class LinkedInPost extends Model
     ];
 
     protected $casts = [
-        'hashtags'                 => AsArray::class,
-        'reply_variants'           => AsArray::class,
+        'hashtags'                 => 'array',
+        'reply_variants'           => 'array',
         'scheduled_at'             => 'datetime',
         'published_at'             => 'datetime',
         'first_comment_posted_at'  => 'datetime',
