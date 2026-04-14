@@ -32,7 +32,9 @@ class LinkedInOAuthController extends Controller
     // personal → w_member_social (post), r_liteprofile (read id/name)
     // page     → rw_organization_social (post to page), r_organization_social (read)
     // OpenID for profile name fetch
-    private const SCOPES = 'openid,profile,w_member_social,rw_organization_social,r_organization_social';
+    // Personal only: w_member_social = post, openid+profile = read name/id
+    // Page scopes (rw_organization_social) removed — Community Management API not approved
+    private const SCOPES = 'openid,profile,w_member_social';
 
     public function __construct(private LinkedInApiService $api) {}
 
