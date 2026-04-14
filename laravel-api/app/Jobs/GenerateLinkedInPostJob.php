@@ -114,9 +114,9 @@ Retourne UNIQUEMENT un objet JSON valide avec exactement ces 4 clés :
 }
 USER;
 
-            // ── 3. Generate with GPT-4o-mini ─────────────────────────
+            // ── 3. Generate with GPT-4o (full model for hook quality) ──
             $result = $openai->complete($systemPrompt, $userPrompt, [
-                'model'       => 'gpt-4o-mini',
+                'model'       => 'gpt-4o',
                 'max_tokens'  => 1800,
                 'temperature' => 0.78,
                 'json_mode'   => true,
