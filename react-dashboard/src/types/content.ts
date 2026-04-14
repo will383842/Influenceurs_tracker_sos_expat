@@ -154,26 +154,75 @@ export interface ComparativeEntity {
 // LANDING PAGES
 // ============================================================
 
+export type AudienceType = 'clients' | 'lawyers' | 'helpers' | 'matching';
+
+export type LandingTemplateId =
+  // clients
+  | 'urgent' | 'seo' | 'trust'
+  // lawyers
+  | 'general' | 'freedom' | 'income' | 'premium'
+  // helpers
+  | 'recruitment' | 'opportunity' | 'reassurance'
+  // matching
+  | 'expert' | 'lawyer' | 'helper';
+
 export interface LandingPage {
   id: number;
   uuid: string;
+  parent_id: number | null;
   title: string;
   slug: string;
   language: string;
   country: string | null;
+  // Landing Generator fields
+  audience_type?: AudienceType | null;
+  template_id?: LandingTemplateId | string | null;
+  problem_id?: string | null;
+  country_code?: string | null;
+  generation_source?: 'ai_generated' | 'manual' | null;
+  generation_params?: Record<string, unknown> | null;
+  // Content
   sections: LandingSection[];
   meta_title: string | null;
   meta_description: string | null;
+  json_ld?: Record<string, unknown> | null;
+  hreflang_map?: Record<string, string> | null;
+  // Image Unsplash
+  featured_image_url?: string | null;
+  featured_image_alt?: string | null;
+  featured_image_attribution?: string | null;
+  photographer_name?: string | null;
+  photographer_url?: string | null;
+  // SEO complet
   seo_score: number;
+  canonical_url?: string | null;
+  og_locale?: string | null;
+  og_type?: string | null;
+  og_url?: string | null;
+  og_site_name?: string | null;
+  twitter_card?: string | null;
+  content_language?: string | null;
+  geo_region?: string | null;
+  geo_placename?: string | null;
+  geo_position?: string | null;
+  icbm?: string | null;
+  // Status & dates
   status: ContentStatus;
+  external_url?: string | null;
+  external_id?: string | null;
   published_at: string | null;
+  last_reviewed_at?: string | null;
   created_at: string;
   updated_at: string;
   cta_links?: LandingCtaLink[];
 }
 
 export interface LandingSection {
-  type: 'hero' | 'features' | 'testimonials' | 'cta' | 'faq' | 'content';
+  type: 'hero' | 'features' | 'testimonials' | 'cta' | 'faq' | 'content'
+      | 'trust_signals' | 'guide_steps' | 'local_info' | 'why_us'
+      | 'testimonial_proof' | 'earnings' | 'freedom' | 'process'
+      | 'client_quality' | 'what_you_do' | 'community_proof' | 'no_pressure'
+      | 'trust_signals' | 'lawyer_advantages' | 'helper_advantages';
   content: Record<string, unknown>;
 }
 
@@ -185,6 +234,46 @@ export interface LandingCtaLink {
   position: string;
   style: string;
   sort_order: number;
+}
+
+export interface LandingCampaign {
+  id: number;
+  audience_type: AudienceType;
+  country_queue: string[];
+  current_country: string | null;
+  pages_per_country: number;
+  selected_templates: string[];
+  problem_filters: {
+    categories?: string[];
+    business_value?: string[];
+    min_urgency?: number;
+  } | null;
+  daily_limit: number;
+  status: 'idle' | 'running' | 'paused' | 'completed';
+  total_generated: number;
+  total_cost_cents: number;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LandingProblem {
+  id: number;
+  slug: string;
+  title: string;
+  category: string;
+  subcategory: string | null;
+  intent: string;
+  urgency_score: number;
+  business_value: 'high' | 'medium' | 'low';
+  product_route: string;
+  needs_lawyer: boolean;
+  needs_helper: boolean;
+  lp_angle: string | null;
+  faq_seed: Record<string, unknown> | null;
+  search_queries_seed: string[] | null;
+  status: 'active' | 'inactive';
 }
 
 // ============================================================
