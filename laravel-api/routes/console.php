@@ -264,3 +264,11 @@ Schedule::call(function () {
         $log::info("Pub engine: {$staleItems->count()} stale re-dispatched, {$orphans->count()} orphans queued");
     }
 })->everyTwoMinutes()->name('publication-engine')->withoutOverlapping();
+
+// ══════════════════════════════════════════════════════════════════════
+// LANDING GENERATOR — auto-pilot quotidien à 05:00 UTC
+// Lance RunLandingCampaignJob pour les 4 audiences (clients/lawyers/helpers/matching).
+// Génère en FR uniquement ; les autres langues se lancent manuellement depuis l'UI.
+// withoutOverlapping(7200) = lock 2h max pour éviter les doublons si le job tourne long.
+// ══════════════════════════════════════════════════════════════════════
+Schedule::job(new \App\Jobs\RunLandingCampaignJob)->dailyAt('05:00')->withoutOverlapping(7200);

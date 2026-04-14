@@ -3,6 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\LandingCampaign;
+use App\Models\LandingPage;
+use App\Models\PublicationQueueItem;
+use App\Models\PublishingEndpoint;
 use App\Services\Content\LandingGenerationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -61,6 +64,15 @@ class GenerateLandingPageJob implements ShouldQueue
                 LandingCampaign::where('audience_type', $this->params['audience_type'])
                     ->increment('total_cost_cents', $landing->generation_cost_cents);
             }
+
+            // Vérifier si le pays courant est terminé → avancer au suivant
+            $this->advanceCountryIfComplete(
+                $this->params['audience_type'],
+                $this->params['country_code'],
+            );
+
+            // Auto-publier vers le blog
+            $this->autoPublish($landing);
         }
 
         Log::info('GenerateLandingPageJob completed', [
@@ -79,6 +91,104 @@ class GenerateLandingPageJob implements ShouldQueue
             'params'    => $this->params,
             'error'     => $e->getMessage(),
             'trace'     => substr($e->getTraceAsString(), 0, 500),
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Helpers privés
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Vérifie si le quota pages_per_country est atteint pour ce pays.
+     * Si oui, avance current_country au suivant (ou marque la campagne terminée).
+     */
+    private function advanceCountryIfComplete(string $audienceType, string $countryCode): void
+    {
+        $campaign = LandingCampaign::where('audience_type', $audienceType)->first();
+
+        if (! $campaign || $campaign->current_country !== $countryCode) {
+            return;
+        }
+
+        $count = LandingPage::where('audience_type', $audienceType)
+            ->where('generation_source', 'ai_generated')
+            ->where('country_code', $countryCode)
+            ->count();
+
+        if ($count < $campaign->pages_per_country) {
+            return;
+        }
+
+        // Avancer au pays suivant dans la queue
+        $queue        = $campaign->country_queue ?? [];
+        $currentIndex = array_search($countryCode, $queue, true);
+
+        if ($currentIndex === false) {
+            return;
+        }
+
+        $nextIndex = $currentIndex + 1;
+
+        if ($nextIndex < count($queue)) {
+            $campaign->update(['current_country' => $queue[$nextIndex]]);
+            Log::info('GenerateLandingPageJob: pays avancé', [
+                'audience_type' => $audienceType,
+                'from'          => $countryCode,
+                'to'            => $queue[$nextIndex],
+            ]);
+        } else {
+            // Toute la queue est traitée
+            $campaign->update([
+                'status'          => 'completed',
+                'completed_at'    => now(),
+                'current_country' => null,
+            ]);
+            Log::info('GenerateLandingPageJob: campagne terminée', [
+                'audience_type' => $audienceType,
+            ]);
+        }
+    }
+
+    /**
+     * Crée un PublicationQueueItem et dispatche PublishContentJob pour auto-publier
+     * la landing page vers le blog dès sa génération.
+     */
+    private function autoPublish(LandingPage $landing): void
+    {
+        // Passer en 'review' pour signaler que la LP est prête à être publiée
+        $landing->update(['status' => 'review']);
+
+        // Chercher l'endpoint dédié aux Landing Pages, sinon l'endpoint par défaut
+        $endpoint = PublishingEndpoint::where('name', 'Landing Pages SOS-Expat')
+            ->where('is_active', true)
+            ->first()
+            ?? PublishingEndpoint::where('is_default', true)
+                ->where('is_active', true)
+                ->first();
+
+        if (! $endpoint) {
+            Log::warning('GenerateLandingPageJob: aucun endpoint de publication actif trouvé', [
+                'landing_id' => $landing->id,
+            ]);
+            return;
+        }
+
+        $queueItem = PublicationQueueItem::create([
+            'publishable_type' => LandingPage::class,
+            'publishable_id'   => $landing->id,
+            'endpoint_id'      => $endpoint->id,
+            'status'           => 'pending',
+            'priority'         => 'default',
+            'max_attempts'     => 5,
+            'attempts'         => 0,
+        ]);
+
+        PublishContentJob::dispatch($queueItem->id);
+
+        Log::info('GenerateLandingPageJob: auto-publish dispatched', [
+            'landing_id'    => $landing->id,
+            'queue_item_id' => $queueItem->id,
+            'endpoint'      => $endpoint->name,
         ]);
     }
 }

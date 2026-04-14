@@ -54,5 +54,20 @@ class PublishingEndpointSeeder extends Seeder
                 'is_default' => false,
             ]
         );
+
+        // ── Landing Pages SOS-Expat ───────────────────────────────
+        PublishingEndpoint::updateOrCreate(
+            ['name' => 'Landing Pages SOS-Expat'],
+            [
+                'type' => 'blog',
+                'config' => [
+                    'blog_api_url'   => config('services.blog.url', 'http://localhost:8082'),
+                    'blog_api_token' => config('services.blog.api_key', ''),
+                    'site_url'       => config('services.blog.site_url', 'https://blog.sos-expat.com'),
+                ],
+                'is_active'  => true,
+                'is_default' => false,
+            ]
+        );
     }
 }

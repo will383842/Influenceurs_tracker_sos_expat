@@ -3,6 +3,7 @@
 namespace App\Services\Publishing;
 
 use App\Models\GeneratedArticle;
+use App\Models\LandingPage;
 use App\Models\PublishingEndpoint;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
@@ -22,12 +23,13 @@ class BlogPublisher
      */
     public function publish(Model $content, PublishingEndpoint $endpoint): array
     {
-        // Support GeneratedArticle, Comparative, and QaEntry
+        // Support GeneratedArticle, Comparative, QaEntry, and LandingPage
         if (!$content instanceof GeneratedArticle
             && !$content instanceof \App\Models\Comparative
             && !$content instanceof \App\Models\QaEntry
+            && !$content instanceof LandingPage
         ) {
-            throw new \RuntimeException('BlogPublisher supports GeneratedArticle, Comparative, and QaEntry models');
+            throw new \RuntimeException('BlogPublisher supports GeneratedArticle, Comparative, QaEntry, and LandingPage models');
         }
 
         $config   = $endpoint->config ?? [];
@@ -36,6 +38,11 @@ class BlogPublisher
 
         if (empty($blogUrl)) {
             throw new \RuntimeException('Blog API URL is required — set BLOG_API_URL in .env or blog_api_url in endpoint config');
+        }
+
+        // For LandingPage, use dedicated publish flow
+        if ($content instanceof LandingPage) {
+            return $this->publishLandingPage($content, $blogUrl, $apiToken);
         }
 
         // For Comparative and QaEntry, use simplified publish flow
@@ -505,6 +512,104 @@ class BlogPublisher
         ]);
 
         return ['external_id' => $externalId, 'external_url' => $externalUrl];
+    }
+
+    // ── LandingPage publish ─────────────────────────────────────
+    private function publishLandingPage(LandingPage $landing, string $blogUrl, string $apiToken): array
+    {
+        // Load CTA links relation if not already loaded
+        if (! $landing->relationLoaded('ctaLinks')) {
+            $landing->load('ctaLinks');
+        }
+
+        $payload = [
+            'slug'             => $landing->slug,
+            'title'            => $landing->title,
+            'language'         => $landing->language,
+            'country'          => $landing->country,
+            'country_code'     => $landing->country_code,
+            'audience_type'    => $landing->audience_type,
+            'template_id'      => $landing->template_id,
+            'problem_id'       => $landing->problem_id,
+            'meta_title'       => $landing->meta_title,
+            'meta_description' => $landing->meta_description,
+            'sections'         => $landing->sections ?? [],
+            'json_ld'          => $landing->json_ld ?? [],
+            'hreflang_map'     => $landing->hreflang_map ?? [],
+            'seo_score'        => $landing->seo_score,
+            'cta_links'        => $landing->ctaLinks->map(fn ($c) => [
+                'text'     => $c->text,
+                'url'      => $c->url,
+                'position' => $c->position,
+                'style'    => $c->style ?? null,
+            ])->toArray(),
+        ];
+
+        $timestamp = (string) time();
+        $body      = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha256', $timestamp . '.' . $body, $apiToken);
+
+        Log::info('BlogPublisher: sending landing page to blog', [
+            'landing_id'    => $landing->id,
+            'slug'          => $landing->slug,
+            'audience_type' => $landing->audience_type,
+            'country_code'  => $landing->country_code,
+        ]);
+
+        $response = Http::withHeaders([
+                'X-Webhook-Timestamp' => $timestamp,
+                'X-Webhook-Signature' => $signature,
+                'Content-Type'        => 'application/json',
+                'Accept'              => 'application/json',
+            ])
+            ->withBody($body, 'application/json')
+            ->timeout(30)
+            ->post(rtrim($blogUrl, '/') . '/api/landing-pages');
+
+        // 409 = LP déjà publiée (déduplication par slug) — traiter comme succès
+        if ($response->status() === 409) {
+            $existingData = $response->json();
+            Log::info('BlogPublisher: landing page déjà publiée (409), traité comme succès', [
+                'landing_id'  => $landing->id,
+                'existing_id' => $existingData['id'] ?? null,
+            ]);
+            $body_data = $existingData;
+        } elseif ($response->failed()) {
+            $error = $response->json('message') ?? $response->body();
+            Log::error('BlogPublisher: erreur API landing-pages', [
+                'status'     => $response->status(),
+                'landing_id' => $landing->id,
+                'body'       => mb_substr($response->body(), 0, 1000),
+            ]);
+            throw new \RuntimeException(
+                "Blog API landing-pages error HTTP {$response->status()}: " . mb_substr($response->body(), 0, 500)
+            );
+        } else {
+            $body_data = $response->json();
+        }
+
+        $externalId  = (string) ($body_data['id'] ?? $landing->uuid ?? $landing->id);
+        $siteUrl     = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
+        $externalUrl = $body_data['url'] ?? "{$siteUrl}/{$landing->slug}";
+
+        // Mettre à jour la LP avec les infos de publication
+        $landing->update([
+            'status'       => 'published',
+            'published_at' => now(),
+            'external_url' => $externalUrl,
+            'external_id'  => $externalId,
+        ]);
+
+        Log::info('BlogPublisher: landing page publiée avec succès', [
+            'landing_id'   => $landing->id,
+            'external_id'  => $externalId,
+            'external_url' => $externalUrl,
+        ]);
+
+        return [
+            'external_id'  => $externalId,
+            'external_url' => $externalUrl,
+        ];
     }
 
     /**
