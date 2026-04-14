@@ -79,14 +79,15 @@ const BEST_HOOKS = [
 
 // ── API calls ──────────────────────────────────────────────────────────────
 
-const fetchLinkedInStats  = () => api.get<LinkedInStats>('/linkedin/stats').then(r => r.data);
-const fetchLinkedInQueue  = (status?: string) => api.get<LinkedInPost[]>('/linkedin/queue', { params: { status } }).then(r => r.data);
+const BASE = '/content-gen/linkedin';
+const fetchLinkedInStats  = () => api.get<LinkedInStats>(`${BASE}/stats`).then(r => r.data);
+const fetchLinkedInQueue  = (status?: string) => api.get<LinkedInPost[]>(`${BASE}/queue`, { params: { status } }).then(r => r.data);
 const generateLinkedInPost = (params: { source_type: string; source_id?: number; day_type: DayType; lang: Lang; account: AccountType }) =>
-  api.post<LinkedInPost>('/linkedin/generate', params).then(r => r.data);
-const updateLinkedInPost  = (id: number, data: Partial<LinkedInPost>) => api.put(`/linkedin/posts/${id}`, data).then(r => r.data);
-const scheduleLinkedInPost = (id: number, scheduled_at: string) => api.post(`/linkedin/posts/${id}/schedule`, { scheduled_at }).then(r => r.data);
-const publishLinkedInPost = (id: number) => api.post(`/linkedin/posts/${id}/publish`).then(r => r.data);
-const deleteLinkedInPost  = (id: number) => api.delete(`/linkedin/posts/${id}`).then(r => r.data);
+  api.post<LinkedInPost>(`${BASE}/generate`, params).then(r => r.data);
+const updateLinkedInPost  = (id: number, data: Partial<LinkedInPost>) => api.put(`${BASE}/posts/${id}`, data).then(r => r.data);
+const scheduleLinkedInPost = (id: number, scheduled_at: string) => api.post(`${BASE}/posts/${id}/schedule`, { scheduled_at }).then(r => r.data);
+const publishLinkedInPost = (id: number) => api.post(`${BASE}/posts/${id}/publish`).then(r => r.data);
+const deleteLinkedInPost  = (id: number) => api.delete(`${BASE}/posts/${id}`).then(r => r.data);
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
@@ -306,7 +307,7 @@ function GenerateModal({ onClose, onGenerate }: {
           <div className="flex gap-2 justify-end">
             <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Annuler</button>
             <button
-              onClick={() => { onGenerate({ source_type: sourceType, day_type: dayType, lang, account }); onClose(); }}
+              onClick={() => { onGenerate({ source_type: sourceType, day_type: dayType, lang, account, source_id: undefined }); onClose(); }}
               className="px-5 py-2 bg-[#0A66C2] text-white text-sm font-semibold rounded-lg hover:bg-[#0A66C2]/90 transition-colors"
             >
               🚀 Générer avec IA
@@ -589,13 +590,13 @@ export default function RepublicationLinkedIn() {
                 <select className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
                   <option value="3">3 posts/semaine</option>
                   <option value="4">4 posts/semaine</option>
-                  <option value="5" selected>5 posts/semaine (recommandé)</option>
+                  <option value="5">5 posts/semaine (recommandé)</option>
                 </select>
               </div>
               <div>
                 <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Heure de publication</label>
                 <select className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-                  <option value="07:30" selected>07h30 (meilleure portée)</option>
+                  <option value="07:30">07h30 (meilleure portée)</option>
                   <option value="12:15">12h15 (pause déjeuner)</option>
                   <option value="18:00">18h00 (fin journée)</option>
                 </select>
@@ -621,7 +622,7 @@ export default function RepublicationLinkedIn() {
       {showGenModal && (
         <GenerateModal
           onClose={() => setShowGenModal(false)}
-          onGenerate={(params) => mutateGen.mutate({ ...params, day_type: defaultDay })}
+          onGenerate={(params) => mutateGen.mutate(params)}
         />
       )}
     </div>

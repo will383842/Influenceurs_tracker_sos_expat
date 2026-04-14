@@ -13,11 +13,12 @@ class LinkedInController extends Controller
 
     public function stats(): JsonResponse
     {
-        $now = now();
-        $weekStart = $now->startOfWeek()->toImmutable();
-        $weekEnd   = $now->endOfWeek()->toImmutable();
+        $weekStart = now()->startOfWeek();
+        $weekEnd   = now()->endOfWeek();
 
-        $postsThisWeek = LinkedInPost::whereBetween('created_at', [$weekStart, $weekEnd])->count();
+        $postsThisWeek = LinkedInPost::whereBetween('scheduled_at', [$weekStart, $weekEnd])
+            ->orWhereBetween('created_at', [$weekStart, $weekEnd])
+            ->count();
         $scheduled     = LinkedInPost::where('status', 'scheduled')->count();
         $published     = LinkedInPost::where('status', 'published')->count();
         $totalReach    = LinkedInPost::where('status', 'published')->sum('reach');
@@ -207,7 +208,7 @@ Retourne JSON avec : hook (string), body (string, le post complet sans le hook),
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.openai.key'),
+                'Authorization' => 'Bearer ' . config('services.openai.api_key'),
                 'Content-Type'  => 'application/json',
             ])->post('https://api.openai.com/v1/chat/completions', [
                 'model'       => 'gpt-4o-mini',
