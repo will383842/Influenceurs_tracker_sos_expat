@@ -115,6 +115,7 @@ const LandingGeneratorAvocats = lazy(() => import('./pages/content/LandingGenera
 const LandingGeneratorHelpers = lazy(() => import('./pages/content/LandingGeneratorHelpers'));
 const LandingGeneratorMatching = lazy(() => import('./pages/content/LandingGeneratorMatching'));
 const RepublicationRS = lazy(() => import('./pages/content/RepublicationRS'));
+const RepublicationLinkedIn = lazy(() => import('./pages/content/RepublicationLinkedIn'));
 
 // ── Shared fallback ────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -297,6 +298,7 @@ export default function App() {
                 <Route path="content/question-clusters" element={<AdminRoute><QuestionClustersList /></AdminRoute>} />
                 <Route path="content/generate-qr" element={<AdminRoute><GenerateQr /></AdminRoute>} />
                 <Route path="content/question-clusters/:id" element={<AdminRoute><QuestionClusterDetail /></AdminRoute>} />
+                <Route path="content/republication-rs/linkedin" element={<AdminRoute><RepublicationLinkedIn /></AdminRoute>} />
                 <Route path="content/republication-rs/:platform" element={<AdminRoute><RepublicationRS /></AdminRoute>} />
                 <Route path="content/landing-generator" element={<AdminRoute><LandingGeneratorHub /></AdminRoute>} />
                 <Route path="content/landing-generator/clients" element={<AdminRoute><LandingGeneratorClients /></AdminRoute>} />

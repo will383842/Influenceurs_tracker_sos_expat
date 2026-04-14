@@ -17,6 +17,7 @@ use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\GeneratedArticleController;
 use App\Http\Controllers\GenerationController;
 use App\Http\Controllers\KeywordTrackingController;
+use App\Http\Controllers\LinkedInController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingCampaignController;
 use App\Http\Controllers\LandingProblemsController;
@@ -683,6 +684,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/comparatives/{comparative}', [ComparativeController::class, 'update']);
         Route::delete('/comparatives/{comparative}', [ComparativeController::class, 'destroy']);
         Route::post('/comparatives/{comparative}/publish', [ComparativeController::class, 'publish']);
+
+        // LinkedIn Republication
+        Route::prefix('linkedin')->group(function () {
+            Route::get('/stats',                    [LinkedInController::class, 'stats']);
+            Route::get('/queue',                    [LinkedInController::class, 'queue']);
+            Route::post('/generate',                [LinkedInController::class, 'generate']);
+            Route::put('/posts/{post}',             [LinkedInController::class, 'update']);
+            Route::post('/posts/{post}/schedule',   [LinkedInController::class, 'schedule']);
+            Route::post('/posts/{post}/publish',    [LinkedInController::class, 'publish']);
+            Route::delete('/posts/{post}',          [LinkedInController::class, 'destroy']);
+        });
 
         // Landing Pages (CRUD manuel existant)
         Route::get('/landings', [LandingPageController::class, 'index']);
