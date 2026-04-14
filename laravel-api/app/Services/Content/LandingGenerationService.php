@@ -2,12 +2,17 @@
 
 namespace App\Services\Content;
 
+use App\Models\CountryGeo;
 use App\Models\LandingCampaign;
 use App\Models\LandingPage;
 use App\Models\LandingProblem;
 use App\Services\AI\ClaudeService;
+use App\Services\AI\OpenAiService;
 use App\Services\AI\UnsplashService;
 use App\Services\AI\UnsplashUsageTracker;
+use App\Services\Content\KnowledgeBaseService;
+use App\Services\Content\StatisticsInjectionService;
+use App\Services\Seo\GeoMetaService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -115,6 +120,30 @@ class LandingGenerationService
         ],
     ];
 
+    /** Segments d'URL localisés par audience × langue (ASCII-only, kebab-case) */
+    private const URL_SEGMENTS = [
+        'clients' => [
+            'fr'=>'aide',    'en'=>'help',     'es'=>'ayuda',
+            'de'=>'hilfe',   'pt'=>'ajuda',    'ar'=>'aide',
+            'hi'=>'madad',   'zh'=>'bangzhu',  'ru'=>'pomoshch',
+        ],
+        'lawyers' => [
+            'fr'=>'devenir-partenaire',  'en'=>'become-partner',   'es'=>'ser-socio',
+            'de'=>'partner-werden',      'pt'=>'tornar-parceiro',  'ar'=>'devenir-partenaire',
+            'hi'=>'sajhidari-bane',      'zh'=>'chengwei-hezuo',   'ru'=>'stat-partnerom',
+        ],
+        'helpers' => [
+            'fr'=>'expats-aidants',   'en'=>'expat-helpers',    'es'=>'expats-ayudantes',
+            'de'=>'expat-helfer',     'pt'=>'expats-ajudantes', 'ar'=>'expats-aidants',
+            'hi'=>'expat-sahayta',    'zh'=>'expat-bangzhu',    'ru'=>'expat-pomoshchniki',
+        ],
+        'matching' => [
+            'fr'=>'expert',        'en'=>'expert',        'es'=>'experto',
+            'de'=>'experte',       'pt'=>'especialista',  'ar'=>'expert',
+            'hi'=>'visheshagya',   'zh'=>'zhuanjia',      'ru'=>'ekspert',
+        ],
+    ];
+
     // Slugs pays en français pour les URLs (ASCII-only, Str::slug fallback pour les autres)
     private const COUNTRY_SLUGS_FR = [
         // Asie du Sud-Est
@@ -192,8 +221,12 @@ class LandingGenerationService
     ];
 
     public function __construct(
-        private ClaudeService    $claude,
-        private UnsplashService  $unsplash,
+        private OpenAiService              $openAi,          // PRIMARY: GPT-4o pour génération
+        private ClaudeService              $claude,          // FALLBACK: si OpenAI down
+        private UnsplashService            $unsplash,
+        private UnsplashUsageTracker       $unsplashTracker,
+        private KnowledgeBaseService       $kb,
+        private StatisticsInjectionService $stats,
     ) {}
 
     // ============================================================
@@ -255,7 +288,7 @@ class LandingGenerationService
     ): LandingPage {
         $template    = self::TEMPLATES['clients'][$templateId] ?? self::TEMPLATES['clients']['seo'];
         $countryName = $this->getCountryName($countryCode, $language);
-        $countrySlug = $this->getCountrySlug($countryCode);
+        $countrySlug = $this->getCountrySlug($countryCode, $language);
 
         $systemPrompt = $this->buildSystemPrompt('clients', $countryCode, $countryName, $language);
 
@@ -275,6 +308,7 @@ class LandingGenerationService
         Réponds UNIQUEMENT en JSON valide avec cette structure :
         {
           "title": "...",
+          "url_slug": "...(ASCII kebab-case slug du problème dans la langue cible, ex: visa-refuse-dossier-incomplet pour FR, visa-refused-incomplete-file pour EN)",
           "sections": [
             {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
             {"type": "trust_signals", "content": {"items": [{"icon": "⚡", "text": "..."}]}},
@@ -292,13 +326,24 @@ class LandingGenerationService
         }
         PROMPT;
 
-        $response = $this->claude->complete($systemPrompt, $userPrompt, [
-            'model'      => 'claude-sonnet-4-6',
-            'max_tokens' => 4000,
+        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            'model'       => $model,
+            'max_tokens'  => 4000,
+            'json_mode'   => true,
+            'temperature' => 0.7,
         ]);
 
+        // Fallback Claude si OpenAI échoue
+        if (empty($result['content'])) {
+            Log::warning('LandingGenerationService: OpenAI failed, fallback to Claude', ['audience' => 'clients']);
+            $result = ['content' => $this->claude->complete($systemPrompt, $userPrompt, ['model' => 'claude-sonnet-4-6', 'max_tokens' => 4000])];
+        }
+
+        $response = $result['content'] ?? '';
+
         $parsed = $this->parseResponse($response);
-        $slug   = $this->buildSlug('clients', $language, $countrySlug, $problem->slug, $templateId);
+        $slug   = $this->buildSlug('clients', $language, $countrySlug, $problem->slug, $templateId, $parsed['url_slug'] ?? null);
 
         return $this->saveLandingPage([
             'audience_type'      => 'clients',
@@ -332,7 +377,7 @@ class LandingGenerationService
     ): LandingPage {
         $template    = self::TEMPLATES['lawyers'][$templateId] ?? self::TEMPLATES['lawyers']['general'];
         $countryName = $this->getCountryName($countryCode, $language);
-        $countrySlug = $this->getCountrySlug($countryCode);
+        $countrySlug = $this->getCountrySlug($countryCode, $language);
 
         $systemPrompt = $this->buildSystemPrompt('lawyers', $countryCode, $countryName, $language);
 
@@ -351,6 +396,7 @@ class LandingGenerationService
         Réponds UNIQUEMENT en JSON valide avec cette structure :
         {
           "title": "...",
+          "url_slug": "...(ASCII kebab-case slug dans la langue cible, ex: devenir-partenaire-avocat pour FR, become-lawyer-partner pour EN)",
           "sections": [
             {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
             {"type": "earnings", "content": {"headline": "...", "amount": "30€", "detail": "...", "badges": ["..."]}},
@@ -367,13 +413,24 @@ class LandingGenerationService
         }
         PROMPT;
 
-        $response = $this->claude->complete($systemPrompt, $userPrompt, [
-            'model'      => 'claude-sonnet-4-6',
-            'max_tokens' => 3000,
+        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            'model'       => $model,
+            'max_tokens'  => 3000,
+            'json_mode'   => true,
+            'temperature' => 0.7,
         ]);
 
+        // Fallback Claude si OpenAI échoue
+        if (empty($result['content'])) {
+            Log::warning('LandingGenerationService: OpenAI failed, fallback to Claude', ['audience' => 'lawyers']);
+            $result = ['content' => $this->claude->complete($systemPrompt, $userPrompt, ['model' => 'claude-sonnet-4-6', 'max_tokens' => 3000])];
+        }
+
+        $response = $result['content'] ?? '';
+
         $parsed = $this->parseResponse($response);
-        $slug   = $this->buildSlug('lawyers', $language, $countrySlug, null, $templateId);
+        $slug   = $this->buildSlug('lawyers', $language, $countrySlug, null, $templateId, null);
 
         return $this->saveLandingPage([
             'audience_type'     => 'lawyers',
@@ -403,7 +460,7 @@ class LandingGenerationService
     ): LandingPage {
         $template    = self::TEMPLATES['helpers'][$templateId] ?? self::TEMPLATES['helpers']['recruitment'];
         $countryName = $this->getCountryName($countryCode, $language);
-        $countrySlug = $this->getCountrySlug($countryCode);
+        $countrySlug = $this->getCountrySlug($countryCode, $language);
 
         $systemPrompt = $this->buildSystemPrompt('helpers', $countryCode, $countryName, $language);
 
@@ -422,6 +479,7 @@ class LandingGenerationService
         Réponds UNIQUEMENT en JSON valide avec cette structure :
         {
           "title": "...",
+          "url_slug": "...(ASCII kebab-case slug dans la langue cible, ex: devenir-expat-aidant pour FR, become-expat-helper pour EN)",
           "sections": [
             {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
             {"type": "what_you_do", "content": {"headline": "...", "items": [{"icon": "✓", "text": "..."}]}},
@@ -438,13 +496,24 @@ class LandingGenerationService
         }
         PROMPT;
 
-        $response = $this->claude->complete($systemPrompt, $userPrompt, [
-            'model'      => 'claude-sonnet-4-6',
-            'max_tokens' => 3000,
+        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            'model'       => $model,
+            'max_tokens'  => 3000,
+            'json_mode'   => true,
+            'temperature' => 0.7,
         ]);
 
+        // Fallback Claude si OpenAI échoue
+        if (empty($result['content'])) {
+            Log::warning('LandingGenerationService: OpenAI failed, fallback to Claude', ['audience' => 'helpers']);
+            $result = ['content' => $this->claude->complete($systemPrompt, $userPrompt, ['model' => 'claude-sonnet-4-6', 'max_tokens' => 3000])];
+        }
+
+        $response = $result['content'] ?? '';
+
         $parsed = $this->parseResponse($response);
-        $slug   = $this->buildSlug('helpers', $language, $countrySlug, null, $templateId);
+        $slug   = $this->buildSlug('helpers', $language, $countrySlug, null, $templateId, null);
 
         return $this->saveLandingPage([
             'audience_type'     => 'helpers',
@@ -473,7 +542,7 @@ class LandingGenerationService
     ): LandingPage {
         $template    = self::TEMPLATES['matching'][$templateId] ?? self::TEMPLATES['matching']['expert'];
         $countryName = $this->getCountryName($countryCode, $language);
-        $countrySlug = $this->getCountrySlug($countryCode);
+        $countrySlug = $this->getCountrySlug($countryCode, $language);
 
         $systemPrompt = $this->buildSystemPrompt('matching', $countryCode, $countryName, $language);
 
@@ -493,6 +562,7 @@ class LandingGenerationService
         Réponds UNIQUEMENT en JSON valide avec cette structure :
         {
           "title": "...",
+          "url_slug": "...(ASCII kebab-case slug dans la langue cible, ex: expert-expatrie pour FR, expat-expert pour EN)",
           "sections": [
             {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
             {"type": "trust_signals", "content": {"items": [{"icon": "✓", "text": "..."}]}},
@@ -506,13 +576,24 @@ class LandingGenerationService
         }
         PROMPT;
 
-        $response = $this->claude->complete($systemPrompt, $userPrompt, [
-            'model'      => 'claude-sonnet-4-6',
-            'max_tokens' => 2000,
+        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+            'model'       => $model,
+            'max_tokens'  => 2000,
+            'json_mode'   => true,
+            'temperature' => 0.7,
         ]);
 
+        // Fallback Claude si OpenAI échoue
+        if (empty($result['content'])) {
+            Log::warning('LandingGenerationService: OpenAI failed, fallback to Claude', ['audience' => 'matching']);
+            $result = ['content' => $this->claude->complete($systemPrompt, $userPrompt, ['model' => 'claude-sonnet-4-6', 'max_tokens' => 2000])];
+        }
+
+        $response = $result['content'] ?? '';
+
         $parsed = $this->parseResponse($response);
-        $slug   = $this->buildSlug('matching', $language, $countrySlug, null, $templateId);
+        $slug   = $this->buildSlug('matching', $language, $countrySlug, null, $templateId, null);
 
         return $this->saveLandingPage([
             'audience_type'     => 'matching',
@@ -538,44 +619,36 @@ class LandingGenerationService
 
     private function buildSystemPrompt(string $audienceType, string $countryCode, string $countryName, string $language): string
     {
-        $langInstruction = match ($language) {
-            'fr'    => 'Rédige en français. Tutoiement interdit. Vouvoiement.',
-            'en'    => 'Write in English. Professional tone.',
-            'es'    => 'Escribe en español. Tono profesional.',
-            'de'    => 'Schreibe auf Deutsch. Professioneller Ton.',
-            'pt'    => 'Escreva em português. Tom profissional.',
-            'ar'    => 'اكتب باللغة العربية. نبرة مهنية.',
-            'hi'    => 'हिंदी में लिखें। पेशेवर स्वर।',
-            'zh'    => '用中文写作。专业语气。',
-            'ru'    => 'Пишите на русском. Профессиональный тон.',
-            default => 'Write professionally.',
+        // Recherche intent selon audience
+        $searchIntent = match ($audienceType) {
+            'clients'  => 'urgency',
+            'lawyers'  => 'commercial_investigation',
+            'helpers'  => 'commercial_investigation',
+            'matching' => 'transactional',
+            default    => 'informational',
         };
 
+        // Base: Knowledge Base complète SOS-Expat (Brand Voice, AEO, SEO 2026, Schema rules, etc.)
+        $system = $this->kb->getSystemPrompt('landing', $countryCode, $language, $searchIntent);
+
+        // Injection données pays vérifiées (World Bank / OECD / Eurostat)
+        $statsBlock = $this->stats->getCountryDataBlock($countryCode);
+        if ($statsBlock) {
+            $system .= "\n\n" . $statsBlock;
+        }
+
+        // Contexte audience spécifique landing page
         $audienceContext = match ($audienceType) {
-            'clients'  => "Tu génères du contenu pour des expatriés/voyageurs en difficulté dans le pays {$countryName}. Tu travailles pour SOS-Expat, service de mise en relation rapide avec des experts (avocats, expatriés aidants). Prix fixe, disponible 24h/24.",
-            'lawyers'  => "Tu génères du contenu pour recruter des avocats partenaires à {$countryName}. SOS-Expat leur apporte des clients sans prospection. 30€ par consultation de 20 min. Paiement sous 24h. Liberté totale des horaires.",
-            'helpers'  => "Tu génères du contenu pour recruter des expatriés aidants à {$countryName}. Ce sont des expatriés déjà installés qui aident les nouveaux arrivants. 10€ par appel de 20 min. Aide pratique (pas juridique).",
-            'matching' => "Tu génères une page de conversion directe pour connecter un utilisateur à un expert SOS-Expat dans le pays {$countryName}. Page courte, CTA fort, confiance maximale.",
-            default    => "Tu génères du contenu pour SOS-Expat concernant le pays {$countryName}.",
+            'clients'  => "MISSION: Générer une landing page haute-conversion pour des expatriés/voyageurs en difficulté dans le pays {$countryName}. Service SOS-Expat: mise en relation 24h/24 avec avocats et expatriés aidants. Prix fixe transparent. Disponibilité immédiate.",
+            'lawyers'  => "MISSION: Générer une landing page de recrutement d'avocats partenaires à {$countryName}. Bénéfices: 30€ par consultation 20 min, paiement 24h, liberté totale horaires, clients fournis sans prospection.",
+            'helpers'  => "MISSION: Générer une landing page de recrutement d'expatriés aidants à {$countryName}. Ce sont des expatriés installés qui aident les nouveaux arrivants. 10€ par appel 20 min. Aide pratique (pas juridique).",
+            'matching' => "MISSION: Générer une landing page de conversion directe pour connecter immédiatement avec un expert SOS-Expat à {$countryName}. Page ultra-courte, CTA fort, confiance maximale, disponibilité 24h/24.",
+            default    => "MISSION: Générer du contenu SOS-Expat pour {$countryName}.",
         };
 
-        return <<<SYSTEM
-        Tu es un expert en rédaction de landing pages haute conversion pour SOS-Expat.
+        $system .= "\n\n=== CONTEXTE LANDING PAGE ===\n{$audienceContext}";
 
-        CONTEXTE :
-        {$audienceContext}
-
-        RÈGLES ABSOLUES :
-        - {$langInstruction}
-        - Réponds UNIQUEMENT en JSON valide (pas de texte avant/après)
-        - Contenu unique, utile, contextualisé pour {$countryName}
-        - Pas de contenu générique copié-collé d'autres pays
-        - Pas de promesses fausses ni de chiffres inventés
-        - URLs dans cta_links : utiliser "/" comme placeholder (seront remplacées)
-        - meta_title max 60 caractères
-        - meta_description max 155 caractères
-        - H1 unique, accrocheur, contient le pays et le sujet
-        SYSTEM;
+        return $system;
     }
 
     private function parseResponse(string $rawResponse): array
@@ -591,15 +664,15 @@ class LandingGenerationService
             Log::warning('LandingGenerationService: JSON parse failed or empty', [
                 'raw' => substr($rawResponse, 0, 500),
             ]);
-            throw new \RuntimeException('La réponse Claude n\'est pas un JSON valide ou est vide.');
+            throw new \RuntimeException('La réponse AI n\'est pas un JSON valide ou est vide.');
         }
 
         // Valider les champs obligatoires
         if (empty($data['title'])) {
-            throw new \RuntimeException('La réponse Claude ne contient pas de "title".');
+            throw new \RuntimeException('La réponse AI ne contient pas de "title".');
         }
         if (empty($data['sections']) || ! is_array($data['sections'])) {
-            throw new \RuntimeException('La réponse Claude ne contient pas de "sections" valides.');
+            throw new \RuntimeException('La réponse AI ne contient pas de "sections" valides.');
         }
 
         return $data;
@@ -621,7 +694,24 @@ class LandingGenerationService
         }
 
         $seoScore    = $this->calculateSeoScore($parsed);
-        $hreflangMap = $this->buildHreflangMap($baseData);
+        $hreflangMap = $this->buildHreflangMap($baseData, $parsed);
+
+        // OG locale
+        $ogLocale = GeoMetaService::OG_LOCALE_MAP[$baseData['language'] ?? 'fr'] ?? 'fr_FR';
+
+        // Geo metadata depuis CountryGeo
+        $geo = CountryGeo::findByCode($countryCode);
+        $canonicalUrl = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/') . '/' . $slug;
+
+        $geoFields = [];
+        if ($geo) {
+            $geoFields = [
+                'geo_region'    => strtoupper($countryCode),
+                'geo_placename' => $baseData['country'] ?? '',
+                'geo_position'  => ($geo->latitude && $geo->longitude) ? "{$geo->latitude};{$geo->longitude}" : null,
+                'icbm'          => ($geo->latitude && $geo->longitude) ? "{$geo->latitude}, {$geo->longitude}" : null,
+            ];
+        }
 
         // ── Image Unsplash ─────────────────────────────────────────
         // Si le caller passe une image (variante langue d'un parent FR) → réutiliser.
@@ -644,7 +734,7 @@ class LandingGenerationService
             }
         }
 
-        $landing = LandingPage::create(array_merge($baseData, $imageData, [
+        $landing = LandingPage::create(array_merge($baseData, $imageData, $geoFields, [
             'title'            => $parsed['title'] ?? $slug,
             'slug'             => $slug,
             'meta_title'       => $parsed['meta_title'] ?? null,
@@ -654,6 +744,13 @@ class LandingGenerationService
             'status'           => 'draft',
             'hreflang_map'     => $hreflangMap,
             'json_ld'          => $this->buildJsonLd($parsed, $baseData['audience_type'], $baseData['country'] ?? ''),
+            'canonical_url'    => $canonicalUrl,
+            'og_locale'        => $ogLocale,
+            'og_type'          => 'WebPage',
+            'og_url'           => $canonicalUrl,
+            'og_site_name'     => 'SOS-Expat & Travelers',
+            'twitter_card'     => 'summary_large_image',
+            'content_language' => $baseData['language'] ?? 'fr',
         ]));
 
         // CTAs
@@ -700,15 +797,13 @@ class LandingGenerationService
             'expatriate international travel',
         ];
 
-        $tracker = app(UnsplashUsageTracker::class);
-
         foreach ($strategies as $query) {
             $result = $this->unsplash->searchUnique($query, 1, 'landscape', 3);
 
             if (! empty($result['success']) && ! empty($result['images'])) {
                 $img = $result['images'][0];
                 // Marquer utilisée pour éviter réutilisation sur d'autres LP
-                $tracker->markUsed(
+                $this->unsplashTracker->markUsed(
                     photoUrl: $img['url'] ?? '',
                     language: 'landing_page',   // champ language = type de contenu
                     country: $countryCode,
@@ -744,22 +839,28 @@ class LandingGenerationService
 
     /**
      * Génère la hreflang_map pour les 9 langues supportées.
-     * Structure: ["fr" => "/fr/aide/divorce/thaïlande", "en" => "/en/aide/divorce/thaïlande", ...]
+     * Structure: ["fr" => "https://sos-expat.com/fr/aide/...", "en" => "...", "x-default" => "..."]
      */
-    private function buildHreflangMap(array $baseData): array
+    private function buildHreflangMap(array $baseData, array $parsedResponse = []): array
     {
         $supportedLanguages = ['fr', 'en', 'es', 'de', 'pt', 'ar', 'hi', 'zh', 'ru'];
-        $audienceType = $baseData['audience_type'];
-        $countryCode  = $baseData['country_code'] ?? '';
-        $countrySlug  = $countryCode ? $this->getCountrySlug($countryCode) : '';
-        $problemSlug  = $baseData['generation_params']['problem_slug'] ?? null;
-        $templateId   = $baseData['template_id'] ?? null;
+        $audienceType     = $baseData['audience_type'];
+        $countryCode      = $baseData['country_code'] ?? '';
+        $problemSlug      = $baseData['generation_params']['problem_slug'] ?? null;
+        $templateId       = $baseData['template_id'] ?? null;
+        $localizedUrlSlug = $parsedResponse['url_slug'] ?? null;
+
+        $siteUrl = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
 
         $map = [];
         foreach ($supportedLanguages as $lang) {
-            $langSlug = $this->buildSlug($audienceType, $lang, $countrySlug, $problemSlug, $templateId);
-            $map[$lang] = '/' . $langSlug;
+            $countrySlug = $countryCode ? $this->getCountrySlug($countryCode, $lang) : '';
+            $slug = $this->buildSlug($audienceType, $lang, $countrySlug, $problemSlug, $templateId, $localizedUrlSlug);
+            $map[$lang] = "{$siteUrl}/{$slug}";
         }
+
+        // x-default → version EN (standard international)
+        $map['x-default'] = $map['en'] ?? reset($map);
 
         return $map;
     }
@@ -786,43 +887,114 @@ class LandingGenerationService
 
     private function buildJsonLd(array $parsed, string $audienceType, string $countryName): array
     {
-        $hasFaq = false;
-        $faqItems = [];
+        $siteUrl  = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
+        $orgUrl   = 'https://sos-expat.com';
+        $orgName  = 'SOS-Expat';
+        $title    = $parsed['title'] ?? '';
+        $desc     = $parsed['meta_description'] ?? '';
+        $sections = $parsed['sections'] ?? [];
 
-        foreach ($parsed['sections'] ?? [] as $section) {
+        $graph = [];
+
+        // 1. WebPage
+        $graph[] = [
+            '@type'       => 'WebPage',
+            'name'        => $title,
+            'description' => $desc,
+            'isPartOf'    => ['@type' => 'WebSite', 'name' => $orgName, 'url' => $orgUrl],
+            'publisher'   => [
+                '@type' => 'Organization',
+                'name'  => $orgName,
+                'url'   => $orgUrl,
+                'logo'  => ['@type' => 'ImageObject', 'url' => $orgUrl . '/logo.png'],
+            ],
+        ];
+
+        // 2. FAQPage (si section faq présente)
+        $faqItems = [];
+        foreach ($sections as $section) {
             if ($section['type'] === 'faq' && ! empty($section['content']['items'])) {
-                $hasFaq = true;
                 foreach ($section['content']['items'] as $item) {
                     $faqItems[] = [
                         '@type'          => 'Question',
                         'name'           => $item['q'] ?? '',
-                        'acceptedAnswer' => [
-                            '@type' => 'Answer',
-                            'text'  => $item['a'] ?? '',
-                        ],
+                        'acceptedAnswer' => ['@type' => 'Answer', 'text' => $item['a'] ?? ''],
                     ];
                 }
             }
         }
-
-        $base = [
-            '@context' => 'https://schema.org',
-            '@type'    => 'WebPage',
-            'name'     => $parsed['title'] ?? '',
-            'description' => $parsed['meta_description'] ?? '',
-        ];
-
-        if ($hasFaq) {
-            return [
-                '@context'   => 'https://schema.org',
-                '@graph'     => [
-                    $base,
-                    ['@type' => 'FAQPage', 'mainEntity' => $faqItems],
-                ],
-            ];
+        if (! empty($faqItems)) {
+            $graph[] = ['@type' => 'FAQPage', 'mainEntity' => $faqItems];
         }
 
-        return $base;
+        // 3. HowTo (si section guide_steps ou process présente)
+        foreach ($sections as $section) {
+            if (in_array($section['type'], ['guide_steps', 'process']) && ! empty($section['content']['steps'])) {
+                $steps = [];
+                foreach ($section['content']['steps'] as $i => $step) {
+                    $steps[] = [
+                        '@type'    => 'HowToStep',
+                        'position' => $i + 1,
+                        'name'     => $step['title'] ?? $step['label'] ?? '',
+                        'text'     => $step['text'] ?? $step['label'] ?? '',
+                    ];
+                }
+                $graph[] = [
+                    '@type'       => 'HowTo',
+                    'name'        => $title,
+                    'description' => $desc,
+                    'step'        => $steps,
+                ];
+                break;
+            }
+        }
+
+        // 4. Service schema (pour toutes les audiences)
+        $serviceType = match ($audienceType) {
+            'clients'  => 'LegalService',
+            'lawyers'  => 'EmploymentAgency',
+            'helpers'  => 'CommunityService',
+            'matching' => 'ProfessionalService',
+            default    => 'Service',
+        };
+        $graph[] = [
+            '@type'             => $serviceType,
+            'name'              => $orgName . ' — ' . $title,
+            'description'       => $desc,
+            'provider'          => ['@type' => 'Organization', 'name' => $orgName, 'url' => $orgUrl],
+            'areaServed'        => ['@type' => 'Country', 'name' => $countryName],
+            'availableLanguage' => array_map(
+                fn ($l) => ['@type' => 'Language', 'name' => $l],
+                ['Français', 'English', 'Español', 'Deutsch', 'Português', 'العربية', 'हिन्दी', '中文', 'Русский']
+            ),
+            'termsOfService'    => $orgUrl . '/fr/cgu',
+            'url'               => $orgUrl,
+        ];
+
+        // 5. Speakable (CSS selectors clés pour TTS / AI voice)
+        $speakableSelectors = ['.lp-hero h1', '.lp-hero p', 'h2'];
+        foreach ($sections as $section) {
+            if ($section['type'] === 'faq') {
+                $speakableSelectors[] = '.lp-faq .faq-item';
+                break;
+            }
+        }
+        $graph[] = [
+            '@type'       => 'SpeakableSpecification',
+            'cssSelector' => $speakableSelectors,
+        ];
+
+        // 6. BreadcrumbList
+        $graph[] = [
+            '@type'           => 'BreadcrumbList',
+            'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'SOS-Expat',  'item' => $orgUrl],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => $countryName, 'item' => $orgUrl . '/fr/' . strtolower($audienceType)],
+                ['@type' => 'ListItem', 'position' => 3, 'name' => $title],
+            ],
+        ];
+
+        return ['@context' => 'https://schema.org', '@graph' => $graph];
     }
 
     public function buildSlug(
@@ -831,19 +1003,48 @@ class LandingGenerationService
         string $countrySlug,
         ?string $problemSlug = null,
         ?string $templateId = null,
+        ?string $localizedUrlSlug = null,   // slug problème localisé (du JSON response)
     ): string {
+        $segment = self::URL_SEGMENTS[$audienceType][$language]
+            ?? self::URL_SEGMENTS[$audienceType]['en']
+            ?? 'landing';
+
         return match ($audienceType) {
-            'clients'  => "{$language}/aide/{$problemSlug}/{$countrySlug}",
-            'lawyers'  => "{$language}/devenir-partenaire/{$templateId}/{$countrySlug}",
-            'helpers'  => "{$language}/expats-aidants/{$templateId}/{$countrySlug}",
-            'matching' => "{$language}/expert/{$templateId}/{$countrySlug}",
+            'clients'  => "{$language}/{$segment}/" . ($localizedUrlSlug ?? $problemSlug) . "/{$countrySlug}",
+            'lawyers'  => "{$language}/{$segment}/{$templateId}/{$countrySlug}",
+            'helpers'  => "{$language}/{$segment}/{$templateId}/{$countrySlug}",
+            'matching' => "{$language}/{$segment}/{$templateId}/{$countrySlug}",
             default    => "{$language}/landing/{$audienceType}/{$countrySlug}",
         };
     }
 
-    private function getCountrySlug(string $countryCode): string
+    private function getCountrySlug(string $countryCode, string $language = 'fr'): string
     {
-        return self::COUNTRY_SLUGS_FR[$countryCode] ?? Str::slug(strtolower($countryCode));
+        // Pour FR: utiliser la map hardcodée
+        if ($language === 'fr' && isset(self::COUNTRY_SLUGS_FR[$countryCode])) {
+            return self::COUNTRY_SLUGS_FR[$countryCode];
+        }
+
+        // Pour les autres langues: utiliser PHP intl (couvre 208 pays × toutes langues)
+        // AR/HI/ZH/RU → fallback vers EN (ASCII-only constraint)
+        $slugLang = in_array($language, ['ar', 'hi', 'zh', 'ru']) ? 'en' : $language;
+
+        if (function_exists('locale_get_display_region')) {
+            $name = locale_get_display_region('und-' . strtoupper($countryCode), $slugLang);
+            if ($name && $name !== $countryCode && $name !== 'und-' . strtoupper($countryCode)) {
+                return Str::slug($name);
+            }
+        }
+
+        // Fallback: slug EN
+        if (function_exists('locale_get_display_region')) {
+            $nameEn = locale_get_display_region('und-' . strtoupper($countryCode), 'en');
+            if ($nameEn && $nameEn !== $countryCode) {
+                return Str::slug($nameEn);
+            }
+        }
+
+        return strtolower($countryCode);
     }
 
     /**

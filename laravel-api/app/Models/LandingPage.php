@@ -40,6 +40,19 @@ class LandingPage extends Model
         'featured_image_attribution',
         'photographer_name',
         'photographer_url',
+        // SEO complet
+        'canonical_url',
+        'og_locale',
+        'og_type',
+        'og_url',
+        'og_site_name',
+        'twitter_card',
+        'content_language',
+        'geo_region',
+        'geo_placename',
+        'geo_position',
+        'icbm',
+        'last_reviewed_at',
     ];
 
     protected $casts = [
@@ -50,6 +63,7 @@ class LandingPage extends Model
         'seo_score'             => 'integer',
         'generation_cost_cents' => 'integer',
         'published_at'          => 'datetime',
+        'last_reviewed_at'      => 'datetime',
     ];
 
     // ============================================================

@@ -63,6 +63,10 @@ class GenerateLandingPageJob implements ShouldQueue
             if ($landing->generation_cost_cents > 0) {
                 LandingCampaign::where('audience_type', $this->params['audience_type'])
                     ->increment('total_cost_cents', $landing->generation_cost_cents);
+            } else {
+                Log::debug('GenerateLandingPageJob: generation_cost_cents=0, coût non tracké', [
+                    'landing_id' => $landing->id,
+                ]);
             }
 
             // Vérifier si le pays courant est terminé → avancer au suivant
@@ -124,6 +128,7 @@ class GenerateLandingPageJob implements ShouldQueue
             $variantParams = array_merge($this->params, [
                 'language'                   => $lang,
                 'parent_id'                  => $parent->id,
+                'use_cheap_model'            => true,   // GPT-4o-mini pour les 8 variantes
                 // Hériter de l'image du parent — évite 8 appels Unsplash
                 'featured_image_url'         => $parent->featured_image_url,
                 'featured_image_alt'         => $parent->featured_image_alt,

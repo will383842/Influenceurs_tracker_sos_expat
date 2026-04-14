@@ -522,28 +522,32 @@ class BlogPublisher
     //
     private function publishLandingPage(LandingPage $landing, string $blogUrl, string $apiToken): array
     {
-        // Load CTA links relation if not already loaded
         if (! $landing->relationLoaded('ctaLinks')) {
             $landing->load('ctaLinks');
         }
 
         $lang        = $this->normalizeLanguageCode($landing->language) ?? 'fr';
         $contentHtml = $this->sectionsToHtml($landing->sections ?? [], $landing->ctaLinks->toArray());
+        $faqs        = $this->extractFaqsFromSections($landing->sections ?? [], $lang);
 
-        // Construire les CTA comme texte JSON-LD enrichi dans le contenu
+        // ── Translations map ───────────────────────────────────────
         $translations = [];
         $translations[$lang] = [
             'title'            => mb_substr(strip_tags($landing->title), 0, 255),
             'slug'             => $landing->slug,
             'content_html'     => $contentHtml,
             'excerpt'          => mb_substr($landing->meta_description ?? '', 0, 500) ?: null,
-            'meta_title'       => mb_substr($landing->meta_title ?? '', 0, 60) ?: null,
-            'meta_description' => mb_substr($landing->meta_description ?? '', 0, 155) ?: null,
-            'json_ld'          => $landing->json_ld,
+            'meta_title'       => mb_substr($landing->meta_title ?? '', 0, 70) ?: null,
+            'meta_description' => mb_substr($landing->meta_description ?? '', 0, 160) ?: null,
+            'og_title'         => mb_substr($landing->meta_title ?? $landing->title ?? '', 0, 70) ?: null,
+            'og_description'   => mb_substr($landing->meta_description ?? '', 0, 160) ?: null,
+            'og_image_url'     => $landing->featured_image_url,
+            'json_ld'          => $landing->json_ld,     // @graph complet
             'hreflang_map'     => $landing->hreflang_map ?? [],
+            'canonical_url'    => $landing->canonical_url,
         ];
 
-        // Map audience → category blog
+        // ── Category slug selon audience ───────────────────────────
         $categorySlug = match ($landing->audience_type) {
             'clients'  => 'fiches-pratiques',
             'lawyers'  => 'programme',
@@ -552,54 +556,98 @@ class BlogPublisher
             default    => 'fiches-pratiques',
         };
 
+        // ── Hreflang complet avec URLs absolues + x-default ───────
+        $hreflangMap = $landing->hreflang_map ?? [];
+        // S'assurer que x-default est présent
+        if (!isset($hreflangMap['x-default'])) {
+            $hreflangMap['x-default'] = $hreflangMap['en'] ?? reset($hreflangMap) ?: '';
+        }
+
+        // ── Payload complet ────────────────────────────────────────
         $payload = [
-            'idempotency_key'              => $landing->uuid ?? 'lp_' . $landing->id,
-            'external_id'                  => $landing->uuid,
-            'content_type'                 => 'landing',
-            'category_slug'                => $categorySlug,
-            'status'                       => 'published',
-            'featured_image_url'           => $landing->featured_image_url,
-            'featured_image_alt'           => $landing->featured_image_alt,
-            'featured_image_attribution'   => $landing->featured_image_attribution,
-            'photographer_name'            => $landing->photographer_name,
-            'photographer_url'             => $landing->photographer_url,
-            'seo_score'                    => $landing->seo_score,
-            'keywords_primary'             => $landing->problem_id ?? $landing->template_id,
-            'translations'                 => $translations,
-            'faqs'                         => $this->extractFaqsFromSections($landing->sections ?? [], $lang),
-            'sources'                      => [],
-            'images'                       => [],
-            'tags'                         => array_filter([
+            'idempotency_key'    => $landing->uuid ?? 'lp_' . $landing->id,
+            'external_id'        => $landing->uuid,
+            'content_type'       => 'landing',
+            'category_slug'      => $categorySlug,
+            'status'             => 'published',
+
+            // Image Unsplash
+            'featured_image_url'         => $landing->featured_image_url,
+            'featured_image_alt'         => $landing->featured_image_alt,
+            'featured_image_attribution' => $landing->featured_image_attribution,
+            'photographer_name'          => $landing->photographer_name,
+            'photographer_url'           => $landing->photographer_url,
+
+            // SEO scores
+            'seo_score'          => $landing->seo_score,
+            'quality_score'      => null,
+            'keywords_primary'   => $landing->problem_id ?? $landing->template_id,
+
+            // Translations & FAQs
+            'translations'       => $translations,
+            'faqs'               => $faqs,
+            'sources'            => [],
+            'images'             => [],
+
+            // Tags & geo context
+            'tags'               => array_values(array_filter([
                 $landing->audience_type,
                 $landing->template_id,
                 $landing->country_code,
-            ]),
-            'countries'                    => $landing->country_code ? [strtoupper($landing->country_code)] : [],
-            'noindex'                      => false,
-            // Landing-specific metadata in extra payload
-            'landing_audience_type'        => $landing->audience_type,
-            'landing_template_id'          => $landing->template_id,
-            'landing_problem_id'           => $landing->problem_id,
-            'landing_sections'             => $landing->sections ?? [],
-            'landing_cta_links'            => $landing->ctaLinks->map(fn ($c) => [
+                $landing->problem_id,
+            ])),
+            'countries'          => $landing->country_code ? [strtoupper($landing->country_code)] : [],
+
+            // OpenGraph complet
+            'og_type'            => $landing->og_type ?? 'WebPage',
+            'og_locale'          => $landing->og_locale,
+            'og_url'             => $landing->og_url ?? $landing->canonical_url,
+            'og_site_name'       => $landing->og_site_name ?? 'SOS-Expat & Travelers',
+            'twitter_card'       => $landing->twitter_card ?? 'summary_large_image',
+
+            // Geo metadata (pour référencement local)
+            'content_language'   => $landing->content_language ?? $landing->language,
+            'geo_region'         => $landing->geo_region,
+            'geo_placename'      => $landing->geo_placename,
+            'geo_position'       => $landing->geo_position,
+            'icbm'               => $landing->icbm,
+
+            // Hreflang avec x-default
+            'hreflang_map'       => $hreflangMap,
+
+            // JSON-LD @graph complet
+            'json_ld'            => $landing->json_ld ?? [],
+
+            'noindex'            => false,
+            'last_reviewed_at'   => now()->toIso8601String(),
+
+            // Landing-specific extras
+            'landing_audience_type' => $landing->audience_type,
+            'landing_template_id'   => $landing->template_id,
+            'landing_problem_id'    => $landing->problem_id,
+            'landing_sections'      => $landing->sections ?? [],
+            'landing_cta_links'     => $landing->ctaLinks->map(fn ($c) => [
                 'text'     => $c->text,
                 'url'      => $c->url,
                 'position' => $c->position,
                 'style'    => $c->style ?? 'primary',
             ])->toArray(),
-            'landing_hreflang_map'         => $landing->hreflang_map ?? [],
         ];
 
+        // ── Signature HMAC-SHA256 ──────────────────────────────────
         $timestamp = (string) time();
         $body      = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $signature = hash_hmac('sha256', $timestamp . '.' . $body, $apiToken);
 
         Log::info('BlogPublisher: sending landing page to blog API', [
-            'landing_id'    => $landing->id,
-            'slug'          => $landing->slug,
-            'audience_type' => $landing->audience_type,
-            'country_code'  => $landing->country_code,
-            'language'      => $lang,
+            'landing_id'     => $landing->id,
+            'slug'           => $landing->slug,
+            'audience_type'  => $landing->audience_type,
+            'country_code'   => $landing->country_code,
+            'language'       => $lang,
+            'og_locale'      => $landing->og_locale,
+            'has_json_ld'    => !empty($landing->json_ld),
+            'hreflang_langs' => array_keys($hreflangMap),
         ]);
 
         $response = Http::withHeaders([
@@ -612,29 +660,26 @@ class BlogPublisher
             ->timeout(30)
             ->post(rtrim($blogUrl, '/') . '/api/v1/articles');
 
-        // 409 = déjà publiée (déduplication par external_id) → traiter comme succès
+        // 409 = déjà publiée (external_id dédupliqué) — traiter comme succès
         if ($response->status() === 409) {
-            $existingData = $response->json();
+            $bodyData = $response->json();
             Log::info('BlogPublisher: landing page déjà publiée (409)', [
-                'landing_id'  => $landing->id,
-                'existing_id' => $existingData['data']['id'] ?? $existingData['id'] ?? null,
+                'landing_id' => $landing->id,
             ]);
-            $bodyData = $existingData;
         } elseif ($response->failed()) {
-            $error = $response->json('message') ?? $response->body();
             Log::error('BlogPublisher: erreur API landing page', [
                 'status'     => $response->status(),
                 'landing_id' => $landing->id,
                 'body'       => mb_substr($response->body(), 0, 1000),
             ]);
             throw new \RuntimeException(
-                "Blog API error ({$response->status()}) for landing page {$landing->id}: " . mb_substr($response->body(), 0, 400)
+                "Blog API error ({$response->status()}) landing #{$landing->id}: " . mb_substr($response->body(), 0, 400)
             );
         } else {
             $bodyData = $response->json();
         }
 
-        // Construire l'URL externe depuis la réponse ou fallback slug
+        // ── URL externe depuis réponse blog ───────────────────────
         $blogTranslations = $bodyData['data']['translations'] ?? $bodyData['translations'] ?? [];
         $siteUrl          = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
         $blogSlug         = null;
@@ -644,15 +689,27 @@ class BlogPublisher
                 break;
             }
         }
-        $externalUrl = $this->buildUrlForLanguage($siteUrl, $lang, $blogSlug ?? $landing->slug);
+        $externalUrl = $landing->canonical_url
+            ?? $this->buildUrlForLanguage($siteUrl, $lang, $blogSlug ?? $landing->slug);
         $externalId  = (string) ($bodyData['data']['id'] ?? $bodyData['id'] ?? $landing->uuid ?? $landing->id);
 
-        $landing->update([
-            'status'       => 'published',
-            'published_at' => now(),
-            'external_url' => $externalUrl,
-            'external_id'  => $externalId,
-        ]);
+        try {
+            $landing->update([
+                'status'           => 'published',
+                'published_at'     => now(),
+                'external_url'     => $externalUrl,
+                'external_id'      => $externalId,
+                'last_reviewed_at' => now(),
+            ]);
+        } catch (\Exception $e) {
+            // last_reviewed_at peut ne pas encore être dans $fillable si la migration est en attente
+            $landing->update([
+                'status'       => 'published',
+                'published_at' => now(),
+                'external_url' => $externalUrl,
+                'external_id'  => $externalId,
+            ]);
+        }
 
         Log::info('BlogPublisher: landing page publiée avec succès', [
             'landing_id'   => $landing->id,
