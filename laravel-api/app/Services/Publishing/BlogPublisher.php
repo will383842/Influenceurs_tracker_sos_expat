@@ -515,6 +515,11 @@ class BlogPublisher
     }
 
     // ── LandingPage publish ─────────────────────────────────────
+    //
+    // On utilise le même endpoint /api/v1/articles que les articles classiques,
+    // avec content_type='landing'. Le contenu HTML est généré depuis les sections JSON.
+    // Cela évite d'avoir à créer un nouvel endpoint sur le blog Laravel.
+    //
     private function publishLandingPage(LandingPage $landing, string $blogUrl, string $apiToken): array
     {
         // Load CTA links relation if not already loaded
@@ -522,38 +527,79 @@ class BlogPublisher
             $landing->load('ctaLinks');
         }
 
-        $payload = [
+        $lang        = $this->normalizeLanguageCode($landing->language) ?? 'fr';
+        $contentHtml = $this->sectionsToHtml($landing->sections ?? [], $landing->ctaLinks->toArray());
+
+        // Construire les CTA comme texte JSON-LD enrichi dans le contenu
+        $translations = [];
+        $translations[$lang] = [
+            'title'            => mb_substr(strip_tags($landing->title), 0, 255),
             'slug'             => $landing->slug,
-            'title'            => $landing->title,
-            'language'         => $landing->language,
-            'country'          => $landing->country,
-            'country_code'     => $landing->country_code,
-            'audience_type'    => $landing->audience_type,
-            'template_id'      => $landing->template_id,
-            'problem_id'       => $landing->problem_id,
-            'meta_title'       => $landing->meta_title,
-            'meta_description' => $landing->meta_description,
-            'sections'         => $landing->sections ?? [],
-            'json_ld'          => $landing->json_ld ?? [],
+            'content_html'     => $contentHtml,
+            'excerpt'          => mb_substr($landing->meta_description ?? '', 0, 500) ?: null,
+            'meta_title'       => mb_substr($landing->meta_title ?? '', 0, 60) ?: null,
+            'meta_description' => mb_substr($landing->meta_description ?? '', 0, 155) ?: null,
+            'json_ld'          => $landing->json_ld,
             'hreflang_map'     => $landing->hreflang_map ?? [],
-            'seo_score'        => $landing->seo_score,
-            'cta_links'        => $landing->ctaLinks->map(fn ($c) => [
+        ];
+
+        // Map audience → category blog
+        $categorySlug = match ($landing->audience_type) {
+            'clients'  => 'fiches-pratiques',
+            'lawyers'  => 'programme',
+            'helpers'  => 'programme',
+            'matching' => 'fiches-pratiques',
+            default    => 'fiches-pratiques',
+        };
+
+        $payload = [
+            'idempotency_key'              => $landing->uuid ?? 'lp_' . $landing->id,
+            'external_id'                  => $landing->uuid,
+            'content_type'                 => 'landing',
+            'category_slug'                => $categorySlug,
+            'status'                       => 'published',
+            'featured_image_url'           => $landing->featured_image_url,
+            'featured_image_alt'           => $landing->featured_image_alt,
+            'featured_image_attribution'   => $landing->featured_image_attribution,
+            'photographer_name'            => $landing->photographer_name,
+            'photographer_url'             => $landing->photographer_url,
+            'seo_score'                    => $landing->seo_score,
+            'keywords_primary'             => $landing->problem_id ?? $landing->template_id,
+            'translations'                 => $translations,
+            'faqs'                         => $this->extractFaqsFromSections($landing->sections ?? [], $lang),
+            'sources'                      => [],
+            'images'                       => [],
+            'tags'                         => array_filter([
+                $landing->audience_type,
+                $landing->template_id,
+                $landing->country_code,
+            ]),
+            'countries'                    => $landing->country_code ? [strtoupper($landing->country_code)] : [],
+            'noindex'                      => false,
+            // Landing-specific metadata in extra payload
+            'landing_audience_type'        => $landing->audience_type,
+            'landing_template_id'          => $landing->template_id,
+            'landing_problem_id'           => $landing->problem_id,
+            'landing_sections'             => $landing->sections ?? [],
+            'landing_cta_links'            => $landing->ctaLinks->map(fn ($c) => [
                 'text'     => $c->text,
                 'url'      => $c->url,
                 'position' => $c->position,
-                'style'    => $c->style ?? null,
+                'style'    => $c->style ?? 'primary',
             ])->toArray(),
+            'landing_hreflang_map'         => $landing->hreflang_map ?? [],
         ];
 
         $timestamp = (string) time();
         $body      = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $signature = hash_hmac('sha256', $timestamp . '.' . $body, $apiToken);
 
-        Log::info('BlogPublisher: sending landing page to blog', [
+        Log::info('BlogPublisher: sending landing page to blog API', [
             'landing_id'    => $landing->id,
             'slug'          => $landing->slug,
             'audience_type' => $landing->audience_type,
             'country_code'  => $landing->country_code,
+            'language'      => $lang,
         ]);
 
         $response = Http::withHeaders([
@@ -564,35 +610,43 @@ class BlogPublisher
             ])
             ->withBody($body, 'application/json')
             ->timeout(30)
-            ->post(rtrim($blogUrl, '/') . '/api/landing-pages');
+            ->post(rtrim($blogUrl, '/') . '/api/v1/articles');
 
-        // 409 = LP déjà publiée (déduplication par slug) — traiter comme succès
+        // 409 = déjà publiée (déduplication par external_id) → traiter comme succès
         if ($response->status() === 409) {
             $existingData = $response->json();
-            Log::info('BlogPublisher: landing page déjà publiée (409), traité comme succès', [
+            Log::info('BlogPublisher: landing page déjà publiée (409)', [
                 'landing_id'  => $landing->id,
-                'existing_id' => $existingData['id'] ?? null,
+                'existing_id' => $existingData['data']['id'] ?? $existingData['id'] ?? null,
             ]);
-            $body_data = $existingData;
+            $bodyData = $existingData;
         } elseif ($response->failed()) {
             $error = $response->json('message') ?? $response->body();
-            Log::error('BlogPublisher: erreur API landing-pages', [
+            Log::error('BlogPublisher: erreur API landing page', [
                 'status'     => $response->status(),
                 'landing_id' => $landing->id,
                 'body'       => mb_substr($response->body(), 0, 1000),
             ]);
             throw new \RuntimeException(
-                "Blog API landing-pages error HTTP {$response->status()}: " . mb_substr($response->body(), 0, 500)
+                "Blog API error ({$response->status()}) for landing page {$landing->id}: " . mb_substr($response->body(), 0, 400)
             );
         } else {
-            $body_data = $response->json();
+            $bodyData = $response->json();
         }
 
-        $externalId  = (string) ($body_data['id'] ?? $landing->uuid ?? $landing->id);
-        $siteUrl     = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
-        $externalUrl = $body_data['url'] ?? "{$siteUrl}/{$landing->slug}";
+        // Construire l'URL externe depuis la réponse ou fallback slug
+        $blogTranslations = $bodyData['data']['translations'] ?? $bodyData['translations'] ?? [];
+        $siteUrl          = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/');
+        $blogSlug         = null;
+        foreach ($blogTranslations as $bt) {
+            if (($bt['language_code'] ?? $bt['lang'] ?? null) === $lang) {
+                $blogSlug = $bt['slug'] ?? null;
+                break;
+            }
+        }
+        $externalUrl = $this->buildUrlForLanguage($siteUrl, $lang, $blogSlug ?? $landing->slug);
+        $externalId  = (string) ($bodyData['data']['id'] ?? $bodyData['id'] ?? $landing->uuid ?? $landing->id);
 
-        // Mettre à jour la LP avec les infos de publication
         $landing->update([
             'status'       => 'published',
             'published_at' => now(),
@@ -610,6 +664,102 @@ class BlogPublisher
             'external_id'  => $externalId,
             'external_url' => $externalUrl,
         ];
+    }
+
+    /**
+     * Convertit les sections JSON d'une landing page en HTML sémantique.
+     * Utilisé pour l'envoi au blog via /api/v1/articles.
+     */
+    private function sectionsToHtml(array $sections, array $ctaLinks = []): string
+    {
+        $html = '';
+
+        foreach ($sections as $section) {
+            $type    = $section['type'] ?? '';
+            $content = $section['content'] ?? [];
+
+            $html .= match ($type) {
+                'hero' => sprintf(
+                    '<section class="lp-hero"><h1>%s</h1><p>%s</p></section>',
+                    e($content['h1'] ?? ''),
+                    e($content['subtitle'] ?? ''),
+                ),
+                'trust_signals' => $this->renderListSection('lp-trust', 'Pourquoi nous choisir', $content['items'] ?? [], 'text'),
+                'why_us'        => $this->renderListSection('lp-why-us', $content['headline'] ?? 'Pourquoi nous ?', $content['items'] ?? [], 'text'),
+                'guide_steps'   => $this->renderStepsSection($content),
+                'local_info'    => sprintf(
+                    '<section class="lp-local"><h2>Infos pratiques</h2><ul><li>Ambassade : %s</li><li>Urgences : %s</li><li>%s</li></ul></section>',
+                    e($content['embassy'] ?? ''),
+                    e($content['emergency_number'] ?? ''),
+                    e($content['tip'] ?? ''),
+                ),
+                'faq' => $this->renderFaqSection($content['items'] ?? []),
+                'earnings' => sprintf(
+                    '<section class="lp-earnings"><h2>%s</h2><p class="amount">%s</p><p>%s</p></section>',
+                    e($content['headline'] ?? ''),
+                    e($content['amount'] ?? ''),
+                    e($content['detail'] ?? ''),
+                ),
+                'process'  => $this->renderStepsSection($content, 'steps'),
+                'freedom'  => $this->renderListSection('lp-freedom', $content['headline'] ?? 'Liberté totale', $content['items'] ?? [], 'text'),
+                'what_you_do' => $this->renderListSection('lp-what', $content['headline'] ?? 'Votre rôle', $content['items'] ?? [], 'text'),
+                'community_proof', 'testimonial_proof', 'no_pressure',
+                'client_quality', 'lawyer_advantages', 'helper_advantages' =>
+                    $this->renderListSection('lp-' . $type, $content['headline'] ?? '', $content['items'] ?? [], 'text'),
+                'cta' => sprintf(
+                    '<section class="lp-cta"><h2>%s</h2><p>%s</p></section>',
+                    e($content['headline'] ?? ''),
+                    e($content['subtext'] ?? ''),
+                ),
+                default => '',
+            };
+        }
+
+        return $html;
+    }
+
+    private function renderListSection(string $class, string $headline, array $items, string $textKey = 'text'): string
+    {
+        if (empty($items)) return '';
+        $lis = implode('', array_map(fn ($i) => '<li>' . e($i[$textKey] ?? '') . '</li>', $items));
+        return "<section class=\"{$class}\"><h2>" . e($headline) . "</h2><ul>{$lis}</ul></section>";
+    }
+
+    private function renderStepsSection(array $content, string $key = 'steps'): string
+    {
+        $steps = $content[$key] ?? [];
+        if (empty($steps)) return '';
+        $lis = implode('', array_map(fn ($s) => '<li><strong>' . e($s['num'] ?? '') . '.</strong> ' . e($s['title'] ?? $s['label'] ?? '') . '</li>', $steps));
+        return "<section class=\"lp-process\"><h2>" . e($content['headline'] ?? 'Comment ça marche ?') . "</h2><ol>{$lis}</ol></section>";
+    }
+
+    private function renderFaqSection(array $items): string
+    {
+        if (empty($items)) return '';
+        $html = '<section class="lp-faq"><h2>Questions fréquentes</h2>';
+        foreach ($items as $item) {
+            $html .= '<div class="faq-item"><h3>' . e($item['q'] ?? '') . '</h3><p>' . e($item['a'] ?? '') . '</p></div>';
+        }
+        $html .= '</section>';
+        return $html;
+    }
+
+    /**
+     * Extrait les FAQs des sections pour les envoyer au blog dans le format attendu.
+     */
+    private function extractFaqsFromSections(array $sections, string $lang): array
+    {
+        foreach ($sections as $section) {
+            if ($section['type'] === 'faq' && ! empty($section['content']['items'])) {
+                return [
+                    $lang => array_map(fn ($item) => [
+                        'question' => $item['q'] ?? '',
+                        'answer'   => $item['a'] ?? '',
+                    ], $section['content']['items']),
+                ];
+            }
+        }
+        return [];
     }
 
     /**

@@ -24,6 +24,8 @@ class LandingPage extends Model
         'seo_score', 'generation_cost_cents',
         'status',
         'published_at',
+        'external_url',
+        'external_id',
         'created_by',
         // Landing Generator fields
         'audience_type',
@@ -32,6 +34,12 @@ class LandingPage extends Model
         'country_code',
         'generation_source',
         'generation_params',
+        // Image Unsplash
+        'featured_image_url',
+        'featured_image_alt',
+        'featured_image_attribution',
+        'photographer_name',
+        'photographer_url',
     ];
 
     protected $casts = [

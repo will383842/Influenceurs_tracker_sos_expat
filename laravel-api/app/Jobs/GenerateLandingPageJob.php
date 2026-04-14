@@ -71,6 +71,13 @@ class GenerateLandingPageJob implements ShouldQueue
                 $this->params['country_code'],
             );
 
+            // ── Multi-langues : dispatcher les 8 variantes si c'est la version primaire ──
+            // La version primaire est identifiée par l'absence de parent_id dans les params.
+            // Chaque variante hérite de l'image Unsplash de la version primaire.
+            if (empty($this->params['parent_id'])) {
+                $this->dispatchLanguageVariants($landing);
+            }
+
             // Auto-publier vers le blog
             $this->autoPublish($landing);
         }
@@ -91,6 +98,52 @@ class GenerateLandingPageJob implements ShouldQueue
             'params'    => $this->params,
             'error'     => $e->getMessage(),
             'trace'     => substr($e->getTraceAsString(), 0, 500),
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Multi-langues
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Dispatche GenerateLandingPageJob pour les 8 langues autres que celle du parent.
+     * L'image Unsplash est héritée du parent pour éviter 8× appels API Unsplash.
+     */
+    private function dispatchLanguageVariants(LandingPage $parent): void
+    {
+        $allLanguages = ['fr', 'en', 'es', 'de', 'pt', 'ar', 'hi', 'zh', 'ru'];
+        $primaryLang  = $this->params['language'] ?? 'fr';
+
+        $delay = 10; // 10s offset initial (laisser le parent se stabiliser en DB)
+
+        foreach ($allLanguages as $lang) {
+            if ($lang === $primaryLang) {
+                continue; // Déjà généré
+            }
+
+            $variantParams = array_merge($this->params, [
+                'language'                   => $lang,
+                'parent_id'                  => $parent->id,
+                // Hériter de l'image du parent — évite 8 appels Unsplash
+                'featured_image_url'         => $parent->featured_image_url,
+                'featured_image_alt'         => $parent->featured_image_alt,
+                'featured_image_attribution' => $parent->featured_image_attribution,
+                'photographer_name'          => $parent->photographer_name,
+                'photographer_url'           => $parent->photographer_url,
+            ]);
+
+            self::dispatch($variantParams)
+                ->delay(now()->addSeconds($delay))
+                ->onQueue('landings');
+
+            $delay += 8; // 8s entre chaque langue (anti-throttle Claude API)
+        }
+
+        Log::info('GenerateLandingPageJob: variantes langues dispatchées', [
+            'parent_id'    => $parent->id,
+            'primary_lang' => $primaryLang,
+            'languages'    => array_diff($allLanguages, [$primaryLang]),
+            'delay_range'  => "10s → {$delay}s",
         ]);
     }
 

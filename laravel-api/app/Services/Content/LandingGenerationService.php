@@ -6,6 +6,8 @@ use App\Models\LandingCampaign;
 use App\Models\LandingPage;
 use App\Models\LandingProblem;
 use App\Services\AI\ClaudeService;
+use App\Services\AI\UnsplashService;
+use App\Services\AI\UnsplashUsageTracker;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -190,7 +192,8 @@ class LandingGenerationService
     ];
 
     public function __construct(
-        private ClaudeService $claude,
+        private ClaudeService    $claude,
+        private UnsplashService  $unsplash,
     ) {}
 
     // ============================================================
@@ -207,6 +210,12 @@ class LandingGenerationService
      *   language: string,
      *   problem_slug?: string,
      *   created_by?: int|null,
+     *   parent_id?: int|null,
+     *   featured_image_url?: string|null,
+     *   featured_image_alt?: string|null,
+     *   featured_image_attribution?: string|null,
+     *   photographer_name?: string|null,
+     *   photographer_url?: string|null,
      * } $params
      */
     public function generate(array $params): LandingPage
@@ -223,10 +232,11 @@ class LandingGenerationService
                 $countryCode,
                 $language,
                 $params['created_by'] ?? null,
+                $params,
             ),
-            'lawyers'  => $this->generateLawyerLanding($templateId, $countryCode, $language, $params['created_by'] ?? null),
-            'helpers'  => $this->generateHelperLanding($templateId, $countryCode, $language, $params['created_by'] ?? null),
-            'matching' => $this->generateMatchingLanding($templateId, $countryCode, $language, $params['created_by'] ?? null),
+            'lawyers'  => $this->generateLawyerLanding($templateId, $countryCode, $language, $params['created_by'] ?? null, $params),
+            'helpers'  => $this->generateHelperLanding($templateId, $countryCode, $language, $params['created_by'] ?? null, $params),
+            'matching' => $this->generateMatchingLanding($templateId, $countryCode, $language, $params['created_by'] ?? null, $params),
             default    => throw new \InvalidArgumentException("audience_type invalide: {$audienceType}"),
         };
     }
@@ -241,6 +251,7 @@ class LandingGenerationService
         string $countryCode,
         string $language,
         ?int $createdBy,
+        array $params = [],
     ): LandingPage {
         $template    = self::TEMPLATES['clients'][$templateId] ?? self::TEMPLATES['clients']['seo'];
         $countryName = $this->getCountryName($countryCode, $language);
@@ -307,8 +318,9 @@ class LandingGenerationService
                 'business_value' => $problem->business_value,
                 'lp_angle'       => $problem->lp_angle,
             ],
+            'parent_id'          => $params['parent_id'] ?? null,
             'created_by'         => $createdBy,
-        ], $parsed, $slug);
+        ], $parsed, $slug, $countryName, $countryCode, 'clients', $params);
     }
 
     private function generateLawyerLanding(
@@ -316,6 +328,7 @@ class LandingGenerationService
         string $countryCode,
         string $language,
         ?int $createdBy,
+        array $params = [],
     ): LandingPage {
         $template    = self::TEMPLATES['lawyers'][$templateId] ?? self::TEMPLATES['lawyers']['general'];
         $countryName = $this->getCountryName($countryCode, $language);
@@ -376,8 +389,9 @@ class LandingGenerationService
                 'country_code' => $countryCode,
                 'angle'        => $angle,
             ],
+            'parent_id'         => $params['parent_id'] ?? null,
             'created_by'        => $createdBy,
-        ], $parsed, $slug);
+        ], $parsed, $slug, $countryName, $countryCode, 'lawyers', $params);
     }
 
     private function generateHelperLanding(
@@ -385,6 +399,7 @@ class LandingGenerationService
         string $countryCode,
         string $language,
         ?int $createdBy,
+        array $params = [],
     ): LandingPage {
         $template    = self::TEMPLATES['helpers'][$templateId] ?? self::TEMPLATES['helpers']['recruitment'];
         $countryName = $this->getCountryName($countryCode, $language);
@@ -444,8 +459,9 @@ class LandingGenerationService
                 'language'     => $language,
                 'country_code' => $countryCode,
             ],
+            'parent_id'         => $params['parent_id'] ?? null,
             'created_by'        => $createdBy,
-        ], $parsed, $slug);
+        ], $parsed, $slug, $countryName, $countryCode, 'helpers', $params);
     }
 
     private function generateMatchingLanding(
@@ -453,6 +469,7 @@ class LandingGenerationService
         string $countryCode,
         string $language,
         ?int $createdBy,
+        array $params = [],
     ): LandingPage {
         $template    = self::TEMPLATES['matching'][$templateId] ?? self::TEMPLATES['matching']['expert'];
         $countryName = $this->getCountryName($countryCode, $language);
@@ -510,8 +527,9 @@ class LandingGenerationService
                 'language'     => $language,
                 'country_code' => $countryCode,
             ],
+            'parent_id'         => $params['parent_id'] ?? null,
             'created_by'        => $createdBy,
-        ], $parsed, $slug);
+        ], $parsed, $slug, $countryName, $countryCode, 'matching', $params);
     }
 
     // ============================================================
@@ -587,8 +605,15 @@ class LandingGenerationService
         return $data;
     }
 
-    private function saveLandingPage(array $baseData, array $parsed, string $slug): LandingPage
-    {
+    private function saveLandingPage(
+        array $baseData,
+        array $parsed,
+        string $slug,
+        string $countryName = '',
+        string $countryCode = '',
+        string $audienceType = '',
+        array $params = [],
+    ): LandingPage {
         // Déduplication : si la LP existe déjà, on ne la réécrit pas
         $existing = LandingPage::where('slug', $slug)->first();
         if ($existing) {
@@ -598,7 +623,28 @@ class LandingGenerationService
         $seoScore    = $this->calculateSeoScore($parsed);
         $hreflangMap = $this->buildHreflangMap($baseData);
 
-        $landing = LandingPage::create(array_merge($baseData, [
+        // ── Image Unsplash ─────────────────────────────────────────
+        // Si le caller passe une image (variante langue d'un parent FR) → réutiliser.
+        // Sinon → fetch Unsplash (uniquement pour la version primaire FR).
+        $imageData = [];
+        if (! empty($params['featured_image_url'])) {
+            // Variante langue : copier l'image du parent
+            $imageData = [
+                'featured_image_url'         => $params['featured_image_url'],
+                'featured_image_alt'         => $params['featured_image_alt'] ?? null,
+                'featured_image_attribution' => $params['featured_image_attribution'] ?? null,
+                'photographer_name'          => $params['photographer_name'] ?? null,
+                'photographer_url'           => $params['photographer_url'] ?? null,
+            ];
+        } else {
+            // Version primaire : appel Unsplash
+            $fetchedImage = $this->fetchFeaturedImage($countryName, $audienceType, $countryCode);
+            if ($fetchedImage) {
+                $imageData = $fetchedImage;
+            }
+        }
+
+        $landing = LandingPage::create(array_merge($baseData, $imageData, [
             'title'            => $parsed['title'] ?? $slug,
             'slug'             => $slug,
             'meta_title'       => $parsed['meta_title'] ?? null,
@@ -624,6 +670,76 @@ class LandingGenerationService
         }
 
         return $landing;
+    }
+
+    /**
+     * Cherche une image Unsplash adaptée au pays + audience.
+     * 4 strategies de fallback pour maximiser les chances de trouver une image.
+     * Retourne null si Unsplash n'est pas configuré ou rate-limité.
+     */
+    private function fetchFeaturedImage(string $countryName, string $audienceType, string $countryCode): ?array
+    {
+        if (! $this->unsplash->isConfigured()) {
+            return null;
+        }
+
+        // Stratégies par ordre de préférence
+        $audienceKeyword = match ($audienceType) {
+            'clients'  => 'expat help abroad',
+            'lawyers'  => 'lawyer professional office',
+            'helpers'  => 'community help volunteer',
+            'matching' => 'international assistance',
+            default    => 'expatriate international',
+        };
+
+        $strategies = [
+            "{$countryName} expatriate life",
+            "{$countryName} city travel",
+            "expatriate {$countryName} {$audienceKeyword}",
+            $audienceKeyword,
+            'expatriate international travel',
+        ];
+
+        $tracker = app(UnsplashUsageTracker::class);
+
+        foreach ($strategies as $query) {
+            $result = $this->unsplash->searchUnique($query, 1, 'landscape', 3);
+
+            if (! empty($result['success']) && ! empty($result['images'])) {
+                $img = $result['images'][0];
+                // Marquer utilisée pour éviter réutilisation sur d'autres LP
+                $tracker->markUsed(
+                    photoUrl: $img['url'] ?? '',
+                    language: 'landing_page',   // champ language = type de contenu
+                    country: $countryCode,
+                    sourceQuery: $query,
+                    photographerName: $img['photographer_name'] ?? null,
+                    photographerUrl: $img['photographer_url'] ?? null,
+                );
+
+                Log::info('LandingGenerationService: image Unsplash trouvée', [
+                    'query'       => $query,
+                    'country'     => $countryName,
+                    'audience'    => $audienceType,
+                    'photographer' => $img['photographer_name'] ?? '',
+                ]);
+
+                return [
+                    'featured_image_url'         => $img['url'],
+                    'featured_image_alt'         => $img['alt_text'] ?? "{$countryName} expatriate",
+                    'featured_image_attribution' => $img['attribution'] ?? null,
+                    'photographer_name'          => $img['photographer_name'] ?? null,
+                    'photographer_url'           => $img['photographer_url'] ?? null,
+                ];
+            }
+        }
+
+        Log::info('LandingGenerationService: aucune image Unsplash disponible', [
+            'country'  => $countryName,
+            'audience' => $audienceType,
+        ]);
+
+        return null;
     }
 
     /**
