@@ -7,6 +7,7 @@ use App\Services\Social\LinkedInApiService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -42,7 +43,8 @@ class LinkedInOAuthController extends Controller
         $accountType = $request->get('account_type', 'personal');
         $state       = Str::random(32) . '|' . $accountType;
 
-        session(['li_oauth_state' => $state]);
+        // API routes are stateless — use Cache instead of session
+        Cache::put('li_oauth_state', $state, now()->addMinutes(10));
 
         $params = http_build_query([
             'response_type' => 'code',
@@ -61,8 +63,8 @@ class LinkedInOAuthController extends Controller
     {
         $dashboardUrl = config('services.linkedin.dashboard_url', '/');
 
-        // CSRF check
-        $savedState = session('li_oauth_state');
+        // CSRF check — use Cache (API routes are stateless)
+        $savedState = Cache::get('li_oauth_state');
         if (!$savedState || $request->state !== $savedState) {
             Log::error('LinkedIn OAuth: state mismatch');
             return redirect($dashboardUrl . '?li_error=state_mismatch');
