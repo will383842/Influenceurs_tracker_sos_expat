@@ -30,6 +30,8 @@ interface LiPost {
   hook: string;
   body: string;
   hashtags: string[];
+  first_comment: string | null;
+  featured_image_url: string | null;
   status: 'generating' | 'draft' | 'scheduled' | 'published' | 'failed';
   scheduled_at: string | null;
   published_at: string | null;
@@ -82,12 +84,29 @@ const DAYS = [
   { value: 'friday',    label: '✨ Vendredi — Témoignage/tip' },
 ];
 
-const SOURCE_TYPES = [
-  { value: 'article', label: '📄 Article de blog' },
-  { value: 'faq',     label: '❓ FAQ / Q&A' },
-  { value: 'tip',     label: '💡 Génération libre (tip/conseil)' },
-  { value: 'news',    label: '📰 Actualité (libre)' },
+// Source types grouped: DB sources (need auto-select) vs free generation
+const SOURCE_TYPES_DB = [
+  { value: 'article', label: '📄 Article de blog (meilleur score)' },
+  { value: 'faq',     label: '❓ FAQ / Q&A (meilleur SEO)' },
+  { value: 'sondage', label: '📊 Stats sondage SOS-Expat' },
 ];
+
+const SOURCE_TYPES_FREE = [
+  { value: 'hot_take',          label: '🔥 Hot take — opinion tranchée' },
+  { value: 'myth',              label: '💥 Mythe à démolir' },
+  { value: 'poll',              label: '📊 Sondage LinkedIn natif' },
+  { value: 'serie',             label: '📚 Série éducative numérotée' },
+  { value: 'reactive',          label: '⚡ Réactif — actualité' },
+  { value: 'milestone',         label: '🏆 Milestone — preuve sociale' },
+  { value: 'partner_story',     label: '🤝 Story partenaire avocat/helper' },
+  { value: 'counter_intuition', label: '🔄 Contre-intuition' },
+  { value: 'tip',               label: '💡 Tip rapide actionnable' },
+  { value: 'news',              label: '📰 Actualité libre' },
+];
+
+const ALL_SOURCE_TYPES = [...SOURCE_TYPES_DB, ...SOURCE_TYPES_FREE];
+
+const SOURCE_LABEL: Record<string, string> = Object.fromEntries(ALL_SOURCE_TYPES.map(t => [t.value, t.label]));
 
 const STATUS_META: Record<string, { label: string; variant: 'neutral' | 'info' | 'warning' | 'success' | 'danger' }> = {
   generating: { label: 'Génération...', variant: 'info' },
@@ -478,15 +497,24 @@ export default function RepublicationLinkedIn() {
             onChange={e => setGenParams(p => ({ ...p, day_type: e.target.value }))}
           />
 
-          <Select
-            label="Type de source"
-            options={SOURCE_TYPES}
-            value={genParams.source_type}
-            onChange={e => setGenParams(p => ({ ...p, source_type: e.target.value }))}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-text">Type de contenu</label>
+            <select
+              className="h-11 px-3.5 rounded-lg border border-border bg-surface2 text-sm text-text focus:outline-none focus:border-violet"
+              value={genParams.source_type}
+              onChange={e => setGenParams(p => ({ ...p, source_type: e.target.value }))}
+            >
+              <optgroup label="── Sources DB (sélection intelligente)">
+                {SOURCE_TYPES_DB.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </optgroup>
+              <optgroup label="── Génération libre (10 angles)">
+                {SOURCE_TYPES_FREE.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </optgroup>
+            </select>
+          </div>
 
-          {/* Auto-select preview */}
-          {genParams.source_type !== 'tip' && genParams.source_type !== 'news' && (
+          {/* Auto-select preview — only for DB source types */}
+          {['article', 'faq', 'sondage'].includes(genParams.source_type) && (
             <div className="rounded-lg bg-surface border border-border/60 p-3 text-sm">
               {autoSelLoading && (
                 <p className="text-text-muted animate-pulse">Recherche de la meilleure source...</p>
@@ -628,9 +656,12 @@ function PostCard({
             <span className="text-text-muted text-xs">
               {post.account === 'page' ? '🏢 Page' : post.account === 'personal' ? '👤 Perso' : '🔀 Les deux'}
             </span>
+            <span className="text-text-muted text-xs">
+              {SOURCE_LABEL[post.source_type]?.split('—')[0]?.trim() ?? post.source_type}
+            </span>
             {post.source_title && (
-              <span className="text-text-muted text-xs truncate max-w-[180px]" title={post.source_title}>
-                📄 {post.source_title}
+              <span className="text-text-muted text-xs truncate max-w-[160px]" title={post.source_title}>
+                · {post.source_title}
               </span>
             )}
           </div>
@@ -689,6 +720,27 @@ function PostCard({
             </div>
           )}
 
+          {/* First comment */}
+          {post.first_comment && (
+            <div>
+              <p className="text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
+                💬 Premier commentaire
+                <span className="text-violet-light text-[10px] font-normal normal-case tracking-normal">auto-posté 3 min après publication</span>
+              </p>
+              <div className="bg-violet/8 rounded-lg p-3 text-sm text-text-muted border border-violet/20 whitespace-pre-line">
+                {post.first_comment}
+              </div>
+            </div>
+          )}
+
+          {/* Featured image */}
+          {post.featured_image_url && (
+            <div>
+              <p className="text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">Image</p>
+              <img src={post.featured_image_url} alt="" className="rounded-lg max-h-32 object-cover border border-border" />
+            </div>
+          )}
+
           {post.status === 'published' && (post.reach > 0 || post.likes > 0) && (
             <div className="flex gap-4 text-xs text-text-muted border-t border-border pt-3">
               {post.reach > 0 && <span>👁 {post.reach.toLocaleString()} vues</span>}
@@ -717,64 +769,120 @@ function PostCard({
 function StrategyTab() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-surface2 rounded-xl border border-border p-5">
-          <h3 className="font-semibold text-text mb-4">📅 Rythme 5 jours/semaine</h3>
-          <div className="space-y-4">
-            {[
-              { day: 'Lundi',    format: 'Carrousel "Les X erreurs/conseils"', source: 'generated_articles (editorial_score DESC)', emoji: '📋' },
-              { day: 'Mardi',    format: 'Story fictive + hook émotionnel fort', source: 'qa_entries (seo_score DESC)', emoji: '💬' },
-              { day: 'Mercredi', format: '"🚨 N changements importants"', source: 'generated_articles (récents)', emoji: '⚖️' },
-              { day: 'Jeudi',    format: 'Q&A structuré, valeur max', source: 'qa_entries (seo_score DESC)', emoji: '❓' },
-              { day: 'Vendredi', format: 'Tip rapide / témoignage inspirant', source: 'génération libre', emoji: '✨' },
-            ].map(row => (
-              <div key={row.day} className="flex gap-3 items-start">
-                <span className="text-xl shrink-0">{row.emoji}</span>
-                <div>
-                  <p className="text-text text-sm font-medium">{row.day}</p>
-                  <p className="text-text-muted text-xs">{row.format}</p>
-                  <p className="text-violet-light text-xs font-mono mt-0.5">{row.source}</p>
+      {/* Rythme */}
+      <div className="bg-surface2 rounded-xl border border-border p-5">
+        <h3 className="font-semibold text-text mb-4">📅 Rythme 5 jours/semaine</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          {[
+            { day: 'Lundi',    type: 'article / hot_take', format: 'Carrousel "X erreurs/conseils"', emoji: '📋', note: 'editorial_score DESC' },
+            { day: 'Mardi',    type: 'faq / story fictive', format: 'Hook émotionnel + récit', emoji: '💬', note: 'seo_score DESC' },
+            { day: 'Mercredi', type: 'reactive / myth', format: 'Actu légale ou mythe à démolir', emoji: '🚨', note: 'libre / actu' },
+            { day: 'Jeudi',    type: 'faq / sondage', format: 'Q&A ou stat choc', emoji: '❓', note: 'stats sondage SOS-Expat' },
+            { day: 'Vendredi', type: 'tip / milestone', format: 'Tip rapide ou story partenaire', emoji: '✨', note: 'libre / inspirant' },
+          ].map(row => (
+            <div key={row.day} className="text-center p-3 rounded-lg bg-surface border border-border">
+              <p className="text-xl mb-1">{row.emoji}</p>
+              <p className="text-text text-sm font-bold">{row.day}</p>
+              <p className="text-text-muted text-xs mt-1">{row.format}</p>
+              <p className="text-violet-light text-[10px] font-mono mt-1">{row.type}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 14 Angles */}
+      <div className="bg-surface2 rounded-xl border border-border p-5">
+        <h3 className="font-semibold text-text mb-4">🎯 14 angles de contenu</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { label: '📄 Article', desc: 'Adapte un article blog en conseils actionnables', badge: 'DB source', color: 'text-green-300' },
+            { label: '❓ FAQ', desc: 'Transforme une FAQ en post engageant (hook = la question)', badge: 'DB source', color: 'text-green-300' },
+            { label: '📊 Sondage', desc: 'Crée un post statistique choc avec les données SOS-Expat', badge: 'DB source', color: 'text-green-300' },
+            { label: '🔥 Hot take', desc: 'Opinion tranchée qui génère le débat (50% en désaccord)', badge: 'Libre', color: 'text-amber-300' },
+            { label: '💥 Mythe', desc: '"Non, [mythe]. La vérité : [réalité]" + exemples concrets', badge: 'Libre', color: 'text-amber-300' },
+            { label: '📊 Poll LinkedIn', desc: 'Sondage natif LinkedIn (pousse l\'algo ×3)', badge: 'Libre', color: 'text-amber-300' },
+            { label: '📚 Série', desc: '"Expat tip #N" — fidélise et crée l\'habitude de revenir', badge: 'Libre', color: 'text-amber-300' },
+            { label: '⚡ Réactif', desc: 'Surfe sur l\'actualité → reach ×5-10 si dans les premiers', badge: 'Libre', color: 'text-amber-300' },
+            { label: '🏆 Milestone', desc: 'Preuve sociale chiffrée ("1000 expats aidés")', badge: 'Libre', color: 'text-amber-300' },
+            { label: '🤝 Story partenaire', desc: 'Avocat ou helper : humanise la plateforme, recrute', badge: 'Libre', color: 'text-amber-300' },
+            { label: '🔄 Contre-intuition', desc: 'Affirmation surprenante → curiosité → clics "voir plus"', badge: 'Libre', color: 'text-amber-300' },
+            { label: '💡 Tip rapide', desc: 'Conseil pratique immédiatement actionnable', badge: 'Libre', color: 'text-amber-300' },
+            { label: '📰 News', desc: 'Actualité légale/visa récente liée à l\'expat', badge: 'Libre', color: 'text-amber-300' },
+            { label: '📋 Case study', desc: 'Cas client (anonymisé) : problème → solution → résultat', badge: 'Libre', color: 'text-amber-300' },
+          ].map(a => (
+            <div key={a.label} className="flex items-start gap-3 p-3 rounded-lg bg-surface border border-border">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-text text-sm font-medium">{a.label}</p>
+                  <span className={`text-[10px] font-mono ${a.color}`}>{a.badge}</span>
                 </div>
+                <p className="text-text-muted text-xs mt-0.5">{a.desc}</p>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Premier commentaire + Algo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="bg-surface2 rounded-xl border border-border p-5">
+          <h3 className="font-semibold text-text mb-3">💬 Premier commentaire automatique</h3>
+          <div className="space-y-2 text-sm text-text-muted">
+            <p>Posté <strong className="text-text">3 minutes après publication</strong> via LinkedIn API v2</p>
+            <p>Contient :</p>
+            <ul className="ml-3 space-y-1">
+              <li>• Une <strong className="text-text">question ouverte</strong> à la communauté</li>
+              <li>• Le <strong className="text-text">lien vers l'article source</strong> (si disponible)</li>
+              <li>• La "suite" non dite dans le post principal</li>
+            </ul>
+            <p className="mt-2 text-xs bg-surface rounded p-2 border border-border text-text-muted italic">
+              "Vous avez vécu une situation similaire ? Partagez en commentaire 👇<br/>
+              → Guide complet : sos-expat.com/..."
+            </p>
+            <p className="text-xs text-amber-300 mt-2">⏳ Disponible dès que LinkedIn API v2 OAuth est configurée</p>
           </div>
         </div>
 
-        <div className="space-y-5">
-          <div className="bg-surface2 rounded-xl border border-border p-5">
-            <h3 className="font-semibold text-text mb-3">🤖 Sélection intelligente automatique</h3>
-            <div className="space-y-2 text-sm text-text-muted">
-              <p>• Choisit la source avec le <strong className="text-text">meilleur score éditorial</strong></p>
-              <p>• Filtre les sources <strong className="text-text">déjà republié</strong> sur LinkedIn</p>
-              <p>• Adapte selon la <strong className="text-text">langue + audience nationale</strong></p>
-              <p>• Injecte la <strong className="text-text">Knowledge Base SOS-Expat v2.0</strong></p>
-              <p>• Hashtags dérivés des <strong className="text-text">mots-clés primaires</strong></p>
-              <p>• Génération async via <strong className="text-text">Claude Haiku 4.5</strong></p>
-            </div>
+        <div className="bg-surface2 rounded-xl border border-border p-5">
+          <h3 className="font-semibold text-text mb-3">🤖 Intelligence système</h3>
+          <div className="space-y-2 text-sm text-text-muted">
+            <p>• Dedup : source non-republié (filtre par IDs)</p>
+            <p>• Score : meilleur <code className="text-xs">editorial_score</code> ou <code className="text-xs">seo_score</code></p>
+            <p>• KB injection : <strong className="text-text">KnowledgeBase SOS-Expat v2.0</strong> (20 blocs)</p>
+            <p>• Audience : <strong className="text-text">AudienceContextService</strong> (9 langues × nationalités)</p>
+            <p>• Pays en contexte corps, <strong className="text-text">jamais sujet principal</strong></p>
+            <p>• Hashtags dérivés des <code className="text-xs">keywords_primary</code></p>
+            <p>• Modèle : <strong className="text-text">Claude Haiku 4.5</strong> (rapide + économique)</p>
+            <p>• Async : résultat en 10-30s, polling toutes les 5s</p>
           </div>
+        </div>
+      </div>
 
-          <div className="bg-surface2 rounded-xl border border-border p-5">
-            <h3 className="font-semibold text-text mb-3">🎯 Phase 1 → Phase 2</h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-blue-300 text-sm font-medium">Phase 1 — Now → Août 2026</p>
-                <div className="text-text-muted text-xs space-y-1 mt-1">
-                  <p>• Langue : FR dominant</p>
-                  <p>• Cible : clients expatriés francophones</p>
-                  <p>• 5 posts/semaine · Page SOS-Expat</p>
-                  <p>• Horaires : 07h30 et 12h15</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-violet-light text-sm font-medium">Phase 2 — Sept 2026+</p>
-                <div className="text-text-muted text-xs space-y-1 mt-1">
-                  <p>• Langues : FR + EN en alternance</p>
-                  <p>• Cible : avocats partenaires + helpers</p>
-                  <p>• Page + profil personnel</p>
-                  <p>• API LinkedIn v2 OAuth connectée</p>
-                </div>
-              </div>
-            </div>
+      {/* Phase roadmap */}
+      <div className="bg-surface2 rounded-xl border border-border p-5">
+        <h3 className="font-semibold text-text mb-4">🚀 Roadmap Phase 1 → Phase 2</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="rounded-lg bg-blue-500/8 border border-blue-500/20 p-4">
+            <p className="text-blue-300 font-semibold text-sm mb-2">Phase 1 — Now → Août 2026</p>
+            <ul className="space-y-1 text-xs text-text-muted">
+              <li>✅ 5 posts/semaine · Page SOS-Expat</li>
+              <li>✅ FR dominant · clients expats francophones</li>
+              <li>✅ Horaires : 07h30 et 12h15</li>
+              <li>✅ 14 angles de contenu automatiques</li>
+              <li>✅ Premier commentaire généré (stocké)</li>
+              <li>⏳ Premier commentaire auto-publié (OAuth)</li>
+            </ul>
+          </div>
+          <div className="rounded-lg bg-violet/8 border border-violet/20 p-4">
+            <p className="text-violet-light font-semibold text-sm mb-2">Phase 2 — Sept 2026+</p>
+            <ul className="space-y-1 text-xs text-text-muted">
+              <li>🔲 FR + EN en alternance</li>
+              <li>🔲 Avocats partenaires + helpers ciblés</li>
+              <li>🔲 Page + profil personnel (double reach)</li>
+              <li>🔲 API LinkedIn v2 OAuth connectée</li>
+              <li>🔲 Réponses commentaires AI + validation Telegram</li>
+              <li>🔲 LinkedIn Newsletter</li>
+            </ul>
           </div>
         </div>
       </div>

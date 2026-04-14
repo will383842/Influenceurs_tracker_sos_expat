@@ -6,6 +6,7 @@ use App\Jobs\GenerateLinkedInPostJob;
 use App\Models\GeneratedArticle;
 use App\Models\LinkedInPost;
 use App\Models\QaEntry;
+use App\Models\Sondage;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -76,32 +77,37 @@ class LinkedInController extends Controller
 
     // ── Auto-select best unpublished source ───────────────────────────
 
+    /** Types that need a DB source */
+    private const DB_SOURCE_TYPES = ['article', 'faq', 'sondage'];
+
     public function autoSelect(Request $request): JsonResponse
     {
         $request->validate([
-            'source_type' => 'required|in:article,faq,tip',
+            'source_type' => 'required|in:article,faq,sondage,hot_take,myth,poll,serie,reactive,milestone,partner_story,counter_intuition,tip,news,case_study',
             'lang'        => 'required|in:fr,en,both',
         ]);
 
         $lang       = $request->lang === 'both' ? 'fr' : $request->lang;
         $sourceType = $request->source_type;
 
-        if ($sourceType === 'article') {
-            $usedIds = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
-                ->where('source_type', 'article')
-                ->whereNotNull('source_id')
-                ->pluck('source_id');
+        // Free-generation types — no DB source needed
+        if (!in_array($sourceType, self::DB_SOURCE_TYPES, true)) {
+            return response()->json([
+                'found'           => true,
+                'source_type'     => $sourceType,
+                'source_id'       => null,
+                'title'           => 'Génération libre — pas de source requise',
+                'available_count' => 999,
+            ]);
+        }
 
-            $source = GeneratedArticle::published()
+        if ($sourceType === 'article') {
+            $usedIds = $this->usedSourceIds('article');
+            $source  = GeneratedArticle::published()
                 ->where('language', $lang)
                 ->whereNotIn('id', $usedIds)
                 ->orderByDesc('editorial_score')
-                ->first(['id', 'title', 'language', 'country', 'editorial_score', 'quality_score', 'keywords_primary']);
-
-            $availableCount = GeneratedArticle::published()
-                ->where('language', $lang)
-                ->whereNotIn('id', $usedIds)
-                ->count();
+                ->first(['id', 'title', 'language', 'country', 'editorial_score', 'quality_score']);
 
             return response()->json([
                 'found'           => $source !== null,
@@ -111,26 +117,17 @@ class LinkedInController extends Controller
                 'country'         => $source?->country,
                 'editorial_score' => $source?->editorial_score,
                 'quality_score'   => $source?->quality_score,
-                'available_count' => $availableCount,
+                'available_count' => GeneratedArticle::published()->where('language', $lang)->whereNotIn('id', $usedIds)->count(),
             ]);
         }
 
         if ($sourceType === 'faq') {
-            $usedIds = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
-                ->where('source_type', 'faq')
-                ->whereNotNull('source_id')
-                ->pluck('source_id');
-
-            $source = QaEntry::published()
+            $usedIds = $this->usedSourceIds('faq');
+            $source  = QaEntry::published()
                 ->where('language', $lang)
                 ->whereNotIn('id', $usedIds)
                 ->orderByDesc('seo_score')
-                ->first(['id', 'question', 'language', 'country', 'seo_score', 'keywords_primary']);
-
-            $availableCount = QaEntry::published()
-                ->where('language', $lang)
-                ->whereNotIn('id', $usedIds)
-                ->count();
+                ->first(['id', 'question', 'language', 'country', 'seo_score']);
 
             return response()->json([
                 'found'           => $source !== null,
@@ -139,18 +136,28 @@ class LinkedInController extends Controller
                 'title'           => $source?->question,
                 'country'         => $source?->country,
                 'seo_score'       => $source?->seo_score,
-                'available_count' => $availableCount,
+                'available_count' => QaEntry::published()->where('language', $lang)->whereNotIn('id', $usedIds)->count(),
             ]);
         }
 
-        // tip — free generation, no source needed
-        return response()->json([
-            'found'           => true,
-            'source_type'     => 'tip',
-            'source_id'       => null,
-            'title'           => 'Génération libre (conseil / tip)',
-            'available_count' => 999,
-        ]);
+        if ($sourceType === 'sondage') {
+            $usedIds = $this->usedSourceIds('sondage');
+            $source  = Sondage::whereIn('status', ['active', 'closed'])
+                ->where('language', $lang)
+                ->whereNotIn('id', $usedIds)
+                ->latest()
+                ->first(['id', 'title', 'status', 'language']);
+
+            return response()->json([
+                'found'           => $source !== null,
+                'source_type'     => 'sondage',
+                'source_id'       => $source?->id,
+                'title'           => $source?->title,
+                'available_count' => Sondage::whereIn('status', ['active', 'closed'])->where('language', $lang)->whereNotIn('id', $usedIds)->count(),
+            ]);
+        }
+
+        return response()->json(['found' => false, 'source_type' => $sourceType, 'available_count' => 0]);
     }
 
     // ── Generate (async) ───────────────────────────────────────────────
@@ -158,7 +165,7 @@ class LinkedInController extends Controller
     public function generate(Request $request): JsonResponse
     {
         $request->validate([
-            'source_type' => 'required|in:article,faq,tip,news,case_study',
+            'source_type' => 'required|in:article,faq,sondage,hot_take,myth,poll,serie,reactive,milestone,partner_story,counter_intuition,tip,news,case_study',
             'source_id'   => 'nullable|integer',
             'day_type'    => 'required|in:monday,tuesday,wednesday,thursday,friday',
             'lang'        => 'required|in:fr,en,both',
@@ -236,10 +243,20 @@ class LinkedInController extends Controller
             return match ($type) {
                 'article' => GeneratedArticle::find($id)?->title,
                 'faq'     => QaEntry::find($id)?->question,
+                'sondage' => Sondage::find($id)?->title,
                 default   => null,
             };
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /** IDs already used for a given source_type (dedup) */
+    private function usedSourceIds(string $sourceType): \Illuminate\Support\Collection
+    {
+        return LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
+            ->where('source_type', $sourceType)
+            ->whereNotNull('source_id')
+            ->pluck('source_id');
     }
 }

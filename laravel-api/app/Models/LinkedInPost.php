@@ -9,9 +9,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * LinkedIn post record.
  *
- * status: generating | draft | scheduled | published | failed
- * phase:  1 = Francophone clients (FR dominant)
- *         2 = Global expansion (FR + EN)
+ * status:      generating | draft | scheduled | published | failed
+ * phase:       1 = Francophone clients (FR dominant, now → Aug 2026)
+ *              2 = Global expansion (FR + EN, Sep 2026+)
+ * source_type: article | faq | sondage | hot_take | myth | poll | serie |
+ *              reactive | milestone | partner_story | counter_intuition |
+ *              tip | news | case_study
+ *
+ * first_comment: auto-posted 3 min after publication (LinkedIn API v2)
+ * featured_image_url: optional image from source article
  */
 class LinkedInPost extends Model
 {
@@ -19,6 +25,7 @@ class LinkedInPost extends Model
         'source_type', 'source_id', 'source_title',
         'day_type', 'lang', 'account',
         'hook', 'body', 'hashtags',
+        'first_comment', 'featured_image_url',
         'status', 'scheduled_at', 'published_at',
         'li_post_id_page', 'li_post_id_personal',
         'reach', 'likes', 'comments', 'shares', 'clicks', 'engagement_rate',
@@ -47,5 +54,31 @@ class LinkedInPost extends Model
     public function faq(): BelongsTo
     {
         return $this->belongsTo(QaEntry::class, 'source_id');
+    }
+
+    public function sondage(): BelongsTo
+    {
+        return $this->belongsTo(Sondage::class, 'source_id');
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────
+
+    /** Types that require no DB source (free AI generation) */
+    public function isFreeGeneration(): bool
+    {
+        return in_array($this->source_type, [
+            'hot_take', 'myth', 'poll', 'serie', 'reactive',
+            'milestone', 'partner_story', 'counter_intuition', 'tip', 'news', 'case_study',
+        ], true);
+    }
+
+    public function fullText(): string
+    {
+        return $this->hook . "\n\n" . $this->body;
+    }
+
+    public function charCount(): int
+    {
+        return mb_strlen($this->fullText());
     }
 }
