@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -28,9 +27,12 @@ class AuthController extends Controller
             ]);
         }
 
+        // Revoke previous tokens to avoid accumulation
+        $user->tokens()->delete();
+
+        $token = $user->createToken('mc-session')->plainTextToken;
+
         $user->update(['last_login_at' => now()]);
-        Auth::login($user);
-        $request->session()->regenerate();
 
         ActivityLog::create([
             'user_id'    => $user->id,
@@ -39,15 +41,14 @@ class AuthController extends Controller
         ]);
 
         return response()->json([
-            'user' => $user->only('id', 'name', 'email', 'role', 'contact_types', 'territories'),
+            'token' => $token,
+            'user'  => $user->only('id', 'name', 'email', 'role', 'contact_types', 'territories'),
         ]);
     }
 
     public function logout(Request $request)
     {
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $request->user()?->tokens()->delete();
 
         return response()->json(['message' => 'Déconnecté.']);
     }
