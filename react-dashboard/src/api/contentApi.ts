@@ -916,7 +916,7 @@ export const launchCampaign = () =>
 export type AudienceType = 'clients' | 'lawyers' | 'helpers' | 'matching';
 
 export const fetchLandingCampaign = (audienceType: AudienceType) =>
-  api.get(`/landing-campaigns/${audienceType}`);
+  api.get(`/content-gen/landing-campaigns/${audienceType}`);
 
 export const updateLandingCampaign = (
   audienceType: AudienceType,
@@ -930,19 +930,19 @@ export const updateLandingCampaign = (
       business_values?: string[];
     } | null;
   },
-) => api.put(`/landing-campaigns/${audienceType}`, data);
+) => api.put(`/content-gen/landing-campaigns/${audienceType}`, data);
 
 export const launchLandingCampaign = (audienceType: AudienceType, language = 'fr') =>
-  api.post(`/landing-campaigns/${audienceType}/launch`, { language });
+  api.post(`/content-gen/landing-campaigns/${audienceType}/launch`, { language });
 
 export const addLandingCampaignCountry = (audienceType: AudienceType, code: string) =>
-  api.post(`/landing-campaigns/${audienceType}/add/${code}`);
+  api.post(`/content-gen/landing-campaigns/${audienceType}/add/${code}`);
 
 export const removeLandingCampaignCountry = (audienceType: AudienceType, code: string) =>
-  api.delete(`/landing-campaigns/${audienceType}/remove/${code}`);
+  api.delete(`/content-gen/landing-campaigns/${audienceType}/remove/${code}`);
 
 export const reorderLandingCampaign = (audienceType: AudienceType, country_queue: string[]) =>
-  api.put(`/landing-campaigns/${audienceType}/reorder`, { country_queue });
+  api.put(`/content-gen/landing-campaigns/${audienceType}/reorder`, { country_queue });
 
 // ============================================================
 // LANDING GENERATOR — PROBLEMS
@@ -955,7 +955,7 @@ export const fetchLandingProblems = (params?: {
   product_route?: string;
   search?: string;
   per_page?: number;
-}) => api.get('/landing-problems', { params });
+}) => api.get('/content-gen/landing-problems', { params });
 
 export const fetchLandingProblemCategories = () =>
-  api.get('/landing-problems/categories');
+  api.get('/content-gen/landing-problems/categories');
