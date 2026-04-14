@@ -7,7 +7,7 @@ use App\Models\GeneratedArticle;
 use App\Models\LinkedInPost;
 use App\Models\QaEntry;
 use App\Models\Sondage;
-use App\Services\AI\ClaudeService;
+use App\Services\AI\OpenAiService;
 use App\Services\Content\AudienceContextService;
 use App\Services\Content\KnowledgeBaseService;
 use Illuminate\Http\Request;
@@ -210,7 +210,7 @@ class LinkedInController extends Controller
         $request->validate(['comment_text' => 'required|string|min:5|max:1000']);
 
         $lang    = $post->lang === 'both' ? 'fr' : $post->lang;
-        $claude  = app(ClaudeService::class);
+        $openai  = app(OpenAiService::class);
         $kb      = app(KnowledgeBaseService::class);
 
         $kbContext  = $kb->getLightPrompt('linkedin', null, $lang);
@@ -243,8 +243,8 @@ Retourne un JSON : { "variants": ["réponse1", "réponse2", ..., "réponse10"] }
 USER;
 
         try {
-            $result = $claude->complete($systemPrompt, $userPrompt, [
-                'model'      => 'claude-haiku-4-5-20251001',
+            $result = $openai->complete($systemPrompt, $userPrompt, [
+                'model'      => 'gpt-4o-mini',
                 'max_tokens' => 800,
                 'json_mode'  => true,
             ]);

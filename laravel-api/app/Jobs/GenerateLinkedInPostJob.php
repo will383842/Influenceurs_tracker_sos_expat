@@ -6,7 +6,8 @@ use App\Models\GeneratedArticle;
 use App\Models\LinkedInPost;
 use App\Models\QaEntry;
 use App\Models\Sondage;
-use App\Services\AI\ClaudeService;
+use App\Services\AI\OpenAiService;
+use App\Services\AI\UnsplashService;
 use App\Services\Content\AudienceContextService;
 use App\Services\Content\KnowledgeBaseService;
 use Illuminate\Bus\Queueable;
@@ -48,7 +49,7 @@ class GenerateLinkedInPostJob implements ShouldQueue
         $this->onQueue('linkedin');
     }
 
-    public function handle(ClaudeService $claude, KnowledgeBaseService $kb): void
+    public function handle(OpenAiService $openai, KnowledgeBaseService $kb, UnsplashService $unsplash): void
     {
         $post = LinkedInPost::find($this->postId);
         if (!$post) {
@@ -64,11 +65,11 @@ class GenerateLinkedInPostJob implements ShouldQueue
             $source = $this->fetchSource($post->source_type, $post->source_id, $lang);
 
             // ── 2. Build system prompt with full KB + audience ───────
-            $kbContext       = $kb->getLightPrompt('linkedin', null, $lang);
-            $audienceContext = AudienceContextService::getContextFor($lang);
-            $dayInstructions = $this->getDayInstructions($dayType, $post->source_type, $lang);
+            $kbContext         = $kb->getLightPrompt('linkedin', null, $lang);
+            $audienceContext   = AudienceContextService::getContextFor($lang);
+            $dayInstructions   = $this->getDayInstructions($dayType, $post->source_type, $lang);
             $angleInstructions = $this->getAngleInstructions($post->source_type, $lang);
-            $langLabel       = $lang === 'en' ? 'English' : 'français';
+            $langLabel         = $lang === 'en' ? 'English' : 'français';
 
             $systemPrompt = <<<SYSTEM
 {$kbContext}
@@ -113,9 +114,9 @@ Retourne UNIQUEMENT un objet JSON valide avec exactement ces 4 clés :
 }
 USER;
 
-            // ── 3. Generate with Claude Haiku ────────────────────────
-            $result = $claude->complete($systemPrompt, $userPrompt, [
-                'model'       => 'claude-haiku-4-5-20251001',
+            // ── 3. Generate with GPT-4o-mini ─────────────────────────
+            $result = $openai->complete($systemPrompt, $userPrompt, [
+                'model'       => 'gpt-4o-mini',
                 'max_tokens'  => 1800,
                 'temperature' => 0.78,
                 'json_mode'   => true,
@@ -133,8 +134,28 @@ USER;
             // ── 5. First comment fallback ────────────────────────────
             $firstComment = $data['first_comment'] ?? $this->defaultFirstComment($post->source_type, $source['url'], $lang);
 
-            // ── 6. Image: use source article featured image ──────────
-            $featuredImage = $source['image_url'] ?? null;
+            // ── 6. Image: article image OR Unsplash search ──────────
+            $featuredImage      = $source['image_url'] ?? null;
+            $imageAttribution   = null;
+
+            if (!$featuredImage && $unsplash->isConfigured()) {
+                $imgQuery  = $this->buildUnsplashQuery($post->source_type, $source['keywords'], $lang);
+                $imgResult = $unsplash->searchUnique($imgQuery, 1, 'landscape');
+                if ($imgResult['success'] && !empty($imgResult['images'])) {
+                    $img              = $imgResult['images'][0];
+                    $featuredImage    = $img['url'];
+                    $imageAttribution = $img['attribution']; // "Photo by X on Unsplash"
+                    Log::info('GenerateLinkedInPostJob: Unsplash image found', [
+                        'query' => $imgQuery,
+                        'attribution' => $imageAttribution,
+                    ]);
+                }
+            }
+
+            // Append Unsplash attribution to first comment (API requirement)
+            if ($imageAttribution) {
+                $firstComment .= "\n\n📸 " . $imageAttribution;
+            }
 
             // ── 7. Auto-schedule to next free optimal slot ──────────
             $controller   = new \App\Http\Controllers\LinkedInController();
@@ -355,6 +376,46 @@ USER;
             'url'           => '',
             'image_url'     => null,
         ];
+    }
+
+    // ── Unsplash query builder ─────────────────────────────────────────
+
+    /**
+     * Build a relevant Unsplash search query from source type + keywords.
+     * Keeps the query generic enough to get good results (Unsplash isn't
+     * specialized in expat topics; abstract/lifestyle photos work best).
+     */
+    private function buildUnsplashQuery(string $sourceType, string $keywords, string $lang): string
+    {
+        // Type-specific visual themes
+        $typeThemes = [
+            'article'           => 'expat travel city passport',
+            'faq'               => 'professional meeting consulting office',
+            'sondage'           => 'data chart survey people diverse',
+            'hot_take'          => 'bold statement speaking microphone',
+            'myth'              => 'magnifying glass truth discovery',
+            'poll'              => 'voting choice decision crossroads',
+            'serie'             => 'learning education book study',
+            'reactive'          => 'breaking news newspaper alert',
+            'milestone'         => 'celebration success achievement trophy',
+            'partner_story'     => 'collaboration handshake partnership',
+            'counter_intuition' => 'surprise twist unexpected arrow',
+            'tip'               => 'lightbulb idea solution tips',
+            'news'              => 'newspaper world news globe',
+            'case_study'        => 'success story result growth chart',
+        ];
+
+        $theme = $typeThemes[$sourceType] ?? 'travel abroad international';
+
+        // Extract up to 2 meaningful keywords from the source
+        $kwList = array_filter(array_map('trim', explode(',', $keywords)));
+        $kw1    = $kwList[0] ?? '';
+        $kw2    = $kwList[1] ?? '';
+
+        // Prefer theme + first keyword for relevance; fallback to theme alone
+        $query = $kw1 ? "{$theme} {$kw1}" : $theme;
+
+        return mb_substr($query, 0, 80); // Unsplash query max
     }
 
     // ── Day & angle instructions ───────────────────────────────────────

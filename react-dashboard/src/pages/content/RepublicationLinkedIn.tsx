@@ -843,7 +843,7 @@ function PostCard({
           </div>
 
           {post.status === 'generating' ? (
-            <p className="text-blue-300 text-sm animate-pulse">Génération IA en cours (Claude Haiku)...</p>
+            <p className="text-blue-300 text-sm animate-pulse">Génération IA en cours (GPT-4o-mini)...</p>
           ) : post.status === 'failed' ? (
             <p className="text-red-300 text-sm line-clamp-1">{post.error_message ?? 'Échec de génération'}</p>
           ) : (
@@ -1048,7 +1048,8 @@ function StrategyTab() {
             <p>• Audience : <strong className="text-text">AudienceContextService</strong> (9 langues × nationalités)</p>
             <p>• Pays en contexte corps, <strong className="text-text">jamais sujet principal</strong></p>
             <p>• Hashtags dérivés des <code className="text-xs">keywords_primary</code></p>
-            <p>• Modèle : <strong className="text-text">Claude Haiku 4.5</strong> (rapide + économique)</p>
+            <p>• Modèle : <strong className="text-text">GPT-4o-mini</strong> (rapide + économique)</p>
+            <p>• Image : <strong className="text-text">Unsplash</strong> (searchUnique, anti-doublon, attribution auto en 1er commentaire)</p>
             <p>• Async : résultat en 10-30s, polling toutes les 5s</p>
           </div>
         </div>
