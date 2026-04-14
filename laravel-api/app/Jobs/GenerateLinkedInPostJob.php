@@ -183,6 +183,16 @@ L'audience LinkedIn anglophone est internationale, plus senior et plus saturée.
 → Ton expert-to-expert, jamais condescendant ou "conseils de base".
 SYSTEM;
 
+            // Country context line (only when the source has a known country)
+            $countryLine = !empty($source['country'])
+                ? "Pays de contexte (à mentionner naturellement dans l'acte 1, jamais comme sujet principal) : " . $source['country']
+                : '';
+
+            // URL line for first comment
+            $urlLine = !empty($source['url'])
+                ? "URL de l'article source (OBLIGATOIRE dans first_comment) : {$source['url']}"
+                : "Pas d'URL source — mets uniquement → SOS-Expat.com dans first_comment";
+
             $userPrompt = <<<USER
 Génère un post LinkedIn en {$langLabel} — voix de fondateur expert, ZÉRO commercial.
 
@@ -193,7 +203,8 @@ SOURCE (inspire-toi, ne recopie pas) :
 Titre : {$source['title']}
 Contenu : {$source['content']}
 Mots-clés : {$source['keywords']}
-URL (pour le 1er commentaire UNIQUEMENT) : {$source['url']}
+{$countryLine}
+{$urlLine}
 
 RAPPEL CRITIQUE :
 - Hook ≤ 140 chars, première personne "Je", tension immédiate
@@ -201,13 +212,14 @@ RAPPEL CRITIQUE :
 - Corps 1000-1500 chars, 4 actes, paragraphes courts
 - CTA = question précise sur une situation réelle vécue
 - Max 2 émojis dans tout le post
+- first_comment DOIT contenir l'URL source si fournie (jamais dans le corps du post)
 
 Retourne UNIQUEMENT un JSON valide :
 {
   "hook": "accroche ≤140 chars, sans saut de ligne, en {$langLabel}",
   "body": "corps 1000-1500 chars, \\n entre paragraphes, en {$langLabel}",
   "hashtags": ["mot1", "mot2", "mot3"],
-  "first_comment": "question rebond + lien discret vers SOS-Expat.com ou URL source, 150-250 chars, en {$langLabel}"
+  "first_comment": "question rebond + URL source obligatoire + lien SOS-Expat.com, 150-300 chars, en {$langLabel}"
 }
 USER;
 
@@ -217,15 +229,21 @@ USER;
             // ── 4. Hashtags: sanitize + fallback from keywords ───────
             $hashtags = $this->buildHashtags($data['hashtags'] ?? [], $source['hashtag_seeds']);
 
-            // ── 5. First comment fallback ────────────────────────────
+            // ── 5. First comment — ensure source URL is always present ──
             $firstComment = $data['first_comment'] ?? $this->defaultFirstComment($post->source_type, $source['url'], $lang);
+
+            // Post-processing: if source has a URL but the AI forgot to include it, append it
+            if (!empty($source['url']) && !str_contains($firstComment, $source['url'])) {
+                $arrow = ($lang === 'en') ? '→ Full article: ' : '→ Article complet : ';
+                $firstComment = rtrim($firstComment) . "\n\n" . $arrow . $source['url'];
+            }
 
             // ── 6. Image: article image OR Unsplash search ──────────
             $featuredImage      = $source['image_url'] ?? null;
             $imageAttribution   = null;
 
             if (!$featuredImage && $unsplash->isConfigured()) {
-                $imgQuery  = $this->buildUnsplashQuery($post->source_type, $source['keywords'], $lang);
+                $imgQuery  = $this->buildUnsplashQuery($post->source_type, $source['keywords'], $lang, $source['country'] ?? '');
                 $imgResult = $unsplash->searchUnique($imgQuery, 1, 'landscape');
                 if ($imgResult['success'] && !empty($imgResult['images'])) {
                     $img              = $imgResult['images'][0];
@@ -569,7 +587,7 @@ USER;
         return [
             'hook'          => $hook,
             'body'          => $body,
-            'hashtags'      => array_merge(['expatriation', 'expat', 'sosexpat'], $keywords),
+            'hashtags'      => array_merge(['expatriation', 'expat'], $keywords),
             'first_comment' => $firstCommentText,
         ];
     }
@@ -599,9 +617,10 @@ USER;
             'title'         => 'SOS-Expat.com',
             'content'       => '',
             'keywords'      => 'expatriation, expat, visa, étranger, avocat',
-            'hashtag_seeds' => ['expatriation', 'expat', 'sosexpat'],
+            'hashtag_seeds' => ['expatriation', 'expat'],
             'url'           => '',
             'image_url'     => null,
+            'country'       => '',
         ];
 
         // Free types — no DB source
@@ -728,6 +747,7 @@ USER;
             'hashtag_seeds' => array_slice($seeds, 0, 5),
             'url'           => $a->external_url ?? $a->canonical_url ?? '',
             'image_url'     => $a->featured_image_url ?? null,
+            'country'       => $a->country ?? '',
         ];
     }
 
@@ -750,6 +770,7 @@ USER;
             'hashtag_seeds' => array_slice($seeds, 0, 4),
             'url'           => $f->external_url ?? $f->canonical_url ?? '',
             'image_url'     => null,
+            'country'       => $f->country ?? '',
         ];
     }
 
@@ -780,37 +801,42 @@ USER;
      * Keeps the query generic enough to get good results (Unsplash isn't
      * specialized in expat topics; abstract/lifestyle photos work best).
      */
-    private function buildUnsplashQuery(string $sourceType, string $keywords, string $lang): string
+    private function buildUnsplashQuery(string $sourceType, string $keywords, string $lang, string $country = ''): string
     {
-        // Type-specific visual themes
+        // Type-specific visual themes — varied pool to reduce repetition
         $typeThemes = [
-            'article'           => 'expat travel city passport',
-            'faq'               => 'professional meeting consulting office',
-            'sondage'           => 'data chart survey people diverse',
-            'hot_take'          => 'bold statement speaking microphone',
-            'myth'              => 'magnifying glass truth discovery',
-            'poll'              => 'voting choice decision crossroads',
-            'serie'             => 'learning education book study',
-            'reactive'          => 'breaking news newspaper alert',
-            'milestone'         => 'celebration success achievement trophy',
-            'partner_story'     => 'collaboration handshake partnership',
-            'counter_intuition' => 'surprise twist unexpected arrow',
-            'tip'               => 'lightbulb idea solution tips',
-            'news'              => 'newspaper world news globe',
-            'case_study'        => 'success story result growth chart',
+            'article'           => ['expat abroad city life', 'travel documents passport visa', 'international move boxes', 'city skyline abroad urban', 'airport departure international'],
+            'faq'               => ['professional advice consultation', 'desk laptop working abroad', 'office meeting business', 'person thinking decision', 'document paperwork administration'],
+            'sondage'           => ['data analytics people diverse', 'survey statistics chart', 'world map global data', 'people voting choice', 'research analysis numbers'],
+            'hot_take'          => ['confident speaker podium', 'bold statement contrast', 'discussion debate diverse', 'microphone speaking crowd', 'strong opinion newspaper'],
+            'myth'              => ['magnifying glass discovery truth', 'question mark confusion', 'myth versus reality split', 'detective investigation clue', 'reveal surprise unveil'],
+            'poll'              => ['voting choice crossroads', 'hands raised decision', 'ballot choice select', 'diverse group opinion', 'decision fork road'],
+            'serie'             => ['open book learning study', 'education growth steps', 'library knowledge books', 'notebook pen writing tips', 'learning path journey'],
+            'reactive'          => ['newspaper breaking news', 'phone alert notification', 'news headline world', 'urgent update flash', 'current events media'],
+            'milestone'         => ['celebration achievement success', 'trophy award milestone', 'team clapping success', 'anniversary number milestone', 'goal completed checkmark'],
+            'partner_story'     => ['handshake partnership collaboration', 'two people meeting coffee', 'lawyer professional meeting', 'business people agreement', 'team working together'],
+            'counter_intuition' => ['surprise twist unexpected', 'arrow opposite direction', 'upside down reverse', 'paradox contrast unexpected', 'mind blown realization'],
+            'tip'               => ['lightbulb idea creative', 'checklist practical tips', 'sticky note reminder advice', 'notebook writing ideas', 'simple solution clear'],
+            'news'              => ['globe world map international', 'newspaper legislation law', 'parliament government official', 'legal gavel law book', 'world news today'],
+            'case_study'        => ['growth chart result success', 'before after transformation', 'client meeting solution', 'problem solved whiteboard', 'success story data result'],
         ];
 
-        $theme = $typeThemes[$sourceType] ?? 'travel abroad international';
+        $themePool = $typeThemes[$sourceType] ?? ['travel international abroad city'];
 
-        // Extract up to 2 meaningful keywords from the source
-        $kwList = array_filter(array_map('trim', explode(',', $keywords)));
-        $kw1    = $kwList[0] ?? '';
-        $kw2    = $kwList[1] ?? '';
+        // Use post ID-based deterministic selection to vary within the pool
+        // (post ID not available here, so we use keyword hash for stability)
+        $hash  = abs(crc32($keywords . $country));
+        $theme = $themePool[$hash % count($themePool)];
 
-        // Prefer theme + first keyword for relevance; fallback to theme alone
-        $query = $kw1 ? "{$theme} {$kw1}" : $theme;
+        // Extract 1 meaningful keyword from the source (first non-trivial word)
+        $kwList = array_values(array_filter(array_map('trim', explode(',', $keywords))));
+        $kw1    = !empty($kwList[0]) ? $kwList[0] : '';
 
-        return mb_substr($query, 0, 80); // Unsplash query max
+        // Include country as a specific geographic anchor when available
+        $parts = array_filter([$theme, $kw1, $country]);
+        $query = implode(' ', array_slice(array_values($parts), 0, 3));
+
+        return mb_substr($query, 0, 80);
     }
 
     // ── Day & angle instructions ───────────────────────────────────────

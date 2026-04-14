@@ -35,18 +35,22 @@ class FillLinkedInCalendarCommand extends Command
 
     /** Day-of-week number (1=Mon…5=Fri) → base source type */
     private const DAY_BASE = [
-        1 => ['monday',    'article'],
+        1 => ['monday',    'article'],    // overridden by MON_ROTATION
         2 => ['tuesday',   'faq'],
-        3 => ['wednesday', 'hot_take'],   // overridden by rotation
-        4 => ['thursday',  'faq'],        // overridden by rotation
-        5 => ['friday',    'tip'],        // overridden by rotation
+        3 => ['wednesday', 'hot_take'],   // overridden by WED_ROTATION
+        4 => ['thursday',  'faq'],        // overridden by THU_ROTATION
+        5 => ['friday',    'tip'],        // overridden by FRI_ROTATION
     ];
 
     /**
      * Rotation arrays per day.
      * Indexed by (ISO week number % count) for deterministic variation.
      * Repeating the most impactful types more often is intentional.
+     *
+     * Monday: article (carrousel pratique) OU hot_take (opinion tranchée).
+     * Ratio 2:1 article→hot_take pour garder la valeur pratique dominante.
      */
+    private const MON_ROTATION = ['article', 'article', 'hot_take', 'article', 'article', 'hot_take'];
     private const WED_ROTATION = ['hot_take', 'reactive', 'myth', 'counter_intuition', 'hot_take', 'news'];
     private const THU_ROTATION = ['faq', 'sondage', 'faq', 'poll', 'faq', 'sondage'];
     private const FRI_ROTATION = ['tip', 'milestone', 'partner_story', 'case_study', 'tip', 'counter_intuition'];
@@ -174,6 +178,7 @@ class FillLinkedInCalendarCommand extends Command
         [$dayType, $base] = self::DAY_BASE[$dow];
 
         $sourceType = match ($dow) {
+            1 => self::MON_ROTATION[$isoWeek % count(self::MON_ROTATION)],
             3 => self::WED_ROTATION[$isoWeek % count(self::WED_ROTATION)],
             4 => self::THU_ROTATION[$isoWeek % count(self::THU_ROTATION)],
             5 => self::FRI_ROTATION[$isoWeek % count(self::FRI_ROTATION)],

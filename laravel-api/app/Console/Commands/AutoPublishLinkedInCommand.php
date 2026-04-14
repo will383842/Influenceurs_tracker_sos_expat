@@ -123,8 +123,24 @@ class AutoPublishLinkedInCommand extends Command
             // Always publish on personal profile (Community Management API not yet approved)
             $urn = $this->api->publish($post, 'personal');
             if (!$urn) { $this->failPost($post, 'LinkedIn personal API returned no URN'); return; }
+
             $post->update(['li_post_id_personal' => $urn, 'status' => 'published', 'published_at' => now()]);
             $this->scheduleFirstComment($post, $urn, 'personal');
+
+            // ── Telegram success notification ──
+            if ($this->telegram->isConfigured()) {
+                $hook    = mb_substr($post->hook ?? '', 0, 120);
+                $day     = ucfirst($post->day_type ?? '');
+                $lang    = strtoupper($post->lang ?? 'fr');
+                $dateStr = $post->scheduled_at?->format('D d M Y') ?? now()->format('D d M Y');
+                $this->telegram->sendMessage(
+                    "✅ <b>LinkedIn publié !</b>\n\n"
+                    . "<b>{$hook}</b>\n\n"
+                    . "🗓 {$dateStr} | {$day} | {$lang}\n"
+                    . "🔗 URN : <code>{$urn}</code>\n"
+                    . "💬 1er commentaire dans 3 min"
+                );
+            }
 
         } catch (\Throwable $e) {
             $this->failPost($post, $e->getMessage());
@@ -145,5 +161,19 @@ class AutoPublishLinkedInCommand extends Command
     {
         $post->update(['status' => 'failed', 'error_message' => $reason]);
         Log::error('linkedin:auto-publish: failed', ['post_id' => $post->id, 'reason' => $reason]);
+
+        // ── Telegram failure notification ──
+        if ($this->telegram->isConfigured()) {
+            $hook    = mb_substr($post->hook ?? '(sans hook)', 0, 100);
+            $day     = ucfirst($post->day_type ?? '');
+            $dateStr = $post->scheduled_at?->format('D d M Y') ?? '';
+            $this->telegram->sendMessage(
+                "❌ <b>LinkedIn publication échouée</b>\n\n"
+                . "Post #{$post->id} | {$day} | {$dateStr}\n"
+                . "<i>{$hook}</i>\n\n"
+                . "Erreur : <code>" . mb_substr($reason, 0, 300) . "</code>\n\n"
+                . "→ Vérifier dans Mission Control : onglet LinkedIn > File d'attente"
+            );
+        }
     }
 }
