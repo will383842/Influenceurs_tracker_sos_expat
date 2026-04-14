@@ -373,38 +373,32 @@ USER;
     }
 
     /**
-     * Find the next free posting slot: Mon-Fri at 07:30 or 12:15.
-     * Skips slots already taken by another post (same lang, within 30 min).
+     * Find the next free posting slot: Mon-Fri, ONE post per day at 07:30 UTC (09:30 Paris).
+     * LinkedIn best practices 2026: max 1 post/day, morning slot = highest engagement.
+     * Skips days that already have any scheduled post (regardless of language).
      */
     public function nextFreeSlot(string $lang = 'fr'): \Illuminate\Support\Carbon
     {
-        $slots = ['07:30', '12:15'];
-        $now   = now();
+        $now = now();
 
         for ($dayOffset = 0; $dayOffset <= 21; $dayOffset++) {
             $candidate = $now->copy()->addDays($dayOffset);
             if ($candidate->isWeekend()) continue;
 
-            foreach ($slots as $time) {
-                [$h, $m] = explode(':', $time);
-                $slot = $candidate->copy()->setHour((int)$h)->setMinute((int)$m)->setSecond(0);
+            $slot = $candidate->copy()->setHour(7)->setMinute(30)->setSecond(0);
+            if ($slot->isPast()) continue;
 
-                if ($slot->isPast()) continue;
+            // Only one post per calendar day — check for ANY scheduled post that day
+            $conflict = LinkedInPost::where('status', 'scheduled')
+                ->whereDate('scheduled_at', $slot->toDateString())
+                ->exists();
 
-                // Check no post of the same language is already scheduled within ±30 min
-                $conflict = LinkedInPost::where('status', 'scheduled')
-                    ->where('lang', $lang)
-                    ->whereBetween('scheduled_at', [
-                        $slot->copy()->subMinutes(30),
-                        $slot->copy()->addMinutes(30),
-                    ])
-                    ->exists();
-
-                if (!$conflict) return $slot;
-            }
+            if (!$conflict) return $slot;
         }
 
         // Absolute fallback: next weekday at 07:30
-        return now()->addDay()->setHour(7)->setMinute(30)->setSecond(0);
+        return now()->addDay()->isWeekend()
+            ? now()->addDays(3)->setHour(7)->setMinute(30)->setSecond(0)
+            : now()->addDay()->setHour(7)->setMinute(30)->setSecond(0);
     }
 }
