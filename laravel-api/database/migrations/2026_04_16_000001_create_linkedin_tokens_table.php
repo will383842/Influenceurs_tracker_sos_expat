@@ -1,29 +1,34 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
+/**
+ * Stores encrypted LinkedIn OAuth tokens (personal + page).
+ * PostgreSQL-compatible (no MySQL ENGINE, no UNSIGNED, no ENUM).
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement("CREATE TABLE linkedin_tokens (
-            id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            account_type  ENUM('personal','page') NOT NULL,
-            access_token  TEXT NOT NULL COMMENT 'Encrypted OAuth access token',
-            refresh_token TEXT NULL     COMMENT 'Encrypted refresh token (365d TTL)',
-            expires_at    TIMESTAMP NOT NULL,
-            linkedin_id   VARCHAR(100) NOT NULL COMMENT 'person URN or org numeric ID',
-            linkedin_name VARCHAR(255) NULL,
-            scope         TEXT NULL,
-            created_at    TIMESTAMP NULL,
-            updated_at    TIMESTAMP NULL,
-            UNIQUE KEY uq_account_type (account_type)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        if (Schema::hasTable('linkedin_tokens')) return;
+
+        Schema::create('linkedin_tokens', function (Blueprint $table) {
+            $table->id();
+            $table->string('account_type', 20)->unique(); // 'personal' | 'page'
+            $table->text('access_token');                 // Encrypted OAuth access token
+            $table->text('refresh_token')->nullable();    // Encrypted refresh token (365d TTL)
+            $table->timestamp('expires_at');
+            $table->string('linkedin_id', 100);           // person URN or org numeric ID
+            $table->string('linkedin_name', 255)->nullable();
+            $table->text('scope')->nullable();
+            $table->timestamps();
+        });
     }
 
     public function down(): void
     {
-        DB::statement("DROP TABLE IF EXISTS linkedin_tokens");
+        Schema::dropIfExists('linkedin_tokens');
     }
 };

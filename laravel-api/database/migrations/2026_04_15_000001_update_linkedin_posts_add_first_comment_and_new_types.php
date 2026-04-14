@@ -1,57 +1,35 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
+/**
+ * Add first_comment + featured_image_url columns to linkedin_posts.
+ * source_type and status are VARCHAR in PostgreSQL — no ENUM modification needed.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Expand source_type enum to include all 14 content angles
-        DB::statement("ALTER TABLE linkedin_posts MODIFY COLUMN source_type ENUM(
-            'article',
-            'faq',
-            'sondage',
-            'news',
-            'hot_take',
-            'myth',
-            'poll',
-            'serie',
-            'reactive',
-            'milestone',
-            'partner_story',
-            'counter_intuition',
-            'tip',
-            'case_study'
-        ) NOT NULL DEFAULT 'article'");
-
-        // 2. Add 'generating' status to the status enum
-        DB::statement("ALTER TABLE linkedin_posts MODIFY COLUMN status ENUM(
-            'generating',
-            'draft',
-            'scheduled',
-            'published',
-            'failed'
-        ) NOT NULL DEFAULT 'draft'");
-
-        // 3. Add first_comment column (text for the auto-comment posted 3 min after publication)
-        DB::statement("ALTER TABLE linkedin_posts ADD COLUMN first_comment TEXT NULL AFTER error_message");
-
-        // 4. Add featured_image_url for posts that include an image
-        DB::statement("ALTER TABLE linkedin_posts ADD COLUMN featured_image_url VARCHAR(500) NULL AFTER first_comment");
+        Schema::table('linkedin_posts', function (Blueprint $table) {
+            if (!Schema::hasColumn('linkedin_posts', 'first_comment')) {
+                $table->text('first_comment')->nullable();
+            }
+            if (!Schema::hasColumn('linkedin_posts', 'featured_image_url')) {
+                $table->string('featured_image_url', 500)->nullable();
+            }
+        });
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE linkedin_posts DROP COLUMN IF EXISTS featured_image_url");
-        DB::statement("ALTER TABLE linkedin_posts DROP COLUMN IF EXISTS first_comment");
-
-        DB::statement("ALTER TABLE linkedin_posts MODIFY COLUMN status ENUM(
-            'draft','scheduled','published','failed'
-        ) NOT NULL DEFAULT 'draft'");
-
-        DB::statement("ALTER TABLE linkedin_posts MODIFY COLUMN source_type ENUM(
-            'article','faq','testimonial','news','case_study','tip'
-        ) NOT NULL DEFAULT 'article'");
+        Schema::table('linkedin_posts', function (Blueprint $table) {
+            $cols = array_filter([
+                Schema::hasColumn('linkedin_posts', 'featured_image_url') ? 'featured_image_url' : null,
+                Schema::hasColumn('linkedin_posts', 'first_comment') ? 'first_comment' : null,
+            ]);
+            if ($cols) $table->dropColumn(array_values($cols));
+        });
     }
 };

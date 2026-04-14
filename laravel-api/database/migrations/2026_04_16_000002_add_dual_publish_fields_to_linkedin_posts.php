@@ -1,30 +1,43 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
+/**
+ * Add dual-publish fields to linkedin_posts (account=both strategy).
+ *   page_publish_after  → when to publish on the company page (personal + 4h30)
+ *   page_published_at   → actual page publish timestamp
+ *   publish_error_page  → error message if page publish failed
+ *
+ * PostgreSQL-compatible (no AFTER clause, no multi-column single statement).
+ */
 return new class extends Migration
 {
-    /**
-     * account=both strategy:
-     *   - personal published first (at scheduled_at)
-     *   - page published 4h30 later (at page_publish_after)
-     */
     public function up(): void
     {
-        DB::statement("ALTER TABLE linkedin_posts
-            ADD COLUMN page_publish_after   TIMESTAMP NULL AFTER auto_scheduled,
-            ADD COLUMN page_published_at    TIMESTAMP NULL AFTER page_publish_after,
-            ADD COLUMN publish_error_page   TEXT NULL AFTER page_published_at
-        ");
+        Schema::table('linkedin_posts', function (Blueprint $table) {
+            if (!Schema::hasColumn('linkedin_posts', 'page_publish_after')) {
+                $table->timestamp('page_publish_after')->nullable();
+            }
+            if (!Schema::hasColumn('linkedin_posts', 'page_published_at')) {
+                $table->timestamp('page_published_at')->nullable();
+            }
+            if (!Schema::hasColumn('linkedin_posts', 'publish_error_page')) {
+                $table->text('publish_error_page')->nullable();
+            }
+        });
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE linkedin_posts
-            DROP COLUMN IF EXISTS publish_error_page,
-            DROP COLUMN IF EXISTS page_published_at,
-            DROP COLUMN IF EXISTS page_publish_after
-        ");
+        Schema::table('linkedin_posts', function (Blueprint $table) {
+            $cols = array_filter([
+                Schema::hasColumn('linkedin_posts', 'publish_error_page')  ? 'publish_error_page' : null,
+                Schema::hasColumn('linkedin_posts', 'page_published_at')   ? 'page_published_at' : null,
+                Schema::hasColumn('linkedin_posts', 'page_publish_after')  ? 'page_publish_after' : null,
+            ]);
+            if ($cols) $table->dropColumn(array_values($cols));
+        });
     }
 };
