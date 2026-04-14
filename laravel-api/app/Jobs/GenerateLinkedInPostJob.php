@@ -115,8 +115,8 @@ Retourne UNIQUEMENT un objet JSON valide avec exactement ces 4 clés :
 }
 USER;
 
-            // ── 3. Generate: GPT-4o → Claude fallback → template fallback ─
-            $data = $this->generateWithFallback($openai, $systemPrompt, $userPrompt, $post, $source, $lang, $dayType);
+            // ── 3. Generate with QA loop (max 3 attempts) ───────────
+            $data = $this->generateWithQualityLoop($openai, $systemPrompt, $userPrompt, $post, $source, $lang, $dayType);
 
             // ── 4. Hashtags: sanitize + fallback from keywords ───────
             $hashtags = $this->buildHashtags($data['hashtags'] ?? [], $source['hashtag_seeds']);
@@ -267,6 +267,145 @@ USER;
         $this->notifyFallback($post, '⚠️ GPT + Claude indisponibles — post généré depuis template. Vérifiez vos crédits API.');
 
         return $this->buildTemplatePost($source, $lang, $dayType, $post->source_type);
+    }
+
+    // ── Quality loop (auto-improve until score ≥ 80) ──────────────────────
+
+    /**
+     * Up to 3 generation attempts. Each attempt is scored (0-100).
+     * If score < 80, the next prompt includes the critique so the AI
+     * corrects its own mistakes. Best attempt is always returned.
+     */
+    private function generateWithQualityLoop(
+        OpenAiService $openai,
+        string        $systemPrompt,
+        string        $userPrompt,
+        LinkedInPost  $post,
+        array         $source,
+        string        $lang,
+        string        $dayType,
+    ): array {
+        $bestData  = null;
+        $bestScore = 0;
+        $maxRounds = 3;
+        $threshold = 80;
+        $currentPrompt = $userPrompt;
+
+        for ($round = 1; $round <= $maxRounds; $round++) {
+            $data = $this->generateWithFallback($openai, $systemPrompt, $currentPrompt, $post, $source, $lang, $dayType);
+
+            $score    = $this->scorePost($data);
+            $critique = $this->buildCritique($data, $lang);
+
+            Log::info('GenerateLinkedInPostJob: QA score', [
+                'post_id' => $post->id,
+                'round'   => $round,
+                'score'   => $score,
+                'issues'  => $critique ?: 'none',
+            ]);
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestData  = $data;
+            }
+
+            if ($score >= $threshold || $round === $maxRounds) break;
+
+            // Build corrective prompt for next round
+            $langLabel      = $lang === 'en' ? 'English' : 'français';
+            $currentPrompt  = $userPrompt . "\n\n" . <<<CRITIQUE
+CRITIQUE DU POST PRÉCÉDENT (score: {$score}/100) :
+{$critique}
+
+Régénère le post en {$langLabel} en corrigeant UNIQUEMENT ces points.
+Garde le même sujet et la même structure JSON.
+CRITIQUE;
+        }
+
+        if ($bestScore < $threshold) {
+            Log::warning('GenerateLinkedInPostJob: QA below threshold after retries', [
+                'post_id'    => $post->id,
+                'best_score' => $bestScore,
+            ]);
+        }
+
+        return $bestData;
+    }
+
+    /**
+     * Score a generated post 0-100 based on LinkedIn best practices.
+     *
+     * Hook ≤ 140 chars       → 25 pts
+     * No URL in body         → 25 pts
+     * Body 1200-1800 chars   → 20 pts
+     * 3-5 hashtags           → 15 pts
+     * First comment present  → 15 pts
+     */
+    private function scorePost(array $data): int
+    {
+        $score = 0;
+        $hook         = $data['hook']          ?? '';
+        $body         = $data['body']          ?? '';
+        $hashtags     = $data['hashtags']       ?? [];
+        $firstComment = $data['first_comment'] ?? '';
+
+        // Hook ≤ 140 chars (LinkedIn "see more" threshold)
+        if (mb_strlen($hook) > 0 && mb_strlen($hook) <= 140) $score += 25;
+        elseif (mb_strlen($hook) <= 160)                      $score += 12; // partial
+
+        // No URL in body (algorithmic penalty on LinkedIn)
+        if (!preg_match('#https?://|www\.#i', $body)) $score += 25;
+
+        // Body length 1200-1800 chars
+        $bodyLen = mb_strlen($hook . "\n\n" . $body);
+        if ($bodyLen >= 1200 && $bodyLen <= 1800)      $score += 20;
+        elseif ($bodyLen >= 900 && $bodyLen <= 2200)   $score += 10; // acceptable
+
+        // Hashtag count 3-5
+        $hashCount = count(is_array($hashtags) ? $hashtags : []);
+        if ($hashCount >= 3 && $hashCount <= 5)        $score += 15;
+        elseif ($hashCount >= 1 && $hashCount <= 7)    $score += 7;
+
+        // First comment with content
+        if (mb_strlen($firstComment) >= 50)            $score += 15;
+        elseif (mb_strlen($firstComment) > 0)          $score += 7;
+
+        return min(100, $score);
+    }
+
+    /**
+     * Return a human-readable critique string listing what failed QA.
+     * Empty string means the post passed all checks.
+     */
+    private function buildCritique(array $data, string $lang): string
+    {
+        $issues = [];
+        $hook         = $data['hook']          ?? '';
+        $body         = $data['body']          ?? '';
+        $hashtags     = $data['hashtags']       ?? [];
+        $firstComment = $data['first_comment'] ?? '';
+        $hookLen      = mb_strlen($hook);
+        $bodyLen      = mb_strlen($hook . "\n\n" . $body);
+        $hashCount    = count(is_array($hashtags) ? $hashtags : []);
+
+        if ($hookLen > 140)
+            $issues[] = "- Hook trop long ({$hookLen} chars, max 140). Raccourcis le hook.";
+        if ($hookLen === 0)
+            $issues[] = "- Hook manquant. Crée une accroche percutante en 2-3 lignes.";
+        if (preg_match('#https?://|www\.#i', $body))
+            $issues[] = "- Le corps contient une URL. JAMAIS de lien dans le post — mets le lien UNIQUEMENT dans first_comment.";
+        if ($bodyLen < 1200)
+            $issues[] = "- Corps trop court ({$bodyLen} chars, min 1200). Développe avec exemples et conseils pratiques.";
+        if ($bodyLen > 1800)
+            $issues[] = "- Corps trop long ({$bodyLen} chars, max 1800). Condense sans perdre la valeur.";
+        if ($hashCount < 3)
+            $issues[] = "- Trop peu de hashtags ({$hashCount}, besoin de 3-5 hashtags de niche).";
+        if ($hashCount > 5)
+            $issues[] = "- Trop de hashtags ({$hashCount}, maximum 5). Garde uniquement les plus pertinents.";
+        if (mb_strlen($firstComment) < 50)
+            $issues[] = "- Premier commentaire trop court ou absent. Ajoute une question ouverte + le lien de l'article.";
+
+        return implode("\n", $issues);
     }
 
     /** Build a decent post from the source content without any AI */
