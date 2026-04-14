@@ -292,46 +292,122 @@ class LandingGenerationService
 
         $systemPrompt = $this->buildSystemPrompt('clients', $countryCode, $countryName, $language);
 
+        // ── Préparer le contexte enrichi du problème ────────────────
+        $searchQueriesList = 'Non disponible';
+        if (!empty($problem->search_queries_seed)) {
+            $queries = is_array($problem->search_queries_seed)
+                ? $problem->search_queries_seed
+                : (json_decode($problem->search_queries_seed, true) ?? []);
+            if (!empty($queries)) {
+                $searchQueriesList = '• ' . implode("\n        • ", array_slice($queries, 0, 5));
+            }
+        }
+
+        $faqSeedStr = 'Non disponible';
+        if (!empty($problem->faq_seed)) {
+            $faq = is_array($problem->faq_seed)
+                ? $problem->faq_seed
+                : (json_decode($problem->faq_seed, true) ?? []);
+            $faqSeedStr = !empty($faq) ? json_encode($faq, JSON_UNESCAPED_UNICODE) : 'Non disponible';
+        }
+
+        $urgencyLabel = match(true) {
+            $problem->urgency_score >= 8 => "TRÈS URGENT ({$problem->urgency_score}/10) → langage d'urgence, \"maintenant\", FOMO, verbes au présent actif",
+            $problem->urgency_score >= 5 => "MODÉRÉ ({$problem->urgency_score}/10) → mélange informatif + réassurance + CTA direct",
+            default                      => "INFORMATIF ({$problem->urgency_score}/10) → pédagogique, exhaustif, sans pression excessive",
+        };
+
+        $expertTypes = [];
+        if ($problem->needs_lawyer) $expertTypes[] = 'avocat partenaire SOS-Expat';
+        if ($problem->needs_helper) $expertTypes[] = 'expatrié aidant SOS-Expat';
+        $expertTypeStr = implode(' ou ', $expertTypes ?: ['expert SOS-Expat']);
+
         $userPrompt = <<<PROMPT
-        Génère une landing page SOS-Expat pour :
-        - Problème : {$problem->title}
-        - Angle : {$problem->lp_angle}
-        - Pays : {$countryName} ({$countryCode})
-        - Template : {$template['label']} — Ton : {$template['tone']}
-        - Langue de rédaction : {$language}
-        - Intent : {$template['intent']}
-        - CTA principal : "{$template['cta_primary']}"
-        - FAQ seed : {$problem->faq_seed}
+        TÂCHE: Générer une landing page haute-conversion en {$language} pour SOS-Expat.
+        Répondre UNIQUEMENT en JSON valide. TOUT le contenu en {$language}.
 
-        Sections à inclure dans l'ordre : {$this->formatSections($template['sections'])}.
+        ══════════════════════════════════════════════════════
+        PROBLÈME À RÉSOUDRE
+        ══════════════════════════════════════════════════════
+        Titre du problème : {$problem->title}
+        Angle LP          : {$problem->lp_angle}
+        Catégorie         : {$problem->category}
+        Urgence           : {$urgencyLabel}
+        Business value    : {$problem->business_value}
+        Expert à connecter: {$expertTypeStr}
 
-        Réponds UNIQUEMENT en JSON valide avec cette structure :
+        ══════════════════════════════════════════════════════
+        CIBLAGE GÉOGRAPHIQUE
+        ══════════════════════════════════════════════════════
+        Pays : {$countryName} ({$countryCode})
+        Langue OBLIGATOIRE: {$language} — TOUT le contenu dans cette langue, SANS EXCEPTION
+
+        ══════════════════════════════════════════════════════
+        REQUÊTES GOOGLE CIBLES → H1 ET META_TITLE DOIVENT Y RÉPONDRE
+        ══════════════════════════════════════════════════════
+        {$searchQueriesList}
+
+        ══════════════════════════════════════════════════════
+        TEMPLATE & TON
+        ══════════════════════════════════════════════════════
+        Template : {$template['label']} | Ton : {$template['tone']}
+        Intent   : {$template['intent']}
+        CTA cible: "{$template['cta_primary']}" (TRADUIRE en {$language} si nécessaire)
+
+        ══════════════════════════════════════════════════════
+        FAQ SEEDS (à enrichir, adapter au pays, Answer-First)
+        ══════════════════════════════════════════════════════
+        {$faqSeedStr}
+
+        ══════════════════════════════════════════════════════
+        SECTIONS À GÉNÉRER (ordre exact)
+        ══════════════════════════════════════════════════════
+        {$this->formatSections($template['sections'])}
+
+        RÈGLES PAR SECTION:
+        • hero      → badge (≤10 mots, chiffres ou stats), h1 (5-9 MOTS MAX, keyword dès le 1er mot),
+                      subtitle (15-25 mots, amplifie H1, "pourquoi SOS-Expat"),
+                      cta_text (3-5 mots, verbe d'action + bénéfice, EN {$language}),
+                      cta_subtext (≤12 mots, lever le frein principal, EN {$language})
+        • trust_signals → 4-5 items, chiffres précis, max 7 mots chacun, EN {$language}
+        • guide_steps   → headline H2 "People Also Ask", 3-5 étapes, verbe impératif, 15-30 mots/étape
+        • local_info    → données réelles/vraisemblables pour {$countryName} (ambassade, num urgence local, conseil pratique)
+        • faq           → headline H2, MINIMUM 5 questions recherche vocale, réponses Answer-First 40-60 mots
+        • why_us/trust  → arguments spécifiques SOS-Expat vs alternatives (avocats traditionnels, forums)
+        • cta           → headline ≤10 mots + button 3-5 mots (EN {$language}) + subtext ≤12 mots
+
+        ══════════════════════════════════════════════════════
+        STRUCTURE JSON (répondre avec ce schéma, tout en {$language})
+        ══════════════════════════════════════════════════════
         {
-          "title": "...",
-          "url_slug": "...(ASCII kebab-case slug du problème dans la langue cible, ex: visa-refuse-dossier-incomplet pour FR, visa-refused-incomplete-file pour EN)",
+          "title": "...(50-70 chars, keyword principal + pays)",
+          "url_slug": "...(ASCII kebab-case slug EN {$language}, ex FR: visa-refuse-dossier-incomplet, EN: visa-refused-incomplete-file)",
+          "keywords_primary": "...(keyword exact comme tapé sur Google, en {$language})",
+          "keywords_secondary": ["...", "...", "..."],
           "sections": [
-            {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
+            {"type": "hero", "content": {"badge": "★ 4.9/5 · ...", "h1": "...", "subtitle": "...", "cta_text": "...", "cta_subtext": "..."}},
             {"type": "trust_signals", "content": {"items": [{"icon": "⚡", "text": "..."}]}},
-            {"type": "guide_steps", "content": {"steps": [{"num": 1, "title": "...", "text": "..."}]}},
-            {"type": "local_info", "content": {"embassy": "...", "emergency_number": "...", "tip": "..."}},
-            {"type": "faq", "content": {"items": [{"q": "...", "a": "..."}]}},
+            {"type": "guide_steps", "content": {"headline": "...", "steps": [{"num": 1, "title": "...", "text": "..."}]}},
+            {"type": "local_info", "content": {"headline": "...", "embassy": "...", "emergency_number": "...", "tip": "...", "local_fact": "..."}},
+            {"type": "faq", "content": {"headline": "...", "items": [{"q": "...", "a": "..."}]}},
             {"type": "cta", "content": {"headline": "...", "button": "...", "subtext": "..."}}
           ],
-          "meta_title": "...(max 60 chars)",
-          "meta_description": "...(max 155 chars)",
+          "meta_title": "...(EXACTEMENT 55-60 chars — keyword + pays + SOS-Expat, EN {$language})",
+          "meta_description": "...(EXACTEMENT 148-155 chars — verbe d'action + bénéfice + pays, EN {$language})",
           "cta_links": [
-            {"label": "...", "url": "/", "style": "primary", "position": "hero"},
-            {"label": "...", "url": "/", "style": "secondary", "position": "footer"}
+            {"label": "...(3-5 mots EN {$language})", "url": "#contact", "style": "primary", "position": "hero"},
+            {"label": "...(3-5 mots EN {$language})", "url": "#contact", "style": "secondary", "position": "footer"}
           ]
         }
         PROMPT;
 
-        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
-        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+        $model       = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $temperature = ($params['use_cheap_model'] ?? false) ? 0.4 : 0.7;
+        $result      = $this->openAi->complete($systemPrompt, $userPrompt, [
             'model'       => $model,
-            'max_tokens'  => 4000,
+            'max_tokens'  => 4500,
             'json_mode'   => true,
-            'temperature' => 0.7,
+            'temperature' => $temperature,
         ]);
 
         // Fallback Claude si OpenAI échoue
@@ -384,41 +460,83 @@ class LandingGenerationService
         $angle = str_replace('{country}', $countryName, $template['angle']);
 
         $userPrompt = <<<PROMPT
-        Génère une landing page de recrutement d'avocats partenaires pour SOS-Expat.
-        - Pays : {$countryName} ({$countryCode})
-        - Angle : {$angle}
-        - Template : {$template['label']} — Ton : {$template['tone']}
-        - Langue de rédaction : {$language}
-        - Rémunération : 30€ par consultation de 20 minutes. Paiement sous 24h.
-        - Liberté totale : l'avocat choisit ses horaires.
-        - Processus : Inscription → Activation profil → Réception appels → Paiement.
+        TÂCHE: Générer une landing page de recrutement d'avocats partenaires en {$language} pour SOS-Expat.
+        Répondre UNIQUEMENT en JSON valide. TOUT le contenu en {$language}.
 
-        Réponds UNIQUEMENT en JSON valide avec cette structure :
+        ══════════════════════════════════════════════════════
+        CONTEXTE PRODUIT — CE QU'ON OFFRE AUX AVOCATS
+        ══════════════════════════════════════════════════════
+        • 30€ par consultation de 20 minutes (tarif fixe, transparent)
+        • Paiement garanti sous 24h après chaque appel — zéro retard, zéro impayé
+        • Zéro prospection: SOS-Expat envoie les clients directement sur leur profil
+        • Liberté totale des horaires: l'avocat active/désactive son profil quand il veut
+        • Clientèle internationale qualifiée: expatriés et voyageurs à {$countryName}
+        • Inscription et activation en moins de 5 minutes, sans engagement
+
+        ══════════════════════════════════════════════════════
+        ANGLE & TEMPLATE
+        ══════════════════════════════════════════════════════
+        Angle     : {$angle}
+        Template  : {$template['label']}
+        Ton       : {$template['tone']}
+        Pays      : {$countryName} ({$countryCode})
+        Langue OBLIGATOIRE: {$language} — TOUT en {$language}, SANS EXCEPTION
+
+        ══════════════════════════════════════════════════════
+        ANGLE COMPÉTITIF (à intégrer subtilement)
+        ══════════════════════════════════════════════════════
+        Vs publicité/SEO traditionnel: coûts fixes élevés, résultats incertains, délais longs
+        Vs bouche-à-oreille: aléatoire, limité géographiquement
+        SOS-Expat: clients préqualifiés, paiement instantané, flux continu sans effort
+
+        ══════════════════════════════════════════════════════
+        SECTIONS À GÉNÉRER (ordre exact)
+        ══════════════════════════════════════════════════════
+        {$this->formatSections($template['sections'])}
+
+        RÈGLES PAR SECTION:
+        • hero          → badge (≤10 mots, ex: "★ Déjà 500+ avocats partenaires"), h1 (5-9 mots, bénéfice principal),
+                          subtitle (15-25 mots, clarifier l'opportunité), cta_text (3-5 mots EN {$language}),
+                          cta_subtext (≤12 mots, lever le frein: "Sans engagement · Activation immédiate")
+        • earnings      → headline H2, montant exact "30€", délai paiement "24h", 3-4 badges financiers précis
+                          (ex: "Paiement chaque consultation", "Zéro impayé", "Cumul illimité")
+        • freedom       → headline H2, 4-5 items liberté avec chiffres (ex: "0 heure minimum exigée")
+        • process       → headline H2, exactement 4 étapes: Inscription → Profil → Appels → Paiement
+        • client_quality→ headline H2, 3-4 items sur la qualité des clients (internationaux, qualifiés, préparés)
+        • faq           → headline H2, MINIMUM 5 questions que se pose un avocat hésitant (Answer-First, 40-60 mots)
+        • cta           → headline ≤10 mots + button 3-5 mots (EN {$language}) + subtext ≤12 mots
+
+        ══════════════════════════════════════════════════════
+        STRUCTURE JSON (tout en {$language})
+        ══════════════════════════════════════════════════════
         {
-          "title": "...",
-          "url_slug": "...(ASCII kebab-case slug dans la langue cible, ex: devenir-partenaire-avocat pour FR, become-lawyer-partner pour EN)",
+          "title": "...(50-70 chars, keyword + pays)",
+          "url_slug": "...(ASCII kebab-case EN {$language}, ex FR: devenir-avocat-partenaire, EN: become-lawyer-partner)",
+          "keywords_primary": "...(keyword comme tapé sur Google, en {$language})",
+          "keywords_secondary": ["...", "...", "..."],
           "sections": [
-            {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
-            {"type": "earnings", "content": {"headline": "...", "amount": "30€", "detail": "...", "badges": ["..."]}},
+            {"type": "hero", "content": {"badge": "★ ...", "h1": "...", "subtitle": "...", "cta_text": "...", "cta_subtext": "..."}},
+            {"type": "earnings", "content": {"headline": "...", "amount": "30€", "per": "...", "payment_delay": "...", "badges": ["...","...","..."]}},
             {"type": "freedom", "content": {"headline": "...", "items": [{"icon": "✓", "text": "..."}]}},
-            {"type": "process", "content": {"steps": [{"num": 1, "label": "..."}]}},
-            {"type": "faq", "content": {"items": [{"q": "...", "a": "..."}]}},
+            {"type": "process", "content": {"headline": "...", "steps": [{"num": 1, "label": "...", "detail": "..."}]}},
+            {"type": "faq", "content": {"headline": "...", "items": [{"q": "...", "a": "..."}]}},
             {"type": "cta", "content": {"headline": "...", "button": "...", "subtext": "..."}}
           ],
-          "meta_title": "...(max 60 chars)",
-          "meta_description": "...(max 155 chars)",
+          "meta_title": "...(EXACTEMENT 55-60 chars, EN {$language})",
+          "meta_description": "...(EXACTEMENT 148-155 chars, EN {$language})",
           "cta_links": [
-            {"label": "S'inscrire maintenant", "url": "/inscription-avocat", "style": "primary", "position": "hero"}
+            {"label": "...(3-5 mots EN {$language})", "url": "#inscription", "style": "primary", "position": "hero"}
           ]
         }
         PROMPT;
 
-        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
-        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+        $model       = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $temperature = ($params['use_cheap_model'] ?? false) ? 0.4 : 0.7;
+        $result      = $this->openAi->complete($systemPrompt, $userPrompt, [
             'model'       => $model,
-            'max_tokens'  => 3000,
+            'max_tokens'  => 3500,
             'json_mode'   => true,
-            'temperature' => 0.7,
+            'temperature' => $temperature,
         ]);
 
         // Fallback Claude si OpenAI échoue
@@ -467,41 +585,84 @@ class LandingGenerationService
         $angle = str_replace('{country}', $countryName, $template['angle']);
 
         $userPrompt = <<<PROMPT
-        Génère une landing page de recrutement d'expatriés aidants pour SOS-Expat.
-        - Pays : {$countryName} ({$countryCode})
-        - Angle : {$angle}
-        - Template : {$template['label']} — Ton : {$template['tone']}
-        - Langue de rédaction : {$language}
-        - Rémunération : 10€ par appel d'assistance de 20 minutes.
-        - Profil cible : expatrié déjà installé dans le pays, connaissant les démarches locales.
-        - Aide fournie : accompagnement pratique (logement, admin, intégration), pas juridique.
+        TÂCHE: Générer une landing page de recrutement d'expatriés aidants en {$language} pour SOS-Expat.
+        Répondre UNIQUEMENT en JSON valide. TOUT le contenu en {$language}.
 
-        Réponds UNIQUEMENT en JSON valide avec cette structure :
+        ══════════════════════════════════════════════════════
+        PROFIL CIBLE — QUI EST L'EXPATRIÉ AIDANT ?
+        ══════════════════════════════════════════════════════
+        • Déjà installé à {$countryName} depuis au moins 6-12 mois
+        • Connaît les démarches locales (logement, visa, banque, sécurité sociale, admin)
+        • Veut aider les nouveaux arrivants comme il aurait voulu être aidé lui-même
+        • AIDE PRATIQUE UNIQUEMENT: logement, intégration, administration, vie quotidienne — PAS juridique
+        • Peut répondre depuis son smartphone, à n'importe quelle heure selon ses disponibilités
+
+        ══════════════════════════════════════════════════════
+        CE QU'ON LUI OFFRE
+        ══════════════════════════════════════════════════════
+        • 10€ par appel d'assistance de 20 minutes
+        • Paiement automatique après chaque appel
+        • Liberté totale: activer/désactiver son profil à tout moment, zéro engagement
+        • Impact réel: aider des expatriés dans une situation difficile, comme lui l'a vécu
+        • Communauté: faire partie du réseau entraide SOS-Expat à {$countryName}
+
+        ══════════════════════════════════════════════════════
+        ANGLE & TEMPLATE
+        ══════════════════════════════════════════════════════
+        Angle    : {$angle}
+        Template : {$template['label']}
+        Ton      : {$template['tone']}
+        Pays     : {$countryName} ({$countryCode})
+        Langue OBLIGATOIRE: {$language} — TOUT en {$language}, SANS EXCEPTION
+
+        ══════════════════════════════════════════════════════
+        SECTIONS À GÉNÉRER (ordre exact)
+        ══════════════════════════════════════════════════════
+        {$this->formatSections($template['sections'])}
+
+        RÈGLES PAR SECTION:
+        • hero           → badge (ex: "★ Déjà 200+ expatriés aidants à {$countryName}"), h1 (5-9 mots, angle communautaire/opportunité),
+                           subtitle (15-25 mots, "valoriser son expérience"), cta_text (3-5 mots EN {$language}),
+                           cta_subtext (≤12 mots, lever le frein: "Zéro engagement · 100% flexible")
+        • what_you_do    → headline H2, 4-5 exemples concrets d'aide fournie (logement, banque, admin, orientation, réseau)
+        • earnings       → headline H2, "10€", délai paiement, 3-4 badges (ex: "Paiement instantané", "Cumul illimité", "Depuis son téléphone")
+        • community_proof→ headline H2, témoignages/stats communauté, sentiment d'appartenance
+        • no_pressure    → headline H2, 4-5 items liberté (zéro quota, zéro horaire fixe, zéro contrat, pause quand on veut)
+        • process        → headline H2, 4 étapes: Inscription → Profil → Appels entrants → Paiement
+        • faq            → headline H2, MINIMUM 5 questions qu'un expatrié hésitant se pose (Answer-First, 40-60 mots)
+        • cta            → headline ≤10 mots + button 3-5 mots (EN {$language}) + subtext ≤12 mots
+
+        ══════════════════════════════════════════════════════
+        STRUCTURE JSON (tout en {$language})
+        ══════════════════════════════════════════════════════
         {
-          "title": "...",
-          "url_slug": "...(ASCII kebab-case slug dans la langue cible, ex: devenir-expat-aidant pour FR, become-expat-helper pour EN)",
+          "title": "...(50-70 chars, keyword + pays)",
+          "url_slug": "...(ASCII kebab-case EN {$language}, ex FR: devenir-expat-aidant, EN: become-expat-helper)",
+          "keywords_primary": "...(keyword comme tapé sur Google, en {$language})",
+          "keywords_secondary": ["...", "...", "..."],
           "sections": [
-            {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
+            {"type": "hero", "content": {"badge": "★ ...", "h1": "...", "subtitle": "...", "cta_text": "...", "cta_subtext": "..."}},
             {"type": "what_you_do", "content": {"headline": "...", "items": [{"icon": "✓", "text": "..."}]}},
-            {"type": "earnings", "content": {"headline": "...", "amount": "10€", "detail": "...", "badges": ["..."]}},
-            {"type": "process", "content": {"steps": [{"num": 1, "label": "..."}]}},
-            {"type": "faq", "content": {"items": [{"q": "...", "a": "..."}]}},
+            {"type": "earnings", "content": {"headline": "...", "amount": "10€", "per": "...", "payment_delay": "...", "badges": ["...","..."]}},
+            {"type": "process", "content": {"headline": "...", "steps": [{"num": 1, "label": "...", "detail": "..."}]}},
+            {"type": "faq", "content": {"headline": "...", "items": [{"q": "...", "a": "..."}]}},
             {"type": "cta", "content": {"headline": "...", "button": "...", "subtext": "..."}}
           ],
-          "meta_title": "...(max 60 chars)",
-          "meta_description": "...(max 155 chars)",
+          "meta_title": "...(EXACTEMENT 55-60 chars, EN {$language})",
+          "meta_description": "...(EXACTEMENT 148-155 chars, EN {$language})",
           "cta_links": [
-            {"label": "Devenir expatrié aidant", "url": "/inscription-helper", "style": "primary", "position": "hero"}
+            {"label": "...(3-5 mots EN {$language})", "url": "#inscription", "style": "primary", "position": "hero"}
           ]
         }
         PROMPT;
 
-        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
-        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+        $model       = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $temperature = ($params['use_cheap_model'] ?? false) ? 0.4 : 0.7;
+        $result      = $this->openAi->complete($systemPrompt, $userPrompt, [
             'model'       => $model,
-            'max_tokens'  => 3000,
+            'max_tokens'  => 3500,
             'json_mode'   => true,
-            'temperature' => 0.7,
+            'temperature' => $temperature,
         ]);
 
         // Fallback Claude si OpenAI échoue
@@ -548,40 +709,90 @@ class LandingGenerationService
 
         $angle = str_replace('{country}', $countryName, $template['angle']);
 
-        $userPrompt = <<<PROMPT
-        Génère une landing page de conversion directe pour SOS-Expat.
-        - Type : {$template['label']}
-        - Pays : {$countryName} ({$countryCode})
-        - Angle : {$angle}
-        - Ton : {$template['tone']}
-        - Langue de rédaction : {$language}
-        - Objectif : Conversion maximale. Page courte et percutante.
-        - Disponibilité : 24h/24, réponse en moins de 5 minutes.
-        - Prix : fixe et transparent.
+        // Type d'expert selon le template
+        $expertLabel = match ($templateId) {
+            'lawyer' => 'avocat',
+            'helper' => 'expatrié aidant',
+            default  => 'expert',
+        };
 
-        Réponds UNIQUEMENT en JSON valide avec cette structure :
+        $userPrompt = <<<PROMPT
+        TÂCHE: Générer une landing page de conversion directe ultra-percutante en {$language} pour SOS-Expat.
+        Répondre UNIQUEMENT en JSON valide. TOUT le contenu en {$language}.
+        OBJECTIF: Faire cliquer le visiteur dès les 5 premières secondes. Page courte, CTA unique, friction zéro.
+
+        ══════════════════════════════════════════════════════
+        TYPE DE PAGE & CONTEXTE
+        ══════════════════════════════════════════════════════
+        Type d'expert    : {$template['label']} ({$expertLabel})
+        Angle            : {$angle}
+        Ton              : {$template['tone']}
+        Pays             : {$countryName} ({$countryCode})
+        Langue OBLIGATOIRE: {$language} — TOUT en {$language}, SANS EXCEPTION
+
+        ══════════════════════════════════════════════════════
+        USPs SOS-EXPAT (À INTÉGRER DANS LES TRUST SIGNALS)
+        ══════════════════════════════════════════════════════
+        • Réponse en moins de 5 minutes — disponible 24h/24, 7j/7
+        • Prix fixe et transparent — aucune surprise, aucun dépassement
+        • Expert local à {$countryName} — connaît les lois, la culture, les démarches locales
+        • 100% confidentiel — confidentialité garantie
+        • Sans rendez-vous — connexion immédiate, pas d'attente
+        • Déjà 10,000+ expatriés aidés dans 50+ pays
+
+        ══════════════════════════════════════════════════════
+        PSYCHOLOGIE DE CONVERSION (PRINCIPES À APPLIQUER)
+        ══════════════════════════════════════════════════════
+        • URGENCE IMPLICITE: le visiteur a un problème maintenant → la solution est disponible maintenant
+        • RÉDUCTION DU RISQUE: prix fixe + sans engagement + confidentialité → lever tous les freins
+        • PREUVE SOCIALE CHIFFRÉE: chiffres précis qui crédibilisent
+        • CLARTÉ ABSOLUE: en 5 secondes le visiteur sait CE QU'IL OBTIENT et COMMENT
+
+        ══════════════════════════════════════════════════════
+        SECTIONS À GÉNÉRER (ordre exact — PAGE COURTE)
+        ══════════════════════════════════════════════════════
+        {$this->formatSections($template['sections'])}
+
+        RÈGLES PAR SECTION:
+        • hero          → badge (★ + chiffre de confiance, ≤10 mots), h1 (5-8 MOTS MAX, bénéfice immédiat + pays),
+                          subtitle (12-20 mots, éliminer le doute principal du visiteur),
+                          cta_text (3-4 mots, verbe d'action fort EN {$language}),
+                          cta_subtext (≤10 mots, les 2 freins principaux levés, EN {$language})
+        • trust_signals → 4-5 items UNIQUEMENT FACTUELS, chiffres précis, max 6 mots chacun,
+                          couvrir: vitesse · prix · disponibilité · confidentialité · volume
+        • lawyer_advantages / helper_advantages →
+                          headline H2 (question PAA), 4 arguments différenciants vs alternatives locales
+        • cta           → headline urgence ≤10 mots + button 3-4 mots (verbe fort, EN {$language}) +
+                          subtext ≤10 mots (les 2 dernières objections levées)
+
+        ══════════════════════════════════════════════════════
+        STRUCTURE JSON (tout en {$language})
+        ══════════════════════════════════════════════════════
         {
-          "title": "...",
-          "url_slug": "...(ASCII kebab-case slug dans la langue cible, ex: expert-expatrie pour FR, expat-expert pour EN)",
+          "title": "...(50-65 chars, keyword + pays, très direct)",
+          "url_slug": "...(ASCII kebab-case EN {$language}, ex FR: expert-expatrie-thaïlande→expert-expatrie-thailande, EN: expat-expert-thailand)",
+          "keywords_primary": "...(keyword comme tapé sur Google, en {$language})",
+          "keywords_secondary": ["...", "...", "..."],
           "sections": [
-            {"type": "hero", "content": {"h1": "...", "subtitle": "...", "cta_text": "..."}},
-            {"type": "trust_signals", "content": {"items": [{"icon": "✓", "text": "..."}]}},
+            {"type": "hero", "content": {"badge": "★ ...", "h1": "...", "subtitle": "...", "cta_text": "...", "cta_subtext": "..."}},
+            {"type": "trust_signals", "content": {"items": [{"icon": "⚡", "text": "..."}, {"icon": "💰", "text": "..."}, {"icon": "🔒", "text": "..."}, {"icon": "⏱", "text": "..."}]}},
             {"type": "cta", "content": {"headline": "...", "button": "...", "subtext": "..."}}
           ],
-          "meta_title": "...(max 60 chars)",
-          "meta_description": "...(max 155 chars)",
+          "meta_title": "...(EXACTEMENT 55-60 chars, EN {$language}, très orienté conversion)",
+          "meta_description": "...(EXACTEMENT 148-155 chars, EN {$language}, réponse directe + bénéfice + urgence)",
           "cta_links": [
-            {"label": "Parler à un expert maintenant", "url": "/", "style": "primary", "position": "hero"}
+            {"label": "...(3-4 mots EN {$language}, verbe fort)", "url": "#contact", "style": "primary", "position": "hero"}
           ]
         }
         PROMPT;
 
-        $model  = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
-        $result = $this->openAi->complete($systemPrompt, $userPrompt, [
+        $model       = ($params['use_cheap_model'] ?? false) ? 'gpt-4o-mini' : 'gpt-4o';
+        $temperature = ($params['use_cheap_model'] ?? false) ? 0.4 : 0.65;
+        $result      = $this->openAi->complete($systemPrompt, $userPrompt, [
             'model'       => $model,
-            'max_tokens'  => 2000,
+            'max_tokens'  => 2500,
             'json_mode'   => true,
-            'temperature' => 0.7,
+            'temperature' => $temperature,
         ]);
 
         // Fallback Claude si OpenAI échoue
@@ -637,18 +848,97 @@ class LandingGenerationService
             $system .= "\n\n" . $statsBlock;
         }
 
-        // Contexte audience spécifique landing page
+        // ── Règles landing page haute-conversion 2026 ──────────────
+        $system .= "\n\n" . $this->buildLandingPageRules($language, $countryName);
+
+        // ── Contexte audience spécifique ──────────────────────────
         $audienceContext = match ($audienceType) {
-            'clients'  => "MISSION: Générer une landing page haute-conversion pour des expatriés/voyageurs en difficulté dans le pays {$countryName}. Service SOS-Expat: mise en relation 24h/24 avec avocats et expatriés aidants. Prix fixe transparent. Disponibilité immédiate.",
-            'lawyers'  => "MISSION: Générer une landing page de recrutement d'avocats partenaires à {$countryName}. Bénéfices: 30€ par consultation 20 min, paiement 24h, liberté totale horaires, clients fournis sans prospection.",
-            'helpers'  => "MISSION: Générer une landing page de recrutement d'expatriés aidants à {$countryName}. Ce sont des expatriés installés qui aident les nouveaux arrivants. 10€ par appel 20 min. Aide pratique (pas juridique).",
-            'matching' => "MISSION: Générer une landing page de conversion directe pour connecter immédiatement avec un expert SOS-Expat à {$countryName}. Page ultra-courte, CTA fort, confiance maximale, disponibilité 24h/24.",
+            'clients'  => "MISSION: Générer une landing page haute-conversion pour des expatriés/voyageurs en difficulté à {$countryName}. Service SOS-Expat: mise en relation 24h/24 avec avocats locaux et expatriés aidants expérimentés. Prix fixe transparent, disponibilité immédiate, 0 bureaucratie, réponse en moins de 5 minutes.",
+            'lawyers'  => "MISSION: Recruter des avocats partenaires à {$countryName} pour rejoindre le réseau SOS-Expat. Proposition de valeur unique: 30€ par consultation de 20 min, paiement garanti sous 24h, zéro prospection (les clients viennent à vous), liberté totale des horaires, inscription en 5 minutes. Angle: complément de revenus sans contraintes.",
+            'helpers'  => "MISSION: Recruter des expatriés déjà installés à {$countryName} pour devenir 'expatriés aidants' SOS-Expat. Ils aident les nouveaux arrivants sur le pratique (logement, administration, intégration — pas juridique). 10€ par appel de 20 min. Angle: valoriser son expérience, aider la communauté, gagner un complément flexible.",
+            'matching' => "MISSION: Convertir immédiatement un visiteur en appel SOS-Expat à {$countryName}. Page ultra-courte et percutante. CTA unique, confiance maximale. USPs: réponse en moins de 5 min, prix fixe et transparent, expert local disponible 24h/24, 100% confidentiel.",
             default    => "MISSION: Générer du contenu SOS-Expat pour {$countryName}.",
         };
 
-        $system .= "\n\n=== CONTEXTE LANDING PAGE ===\n{$audienceContext}";
+        $system .= "\n\n=== CONTEXTE AUDIENCE ===\n{$audienceContext}";
 
         return $system;
+    }
+
+    /**
+     * Règles de génération landing page 2026 — conversion, AEO/GEO, SEO, localisation.
+     * Injectées dans chaque system prompt pour garantir la perfection structurelle.
+     */
+    private function buildLandingPageRules(string $language, string $countryName): string
+    {
+        $langInstructions = match ($language) {
+            'en' => 'English — neutral international (adapt to country: UK/AU/CA have local expressions)',
+            'es' => 'Spanish — neutral Latin American (or Castilian if country is Spain)',
+            'de' => 'German — formal but warm (Sie form, avoid overly stiff register)',
+            'pt' => 'Portuguese — adapt: European PT for Portugal, Brazilian PT for Brazil/others',
+            'ar' => 'Arabic — Modern Standard Arabic (MSA), formal, right-to-left reading',
+            'hi' => 'Hindi — Devanagari, formal but accessible, avoid Anglicisms when Hindi term exists',
+            'zh' => 'Simplified Chinese — natural mainland Chinese, contemporary business register',
+            'ru' => 'Russian — contemporary business Russian, direct and concrete',
+            default => 'French — formal but warm, "vous" form, avoid bureaucratic jargon',
+        };
+
+        return <<<RULES
+=== RÈGLES LANDING PAGE HAUTE-CONVERSION 2026 ===
+
+── RÈGLE N°1 — LANGUE (CRITIQUE, SANS EXCEPTION) ──────────────────────
+Langue cible : {$langInstructions}
+• TOUT le contenu DOIT être dans cette langue — title, h1, subtitle, badge, chaque section,
+  chaque item FAQ (question ET réponse), meta_title, meta_description, tous les CTA buttons,
+  url_slug (ASCII kebab-case translittéré dans la langue cible)
+• ZÉRO texte résiduel dans une autre langue — si la langue n'est pas le français, zéro français
+• Adaptation culturelle pour {$countryName}: idiomes locaux, montants dans la devise locale
+  si pertinent (USD → US/CA, GBP → UK, AUD → Australie, etc.), références culturelles ancrées
+
+── RÈGLE N°2 — H1 & HERO (DÉCISION DE CONVERSION) ─────────────────────
+• H1: 5-9 MOTS MAXIMUM — keyword principal dès le 1er ou 2e mot — bénéfice ou chiffre si possible
+• INTERDITS en H1: "Bienvenue", "Découvrez", "Notre service", "Nous vous aidons" → trop génériques
+• Formules H1 gagnantes:
+  - [Problème résolu] + [Pays] (ex: "Visa refusé en Thaïlande ? On vous aide.")
+  - [Bénéfice chiffré] + [Contexte] (ex: "Expert juridique en 5 min à Singapour")
+  - [Action immédiate] + [Pour qui] (ex: "Parler à un avocat à Bangkok maintenant")
+• Subtitle: 15-25 mots — amplifie H1 — répond "pourquoi SOS-Expat plutôt qu'une autre solution"
+• Badge au-dessus du H1 (trust anchor): ex "★ 4.9/5 · Réponse < 5 min · 24h/24 · Prix fixe"
+• CTA button: VERBE D'ACTION + BÉNÉFICE — 3-5 mots — JAMAIS "Envoyer", "OK", "Cliquer" seuls
+• Sous-texte CTA (friction killer): 1 courte phrase levant le frein principal
+  ex: "Sans engagement · Réponse immédiate · 100% confidentiel"
+
+── RÈGLE N°3 — PREUVES SOCIALES & CHIFFRES ────────────────────────────
+• Chiffres PRÉCIS et CRÉDIBLES — jamais de fourchettes vagues
+  ✓ "12,847 expatriés aidés en 2024" — ✗ "des milliers d'expatriés"
+  ✓ "Réponse en moins de 4 min 30" — ✗ "réponse rapide"
+  ✓ "4.9/5 basé sur 2,340 avis" — ✗ "excellentes notes"
+• Minimum 3-4 chiffres distincts dans la page (vitesse, volume, satisfaction, prix)
+
+── RÈGLE N°4 — AEO / GEO (Generative Engine Optimization 2026) ─────────
+• ANSWER-FIRST OBLIGATOIRE: chaque réponse FAQ commence par la réponse directe (pas d'intro)
+• Format FAQ cible: Question = vraie recherche vocale → Réponse directe en 1re phrase → 40-60 mots total
+• Questions FAQ: reformuler comme des recherches réelles ("Que faire si...", "Comment...", "Combien coûte...")
+• Minimum 5 FAQ ULTRA-SPÉCIFIQUES au pays ET au problème — zéro FAQ générique
+• Les AI overviews (Google AIO, ChatGPT, Perplexity) citent les pages qui répondent en <30 mots à une question précise
+• Chaque section: 1re phrase = réponse directe à l'intent visiteur — zéro phrase d'intro générique
+
+── RÈGLE N°5 — SEO 2026 ────────────────────────────────────────────────
+• meta_title: [Keyword Principal Exact] | [Marque] — EXACTEMENT 55-60 caractères (compter précisément)
+• meta_description: commence par verbe d'action — inclut keyword + pays + bénéfice + urgence implicite
+  — EXACTEMENT 148-155 caractères (compter précisément)
+• H2 de chaque section: reformulation d'une question "People Also Ask" sur le sujet
+• Keyword density naturelle 0.8-1.5% — ne jamais répéter mécaniquement la même phrase
+
+── RÈGLE N°6 — QUALITÉ PAR TYPE DE SECTION ─────────────────────────────
+• hero: badge (≤10 mots) + h1 (5-9 mots) + subtitle (15-25 mots) + cta_text (3-5 mots) + cta_subtext (≤12 mots)
+• trust_signals: 4-5 items — chiffre OU icône OU stat — max 7 mots chacun
+• guide_steps/process: 3-5 étapes — verbe impératif en début — 15-30 mots par étape
+• local_info: données RÉELLES ou très vraisemblables pour {$countryName} (ambassade, numéro urgence, conseil local)
+• faq: 5-7 questions — Answer-First — 40-60 mots/réponse — questions en langue cible
+• cta: headline ≤10 mots + button 3-5 mots + subtext ≤12 mots (friction killer)
+• earnings: chiffre exact + délai de paiement + badges de réassurance financière
+RULES;
     }
 
     private function parseResponse(string $rawResponse): array
