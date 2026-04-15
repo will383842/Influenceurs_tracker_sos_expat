@@ -318,18 +318,51 @@ USER;
         return response()->json($post);
     }
 
-    // ── Publish (manual / OAuth future) ───────────────────────────────
+    // ── Publish (manual — calls LinkedIn API v2) ──────────────────────
 
     public function publish(LinkedInPost $post): JsonResponse
     {
-        // TODO: LinkedIn API v2 — publishViaLinkedInApi($post) when OAuth is configured
-        $post->update([
-            'status'                => 'published',
-            'published_at'          => now(),
-            'first_comment_status'  => $post->first_comment ? 'pending' : null,
-        ]);
+        $api = app(\App\Services\Social\LinkedInApiService::class);
 
-        return response()->json($post);
+        // Check token before attempting
+        if (!$api->isConfigured('personal')) {
+            return response()->json([
+                'error' => 'Token LinkedIn non configuré ou expiré. Reconnectez OAuth dans Paramètres → LinkedIn.',
+            ], 503);
+        }
+
+        try {
+            $urn = $api->publish($post, 'personal');
+
+            if (!$urn) {
+                return response()->json([
+                    'error' => 'L\'API LinkedIn n\'a pas retourné d\'URN. Vérifiez les logs serveur.',
+                ], 500);
+            }
+
+            $post->update([
+                'li_post_id_personal'  => $urn,
+                'status'               => 'published',
+                'published_at'         => now(),
+                'first_comment_status' => $post->first_comment ? 'pending' : null,
+                'error_message'        => null,
+            ]);
+
+            // Schedule first comment 3 min after publication
+            if ($post->first_comment) {
+                \App\Jobs\PostLinkedInFirstCommentJob::dispatch($post->id, $urn, 'personal')
+                    ->delay(now()->addMinutes(3));
+            }
+
+            return response()->json($post->fresh());
+
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('LinkedInController::publish failed', [
+                'post_id' => $post->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     // ── Delete ─────────────────────────────────────────────────────────

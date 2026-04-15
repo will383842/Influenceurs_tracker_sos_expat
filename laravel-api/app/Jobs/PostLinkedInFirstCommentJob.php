@@ -42,9 +42,33 @@ class PostLinkedInFirstCommentJob implements ShouldQueue
             'first_comment_posted_at' => $success ? now() : null,
         ]);
 
-        Log::info('PostLinkedInFirstCommentJob: ' . ($success ? 'posted' : 'failed'), [
-            'post_id'      => $this->postId,
-            'account_type' => $this->accountType,
-        ]);
+        if ($success) {
+            Log::info('PostLinkedInFirstCommentJob: posted', [
+                'post_id'      => $this->postId,
+                'account_type' => $this->accountType,
+            ]);
+        } else {
+            Log::warning('PostLinkedInFirstCommentJob: failed — post may have been deleted from LinkedIn', [
+                'post_id'      => $this->postId,
+                'li_post_urn'  => $this->liPostUrn,
+                'account_type' => $this->accountType,
+            ]);
+
+            // Notify admin via Telegram — the main post IS published, only first_comment failed
+            try {
+                $telegram = app(\App\Services\Social\TelegramAlertService::class);
+                if ($telegram->isConfigured()) {
+                    $hook = mb_substr($post->hook ?? '', 0, 100);
+                    $telegram->sendMessage(
+                        "⚠️ <b>LinkedIn 1er commentaire échoué</b>\n\n"
+                        . "Post #{$this->postId}\n"
+                        . "<i>{$hook}</i>\n\n"
+                        . "Le post principal EST publié sur LinkedIn.\n"
+                        . "Seul le 1er commentaire a échoué (post peut-être supprimé manuellement ?).\n\n"
+                        . "→ Postez manuellement le commentaire si nécessaire."
+                    );
+                }
+            } catch (\Throwable) {}
+        }
     }
 }

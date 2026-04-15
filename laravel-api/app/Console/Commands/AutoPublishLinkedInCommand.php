@@ -119,6 +119,13 @@ class AutoPublishLinkedInCommand extends Command
 
     private function publishFirst(LinkedInPost $post): void
     {
+        // Guard: verify token is valid BEFORE calling the API
+        // Avoids marking post as 'published' locally when the API call would fail anyway
+        if (!$this->api->isConfigured('personal')) {
+            $this->failPost($post, 'Token LinkedIn personnel expiré ou non configuré. Reconnectez OAuth dans Mission Control → LinkedIn → OAuth.');
+            return;
+        }
+
         try {
             // Always publish on personal profile (Community Management API not yet approved)
             $urn = $this->api->publish($post, 'personal');

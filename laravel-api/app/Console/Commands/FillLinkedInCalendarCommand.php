@@ -77,10 +77,10 @@ class FillLinkedInCalendarCommand extends Command
             ->flip()  // make it a hash for O(1) lookup
             ->toArray();
 
-        // ── 2. Walk next $horizon calendar days ───────────────────────────
-        for ($offset = 1; $offset <= $horizon + 7; $offset++) {
-            if ($generated + $covered >= ($horizon * 5 / 7 + 2)) break; // enough days scanned
-
+        // ── 2. Walk exactly $horizon calendar days — no early exit ──────────
+        // Scanning exactly the horizon ensures every weekday gap is caught,
+        // regardless of how many weekends fall in the window.
+        for ($offset = 1; $offset <= $horizon; $offset++) {
             $date = now()->addDays($offset)->startOfDay();
             $dow  = (int) $date->format('N'); // 1=Mon … 5=Fri
             if ($dow > 5) continue;           // skip weekends

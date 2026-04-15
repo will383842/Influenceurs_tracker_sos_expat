@@ -223,8 +223,23 @@ Retourne UNIQUEMENT un JSON valide :
 }
 USER;
 
-            // ── 3. Generate with QA loop (max 3 attempts) ───────────
+            // ── 3. Alert if source is empty (DB type with no articles left) ─
+            if (empty($source['content']) && in_array($post->source_type, ['article', 'faq', 'sondage'], true)) {
+                $this->notifyFallback(
+                    $post,
+                    "⚠️ <b>Source épuisée</b> — plus d'<code>{$post->source_type}</code> disponible en {$lang}.\n"
+                    . "Post #{$post->id} généré en libre (hot_take) à la place.\n"
+                    . "→ Publiez plus d'articles/FAQs pour alimenter le pipeline."
+                );
+                // Override to free generation so the post still has value
+                $post->source_type = 'hot_take';
+            }
+
+            // ── 4. Generate with QA loop (max 3 attempts) ───────────
             $data = $this->generateWithQualityLoop($openai, $systemPrompt, $userPrompt, $post, $source, $lang, $dayType);
+
+            // If QA loop placed post in 'draft' (score too low), abort here — no further update
+            if ($post->fresh()->status === 'draft') return;
 
             // ── 4. Hashtags: sanitize + fallback from keywords ───────
             $hashtags = $this->buildHashtags($data['hashtags'] ?? [], $source['hashtag_seeds']);
@@ -232,8 +247,11 @@ USER;
             // ── 5. First comment — ensure source URL is always present ──
             $firstComment = $data['first_comment'] ?? $this->defaultFirstComment($post->source_type, $source['url'], $lang);
 
-            // Post-processing: if source has a URL but the AI forgot to include it, append it
-            if (!empty($source['url']) && !str_contains($firstComment, $source['url'])) {
+            // Post-processing: if source has a valid URL but AI forgot to include it, append it
+            if (!empty($source['url'])
+                && filter_var($source['url'], FILTER_VALIDATE_URL)
+                && !str_contains($firstComment, $source['url'])
+            ) {
                 $arrow = ($lang === 'en') ? '→ Full article: ' : '→ Article complet : ';
                 $firstComment = rtrim($firstComment) . "\n\n" . $arrow . $source['url'];
             }
@@ -243,7 +261,7 @@ USER;
             $imageAttribution   = null;
 
             if (!$featuredImage && $unsplash->isConfigured()) {
-                $imgQuery  = $this->buildUnsplashQuery($post->source_type, $source['keywords'], $lang, $source['country'] ?? '');
+                $imgQuery  = $this->buildUnsplashQuery($post->source_type, $source['keywords'], $lang, $source['country'] ?? '', $post->id);
                 $imgResult = $unsplash->searchUnique($imgQuery, 1, 'landscape');
                 if ($imgResult['success'] && !empty($imgResult['images'])) {
                     $img              = $imgResult['images'][0];
@@ -256,8 +274,8 @@ USER;
                 }
             }
 
-            // Append Unsplash attribution to first comment (API requirement)
-            if ($imageAttribution) {
+            // Append Unsplash attribution to first comment (API requirement — only if not already present)
+            if ($imageAttribution && !str_contains($firstComment, 'Unsplash')) {
                 $firstComment .= "\n\n📸 " . $imageAttribution;
             }
 
@@ -327,11 +345,19 @@ USER;
             ]);
 
             if ($r['success'] ?? false) {
-                $data = json_decode($r['content'] ?? '', true) ?? [];
-                if (!empty($data['hook']) && !empty($data['body'])) {
+                $data = json_decode($r['content'] ?? '', true);
+                if (is_array($data)
+                    && isset($data['hook'], $data['body'], $data['hashtags'])
+                    && is_string($data['hook']) && mb_strlen(trim($data['hook'])) > 0
+                    && is_string($data['body']) && mb_strlen(trim($data['body'])) > 50
+                ) {
                     Log::info('GenerateLinkedInPostJob: generated via GPT-4o', ['post_id' => $post->id]);
                     return $data;
                 }
+                Log::warning('GenerateLinkedInPostJob: GPT-4o returned invalid JSON structure', [
+                    'post_id' => $post->id,
+                    'raw'     => mb_substr($r['content'] ?? '', 0, 200),
+                ]);
             }
 
             // Check if it's a quota/billing error (don't retry with Claude for transient errors)
@@ -357,8 +383,12 @@ USER;
                 ]);
 
                 if ($r2['success'] ?? false) {
-                    $data2 = json_decode($r2['content'] ?? '', true) ?? [];
-                    if (!empty($data2['hook']) && !empty($data2['body'])) {
+                    $data2 = json_decode($r2['content'] ?? '', true);
+                    if (is_array($data2)
+                        && isset($data2['hook'], $data2['body'])
+                        && is_string($data2['hook']) && mb_strlen(trim($data2['hook'])) > 0
+                        && is_string($data2['body']) && mb_strlen(trim($data2['body'])) > 50
+                    ) {
                         Log::info('GenerateLinkedInPostJob: generated via Claude (GPT fallback)', ['post_id' => $post->id]);
 
                         // Notify Telegram that we had to use the fallback
@@ -402,7 +432,7 @@ USER;
         array         $source,
         string        $lang,
         string        $dayType,
-    ): array {
+    ): ?array {
         $bestData  = null;
         $bestScore = 0;
         $maxRounds = 3;
@@ -443,6 +473,20 @@ USER;
                 'post_id'    => $post->id,
                 'best_score' => $bestScore,
             ]);
+
+            // Absolute minimum: if score < 50, put in draft for manual review
+            if ($bestScore < 50) {
+                $post->update([
+                    'status'        => 'draft',
+                    'error_message' => "QA score {$bestScore}/100 après 3 tentatives — révision manuelle requise.",
+                ]);
+                $this->notifyFallback(
+                    $post,
+                    "🔴 <b>LinkedIn post #{$post->id} en DRAFT</b>\n\nScore QA trop bas : {$bestScore}/100 après 3 tentatives.\n"
+                    . "→ Vérifier et corriger manuellement dans Mission Control > LinkedIn > File d'attente"
+                );
+                return null; // signal to handle() to abort remaining updates
+            }
         }
 
         return $bestData;
@@ -801,7 +845,7 @@ USER;
      * Keeps the query generic enough to get good results (Unsplash isn't
      * specialized in expat topics; abstract/lifestyle photos work best).
      */
-    private function buildUnsplashQuery(string $sourceType, string $keywords, string $lang, string $country = ''): string
+    private function buildUnsplashQuery(string $sourceType, string $keywords, string $lang, string $country = '', int $postId = 0): string
     {
         // Type-specific visual themes — varied pool to reduce repetition
         $typeThemes = [
@@ -823,9 +867,9 @@ USER;
 
         $themePool = $typeThemes[$sourceType] ?? ['travel international abroad city'];
 
-        // Use post ID-based deterministic selection to vary within the pool
-        // (post ID not available here, so we use keyword hash for stability)
-        $hash  = abs(crc32($keywords . $country));
+        // Use postId + keywords for deterministic but unique selection across posts
+        // Same post always gets same theme; different posts with same keywords get different themes
+        $hash  = abs(crc32($postId . '_' . $keywords . '_' . $country));
         $theme = $themePool[$hash % count($themePool)];
 
         // Extract 1 meaningful keyword from the source (first non-trivial word)
@@ -913,10 +957,14 @@ USER;
         // Merge AI tags + seeds + base
         $all = array_merge($aiHashtags, $seeds, $base);
 
-        // Sanitize: strip #, lowercase, alphanumeric only
+        // Sanitize: strip #, lowercase, ASCII alphanumeric only (no accents — LinkedIn hashtag rules)
         $clean = array_unique(array_filter(array_map(function (string $h) {
             $h = strtolower(ltrim(trim($h), '#'));
-            return preg_match('/^[\w]+$/', $h) ? $h : null;
+            // Strip accents → transliterate to ASCII
+            $h = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $h) ?: $h;
+            // Keep only alphanumeric (no spaces, dashes, underscores in hashtags)
+            $h = preg_replace('/[^a-z0-9]/', '', $h);
+            return ($h && strlen($h) >= 2) ? $h : null;
         }, $all)));
 
         return array_values(array_slice($clean, 0, 5));
