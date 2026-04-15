@@ -223,6 +223,20 @@ export default function LandingDetail() {
     }
   };
 
+  const handleUnpublish = async () => {
+    if (!landing) return;
+    setActionLoading('unpublish');
+    try {
+      await updateLanding(landing.id, { status: 'review' });
+      toast('success', 'Landing depubliee (statut: review).');
+      loadLanding();
+    } catch (err) {
+      toast('error', errMsg(err));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleDelete = () => {
     if (!landing) return;
     setConfirmAction({
@@ -267,6 +281,8 @@ export default function LandingDetail() {
       </div>
     );
   }
+
+  const publicUrl = landing.canonical_url ?? (landing.slug ? `https://sos-expat.com/${landing.slug}` : null);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -437,6 +453,40 @@ export default function LandingDetail() {
 
         {/* Sidebar */}
         <div className="lg:col-span-3 space-y-4">
+          {/* URL publique */}
+          {publicUrl && (
+            <div className="bg-surface border border-border rounded-xl p-4">
+              <h4 className="font-title font-semibold text-white text-sm mb-2">URL publique</h4>
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-violet-light hover:text-violet break-all flex items-start gap-1.5 group"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0 mt-0.5 group-hover:text-violet transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                {publicUrl.replace('https://sos-expat.com/', '')}
+              </a>
+              {landing.status === 'published' && (
+                <button
+                  onClick={handleUnpublish}
+                  disabled={actionLoading === 'unpublish'}
+                  className="mt-3 w-full px-3 py-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === 'unpublish' ? 'Depublication...' : 'Depublier'}
+                </button>
+              )}
+              {landing.status !== 'published' && (
+                <button
+                  onClick={handlePublish}
+                  disabled={actionLoading === 'publish'}
+                  className="mt-3 w-full px-3 py-1.5 text-xs bg-success/10 hover:bg-success/20 text-success border border-success/30 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === 'publish' ? 'Publication...' : 'Publier directement'}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Status card */}
           <div className="bg-surface border border-border rounded-xl p-5 space-y-3">
             <h4 className="font-title font-semibold text-white">Informations</h4>
