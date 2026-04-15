@@ -33,13 +33,12 @@ class FillLinkedInCalendarCommand extends Command
                                {--days=30 : Number of calendar days to cover (default 30)}';
     protected $description = 'Ensure the next 30 days always have 1 LinkedIn post per weekday';
 
-    /** Day-of-week number (1=Mon…5=Fri) → base source type */
+    /** Day-of-week number (1=Mon, 3=Wed, 5=Fri, 6=Sat) → base source type */
     private const DAY_BASE = [
         1 => ['monday',    'article'],    // overridden by MON_ROTATION
-        2 => ['tuesday',   'faq'],
         3 => ['wednesday', 'hot_take'],   // overridden by WED_ROTATION
-        4 => ['thursday',  'faq'],        // overridden by THU_ROTATION
-        5 => ['friday',    'tip'],        // overridden by FRI_ROTATION
+        5 => ['friday',    'faq'],        // overridden by FRI_ROTATION
+        6 => ['saturday',  'tip'],        // overridden by SAT_ROTATION
     ];
 
     /**
@@ -52,8 +51,8 @@ class FillLinkedInCalendarCommand extends Command
      */
     private const MON_ROTATION = ['article', 'article', 'hot_take', 'article', 'article', 'hot_take'];
     private const WED_ROTATION = ['hot_take', 'reactive', 'myth', 'counter_intuition', 'hot_take', 'news'];
-    private const THU_ROTATION = ['faq', 'sondage', 'faq', 'poll', 'faq', 'sondage'];
-    private const FRI_ROTATION = ['tip', 'milestone', 'partner_story', 'case_study', 'tip', 'counter_intuition'];
+    private const FRI_ROTATION = ['faq', 'sondage', 'faq', 'poll', 'faq', 'sondage'];
+    private const SAT_ROTATION = ['tip', 'milestone', 'partner_story', 'case_study', 'tip', 'counter_intuition'];
 
     public function handle(): int
     {
@@ -82,8 +81,9 @@ class FillLinkedInCalendarCommand extends Command
         // regardless of how many weekends fall in the window.
         for ($offset = 1; $offset <= $horizon; $offset++) {
             $date = now()->addDays($offset)->startOfDay();
-            $dow  = (int) $date->format('N'); // 1=Mon … 5=Fri
-            if ($dow > 5) continue;           // skip weekends
+            $dow  = (int) $date->format('N'); // 1=Mon … 7=Sun
+            if ($dow > 6 || $dow === 0) continue; // skip Sunday only; Saturday (dow=6) is allowed
+            if ($dow === 2 || $dow === 4) continue; // skip Tuesday and Thursday
 
             $dateStr = $date->toDateString();
 
@@ -113,8 +113,8 @@ class FillLinkedInCalendarCommand extends Command
 
             if ($dryRun) continue;
 
-            // ── 3. Assign slot at 07:30 UTC ───────────────────────────────
-            $slot = $date->copy()->setHour(7)->setMinute(30)->setSecond(0);
+            // ── 3. Assign slot: 07:30 UTC weekdays, 09:00 UTC Saturday ──────
+            $slot = $date->copy()->setHour($dow === 6 ? 9 : 7)->setMinute($dow === 6 ? 0 : 30)->setSecond(0);
 
             // Safety: skip if slot is already taken (race condition guard)
             $conflict = LinkedInPost::whereIn('status', ['generating', 'scheduled'])
@@ -180,8 +180,8 @@ class FillLinkedInCalendarCommand extends Command
         $sourceType = match ($dow) {
             1 => self::MON_ROTATION[$isoWeek % count(self::MON_ROTATION)],
             3 => self::WED_ROTATION[$isoWeek % count(self::WED_ROTATION)],
-            4 => self::THU_ROTATION[$isoWeek % count(self::THU_ROTATION)],
             5 => self::FRI_ROTATION[$isoWeek % count(self::FRI_ROTATION)],
+            6 => self::SAT_ROTATION[$isoWeek % count(self::SAT_ROTATION)],
             default => $base,
         };
 

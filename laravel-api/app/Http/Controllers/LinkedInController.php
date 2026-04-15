@@ -200,7 +200,7 @@ class LinkedInController extends Controller
         $request->validate([
             'source_type' => 'required|in:article,faq,sondage,hot_take,myth,poll,serie,reactive,milestone,partner_story,counter_intuition,tip,news,case_study',
             'source_id'   => 'nullable|integer',
-            'day_type'    => 'required|in:monday,tuesday,wednesday,thursday,friday',
+            'day_type'    => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday',
             'lang'        => 'required|in:fr,en,both',
             'account'     => 'required|in:page,personal,both',
         ]);
@@ -426,7 +426,8 @@ USER;
     }
 
     /**
-     * Find the next free posting slot: Mon-Fri, ONE post per day at 07:30 UTC (09:30 Paris).
+     * Find the next free posting slot: Mon(1)/Wed(3)/Fri(5)/Sat(6), ONE post per day.
+     * Sat → 09:00 UTC (11:00 Paris); other days → 07:30 UTC (09:30 Paris).
      * LinkedIn best practices 2026: max 1 post/day, morning slot = highest engagement.
      * Skips days that already have any scheduled post (regardless of language).
      */
@@ -434,14 +435,23 @@ USER;
     {
         $now = now();
 
-        for ($dayOffset = 0; $dayOffset <= 21; $dayOffset++) {
-            $candidate = $now->copy()->addDays($dayOffset);
-            if ($candidate->isWeekend()) continue;
+        // Publishing days: Mon(1), Wed(3), Fri(5), Sat(6) — no Tue/Thu/Sun
+        $publishDays = [1, 3, 5, 6];
 
-            $slot = $candidate->copy()->setHour(7)->setMinute(30)->setSecond(0);
+        for ($dayOffset = 0; $dayOffset <= 28; $dayOffset++) {
+            $candidate = $now->copy()->addDays($dayOffset);
+            $dow = (int) $candidate->format('N');
+
+            if (!in_array($dow, $publishDays, true)) continue;
+
+            // Saturday → 09:00 UTC; other days → 07:30 UTC
+            $hour   = ($dow === 6) ? 9 : 7;
+            $minute = ($dow === 6) ? 0 : 30;
+            $slot   = $candidate->copy()->setHour($hour)->setMinute($minute)->setSecond(0);
+
             if ($slot->isPast()) continue;
 
-            // Only one post per calendar day — block generating AND scheduled posts
+            // One post per calendar day — block generating AND scheduled posts
             $conflict = LinkedInPost::whereIn('status', ['scheduled', 'generating'])
                 ->whereDate('scheduled_at', $slot->toDateString())
                 ->exists();
@@ -449,9 +459,11 @@ USER;
             if (!$conflict) return $slot;
         }
 
-        // Absolute fallback: next weekday at 07:30
-        return now()->addDay()->isWeekend()
-            ? now()->addDays(3)->setHour(7)->setMinute(30)->setSecond(0)
-            : now()->addDay()->setHour(7)->setMinute(30)->setSecond(0);
+        // Absolute fallback: next Monday at 07:30
+        $next = now()->addDays(1);
+        while (!in_array((int) $next->format('N'), $publishDays, true)) {
+            $next->addDay();
+        }
+        return $next->setHour(7)->setMinute(30)->setSecond(0);
     }
 }

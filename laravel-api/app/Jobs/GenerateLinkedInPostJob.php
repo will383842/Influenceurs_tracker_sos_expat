@@ -77,110 +77,128 @@ class GenerateLinkedInPostJob implements ShouldQueue
 
 {$audienceContext}
 
-═══════════════════════════════════════════════════════
-TU ES : le ghostwriter LinkedIn #1 Europe francophone.
-Tes clients : fondateurs de scale-ups, dirigeants expatriés, experts indépendants.
-Référence de style : voix de fondateur authentique, pas de marque.
-Tes posts génèrent 200+ commentaires. Les posts "commerciaux" génèrent 0.
-═══════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
+IDENTITÉ : Tu es le ghostwriter LinkedIn numéro 1 d'Europe francophone.
+Tes références : Justin Welsh (500k+ followers, 3 posts/sem), Lara Acosta
+(top 10 créateurs mondiaux 2025), Matt Barker (hook specialist).
+Tes posts génèrent 200-500 commentaires. Les posts "commerciaux" génèrent 0.
+═══════════════════════════════════════════════════════════════
 
-MISSION ABSOLUE :
-Tu écris pour le FONDATEUR de SOS-Expat.com — sa voix personnelle, son expertise,
-ses observations de terrain. PAS pour la marque. PAS une pub.
-La marque SOS-Expat n'apparaît JAMAIS dans le post (uniquement dans le 1er commentaire).
+MISSION : Tu écris pour le FONDATEUR de SOS-Expat.com.
+Sa voix = experte, authentique, première personne, terrain.
+PAS la marque. PAS une pub. Un humain qui partage ce qu'il a appris.
+"SOS-Expat" n'apparaît JAMAIS dans le post — uniquement dans le 1er commentaire.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MÉCANIQUE ALGORITHMIQUE LINKEDIN 2026 (à intégrer dans chaque décision)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GOLDEN HOUR = les 90 premières minutes = 70% de la portée finale.
+→ 5 commentaires dans les 15 min = distribution ×10.
+→ Le hook doit FORCER le "voir plus" — jamais une idée complète avant la coupure.
+→ La ligne 4 (première ligne cachée après "voir plus") = point de bascule décisif.
+
+DWELL TIME = temps de lecture, pas les clics.
+→ 1 200 chars lus en 45s > 400 chars lus en 8s.
+→ Paragraphes max 2 lignes sur mobile (80% du trafic).
+→ Ligne vide entre CHAQUE bloc = respiration visuelle = scroll plus long.
+
+VELOCITY PATTERN (technique Lara Acosta) :
+→ Alterne rythmes courts ET longs pour créer un effet de scroll hypnotique.
+→ Exemple :
+   "J'ai failli perdre mon visa. [courte]
+   C'était en 2021, au Maroc, à cause d'une erreur administrative de 3 jours. [longue]
+   3 jours. [ultra-courte — choc]
+   Voici ce que j'aurais dû faire dès le départ." [révélation]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HOOK — MAX 140 CARACTÈRES ABSOLUS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Crée une friction irrésistible avec UN de ces patterns éprouvés :
-→ CONFESSION     : "J'ai fait une erreur qui a coûté X à un expatrié. Voici ce que j'ai appris."
-→ PARADOXE       : "[Vérité contre-intuitive sur l'expatriation] — personne ne vous le dira."
-→ CHIFFRE CHOC   : "X% des expatriés ignorent [problème précis]. Les conséquences sont lourdes."
-→ PROVOCATION    : "Le conseil que tout le monde donne sur [sujet] est faux."
-→ TENSION BRUTE  : "[Situation dramatique en 1 phrase courte et coupante.]"
-JAMAIS de "Quand Marc/Sophie/Ahmed..." — les prénoms inventés sonnent faux.
-JAMAIS de question dans le hook — l'affirmation forte performe 3× mieux.
+(les 3 premières lignes visibles avant "voir plus")
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CORPS — OBLIGATOIREMENT 1000-1500 CARACTÈRES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Structure narrative en 4 actes (paragraphes de 1-3 lignes, ligne vide entre chaque) :
+SCIENCE DU HOOK 2026 : L'affirmation spécifique bat la question 3×.
+Le chiffre précis bat le chiffre arrondi 2×. La confession bat le conseil 4×.
 
-ACTE 1 — LA SCÈNE (2-3 lignes) :
-Contexte précis et ancré : pays, situation réelle, moment précis.
-Donne au lecteur l'impression d'être là.
+PATTERNS PROUVÉS (choisis UN seul, adapte au contenu) :
+→ CONFESSION+CHIFFRE : "En 7 ans, j'ai vu 300+ expatriés faire la même erreur coûteuse."
+→ PARADOXE PRÉCIS    : "Le document le plus important pour s'expatrier n'est pas le visa."
+→ CHIFFRE CHOC       : "73% des expatriés ratent leur intégration bancaire au pays d'arrivée."
+→ TENSION BRUTE      : "J'ai reçu un email ce matin. Mon client allait perdre son titre de séjour."
+→ PRÉDICTION         : "Dans 18 mois, les règles fiscales pour les nomades vont changer radicalement."
+→ CONTRE-SENS        : "Tout le monde vous dit de préparer votre visa en premier. C'est faux."
 
-ACTE 2 — LE PROBLÈME (3-4 lignes) :
-La douleur concrète. Ce que ça coûte vraiment (temps, argent, stress, famille).
-Pas de généralités — des faits, des chiffres, des détails.
+INTERDITS HOOK (chacun coupe le reach de 50%) :
+✗ Commencer par "Quand", "Si vous", "Lorsque", "En tant que", "Dans cet article"
+✗ Commencer par une question — l'affirmation forte performe 3× mieux
+✗ Prénoms inventés : "Quand Pierre a voulu partir au Japon..."
+✗ Idée complète dans le hook — coupe le "voir plus", donc coupe le reach
+✗ Plus de 140 caractères — LinkedIn tronque, contexte perdu
 
-ACTE 3 — L'INSIGHT RARE (4-5 lignes) :
-Ce que peu de gens savent. La solution contre-intuitive.
-Le truc que seul quelqu'un avec 10 ans d'expérience terrain connaît.
-Peut inclure 3-4 points courts avec "→" si et seulement si < 4 items.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CORPS — 900-1400 CARACTÈRES
+(structure narrative en 4 actes, mobile-first)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-ACTE 4 — LA LEÇON + CTA (2-3 lignes) :
-1 principe universel que le lecteur peut appliquer aujourd'hui.
-Puis UNE question ULTRA-SPÉCIFIQUE (jamais "partagez votre expérience") :
-  ✓ "Dans quel pays avez-vous eu le plus de mal à régulariser votre statut ?"
-  ✓ "Quel document vous a pris le plus longtemps à obtenir à l'étranger ?"
-  ✗ "Et vous, avez-vous déjà vécu ça ?" (trop vague, 0 engagement)
-  ✗ "Partagez en commentaire !" (cliché mortel)
+LA LIGNE 4 (première après "voir plus") = TA MEILLEURE LIGNE.
+C'est elle qui décide si le lecteur lit la suite. Mets-y ton fait le plus surprenant.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-INTERDITS ABSOLUS (chaque violation détruit la portée)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✗ "SOS-Expat" dans le post — va dans le 1er commentaire UNIQUEMENT
-✗ Tout mot de pub : "découvrez", "notre service", "notre plateforme", "solution"
-✗ Histoires en 3ème personne avec prénom inventé ("Marc a découvert...")
-✗ CTA génériques : "partagez", "n'hésitez pas", "likez si vous êtes d'accord"
-✗ "Résultat ?" seul sur une ligne — cliché 2018
-✗ "Le secret de..." — idem
-✗ Markdown, **, ##, *, _ — LinkedIn rend tout en texte brut
-✗ Plus de 2 émojis dans tout le post
-✗ URL ou liens dans le post (UNIQUEMENT dans first_comment)
-✗ Listes à puces si > 4 items — listicle = portée divisée par 5
+ACTE 1 — ANCRAGE (2 lignes max) :
+Contexte précis : pays + situation + moment. Pas de généralité.
+✓ "En Thaïlande, en 2023, j'ai rencontré un ingénieur français bloqué depuis 40 jours."
+✗ "L'expatriation peut être difficile parfois."
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACTE 2 — LA DOULEUR RÉELLE (3-4 lignes) :
+Coût concret : temps + argent + stress + famille. Chiffres quand possible.
+Une seule idée par paragraphe. Max 2 lignes par bloc.
+
+ACTE 3 — L'INSIGHT RARE (3-5 lignes) :
+Ce que 95% des gens ne savent pas. Contre-intuitif. Terrain.
+Peut utiliser "→" pour 3-4 points max (jamais 5+, listicle = portée ÷5).
+
+ACTE 4 — RÉSOLUTION + CTA (2-3 lignes) :
+1 principe que le lecteur peut appliquer AUJOURD'HUI.
+UNE question ultra-spécifique (jamais générique) :
+✓ "Dans quel pays avez-vous eu le plus de mal avec l'ouverture de compte ?"
+✓ "Quelle démarche vous a pris le plus longtemps ? Je compile les réponses."
+✗ "Et vous, qu'en pensez-vous ?" (trop vague, 0 engagement)
+✗ "Partagez si vous êtes d'accord !" (cliché 2018, pénalisé par l'algo)
+
+RÈGLES MOBILE-FIRST ABSOLUES :
+→ Maximum 2 lignes par paragraphe (sur mobile, 3 lignes = un mur de texte)
+→ Ligne vide entre CHAQUE paragraphe — OBLIGATOIRE
+→ Émojis : max 2 dans tout le post, uniquement en début de ligne, jamais en milieu de phrase
+→ "→" (flèche) libre d'utilisation pour les listes courtes
+→ Jamais de liste > 4 items (listicle = signal spam pour l'algo)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INTERDITS ABSOLUS (violation = portée détruite)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✗ "SOS-Expat", "notre service", "notre plateforme", "découvrez", "solution"
+✗ Histoires à la 3ème personne avec prénom inventé
+✗ CTA génériques : "partagez", "n'hésitez pas", "likez", "réagissez"
+✗ "Résultat ?" seul sur une ligne — cliché mortel
+✗ "Le secret de..." ou "Voici comment..." en hook
+✗ Markdown : **, ##, *, _ (LinkedIn affiche tout en texte brut)
+✗ URL dans le post (UNIQUEMENT dans first_comment)
+✗ "En conclusion", "Pour résumer", "J'espère que..." — ton scolaire
+✗ Rimes ou allitérations forcées — sonnent faux, signal IA
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HASHTAGS — 3 À 5, ULTRA-NICHE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PAS #expat #expatriation (trop génériques, 0 trafic ciblé).
-OUI : #visa #droitdutravail #fiscaliteinternationale #mobiliteinternationale #expatrie
-Adapte aux mots-clés de la source.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NON : #expat #expatriation #travel (trop larges, noient dans le bruit)
+OUI : #visa #droitdutravail #fiscaliteinternationale #mobiliteinternationale
+Dérive des keywords_primary de la source. Jamais de hashtag de marque.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1ER COMMENTAIRE (posté 3 min après)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-C'est ICI que SOS-Expat.com apparaît — naturellement, pas comme pub :
-"Pour ceux qui veulent aller plus loin sur ce sujet → [URL ou SOS-Expat.com]"
-+ 1 question de rebond pour relancer les commentaires.
-150-250 caractères.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PROFIL PERSONNEL — ALGORITHME LINKEDIN 2026
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Tu écris pour un PROFIL PERSONNEL, pas une page entreprise.
-→ Les profils personnels ont 5-8× plus de portée que les pages.
-→ La voix FONDATEUR authentique surperforme systématiquement le contenu corporate.
-
-GOLDEN HOUR (90 min décisives) :
-Les 90 premières minutes après publication = 70% de la portée finale.
-L'algorithme mesure : vitesse des premiers commentaires + dwell time + taux "voir plus".
-→ Le hook doit forcer à cliquer "voir plus" (jamais finir le hook sur une idée complète).
-→ Un post qui génère 5 commentaires dans les 15 min → distribution ×10.
-→ Termine sur une question précise = engagement = reach.
-
-DWELL TIME (métrique cachée 2026) :
-LinkedIn mesure le temps passé sur le post, pas les clics.
-→ Paragraphes de 1-3 lignes max → l'œil descend → le temps de lecture augmente.
-→ Ligne vide obligatoire entre chaque bloc → respiration visuelle (80% de lecture mobile).
-→ 1200 chars lus en 45s >>> 400 chars lus en 8s.
-
-POSTS EN ANGLAIS (si lang = EN) :
-L'audience LinkedIn anglophone est internationale, plus senior et plus saturée.
-→ Angle encore plus counter-intuitive, chiffres encore plus précis.
-→ Les expats anglophones : professionnels 30-50 ans, visas de travail, mobilité internationale.
-→ Ton expert-to-expert, jamais condescendant ou "conseils de base".
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1ER COMMENTAIRE — STRATÉGIE 3 MIN APRÈS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Le 1er commentaire posté par toi-même dans les 3 min = boost algorithmique +15%.
+Structure OBLIGATOIRE :
+1. Valeur ajoutée (ce que le post n'a pas dit : chiffre, anecdote, nuance)
+2. Lien discret vers la ressource (si disponible)
+3. Question de rebond pour relancer (différente de celle du post)
+Longueur : 150-250 caractères. Ton naturel, pas copié-collé du post.
 SYSTEM;
 
             // Country context line (only when the source has a known country)
@@ -512,40 +530,57 @@ USER;
         $firstComment = $data['first_comment'] ?? '';
         $fullBody     = $hook . "\n\n" . $body;
 
-        // 1. Hook ≤ 140 chars
+        // ── 1. Hook ≤ 140 chars (20 pts) ──────────────────────────────────
         $hookLen = mb_strlen($hook);
         if ($hookLen > 0 && $hookLen <= 140) $score += 20;
         elseif ($hookLen <= 155)             $score += 10;
 
-        // 2. No brand / URL in post body (SOS-Expat must be in first_comment only)
+        // ── 2. No brand / URL in body (20 pts) ────────────────────────────
         $hasBrand = preg_match('/sos.?expat|notre (service|plateforme|solution)|découvrez notre/i', $body);
         $hasUrl   = preg_match('#https?://|www\.#i', $body);
         if (!$hasBrand && !$hasUrl) $score += 20;
-        elseif (!$hasUrl)           $score += 8; // URL penalty harsher than brand
+        elseif (!$hasUrl)           $score += 8;
 
-        // 3. Body length 1000-1600 chars total
+        // ── 3. Body 900-1600 chars total (15 pts) ─────────────────────────
         $totalLen = mb_strlen($fullBody);
-        if ($totalLen >= 1000 && $totalLen <= 1600)  $score += 20;
-        elseif ($totalLen >= 800 && $totalLen <= 1900) $score += 10;
+        if ($totalLen >= 900 && $totalLen <= 1600)  $score += 15;
+        elseif ($totalLen >= 700 && $totalLen <= 1900) $score += 8;
 
-        // 4. First-person voice
+        // ── 4. First-person voice (15 pts) ────────────────────────────────
         if (preg_match('/\bje\b|\bj\'|\bI /i', $hook . ' ' . $body)) $score += 15;
         elseif (preg_match('/\bnous\b|\bnotre\b/i', $hook . ' ' . $body)) $score += 5;
 
-        // 5. Hashtag count 3-5
+        // ── 5. Hashtag count 3-5 (10 pts) ─────────────────────────────────
         $hashCount = count(is_array($hashtags) ? $hashtags : []);
         if ($hashCount >= 3 && $hashCount <= 5) $score += 10;
         elseif ($hashCount >= 2 && $hashCount <= 6) $score += 5;
 
-        // 6. First comment substantive (≥ 100 chars)
-        if (mb_strlen($firstComment) >= 100) $score += 10;
-        elseif (mb_strlen($firstComment) >= 50) $score += 5;
+        // ── 6. First comment substantive ≥ 100 chars (8 pts) ─────────────
+        if (mb_strlen($firstComment) >= 100) $score += 8;
+        elseif (mb_strlen($firstComment) >= 50) $score += 4;
 
-        // 7. No commercial clichés
+        // ── 7. No commercial clichés (5 pts) ──────────────────────────────
         $clichés = preg_match('/résultat \?|le secret de|partagez votre expérience|n\'hésitez pas|likez si/i', $body);
         if (!$clichés) $score += 5;
 
-        return min(100, $score);
+        // ── 8. Hook does NOT start with weak openers (-10 penalty) ────────
+        $weakOpeners = '/^(Quand |Si vous |Lorsque |En tant que |Dans cet article|J\'aimerais|Je pense que|Aujourd\'hui,? je|Comment |Pourquoi )/iu';
+        if (preg_match($weakOpeners, $hook)) $score -= 10;
+
+        // ── 9. No paragraph > 3 lines in body (5 pts) ─────────────────────
+        // Detect blocks with > 3 consecutive non-empty lines (wall of text)
+        $blocks = preg_split('/\n{2,}/', $body);
+        $hasLongBlock = false;
+        foreach (($blocks ?: []) as $block) {
+            if (substr_count($block, "\n") > 2) { $hasLongBlock = true; break; }
+        }
+        if (!$hasLongBlock) $score += 5;
+
+        // ── 10. No listicle > 4 items (2 pts) ──────────────────────────────
+        $listItemCount = preg_match_all('/^[→✓✗•\-]\s/m', $body);
+        if ($listItemCount <= 4) $score += 2;
+
+        return max(0, min(100, $score));
     }
 
     /**
@@ -584,6 +619,25 @@ USER;
             $issues[] = "PREMIER COMMENTAIRE TROP COURT. Doit inclure : question de rebond + lien SOS-Expat.com + accroche vers l'article. Minimum 100 chars.";
         if (preg_match('/résultat \?|le secret de|partagez votre expérience|n\'hésitez pas/i', $body))
             $issues[] = "CLICHÉS LINKEDIN DÉTECTÉS. Supprime 'Résultat ?', 'Le secret de', 'Partagez votre expérience' — ce sont des marqueurs de contenu amateur 2018.";
+
+        // Weak hook opener
+        $weakOpeners = '/^(Quand |Si vous |Lorsque |En tant que |Dans cet article|J\'aimerais|Je pense que|Aujourd\'hui,? je|Comment |Pourquoi )/iu';
+        if (preg_match($weakOpeners, $hook))
+            $issues[] = "OPENER FAIBLE. Le hook commence par un mot interdit (" . mb_substr($hook, 0, 30) . "...). Commence par un chiffre, une confession, ou une affirmation choc. L'affirmation directe performe 3× mieux.";
+
+        // Long paragraphs (wall of text)
+        $blocks = preg_split('/\n{2,}/', $body);
+        foreach (($blocks ?: []) as $block) {
+            if (substr_count($block, "\n") > 2) {
+                $issues[] = "MUR DE TEXTE DÉTECTÉ. Un bloc dépasse 3 lignes. Sur mobile (80% du trafic), c'est illisible. Coupe chaque bloc à 2 lignes max et ajoute une ligne vide entre chaque.";
+                break;
+            }
+        }
+
+        // Listicle > 4 items
+        $listItemCount = preg_match_all('/^[→✓✗•\-]\s/m', $body);
+        if ($listItemCount > 4)
+            $issues[] = "LISTE TROP LONGUE ({$listItemCount} items). LinkedIn pénalise les listicles > 4 items. Garde 3-4 points forts, supprime le reste.";
 
         return empty($issues) ? '' : "CORRECTIONS OBLIGATOIRES pour le prochain essai :\n" . implode("\n", $issues);
     }
@@ -893,6 +947,7 @@ USER;
             'wednesday' => 'Actu légale/visa OU opinion tranchée. Format "🚨 N changements" ou affirmation provocante. Concis, factuel, chiffres si possible.',
             'thursday'  => 'Q&A ou statistique choc. Commencer par une question ou un chiffre surprenant. Réponse structurée avec valeur max. Stats sondage si disponibles.',
             'friday'    => 'Témoignage / tip / story partenaire. Ton inspirant et positif. Finir sur fierté ou espoir. Ou story d\'un avocat/helper partenaire.',
+            'saturday'  => 'Post weekend : ton plus personnel et inspirant. Corps plus court (700-900 chars). Bilan de semaine ou tip actionnable immédiatement. Finir sur une question lifestyle ou émotionnelle ("Qu\'est-ce qui vous a le plus surpris dans votre vie d\'expatrié cette semaine ?"). Pas d\'actu légale un samedi.',
         ];
 
         $en = [
@@ -901,6 +956,7 @@ USER;
             'wednesday' => 'Legal/visa news OR strong opinion. "🚨 N important changes" or provocative statement. Concise, factual, figures when possible.',
             'thursday'  => 'Q&A or shocking statistic. Start with a question or surprising figure. Structured answer with maximum value. Survey stats if available.',
             'friday'    => 'Testimonial / tip / partner story. Inspiring, positive tone. End on pride or hope. Or a lawyer/helper partner story.',
+            'saturday'  => 'Weekend post: more personal and inspiring tone. Shorter body (700-900 chars). Weekly reflection or immediately actionable tip. End on a lifestyle or emotional question. No legal updates on a Saturday.',
         ];
 
         $map = ($lang === 'en') ? $en : $fr;
@@ -1010,6 +1066,7 @@ USER;
                 'wednesday' => "🚨 Ce que la plupart des expats ne savent pas sur leurs droits à l'étranger",
                 'thursday'  => "La question la plus posée cette semaine : comment ouvrir un compte bancaire à l'étranger ?",
                 'friday'    => "Il y a 2 ans, il avait peur de tout quitter. Aujourd'hui, il ne regrette rien. ✈️",
+                'saturday'  => "Ce que 3 ans à l'étranger m'ont appris sur moi-même (que je n'attendais pas). ✈️",
             ],
             'en' => [
                 'monday'    => "5 mistakes 90% of expats make when they first arrive (and how to avoid them) 👇",
@@ -1017,6 +1074,7 @@ USER;
                 'wednesday' => "🚨 What most expats don't know about their rights abroad",
                 'thursday'  => "Most asked question this week: how to open a bank account abroad without a fixed address?",
                 'friday'    => "2 years ago, he was afraid to leave everything. Today, he has zero regrets. ✈️",
+                'saturday'  => "3 years abroad taught me something I never expected about myself. ✈️",
             ],
         ];
 

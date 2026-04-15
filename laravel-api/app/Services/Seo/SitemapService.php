@@ -89,6 +89,20 @@ class SitemapService
                 ->toArray();
             $allLanguages = array_unique(array_merge($languages, $lpLanguages));
 
+            // Priorité : FR d'abord, EN ensuite, puis les autres langues.
+            // Note : l'ordre des sous-sitemaps dans l'index n'a pas d'impact SEO
+            // direct pour Google, mais le x-default dans chaque hreflang_map
+            // (généré côté backend) doit pointer vers la version FR.
+            // L'ordre FR→EN→autres est utile pour le debug et la lisibilité des logs.
+            $langPriority = ['fr', 'en', 'es', 'de', 'pt', 'ar', 'hi', 'zh', 'ru'];
+            usort($allLanguages, function ($a, $b) use ($langPriority) {
+                $posA = array_search($a, $langPriority);
+                $posB = array_search($b, $langPriority);
+                $posA = $posA === false ? 99 : $posA;
+                $posB = $posB === false ? 99 : $posB;
+                return $posA <=> $posB;
+            });
+
             $sitemaps = [];
 
             foreach ($allLanguages as $lang) {

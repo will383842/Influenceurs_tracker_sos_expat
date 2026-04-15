@@ -106,12 +106,12 @@ interface GenerateParams {
 
 const BASE = '/content-gen/linkedin';
 
+// 4 publishing days — Tue/Thu removed, Sat added
 const DAYS = [
-  { value: 'monday',    label: '📋 Lundi — Carrousel conseils' },
-  { value: 'tuesday',   label: '💬 Mardi — Story fictive' },
-  { value: 'wednesday', label: '🚨 Mercredi — Actu légale' },
-  { value: 'thursday',  label: '❓ Jeudi — Q&A' },
-  { value: 'friday',    label: '✨ Vendredi — Témoignage/tip' },
+  { value: 'monday',    label: '📋 Lundi — Article / Hot take',   slot: '07h30' },
+  { value: 'wednesday', label: '🚨 Mercredi — Actu / Opinion',    slot: '07h30' },
+  { value: 'friday',    label: '❓ Vendredi — FAQ / Sondage',     slot: '07h30' },
+  { value: 'saturday',  label: '✨ Samedi — Tip / Inspirant',     slot: '09h00' },
 ];
 
 // Source types grouped: DB sources (need auto-select) vs free generation
@@ -132,6 +132,7 @@ const SOURCE_TYPES_FREE = [
   { value: 'counter_intuition', label: '🔄 Contre-intuition' },
   { value: 'tip',               label: '💡 Tip rapide actionnable' },
   { value: 'news',              label: '📰 Actualité libre' },
+  { value: 'case_study',        label: '📋 Case study — résultat client' },
 ];
 
 const ALL_SOURCE_TYPES = [...SOURCE_TYPES_DB, ...SOURCE_TYPES_FREE];
@@ -148,10 +149,14 @@ const STATUS_META: Record<string, { label: string; variant: 'neutral' | 'info' |
 };
 
 const DAY_SHORT: Record<string, string> = {
-  monday: 'Lun', tuesday: 'Mar', wednesday: 'Mer', thursday: 'Jeu', friday: 'Ven',
+  monday: 'Lun', tuesday: 'Mar', wednesday: 'Mer',
+  thursday: 'Jeu', friday: 'Ven', saturday: 'Sam',
 };
 
-// ── UpcomingCalendar (30-day view) ────────────────────────────────────────────
+// Publishing days in JS getDay() → day_type
+const PUBLISH_DOW_MAP: Record<number, string> = { 1: 'monday', 3: 'wednesday', 5: 'friday', 6: 'saturday' };
+
+// ── UpcomingCalendar (30-day view — Mon/Wed/Fri/Sat only) ───────���────────────
 
 function UpcomingCalendar({
   posts,
@@ -162,84 +167,122 @@ function UpcomingCalendar({
   onGenerate: (dayType: string) => void;
   onViewPost: (post: UpcomingPost) => void;
 }) {
-  // Build list of next 30 weekdays
   const today = new Date();
-  const weekdays: Date[] = [];
-  let d = new Date(today);
-  while (weekdays.length < 30) {
-    if (d.getDay() !== 0 && d.getDay() !== 6) weekdays.push(new Date(d));
-    d.setDate(d.getDate() + 1);
+  const todayKey = today.toISOString().slice(0, 10);
+
+  // Build next 32 publishing days (Mon=1, Wed=3, Fri=5, Sat=6 in JS getDay)
+  const PUBLISH_JS_DOW = new Set([1, 3, 5, 6]);
+  const publishingDays: Date[] = [];
+  const cursor = new Date(today);
+  while (publishingDays.length < 32) {
+    if (PUBLISH_JS_DOW.has(cursor.getDay())) publishingDays.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
   }
 
-  // Group into weeks (Mon-Fri)
-  const weeks: Date[][] = [];
-  let week: Date[] = [];
-  weekdays.forEach((day, i) => {
-    week.push(day);
-    if (week.length === 5 || i === weekdays.length - 1) {
-      weeks.push(week);
-      week = [];
-    }
+  // Group by ISO week (Mon = week start)
+  function isoWeekStart(date: Date): string {
+    const d = new Date(date);
+    const dow = d.getDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().slice(0, 10);
+  }
+  const weekMap = new Map<string, Date[]>();
+  publishingDays.forEach(day => {
+    const wk = isoWeekStart(day);
+    if (!weekMap.has(wk)) weekMap.set(wk, []);
+    weekMap.get(wk)!.push(day);
   });
+  const weeks = Array.from(weekMap.entries()).slice(0, 8); // show max 8 weeks
 
   const postsByDate: Record<string, UpcomingPost> = {};
   posts.forEach(p => {
-    if (p.scheduled_at) {
-      const key = p.scheduled_at.slice(0, 10);
-      postsByDate[key] = p;
-    }
+    if (p.scheduled_at) postsByDate[p.scheduled_at.slice(0, 10)] = p;
   });
 
-  const DAY_MAP: Record<number, string> = { 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday' };
-  const DAY_FR = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+  const DAY_LABEL: Record<number, string> = { 1: 'Lun', 3: 'Mer', 5: 'Ven', 6: 'Sam' };
+  // Day type badge colours
+  const DAY_COLOR: Record<number, string> = {
+    1: 'text-violet-300',   // Monday
+    3: 'text-amber-300',    // Wednesday
+    5: 'text-blue-300',     // Friday
+    6: 'text-green-300',    // Saturday
+  };
 
   return (
     <div className="bg-surface2 rounded-xl border border-border p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-text">📅 Calendrier éditorial — 30 prochains jours</h3>
+        <h3 className="font-semibold text-text">📅 Calendrier éditorial — Lun · Mer · Ven · Sam</h3>
         <span className="text-xs text-text-muted">{posts.length} post{posts.length !== 1 ? 's' : ''} planifié{posts.length !== 1 ? 's' : ''}</span>
       </div>
-      <div className="space-y-3">
-        {weeks.map((week, wi) => {
-          const weekLabel = week[0].toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) +
-            ' → ' + week[week.length - 1].toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+
+      {/* Header row */}
+      <div className="grid grid-cols-4 gap-1.5 mb-2">
+        {[
+          { dow: 1, label: '📋 Lun', sub: '07h30' },
+          { dow: 3, label: '🚨 Mer', sub: '07h30' },
+          { dow: 5, label: '❓ Ven', sub: '07h30' },
+          { dow: 6, label: '✨ Sam', sub: '09h00' },
+        ].map(({ label, sub }) => (
+          <div key={label} className="text-center">
+            <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">{label}</p>
+            <p className="text-[9px] text-text-muted/60">{sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {weeks.map(([weekStart, days]) => {
+          const weekLabel = new Date(weekStart + 'T12:00:00')
+            .toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
           return (
-            <div key={wi}>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1.5 font-semibold">Semaine du {weekLabel}</p>
-              <div className="grid grid-cols-5 gap-1.5">
-                {week.map(day => {
+            <div key={weekStart}>
+              <p className="text-[9px] uppercase tracking-wider text-text-muted/50 mb-1 font-semibold">
+                Semaine du {weekLabel}
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[1, 3, 5, 6].map(targetDow => {
+                  const day = days.find(d => d.getDay() === targetDow);
+                  if (!day) {
+                    // Not in this week (e.g., partial first week)
+                    return <div key={targetDow} className="rounded-lg border border-border/20 p-2 min-h-[52px]" />;
+                  }
                   const key = day.toISOString().slice(0, 10);
                   const post = postsByDate[key];
-                  const dayIdx = day.getDay();
-                  const isToday = key === today.toISOString().slice(0, 10);
-                  const dayType = DAY_MAP[dayIdx] ?? 'monday';
+                  const isToday = key === todayKey;
+                  const dayType = PUBLISH_DOW_MAP[targetDow] ?? 'monday';
                   return (
                     <div
                       key={key}
-                      className={`rounded-lg border p-2 text-center text-xs transition-all cursor-pointer ${
+                      className={`rounded-lg border p-2 text-center text-xs transition-all cursor-pointer min-h-[52px] flex flex-col justify-between ${
                         post
                           ? 'border-amber-500/40 bg-amber-500/10 hover:border-amber-400/60 hover:bg-amber-500/15'
-                          : 'border-border/50 bg-surface/50 hover:border-violet/40'
+                          : 'border-border/50 bg-surface/50 hover:border-violet/40 hover:bg-violet/5'
                       } ${isToday ? 'ring-1 ring-violet/50' : ''}`}
-                      title={post ? `Voir le post : ${post.hook_preview || post.source_type}` : 'Cliquer pour générer'}
+                      title={post ? `Voir : ${post.hook_preview || post.source_type}` : `Générer un post ${DAY_LABEL[targetDow]}`}
                       onClick={() => post ? onViewPost(post) : onGenerate(dayType)}
                     >
-                      <p className={`font-semibold text-[10px] ${isToday ? 'text-violet-300' : 'text-text-muted'}`}>
-                        {DAY_FR[dayIdx]} {day.getDate()}
+                      <p className={`font-semibold text-[10px] ${isToday ? 'text-violet-300' : DAY_COLOR[targetDow]}`}>
+                        {DAY_LABEL[targetDow]} {day.getDate()}
                       </p>
                       {post ? (
                         <>
-                          <p className="text-amber-300 text-[9px] mt-0.5 truncate leading-tight">
-                            {post.hook_preview ? post.hook_preview.slice(0, 28) + '…' : SOURCE_LABEL[post.source_type]?.split(' ')[0]}
+                          <p className="text-amber-300 text-[9px] truncate leading-tight">
+                            {post.hook_preview ? post.hook_preview.slice(0, 25) + '…' : SOURCE_LABEL[post.source_type]?.split(' ')[0]}
                           </p>
-                          <div className="flex items-center justify-center gap-1 mt-1">
+                          <div className="flex items-center justify-center gap-1">
                             <span className="text-[8px] text-text-muted uppercase font-mono">{post.lang}</span>
                             {post.has_image && <span className="text-[8px]">🖼</span>}
-                            <span className={`text-[8px] ${post.status === 'scheduled' ? 'text-green-400' : post.status === 'generating' ? 'text-blue-400 animate-pulse' : 'text-amber-400'}`}>●</span>
+                            <span className={`text-[8px] ${
+                              post.status === 'scheduled' ? 'text-green-400' :
+                              post.status === 'published' ? 'text-blue-400' :
+                              post.status === 'generating' ? 'text-violet-400 animate-pulse' :
+                              post.status === 'draft' ? 'text-amber-400' : 'text-red-400'
+                            }`}>●</span>
                           </div>
                         </>
                       ) : (
-                        <p className="text-text-muted text-[9px] mt-1">+ générer</p>
+                        <p className="text-text-muted/50 text-[9px]">+ générer</p>
                       )}
                     </div>
                   );
@@ -261,9 +304,9 @@ function UpcomingCalendar({
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getCurrentWeekday(): string {
-  const map = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const d = map[new Date().getDay()];
-  return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(d) ? d : 'monday';
+  // Publishing days only: Mon/Wed/Fri/Sat — fallback to monday
+  const publishing: Record<number, string> = { 1: 'monday', 3: 'wednesday', 5: 'friday', 6: 'saturday' };
+  return publishing[new Date().getDay()] ?? 'monday';
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -417,17 +460,17 @@ export default function RepublicationLinkedIn() {
   }
 
   async function handleGenerateWeek() {
+    // 4-day editorial rhythm: Lun/Mer/Ven/Sam
     const daySourceMap: [string, string][] = [
-      ['monday',    'article'],
-      ['tuesday',   'faq'],
-      ['wednesday', 'article'],
-      ['thursday',  'faq'],
-      ['friday',    'tip'],
+      ['monday',    'article'],    // Carrousel / liste pratique
+      ['wednesday', 'hot_take'],   // Opinion tranchée / actu
+      ['friday',    'faq'],        // FAQ / sondage
+      ['saturday',  'tip'],        // Tip rapide / inspirant
     ];
 
     setWeekGenProgress('Démarrage...');
     for (const [day, sourceType] of daySourceMap) {
-      setWeekGenProgress(`Génération ${DAY_SHORT[day]}...`);
+      setWeekGenProgress(`Génération ${DAY_SHORT[day]}... (${daySourceMap.findIndex(e => e[0] === day) + 1}/4)`);
       await mutateGenerate.mutateAsync({
         source_type: sourceType,
         source_id: null,
@@ -576,7 +619,7 @@ export default function RepublicationLinkedIn() {
           {/* Weekly rhythm */}
           <div>
             <h2 className="text-lg font-semibold text-text mb-3">Rythme hebdomadaire</h2>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {DAYS.map(day => (
                 <div key={day.value} className="bg-surface2 rounded-xl p-4 border border-border text-center">
                   <p className="text-text font-bold">{DAY_SHORT[day.value]}</p>
@@ -599,18 +642,21 @@ export default function RepublicationLinkedIn() {
 
           {/* Rules reminder */}
           <div className="rounded-xl border border-border bg-surface2 p-5">
-            <h3 className="text-sm font-semibold text-text mb-3">📖 Règles LinkedIn 2026 (Top 1%)</h3>
+            <h3 className="text-sm font-semibold text-text mb-3">📖 Règles LinkedIn 2026 — Top 1% (Justin Welsh · Lara Acosta · Matt Barker)</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-text-muted">
               {[
-                '✅ Hook : 2-3 lignes avant "Voir plus" (max 140 chars)',
-                '✅ Corps total : 1 200–1 800 caractères',
-                '✅ JAMAIS de lien dans le post (→ 1er commentaire)',
-                '✅ 3-5 hashtags de niche pertinents',
-                '✅ Ligne vide entre chaque paragraphe (mobile)',
-                '✅ CTA : question ouverte pour les commentaires',
-                '✅ Style : humain, empathique, conversationnel',
-                '✅ Horaire : 07h30 UTC (09h30 Paris) — golden hour matinal',
-                '✅ Golden hour : 70% de la portée dans les 90 min après publication',
+                '✅ Hook : affirmation > question (3×) — max 140 chars avant "Voir plus"',
+                '✅ Structure 4 actes : ANCRAGE → DOULEUR → INSIGHT RARE → RÉSOLUTION+CTA',
+                '✅ JAMAIS de lien dans le post — toujours en 1er commentaire',
+                '✅ Max 2 lignes par paragraphe — ligne vide entre chaque bloc (mobile-first)',
+                '✅ Corps total : 1 200–1 800 chars — ni trop court ni mur de texte',
+                '✅ 3-5 hashtags de niche — pas de hashtag marque dans le corps',
+                '✅ Velocity Pattern (Lara Acosta) : 10-15 min après publication → commenter, liker pour stimuler l\'algo',
+                '✅ Golden Hour : 70% du reach dans les 90 min → répondre VITE aux commentaires',
+                '✅ Dwell Time : post long > 30s de lecture = signal de qualité pour l\'algo',
+                '✅ CTA ouvert : question qui pousse à commenter (pas "likez si vous êtes d\'accord")',
+                '✅ Sam 09h00 UTC (11h00 Paris) — audience détendue, concurrence réduite',
+                '✅ Lun/Mer/Ven 07h30 UTC (09h30 Paris) — golden hour professionnel',
               ].map(r => <p key={r}>{r}</p>)}
             </div>
           </div>
@@ -1114,7 +1160,7 @@ export default function RepublicationLinkedIn() {
               onChange={e => setScheduleModal(s => s ? { ...s, date: e.target.value } : null)}
             />
             <p className="text-text-muted text-xs">
-              💡 Horaires optimaux LinkedIn : <strong className="text-text">07h30</strong> (matin) ou <strong className="text-text">12h15</strong> (déjeuner)
+              💡 Horaires optimaux : <strong className="text-text">07h30</strong> UTC Lun/Mer/Ven · <strong className="text-text">09h00</strong> UTC Samedi · ou <strong className="text-text">12h15</strong> déjeuner
             </p>
           </div>
         )}
@@ -1241,7 +1287,7 @@ function PostCard({
           </div>
 
           {post.status === 'generating' ? (
-            <p className="text-blue-300 text-sm animate-pulse">Génération IA en cours (GPT-4o)...</p>
+            <p className="text-blue-300 text-sm animate-pulse">Génération IA en cours (Claude Haiku)...</p>
           ) : post.status === 'failed' ? (
             <p className="text-red-300 text-sm line-clamp-1">{post.error_message ?? 'Échec de génération'}</p>
           ) : (
@@ -1374,20 +1420,21 @@ function StrategyTab() {
     <div className="space-y-6">
       {/* Rythme */}
       <div className="bg-surface2 rounded-xl border border-border p-5">
-        <h3 className="font-semibold text-text mb-4">📅 Rythme 5 jours/semaine</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+        <h3 className="font-semibold text-text mb-4">📅 Rythme 4 jours/semaine — Lun · Mer · Ven · Sam</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           {[
-            { day: 'Lundi',    type: 'article / hot_take', format: 'Carrousel "X erreurs/conseils"', emoji: '📋', note: 'editorial_score DESC' },
-            { day: 'Mardi',    type: 'faq / story fictive', format: 'Hook émotionnel + récit', emoji: '💬', note: 'seo_score DESC' },
-            { day: 'Mercredi', type: 'reactive / myth', format: 'Actu légale ou mythe à démolir', emoji: '🚨', note: 'libre / actu' },
-            { day: 'Jeudi',    type: 'faq / sondage', format: 'Q&A ou stat choc', emoji: '❓', note: 'stats sondage SOS-Expat' },
-            { day: 'Vendredi', type: 'tip / milestone', format: 'Tip rapide ou story partenaire', emoji: '✨', note: 'libre / inspirant' },
+            { day: 'Lundi',    slot: '07h30', type: 'article / hot_take', format: 'Carrousel "X erreurs/conseils"', emoji: '📋', note: 'editorial_score DESC · 2:1 article→hot_take' },
+            { day: 'Mercredi', slot: '07h30', type: 'hot_take / reactive / myth', format: 'Opinion tranchée · actu légale · mythe', emoji: '🚨', note: 'libre / rotation ISO week' },
+            { day: 'Vendredi', slot: '07h30', type: 'faq / sondage / poll', format: 'FAQ engageante ou sondage LinkedIn natif', emoji: '❓', note: 'seo_score DESC · rotation' },
+            { day: 'Samedi',   slot: '09h00', type: 'tip / case_study / milestone', format: 'Tip actionnable · résultat client · story', emoji: '✨', note: 'libre / inspirant / weekend' },
           ].map(row => (
             <div key={row.day} className="text-center p-3 rounded-lg bg-surface border border-border">
               <p className="text-xl mb-1">{row.emoji}</p>
               <p className="text-text text-sm font-bold">{row.day}</p>
+              <p className="text-amber-300 text-[10px] font-mono">{row.slot} UTC</p>
               <p className="text-text-muted text-xs mt-1">{row.format}</p>
               <p className="text-violet-light text-[10px] font-mono mt-1">{row.type}</p>
+              <p className="text-text-muted/50 text-[9px] mt-1 italic">{row.note}</p>
             </div>
           ))}
         </div>
@@ -1455,7 +1502,7 @@ function StrategyTab() {
             <p>• Audience : <strong className="text-text">AudienceContextService</strong> (9 langues × nationalités)</p>
             <p>• Pays en contexte corps, <strong className="text-text">jamais sujet principal</strong></p>
             <p>• Hashtags dérivés des <code className="text-xs">keywords_primary</code></p>
-            <p>• Posts : <strong className="text-text">GPT-4o</strong> (hooks créatifs, storytelling) · Réponses : <strong className="text-text">GPT-4o-mini</strong></p>
+            <p>• Posts : <strong className="text-text">Claude Haiku 4.5</strong> (génération async, QA ≥80/100) · Réponses : <strong className="text-text">Claude Haiku 4.5</strong></p>
             <p>• Image : <strong className="text-text">Unsplash</strong> (searchUnique, anti-doublon, attribution auto en 1er commentaire)</p>
             <p>• Async : résultat en 10-30s, polling toutes les 5s</p>
           </div>
@@ -1469,23 +1516,27 @@ function StrategyTab() {
           <div className="rounded-lg bg-blue-500/8 border border-blue-500/20 p-4">
             <p className="text-blue-300 font-semibold text-sm mb-2">Phase 1 — Now → Août 2026</p>
             <ul className="space-y-1 text-xs text-text-muted">
-              <li>✅ 5 posts/semaine · Page SOS-Expat</li>
+              <li>✅ 4 posts/semaine · Lun/Mer/Ven/Sam</li>
               <li>✅ FR dominant · clients expats francophones</li>
-              <li>✅ Horaires : 07h30 et 12h15</li>
-              <li>✅ 14 angles de contenu automatiques</li>
-              <li>✅ Premier commentaire généré (stocké)</li>
-              <li>⏳ Premier commentaire auto-publié (OAuth)</li>
+              <li>✅ Horaires : 07h30 (Lun/Mer/Ven) · 09h00 (Sam) UTC</li>
+              <li>✅ 14 angles de contenu automatiques + QA loop</li>
+              <li>✅ Premier commentaire généré (stocké) + URL source</li>
+              <li>✅ Qualité Top 1% : hooks science, 4 actes, mobile-first</li>
+              <li>✅ Notifications Telegram succès/échec en temps réel</li>
+              <li>⏳ Premier commentaire auto-publié (OAuth LinkedIn)</li>
             </ul>
           </div>
           <div className="rounded-lg bg-violet/8 border border-violet/20 p-4">
             <p className="text-violet-light font-semibold text-sm mb-2">Phase 2 — Sept 2026+</p>
             <ul className="space-y-1 text-xs text-text-muted">
-              <li>🔲 FR + EN en alternance</li>
+              <li>🔲 FR + EN en alternance (AudienceContextService)</li>
               <li>🔲 Avocats partenaires + helpers ciblés</li>
-              <li>🔲 Page + profil personnel (double reach)</li>
-              <li>🔲 API LinkedIn v2 OAuth connectée</li>
-              <li>🔲 Réponses commentaires AI + validation Telegram</li>
-              <li>🔲 LinkedIn Newsletter</li>
+              <li>🔲 Page SOS-Expat + profil personnel (double reach)</li>
+              <li>🔲 Community Management API LinkedIn approuvée</li>
+              <li>🔲 1er commentaire auto-publié via API</li>
+              <li>🔲 Réponses commentaires AI + validation Telegram 1-tap</li>
+              <li>🔲 Velocity Pattern automatisé (like/commentaire post-publication)</li>
+              <li>🔲 LinkedIn Newsletter intégrée</li>
             </ul>
           </div>
         </div>
