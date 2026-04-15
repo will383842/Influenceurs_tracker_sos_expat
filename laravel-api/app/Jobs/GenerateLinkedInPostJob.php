@@ -267,8 +267,9 @@ USER;
             // ── 4. Generate with QA loop (max 3 attempts) ───────────
             $data = $this->generateWithQualityLoop($openai, $systemPrompt, $userPrompt, $post, $source, $lang, $dayType);
 
-            // If QA loop placed post in 'draft' (score too low), abort here — no further update
-            if ($post->fresh()->status === 'draft') return;
+            // If QA loop placed post in 'draft' (score too low) or 'failed' (both AIs down), abort
+            $freshStatus = $post->fresh()->status ?? '';
+            if ($freshStatus === 'draft' || $freshStatus === 'failed') return;
 
             // ── 4. Hashtags: sanitize + fallback from keywords ───────
             $hashtags = $this->buildHashtags($data['hashtags'] ?? [], $source['hashtag_seeds']);
@@ -465,11 +466,30 @@ USER;
             ]);
         }
 
-        // ── Level 3: Built-in template (no AI required) ────────────────
-        Log::warning('GenerateLinkedInPostJob: both AI services failed — using template', ['post_id' => $post->id]);
-        $this->notifyFallback($post, '⚠️ GPT + Claude indisponibles — post généré depuis template. Vérifiez vos crédits API.');
+        // ── Level 3: Both AI services unavailable — mark as failed, do NOT schedule ──
+        // Publishing template content would harm the LinkedIn account (bad quality, SOS-Expat brand leak).
+        // Instead we put the post in 'failed' so it can be regenerated once credits are recharged.
+        Log::error('GenerateLinkedInPostJob: both AI services failed — post marked failed', ['post_id' => $post->id]);
 
-        return $this->buildTemplatePost($source, $lang, $dayType, $post->source_type);
+        $post->update([
+            'status'        => 'failed',
+            'error_message' => 'GPT-4o quota + Anthropic solde insuffisant. Rechargez les crédits puis relancez la génération.',
+        ]);
+
+        try {
+            $telegram = app(\App\Services\Social\TelegramAlertService::class);
+            if ($telegram->isConfigured()) {
+                $telegram->sendMessage(
+                    "🚨 <b>LinkedIn post #{$post->id} — ANNULÉ (crédits API épuisés)</b>\n\n"
+                    . "GPT-4o quota + Anthropic solde insuffisant.\n"
+                    . "Le post n'a PAS été schedulé (pour éviter de publier du contenu template).\n\n"
+                    . "→ Rechargez les crédits OpenAI + Anthropic\n"
+                    . "→ Puis relancez : <code>php artisan linkedin:fill-calendar</code>"
+                );
+            }
+        } catch (\Throwable) {}
+
+        return []; // empty — handle() will detect status=failed and skip update
     }
 
     // ── Quality loop (auto-improve until score ≥ 80) ──────────────────────
