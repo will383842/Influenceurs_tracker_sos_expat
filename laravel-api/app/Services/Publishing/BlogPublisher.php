@@ -750,6 +750,23 @@ class BlogPublisher
             'external_url' => $externalUrl,
         ]);
 
+        // ── Cache-warm : invalider + recharger le cache blog pour cette LP ──
+        if ($landing->canonical_url) {
+            try {
+                Http::timeout(5)
+                    ->withToken($apiToken)
+                    ->post(rtrim($blogUrl, '/') . '/api/v1/landings/cache-warm', [
+                        'canonical_url' => $landing->canonical_url,
+                    ]);
+            } catch (\Throwable $e) {
+                Log::warning('BlogPublisher: cache-warm failed (non-blocking)', [
+                    'landing_id'    => $landing->id,
+                    'canonical_url' => $landing->canonical_url,
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
+
         return [
             'external_id'  => $externalId,
             'external_url' => $externalUrl,
