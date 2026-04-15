@@ -211,14 +211,14 @@ SYSTEM;
             $isFreeType = in_array($post->source_type, self::FREE_TYPES, true);
             if (!empty($source['url'])) {
                 if ($isSondage) {
-                    $urlLine = "URL des résultats complets du sondage (OBLIGATOIRE dans first_comment) : {$source['url']}";
+                    $urlLine = "URL des résultats complets du sondage (copie-colle EXACTEMENT dans first_comment) : {$source['url']}";
                 } elseif ($isFreeType) {
-                    $urlLine = "URL d'un article lié en ressource complémentaire (mettre dans first_comment, PAS dans le corps) : {$source['url']}";
+                    $urlLine = "URL d'un article lié en ressource (copie-colle EXACTEMENT dans first_comment, jamais dans le corps) : {$source['url']}";
                 } else {
-                    $urlLine = "URL de l'article source (OBLIGATOIRE dans first_comment) : {$source['url']}";
+                    $urlLine = "URL de l'article source (copie-colle EXACTEMENT dans first_comment, jamais dans le corps) : {$source['url']}";
                 }
             } else {
-                $urlLine = "Pas d'URL source — mets uniquement → SOS-Expat.com dans first_comment";
+                $urlLine = "Pas d'URL source disponible — utilise exactement ce lien dans first_comment : https://sos-expat.com";
             }
 
             $userPrompt = <<<USER
@@ -276,7 +276,13 @@ USER;
             // ── 5. First comment — ensure source URL is always present ──
             $firstComment = $data['first_comment'] ?? $this->defaultFirstComment($post->source_type, $source['url'], $lang);
 
-            // Post-processing: if source has a valid URL but AI forgot to include it, append it
+            // ── Post-processing A: strip placeholder text the AI sometimes generates ──
+            // Patterns like [URL source], [URL ou SOS-Expat.com], [https://...] etc.
+            $firstComment = preg_replace('/\[URL[^\]]{0,60}\]/u', 'https://sos-expat.com', $firstComment);
+            $firstComment = preg_replace('/\[SOS-Expat[^\]]{0,40}\]/u', 'https://sos-expat.com', $firstComment);
+            $firstComment = preg_replace('/\[https?:[^\]]{0,100}\]/u', 'https://sos-expat.com', $firstComment);
+
+            // ── Post-processing B: if source has a valid URL but AI forgot to include it ──
             if (!empty($source['url'])
                 && filter_var($source['url'], FILTER_VALIDATE_URL)
                 && !str_contains($firstComment, $source['url'])
@@ -323,7 +329,7 @@ USER;
             }
 
             // ── 8. Update post record → directly scheduled ───────────
-            $post->update([
+            $updateData = [
                 'hook'                  => $data['hook']  ?? $this->defaultHook($dayType, $lang),
                 'body'                  => $data['body']  ?? $this->defaultBody($lang),
                 'hashtags'              => $hashtags,
@@ -334,7 +340,21 @@ USER;
                 'scheduled_at'          => $post->scheduled_at,
                 'auto_scheduled'        => true,
                 'error_message'         => null,
-            ]);
+            ];
+
+            // Save source_id + source_title so dedup works on future generations
+            // Only for DB-backed types (article/faq/sondage) — free types have no DB source
+            if (!in_array($post->source_type, self::FREE_TYPES, true)) {
+                if (!empty($source['source_db_id'])) {
+                    $updateData['source_id']    = $source['source_db_id'];
+                    $updateData['source_title'] = $source['title'] ?? null;
+                }
+            } elseif (!empty($source['title']) && $source['title'] !== 'SOS-Expat.com') {
+                // For free types: save the title of the related article used as context
+                $updateData['source_title'] = $source['title'];
+            }
+
+            $post->update($updateData);
 
             Log::info('GenerateLinkedInPostJob: done', [
                 'post_id'     => $post->id,
@@ -776,9 +796,16 @@ USER;
             ->whereNotNull('source_id')
             ->pluck('source_id');
 
+        // Also dedup by title — catches posts where source_id wasn't saved (legacy)
+        $usedTitles = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
+            ->where('source_type', 'article')
+            ->whereNotNull('source_title')
+            ->pluck('source_title');
+
         $article = GeneratedArticle::published()
             ->where('language', $lang)
             ->whereNotIn('id', $usedIds)
+            ->whereNotIn('title', $usedTitles)
             ->orderByDesc('editorial_score')
             ->first();
 
@@ -792,9 +819,16 @@ USER;
             ->whereNotNull('source_id')
             ->pluck('source_id');
 
+        // Also dedup by question text — catches legacy posts with source_id=NULL
+        $usedTitles = LinkedInPost::whereIn('status', ['draft', 'scheduled', 'published', 'generating'])
+            ->where('source_type', 'faq')
+            ->whereNotNull('source_title')
+            ->pluck('source_title');
+
         $faq = QaEntry::published()
             ->where('language', $lang)
             ->whereNotIn('id', $usedIds)
+            ->whereNotIn('question', $usedTitles)
             ->orderByDesc('seo_score')
             ->first();
 
@@ -862,6 +896,7 @@ USER;
         $seeds     = array_values(array_filter(array_map('trim', explode(',', $allKeys))));
 
         return [
+            'source_db_id'  => $a->id,
             'title'         => $a->title ?? '',
             'content'       => $plain,
             'keywords'      => $allKeys,
@@ -885,6 +920,7 @@ USER;
         $seeds     = array_values(array_filter(array_map('trim', explode(',', $allKeys))));
 
         return [
+            'source_db_id'  => $f->id,
             'title'         => $f->question ?? '',
             'content'       => $answer,
             'keywords'      => $allKeys,
@@ -927,6 +963,7 @@ USER;
         }
 
         return [
+            'source_db_id'  => $s->id,
             'title'         => $blogStats['title'] ?? $s->title ?? 'Sondage SOS-Expat',
             'content'       => substr($content, 0, 1200),
             'keywords'      => 'sondage, statistiques, expatriés, données, expat',
