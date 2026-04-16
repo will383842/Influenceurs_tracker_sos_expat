@@ -179,7 +179,7 @@ INTERDITS ABSOLUS (violation = portée détruite)
 ✗ "Résultat ?" seul sur une ligne — cliché mortel
 ✗ "Le secret de..." ou "Voici comment..." en hook
 ✗ Markdown : **, ##, *, _ (LinkedIn affiche tout en texte brut)
-✗ URL dans le post (UNIQUEMENT dans first_comment)
+✗ URL dans le hook ou dans le corps du post (elle va à la TOUTE FIN, après les hashtags)
 ✗ "En conclusion", "Pour résumer", "J'espère que..." — ton scolaire
 ✗ Rimes ou allitérations forcées — sonnent faux, signal IA
 
@@ -191,14 +191,15 @@ OUI : #visa #droitdutravail #fiscaliteinternationale #mobiliteinternationale
 Dérive des keywords_primary de la source. Jamais de hashtag de marque.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1ER COMMENTAIRE — STRATÉGIE 3 MIN APRÈS
+LIEN SOURCE — TOUJOURS EN DERNIÈRE LIGNE DU BODY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Le 1er commentaire posté par toi-même dans les 3 min = boost algorithmique +15%.
-Structure OBLIGATOIRE :
-1. Valeur ajoutée (ce que le post n'a pas dit : chiffre, anecdote, nuance)
-2. Lien discret vers la ressource (si disponible)
-3. Question de rebond pour relancer (différente de celle du post)
-Longueur : 150-250 caractères. Ton naturel, pas copié-collé du post.
+L'URL source va OBLIGATOIREMENT à la FIN du body, après les hashtags, sur une ligne séparée.
+Format exact (adapte le libellé au type de contenu) :
+→ Pour un article  : "👉 Article complet : [URL]"  (ou "👉 Full article: [URL]" en EN)
+→ Pour une FAQ     : "👉 Réponse complète : [URL]"
+→ Pour un sondage  : "👉 Résultats complets : [URL]"
+→ Pour un contenu libre : "👉 En savoir plus : https://sos-expat.com"
+JAMAIS dans le milieu du post — toujours après les hashtags en toute dernière ligne.
 SYSTEM;
 
             // Country context line (only when the source has a known country)
@@ -206,19 +207,19 @@ SYSTEM;
                 ? "Pays de contexte (à mentionner naturellement dans l'acte 1, jamais comme sujet principal) : " . $source['country']
                 : '';
 
-            // URL line for first comment — differs by source type
+            // URL line for post body — differs by source type
             $isSondage = $post->source_type === 'sondage';
             $isFreeType = in_array($post->source_type, self::FREE_TYPES, true);
             if (!empty($source['url'])) {
                 if ($isSondage) {
-                    $urlLine = "URL des résultats complets du sondage (copie-colle EXACTEMENT dans first_comment) : {$source['url']}";
+                    $urlLine = "URL des résultats complets du sondage (à mettre en DERNIÈRE LIGNE du body, après les hashtags) : {$source['url']}";
                 } elseif ($isFreeType) {
-                    $urlLine = "URL d'un article lié en ressource (copie-colle EXACTEMENT dans first_comment, jamais dans le corps) : {$source['url']}";
+                    $urlLine = "URL d'un article lié (à mettre en DERNIÈRE LIGNE du body, après les hashtags) : {$source['url']}";
                 } else {
-                    $urlLine = "URL de l'article source (copie-colle EXACTEMENT dans first_comment, jamais dans le corps) : {$source['url']}";
+                    $urlLine = "URL de l'article source (à mettre en DERNIÈRE LIGNE du body, après les hashtags) : {$source['url']}";
                 }
             } else {
-                $urlLine = "Pas d'URL source disponible — utilise exactement ce lien dans first_comment : https://sos-expat.com";
+                $urlLine = "Pas d'URL source disponible — utilise exactement ce lien en DERNIÈRE LIGNE du body : https://sos-expat.com";
             }
 
             $userPrompt = <<<USER
@@ -236,19 +237,18 @@ Mots-clés : {$source['keywords']}
 
 RAPPEL CRITIQUE :
 - Hook ≤ 140 chars, première personne "Je", tension immédiate
-- SOS-Expat n'apparaît JAMAIS dans hook ni body — uniquement dans first_comment
+- SOS-Expat n'apparaît JAMAIS dans hook ni body (sauf dans l'URL finale)
 - Corps 1000-1500 chars, 4 actes, paragraphes courts
 - CTA = question précise sur une situation réelle vécue
-- Max 2 émojis dans tout le post
-- first_comment DOIT contenir l'URL fournie (jamais dans le corps du post)
+- Max 2 émojis dans tout le post (hors ligne URL finale)
+- L'URL fournie DOIT apparaître en toute dernière ligne du body, après les hashtags
 - Pour le sondage : utilise les pourcentages RÉELS fournis dans le contenu source — pas de chiffres inventés
 
 Retourne UNIQUEMENT un JSON valide :
 {
   "hook": "accroche ≤140 chars, sans saut de ligne, en {$langLabel}",
-  "body": "corps 1000-1500 chars, \\n entre paragraphes, en {$langLabel}",
-  "hashtags": ["mot1", "mot2", "mot3"],
-  "first_comment": "question rebond + URL fournie obligatoire + lien SOS-Expat.com, 150-300 chars, en {$langLabel}"
+  "body": "corps 1000-1500 chars puis hashtags puis URL source en dernière ligne, \\n entre paragraphes, en {$langLabel}",
+  "hashtags": ["mot1", "mot2", "mot3"]
 }
 USER;
 
@@ -274,28 +274,30 @@ USER;
             // ── 4. Hashtags: sanitize + fallback from keywords ───────
             $hashtags = $this->buildHashtags($data['hashtags'] ?? [], $source['hashtag_seeds']);
 
-            // ── 5. First comment — ensure source URL is always present ──
-            $firstComment = $data['first_comment'] ?? $this->defaultFirstComment($post->source_type, $source['url'], $lang);
+            // ── 5. Body post-processing: ensure source URL is at the end ──
+            $body = $data['body'] ?? $this->defaultBody($lang);
 
-            // ── Post-processing A: strip placeholder text the AI sometimes generates ──
-            // Patterns like [URL source], [URL ou SOS-Expat.com], [https://...] etc.
-            $firstComment = preg_replace('/\[URL[^\]]{0,60}\]/u', 'https://sos-expat.com', $firstComment);
-            $firstComment = preg_replace('/\[SOS-Expat[^\]]{0,40}\]/u', 'https://sos-expat.com', $firstComment);
-            $firstComment = preg_replace('/\[https?:[^\]]{0,100}\]/u', 'https://sos-expat.com', $firstComment);
+            // Strip any bracketed URL placeholders the AI sometimes generates in body
+            $body = preg_replace('/\[URL[^\]]{0,60}\]/u', '', $body);
+            $body = preg_replace('/\[SOS-Expat[^\]]{0,40}\]/u', '', $body);
+            $body = preg_replace('/\[https?:[^\]]{0,100}\]/u', '', $body);
+            $body = rtrim($body);
 
-            // ── Post-processing B: if source has a valid URL but AI forgot to include it ──
-            if (!empty($source['url'])
-                && filter_var($source['url'], FILTER_VALIDATE_URL)
-                && !str_contains($firstComment, $source['url'])
-            ) {
+            // Determine the target URL (article-specific or fallback to homepage)
+            $sourceUrl = !empty($source['url']) && filter_var($source['url'], FILTER_VALIDATE_URL)
+                ? $source['url']
+                : 'https://sos-expat.com';
+
+            // Ensure URL is present at the end of body (Option A: no first_comment)
+            if (!str_contains($body, $sourceUrl)) {
                 if ($post->source_type === 'sondage') {
-                    $arrow = ($lang === 'en') ? '→ Full survey results: ' : '→ Résultats complets : ';
+                    $urlLabel = ($lang === 'en') ? '👉 Full survey results: ' : '👉 Résultats complets : ';
                 } elseif (in_array($post->source_type, self::FREE_TYPES, true)) {
-                    $arrow = ($lang === 'en') ? '→ Related article: ' : '→ Article lié : ';
+                    $urlLabel = ($lang === 'en') ? '👉 Read more: ' : '👉 En savoir plus : ';
                 } else {
-                    $arrow = ($lang === 'en') ? '→ Full article: ' : '→ Article complet : ';
+                    $urlLabel = ($lang === 'en') ? '👉 Full article: ' : '👉 Article complet : ';
                 }
-                $firstComment = rtrim($firstComment) . "\n\n" . $arrow . $source['url'];
+                $body .= "\n\n" . $urlLabel . $sourceUrl;
             }
 
             // ── 6. Image: article image OR Unsplash search ──────────
@@ -316,10 +318,13 @@ USER;
                 }
             }
 
-            // Append Unsplash attribution to first comment (API requirement — only if not already present)
-            if ($imageAttribution && !str_contains($firstComment, 'Unsplash')) {
-                $firstComment .= "\n\n📸 " . $imageAttribution;
+            // Append Unsplash attribution to body (API requirement — only if not already present)
+            if ($imageAttribution && !str_contains($body, 'Unsplash')) {
+                $body .= "\n\n📸 " . $imageAttribution;
             }
+
+            // first_comment disabled — LinkedIn Partner API required (403 partnerApiSocialActions.CREATE)
+            $firstComment = null;
 
             // ── 7. Use pre-assigned slot (set at creation) ──────────
             // scheduled_at is already set by LinkedInController::createAndDispatch()
@@ -332,11 +337,11 @@ USER;
             // ── 8. Update post record → directly scheduled ───────────
             $updateData = [
                 'hook'                  => $data['hook']  ?? $this->defaultHook($dayType, $lang),
-                'body'                  => $data['body']  ?? $this->defaultBody($lang),
+                'body'                  => $body,
                 'hashtags'              => $hashtags,
-                'first_comment'         => $firstComment,
+                'first_comment'         => null,          // Option A: URL embedded in body
                 'featured_image_url'    => $featuredImage,
-                'first_comment_status'  => $firstComment ? 'pending' : null,
+                'first_comment_status'  => null,          // LinkedIn Partner API not approved
                 'status'                => 'scheduled',
                 'scheduled_at'          => $post->scheduled_at,
                 'auto_scheduled'        => true,
@@ -592,11 +597,13 @@ USER;
         if ($hookLen > 0 && $hookLen <= 140) $score += 20;
         elseif ($hookLen <= 155)             $score += 10;
 
-        // ── 2. No brand / URL in body (20 pts) ────────────────────────────
-        $hasBrand = preg_match('/sos.?expat|notre (service|plateforme|solution)|découvrez notre/i', $body);
-        $hasUrl   = preg_match('#https?://|www\.#i', $body);
-        if (!$hasBrand && !$hasUrl) $score += 20;
-        elseif (!$hasUrl)           $score += 8;
+        // ── 2. No brand in body; URL allowed only in last line (20 pts) ──
+        // Option A: URL is intentionally placed as the last line of the body
+        $hasBrand       = preg_match('/sos.?expat|notre (service|plateforme|solution)|découvrez notre/i', $body);
+        $bodyWithoutLast = preg_replace('/\n[^\n]*$/', '', $body); // strip last line
+        $hasUrlInMiddle  = preg_match('#https?://|www\.#i', $bodyWithoutLast);
+        if (!$hasBrand && !$hasUrlInMiddle) $score += 20;
+        elseif (!$hasUrlInMiddle)            $score += 8;
 
         // ── 3. Body 900-1600 chars total (15 pts) ─────────────────────────
         $totalLen = mb_strlen($fullBody);
@@ -612,9 +619,11 @@ USER;
         if ($hashCount >= 3 && $hashCount <= 5) $score += 10;
         elseif ($hashCount >= 2 && $hashCount <= 6) $score += 5;
 
-        // ── 6. First comment substantive ≥ 100 chars (8 pts) ─────────────
-        if (mb_strlen($firstComment) >= 100) $score += 8;
-        elseif (mb_strlen($firstComment) >= 50) $score += 4;
+        // ── 6. URL present at end of body (8 pts) — Option A ─────────────
+        $lastLine = trim(substr(strrchr("\n" . $body, "\n"), 1));
+        $hasUrlInLastLine = preg_match('#https?://#i', $lastLine);
+        if ($hasUrlInLastLine) $score += 8;
+        elseif (preg_match('#https?://#i', $body)) $score += 4; // URL present but not at end
 
         // ── 7. No commercial clichés (5 pts) ──────────────────────────────
         $clichés = preg_match('/résultat \?|le secret de|partagez votre expérience|n\'hésitez pas|likez si/i', $body);
@@ -661,9 +670,11 @@ USER;
         if (!preg_match('/\bje\b|\bj\'|\bI /i', $hook . ' ' . $body))
             $issues[] = "VOIX MANQUANTE. Écris en première personne (Je/J'). Un post à la 3ème personne ou impersonnel ne performe pas.";
         if (preg_match('/sos.?expat|notre (service|plateforme|solution)|découvrez notre/i', $body))
-            $issues[] = "CONTENU COMMERCIAL DÉTECTÉ. 'SOS-Expat', 'notre service' etc. sont INTERDITS dans le post. Mets-les UNIQUEMENT dans first_comment. Le post doit être 100% éducatif/expert.";
-        if (preg_match('#https?://|www\.#i', $body))
-            $issues[] = "URL DANS LE CORPS. Retire tout lien — LinkedIn pénalise algorithmiquement. Le lien va UNIQUEMENT dans first_comment.";
+            $issues[] = "CONTENU COMMERCIAL DÉTECTÉ. 'SOS-Expat', 'notre service' etc. sont INTERDITS dans le post (sauf l'URL de la dernière ligne). Le post doit être 100% éducatif/expert.";
+        // Option A: URL is intentionally in the LAST line — only flag if URL is in the middle
+        $bodyWithoutLastLine = preg_replace('/\n[^\n]*$/', '', $body);
+        if (preg_match('#https?://|www\.#i', $bodyWithoutLastLine))
+            $issues[] = "URL EN MILIEU DE POST. Un lien en plein milieu du corps est pénalisé par LinkedIn. Place l'URL UNIQUEMENT en toute dernière ligne du body (après les hashtags).";
         if ($totalLen < 1000)
             $issues[] = "CORPS TROP COURT ({$totalLen} chars, minimum 1000). Développe l'acte 2 (le problème réel) et l'acte 3 (l'insight rare) avec des détails concrets.";
         if ($totalLen > 1700)
