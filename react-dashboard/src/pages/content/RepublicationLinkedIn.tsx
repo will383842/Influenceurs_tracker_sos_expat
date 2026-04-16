@@ -399,7 +399,7 @@ export default function RepublicationLinkedIn() {
     const connected = params.get('li_connected');
     const error     = params.get('li_error');
     if (connected) {
-      toast.success(`✅ LinkedIn ${connected === 'personal' ? 'personnel' : connected} connecté avec succès !`);
+      toast('success', `✅ LinkedIn ${connected === 'personal' ? 'personnel' : connected} connecté avec succès !`);
       refetchOauth();
       qc.invalidateQueries({ queryKey: ['li-stats'] });
       // Clean URL without reload
@@ -412,7 +412,7 @@ export default function RepublicationLinkedIn() {
         profile_fetch_failed:  'Impossible de récupérer le profil LinkedIn',
         exception:             'Erreur inattendue lors de la connexion LinkedIn',
       };
-      toast.error(`❌ LinkedIn : ${msgs[error] ?? error}`);
+      toast('error', `❌ LinkedIn : ${msgs[error] ?? error}`);
       const clean = window.location.pathname;
       window.history.replaceState({}, '', clean);
     }
