@@ -21,13 +21,15 @@ class LinkedInToken extends Model
         'access_token',
         'refresh_token',
         'expires_at',
+        'refresh_token_expires_at',
         'linkedin_id',
         'linkedin_name',
         'scope',
     ];
 
     protected $casts = [
-        'expires_at' => 'datetime',
+        'expires_at'               => 'datetime',
+        'refresh_token_expires_at' => 'datetime',
     ];
 
     // ── Encryption mutators ────────────────────────────────────────────
@@ -71,6 +73,12 @@ class LinkedInToken extends Model
     public function expiresInDays(): int
     {
         return max(0, (int) now()->diffInDays($this->expires_at, false));
+    }
+
+    public function refreshExpiresInDays(): ?int
+    {
+        if (!$this->refresh_token_expires_at) return null;
+        return max(0, (int) now()->diffInDays($this->refresh_token_expires_at, false));
     }
 
     // ── Scopes ─────────────────────────────────────────────────────────

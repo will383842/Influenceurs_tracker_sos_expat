@@ -25,8 +25,8 @@ interface LiStats {
 }
 
 interface OAuthStatus {
-  personal: { connected: boolean; name: string | null; expires_in_days: number };
-  page:     { connected: boolean; name: string | null; expires_in_days: number };
+  personal: { connected: boolean; name: string | null; expires_in_days: number; has_refresh_token: boolean; refresh_expires_in_days: number | null };
+  page:     { connected: boolean; name: string | null; expires_in_days: number; has_refresh_token: boolean; refresh_expires_in_days: number | null };
 }
 
 interface LinkedInOrg {
@@ -947,7 +947,9 @@ export default function RepublicationLinkedIn() {
                 </p>
                 <p className="text-text-muted text-xs mt-0.5">
                   {oauthStatus?.personal.connected
-                    ? `Token expire dans ${oauthStatus.personal.expires_in_days} jours`
+                    ? oauthStatus.personal.has_refresh_token
+                      ? `🔄 Auto-renouvelable — refresh token valide ${oauthStatus.personal.refresh_expires_in_days != null ? oauthStatus.personal.refresh_expires_in_days + 'j' : '~1 an'}`
+                      : `Token expire dans ${oauthStatus.personal.expires_in_days}j · Reconnecte pour activer l'auto-renouvellement`
                     : 'Publie sur ton profil LinkedIn (portée ×3-5 vs page)'}
                 </p>
               </div>
@@ -1235,9 +1237,13 @@ function LinkedInOAuthWidget({
           </p>
           <p className="text-text-muted text-xs mt-0.5">
             {bothOk
-              ? `Auto-publication activée · Perso expire dans ${status!.personal.expires_in_days}j · Page dans ${status!.page.expires_in_days}j`
+              ? status!.personal.has_refresh_token
+                ? `🔄 Auto-renouvelable · Perso ${status!.personal.refresh_expires_in_days != null ? status!.personal.refresh_expires_in_days + 'j' : '~1an'} · Page ${status!.page.refresh_expires_in_days != null ? status!.page.refresh_expires_in_days + 'j' : '~1an'}`
+                : `Auto-publication activée · Expire dans ${status!.personal.expires_in_days}j`
               : personalOk
-              ? 'Configure la page SOS-Expat pour activer la double publication automatique'
+              ? status!.personal.has_refresh_token
+                ? `🔄 Auto-renouvelable — profil ${status!.personal.name} · Configure la page SOS-Expat`
+                : 'Configure la page SOS-Expat pour activer la double publication automatique'
               : 'Connecte LinkedIn pour activer la publication automatique des posts générés'}
           </p>
         </div>

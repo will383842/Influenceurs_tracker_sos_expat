@@ -45,14 +45,18 @@ class LinkedInApiService
 
         return [
             'personal' => [
-                'connected'       => $personal?->isValid() ?? false,
-                'name'            => $personal?->linkedin_name,
-                'expires_in_days' => $personal?->expiresInDays() ?? 0,
+                'connected'                => $personal?->isValid() ?? false,
+                'name'                     => $personal?->linkedin_name,
+                'expires_in_days'          => $personal?->expiresInDays() ?? 0,
+                'has_refresh_token'        => !empty($personal?->refresh_token),
+                'refresh_expires_in_days'  => $personal?->refreshExpiresInDays() ?? null,
             ],
             'page' => [
-                'connected'       => $page?->isValid() ?? false,
-                'name'            => $page?->linkedin_name,
-                'expires_in_days' => $page?->expiresInDays() ?? 0,
+                'connected'                => $page?->isValid() ?? false,
+                'name'                     => $page?->linkedin_name,
+                'expires_in_days'          => $page?->expiresInDays() ?? 0,
+                'has_refresh_token'        => !empty($page?->refresh_token),
+                'refresh_expires_in_days'  => $page?->refreshExpiresInDays() ?? null,
             ],
         ];
     }
@@ -304,8 +308,69 @@ class LinkedInApiService
     private function resolveToken(string $accountType): ?LinkedInToken
     {
         $token = LinkedInToken::where('account_type', $accountType)->first();
-        if (!$token || !$token->isValid()) return null;
+        if (!$token) return null;
+
+        // Auto-refresh if access token expires within 7 days and a refresh token exists
+        if ($token->expires_at && $token->expires_at->diffInDays(now(), false) >= -7 && $token->refresh_token) {
+            $refreshed = $this->refreshAccessToken($token);
+            if ($refreshed) $token = $refreshed;
+        }
+
+        if (!$token->isValid()) return null;
         return $token;
+    }
+
+    /**
+     * Exchange a refresh_token for a new access_token.
+     * LinkedIn refresh tokens have a 1-year rolling window.
+     * Returns the updated token model on success, null on failure.
+     */
+    private function refreshAccessToken(LinkedInToken $token): ?LinkedInToken
+    {
+        try {
+            $response = Http::asForm()->post('https://www.linkedin.com/oauth/v2/accessToken', [
+                'grant_type'    => 'refresh_token',
+                'refresh_token' => $token->refresh_token,
+                'client_id'     => config('services.linkedin.client_id'),
+                'client_secret' => config('services.linkedin.client_secret'),
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('LinkedInApiService: refresh_token failed', [
+                    'account_type' => $token->account_type,
+                    'status'       => $response->status(),
+                    'body'         => mb_substr($response->body(), 0, 300),
+                ]);
+                return null;
+            }
+
+            $data         = $response->json();
+            $newAccess    = $data['access_token']               ?? null;
+            $expiresIn    = $data['expires_in']                  ?? 5184000;
+            $newRefresh   = $data['refresh_token']               ?? $token->refresh_token;
+            $refreshExpIn = $data['refresh_token_expires_in']    ?? null;
+
+            if (!$newAccess) return null;
+
+            $token->access_token  = $newAccess;
+            $token->refresh_token = $newRefresh;
+            $token->expires_at    = now()->addSeconds($expiresIn);
+            if ($refreshExpIn) {
+                $token->refresh_token_expires_at = now()->addSeconds($refreshExpIn);
+            }
+            $token->save();
+
+            Log::info('LinkedInApiService: access_token auto-refreshed', [
+                'account_type' => $token->account_type,
+                'expires_at'   => $token->expires_at->toDateString(),
+            ]);
+
+            return $token->fresh();
+
+        } catch (\Throwable $e) {
+            Log::error('LinkedInApiService: refreshAccessToken exception', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     private function authorUrn(string $accountType, string $id): string

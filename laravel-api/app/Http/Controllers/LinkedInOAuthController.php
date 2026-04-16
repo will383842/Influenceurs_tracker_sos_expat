@@ -34,7 +34,10 @@ class LinkedInOAuthController extends Controller
     // OpenID for profile name fetch
     // Personal only: w_member_social = post, openid+profile = read name/id
     // Page scopes (rw_organization_social) removed — Community Management API not approved
-    private const SCOPES = 'openid,profile,w_member_social';
+    // offline_access → LinkedIn issues a refresh_token (1-year rolling window)
+    // Combined with auto-refresh in LinkedInApiService::resolveToken(), the token
+    // renews itself silently and never requires manual re-authorization.
+    private const SCOPES = 'openid,profile,w_member_social,offline_access';
 
     public function __construct(private LinkedInApiService $api) {}
 
