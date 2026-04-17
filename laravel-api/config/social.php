@@ -3,6 +3,7 @@
 use App\Services\Social\Drivers\FacebookDriver;
 use App\Services\Social\Drivers\InstagramDriver;
 use App\Services\Social\Drivers\LinkedInDriver;
+use App\Services\Social\Drivers\PinterestDriver;
 use App\Services\Social\Drivers\ThreadsDriver;
 
 return [
@@ -56,6 +57,14 @@ return [
             'label'    => 'Instagram',
             'icon'     => 'instagram',
             'queue'    => 'social_instagram',
+        ],
+
+        'pinterest' => [
+            'driver'   => PinterestDriver::class,
+            'enabled'  => (bool) env('SOCIAL_PINTEREST_ENABLED', false),
+            'label'    => 'Pinterest',
+            'icon'     => 'pinterest',
+            'queue'    => 'social_pinterest',
         ],
 
     ],

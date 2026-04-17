@@ -125,6 +125,16 @@ return [
         'telegram_webhook_secret' => env('TELEGRAM_THREADS_WEBHOOK_SECRET', ''),
     ],
 
+    // Pinterest (REST API v5). Review ~3-5 days, much faster than Meta.
+    'pinterest' => [
+        'client_id'               => env('PINTEREST_CLIENT_ID', ''),
+        'client_secret'           => env('PINTEREST_CLIENT_SECRET', ''),
+        'redirect_uri'            => env('PINTEREST_REDIRECT_URI', ''),
+        'board_id'                => env('PINTEREST_BOARD_ID', ''),
+        'telegram_confirm'        => (bool) env('PINTEREST_TELEGRAM_CONFIRM', false),
+        'telegram_webhook_secret' => env('TELEGRAM_PINTEREST_WEBHOOK_SECRET', ''),
+    ],
+
     // Dedicated Telegram bots per platform (fall back to telegram_alerts)
     'telegram_facebook' => [
         'bot_token' => env('TELEGRAM_FACEBOOK_BOT_TOKEN', env('TELEGRAM_ALERT_BOT_TOKEN')),
@@ -137,6 +147,10 @@ return [
     'telegram_instagram' => [
         'bot_token' => env('TELEGRAM_INSTAGRAM_BOT_TOKEN', env('TELEGRAM_ALERT_BOT_TOKEN')),
         'chat_id'   => env('TELEGRAM_INSTAGRAM_CHAT_ID',   env('TELEGRAM_ALERT_CHAT_ID')),
+    ],
+    'telegram_pinterest' => [
+        'bot_token' => env('TELEGRAM_PINTEREST_BOT_TOKEN', env('TELEGRAM_ALERT_BOT_TOKEN')),
+        'chat_id'   => env('TELEGRAM_PINTEREST_CHAT_ID',   env('TELEGRAM_ALERT_CHAT_ID')),
     ],
 
     'ai' => [

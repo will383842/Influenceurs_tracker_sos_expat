@@ -20,7 +20,7 @@ class SocialPost extends Model
 {
     protected $table = 'social_posts';
 
-    public const PLATFORMS = ['linkedin', 'facebook', 'threads', 'instagram'];
+    public const PLATFORMS = ['linkedin', 'facebook', 'threads', 'instagram', 'pinterest'];
 
     protected $fillable = [
         'platform',

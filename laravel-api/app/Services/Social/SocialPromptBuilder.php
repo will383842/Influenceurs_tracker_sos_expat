@@ -43,6 +43,7 @@ class SocialPromptBuilder
             'facebook'  => $this->buildFacebook($post, $source, $lang, $driver),
             'threads'   => $this->buildThreads($post, $source, $lang, $driver),
             'instagram' => $this->buildInstagram($post, $source, $lang, $driver),
+            'pinterest' => $this->buildPinterest($post, $source, $lang, $driver),
             default     => throw new \InvalidArgumentException("Unknown platform: {$platform}"),
         };
     }
@@ -489,6 +490,122 @@ Retourne UNIQUEMENT un JSON valide :
   "body": "caption complète 500-1500 chars + hashtags en fin, en {$langLabel}",
   "hashtags": ["mot1", "mot2", "mot3"],
   "first_comment": "140-200 chars avec URL complète, en {$langLabel}"
+}
+USER;
+
+        return ['system' => $system, 'user' => $user];
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Pinterest — Best practices 2026 (visual search engine, image obligatoire)
+    // ══════════════════════════════════════════════════════════════════
+
+    private function buildPinterest(
+        SocialPost $post,
+        array $source,
+        string $lang,
+        SocialPublishingServiceInterface $driver,
+    ): array {
+        $kbContext       = $this->kb->getLightPrompt('pinterest', null, $lang);
+        $audienceContext = AudienceContextService::getContextFor($lang);
+        $angleInstructions = $this->angleInstructions($post->source_type, $lang);
+        $langLabel = $lang === 'en' ? 'English' : 'français';
+        $maxLen = $driver->maxContentLength(); // 500
+
+        $system = <<<SYSTEM
+{$kbContext}
+
+{$audienceContext}
+
+═══════════════════════════════════════════════════════════════
+IDENTITÉ : Expert Pinterest pour le compte Business SOS-Expat.com.
+Pinterest n'est PAS un réseau social — c'est un MOTEUR DE RECHERCHE VISUEL.
+Audience : 70% femmes, 25-45 ans, en phase de planification de projets concrets.
+Style : utile, pratique, SEO-friendly, jamais bavard.
+═══════════════════════════════════════════════════════════════
+
+━━━━━━ ALGORITHME PINTEREST 2026 ━━━━━━
+Pinterest favorise les Pins qui :
+→ Cliquent vers une URL externe (Pinterest = traffic driver)
+→ Génèrent des SAVES (= signal #1, ×3 plus fort que clicks)
+→ Ont un title + description riches en mots-clés (moteur de recherche)
+→ Utilisent une image verticale 2:3 (1000x1500) — boost ×2 vs landscape
+→ Restent affichés 6-12 mois (longévité unique vs feed FB/IG qui meurt en 24h)
+
+━━━━━━ TITLE — 40-100 CHARS, RICHE EN MOTS-CLÉS ━━━━━━
+Le title est ce qui apparait sur le Pin (visible) ET dans les résultats de recherche.
+Il doit contenir le KEYWORD PRINCIPAL en début.
+
+Patterns 2026 :
+→ GUIDE NUMÉROTÉ  : "5 étapes pour ouvrir un compte bancaire en Thaïlande"
+→ CHECKLIST       : "Checklist visa USA 2026 : tout ce qu'il faut préparer"
+→ COMPARAISON     : "Portugal vs Espagne : quel pays choisir pour s'expatrier"
+→ ERREUR À ÉVITER : "L'erreur fiscale que 80% des expatriés français commettent"
+→ "ULTIMATE"      : "Le guide ultime pour s'installer au Vietnam en 2026"
+
+INTERDITS TITLE : émojis (signal spam Pinterest), questions ("?"), majuscules ALL CAPS.
+
+━━━━━━ DESCRIPTION — 200-500 CHARS, SEO-FIRST ━━━━━━
+La description sert au SEO Pinterest (= moteur de recherche) ET aux saves.
+Pinterest scan les mots-clés naturels dans le texte → écris pour les algos ET pour les humains.
+
+Structure type :
+1. Hook qui résume la valeur du Pin (1 ligne)
+2. 2-3 lignes de bullet points concrets (utiliser • ou →)
+3. Invitation à cliquer sur le lien : "Tout détailler dans l'article 👉"
+4. Hashtags inline en fin (5-10 OK sur Pinterest, c'est SEO)
+
+Émojis : sobres, 1-3 cohérents avec le sujet (🌍 ✈️ 📋).
+Utiliser des mots-clés en français ET avec leurs équivalents anglais si pertinent
+(Pinterest indexe les 2 langues automatiquement).
+
+━━━━━━ HASHTAGS — 5-10 INLINE EN FIN DE DESCRIPTION ━━━━━━
+Différence majeure avec FB/IG : Pinterest UTILISE les hashtags pour le ranking.
+Mélange large (#expatriation) + niche (#visa_thailande_2026).
+Format : #motcle1 #motcle2 ... à la fin de la description.
+
+━━━━━━ IMAGE OBLIGATOIRE ━━━━━━
+Pinterest = 100% visuel. Sans image, pas de Pin. Le driver REFUSE.
+Format optimal : vertical 2:3 ratio (1000x1500). Landscape OK mais moins boost.
+Couleurs vives, texte court superposé OK (ex: "5 ÉTAPES"), pas de visage central.
+
+━━━━━━ LIEN EXTERNE ━━━━━━
+Le Pin pointe vers une URL externe (article complet). C'est le seul réseau où
+le clic "out" est ENCOURAGÉ par l'algo (vs FB qui le pénalise).
+Pinterest préfère lien direct vers contenu utile (article, guide, checklist).
+
+━━━━━━ MARQUE ━━━━━━
+"SOS-Expat" peut apparaître naturellement dans la description (1× max).
+Plus important : le LIEN dans le Pin pointe vers ton site → trafic direct.
+SYSTEM;
+
+        $countryLine = !empty($source['country']) ? "Pays : {$source['country']}" : '';
+        $sourceUrl = !empty($source['url']) ? $source['url'] : 'https://sos-expat.com';
+
+        $user = <<<USER
+Génère un Pin Pinterest en {$langLabel} — moteur de recherche visuel SOS-Expat.
+
+ANGLE : {$angleInstructions}
+
+SOURCE :
+Titre : {$source['title']}
+Contenu : {$source['content']}
+Mots-clés (à intégrer absolument dans title + description) : {$source['keywords']}
+{$countryLine}
+URL cible du Pin (le lien qui ouvre l'article) : {$sourceUrl}
+
+RAPPEL :
+- "hook" = TITLE Pinterest (40-100 chars, mot-clé principal en début, JAMAIS d'émoji ni "?")
+- "body" = DESCRIPTION Pinterest (200-{$maxLen} chars, SEO-first, structure bullets, 1-3 émojis sobres)
+- 5-10 hashtags INLINE en fin de description (mélange large + niche)
+- L'image (déjà selectée) sera ajoutée automatiquement
+- Lien externe = $sourceUrl
+
+Retourne UNIQUEMENT un JSON valide :
+{
+  "hook": "TITLE 40-100 chars en {$langLabel}, mot-clé principal en début",
+  "body": "DESCRIPTION 200-{$maxLen} chars en {$langLabel}, SEO-rich + hashtags inline en fin",
+  "hashtags": ["mot1", "mot2", "mot3", "mot4", "mot5"]
 }
 USER;
 

@@ -4,7 +4,7 @@ import api from '../api/client';
 /**
  * Supported social platforms (mirror of backend config/social.php).
  */
-export type SocialPlatform = 'linkedin' | 'facebook' | 'threads' | 'instagram';
+export type SocialPlatform = 'linkedin' | 'facebook' | 'threads' | 'instagram' | 'pinterest';
 
 export interface SocialTokenStatus {
   connected: boolean;
