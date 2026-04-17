@@ -73,8 +73,8 @@ const PLATFORMS: PlatformConfig[] = [
     color: 'text-red-600',
     bgColor: 'bg-red-50',
     borderColor: 'border-red-200',
-    description: 'Pas encore planifié',
-    backendReady: false,
+    description: 'Moteur de recherche visuel — Pins SEO-first vers article (image obligatoire)',
+    backendReady: true,
   },
   {
     id: 'reddit',

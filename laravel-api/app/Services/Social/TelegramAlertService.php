@@ -39,6 +39,7 @@ class TelegramAlertService
             'facebook'  => 'services.telegram_facebook',
             'threads'   => 'services.telegram_threads',
             'instagram' => 'services.telegram_instagram',
+            'pinterest' => 'services.telegram_pinterest',
             default     => 'services.telegram_alerts',
         };
 
