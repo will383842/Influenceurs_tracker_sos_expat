@@ -135,10 +135,13 @@ function PlatformPanel({ config }: { config: PlatformConfig }) {
         {oauth.isLoading ? (
           <p className="text-sm text-muted-foreground">Chargement du statut…</p>
         ) : oauth.isError ? (
-          <p className="text-sm text-red-600">
-            Erreur : impossible de récupérer le statut OAuth.
-            {platform !== 'linkedin' && ' Cette plateforme est peut-être désactivée (Phase 5 en attente).'}
-          </p>
+          isPlatformDisabledError(oauth.error) ? (
+            <DisabledPlatformNotice platform={platform} />
+          ) : (
+            <p className="text-sm text-red-600">
+              Erreur : impossible de récupérer le statut OAuth.
+            </p>
+          )
         ) : (
           <div className="space-y-2">
             {Object.entries(oauth.data?.tokens ?? {}).map(([accountType, t]) => (
@@ -176,7 +179,13 @@ function PlatformPanel({ config }: { config: PlatformConfig }) {
         {stats.isLoading ? (
           <p className="text-sm text-muted-foreground">Chargement…</p>
         ) : stats.isError ? (
-          <p className="text-sm text-red-600">Erreur chargement stats.</p>
+          isPlatformDisabledError(stats.error) ? (
+            <p className="text-sm text-muted-foreground italic">
+              Statistiques disponibles dès que la plateforme sera activée.
+            </p>
+          ) : (
+            <p className="text-sm text-red-600">Erreur chargement stats.</p>
+          )
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCell label="Semaine" value={stats.data?.posts_this_week ?? 0} />
@@ -220,6 +229,49 @@ function StatCell({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="bg-white/60 border border-border rounded px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold text-foreground">{value}</div>
+    </div>
+  );
+}
+
+// ── Helpers for friendlier "platform disabled" messaging ───────────────
+
+/**
+ * The backend middleware EnsureValidPlatform returns 403 when a platform is
+ * declared in config but disabled (env var SOCIAL_{PLATFORM}_ENABLED=false).
+ * This is NOT an error — it's a "to-configure" state. We detect it explicitly
+ * so the UI shows a calm "to configure" message rather than a red error.
+ */
+function isPlatformDisabledError(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } } | null)?.response?.status;
+  return status === 403;
+}
+
+function DisabledPlatformNotice({ platform }: { platform: SocialPlatform }) {
+  const envName = `SOCIAL_${platform.toUpperCase()}_ENABLED`;
+  return (
+    <div className="text-sm text-muted-foreground space-y-2">
+      <p>
+        🔧 <strong>Plateforme à configurer.</strong> Cette plateforme est implémentée
+        mais désactivée tant que :
+      </p>
+      <ol className="list-decimal pl-5 space-y-1 text-xs">
+        <li>
+          Les credentials OAuth ne sont pas dans le <code>.env</code> du VPS
+          (<code>{platform.toUpperCase()}_CLIENT_ID</code>, <code>_CLIENT_SECRET</code>,
+          <code>_REDIRECT_URI</code>{platform === 'pinterest' ? <>, <code>_BOARD_ID</code></> : null})
+        </li>
+        <li>
+          La variable <code>{envName}=true</code> n'est pas définie
+        </li>
+        <li>
+          {platform === 'pinterest'
+            ? "Pinterest Developer Review n'a pas encore approuvé ton app (~3-5 jours)"
+            : "Meta App Review n'a pas encore approuvé ton app (~1-2 semaines)"}
+        </li>
+      </ol>
+      <p className="text-xs italic mt-2">
+        Le code est prêt et déployé — il n'y a plus qu'à activer.
+      </p>
     </div>
   );
 }
