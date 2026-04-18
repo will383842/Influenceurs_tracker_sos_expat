@@ -1,0 +1,155 @@
+name: Setup Social Platforms (Meta + Pinterest) credentials in .env.production
+
+# Workflow declenche manuellement depuis GitHub UI (Actions tab) :
+# https://github.com/will383842/Mission_control_sos-expat/actions/workflows/setup-social-env.yml
+# -> bouton "Run workflow"
+#
+# Tu remplis les champs (App ID, App Secret, Page ID, ...) et le workflow :
+#   1. Backup .env.production sur le VPS
+#   2. Supprime les anciennes lignes META_* / PINTEREST_* / SOCIAL_*
+#   3. Ajoute les nouvelles valeurs a la fin
+#   4. Lance php artisan config:clear pour appliquer
+#
+# Reuse les secrets SSH deja configures dans le repo (SERVER_HOST, SSH_USER,
+# SSH_PRIVATE_KEY) — pas besoin de re-configurer.
+
+on:
+  workflow_dispatch:
+    inputs:
+      facebook_client_id:
+        description: "App ID Meta (visible sur App Settings > Basic, ex: 954973840461348)"
+        required: true
+        type: string
+      facebook_client_secret:
+        description: "App Secret Meta (REGENERE-LE d'abord dans Meta avant de coller ici)"
+        required: true
+        type: string
+      facebook_page_id:
+        description: "ID de ta Page Pro Facebook (Page > A propos > Identifiant)"
+        required: true
+        type: string
+      mission_control_domain:
+        description: "Domaine de Mission Control (sans https://, ex: mc.sos-expat.com)"
+        required: true
+        type: string
+      pinterest_client_id:
+        description: "App ID Pinterest (laisser VIDE si Pinterest pas encore cree)"
+        required: false
+        type: string
+        default: ""
+      pinterest_client_secret:
+        description: "App Secret Pinterest (laisser VIDE si Pinterest pas encore cree)"
+        required: false
+        type: string
+        default: ""
+      enable_facebook:
+        description: "Activer Facebook MAINTENANT ? (false tant que Meta App Review pas approuvee)"
+        required: true
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      enable_threads:
+        description: "Activer Threads MAINTENANT ?"
+        required: true
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      enable_instagram:
+        description: "Activer Instagram MAINTENANT ?"
+        required: true
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      enable_pinterest:
+        description: "Activer Pinterest MAINTENANT ? (false tant que Pinterest Review pas approuvee)"
+        required: true
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+
+jobs:
+  setup-env:
+    name: Update .env.production on Hetzner VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Push social credentials to VPS via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: FACEBOOK_CLIENT_ID,FACEBOOK_CLIENT_SECRET,FACEBOOK_PAGE_ID,MC_DOMAIN,PINTEREST_CLIENT_ID,PINTEREST_CLIENT_SECRET,ENABLE_FACEBOOK,ENABLE_THREADS,ENABLE_INSTAGRAM,ENABLE_PINTEREST
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            echo "=== Backup .env.production ==="
+            cp .env.production ".env.production.bak.$(date +%Y%m%d_%H%M%S)"
+
+            echo "=== Strip previously-set social vars (idempotent) ==="
+            sed -i '/^# === SOCIAL PLATFORMS (auto-managed by setup-social-env workflow) ===$/,/^# === END SOCIAL PLATFORMS ===$/d' .env.production
+
+            echo "=== Append new social vars block ==="
+            cat >> .env.production <<'ENVBLOCK'
+
+            # === SOCIAL PLATFORMS (auto-managed by setup-social-env workflow) ===
+            # Meta (Facebook + Instagram + Threads — 1 single Meta App)
+            FACEBOOK_CLIENT_ID=__FB_ID__
+            FACEBOOK_CLIENT_SECRET=__FB_SECRET__
+            FACEBOOK_REDIRECT_URI=https://__MC_DOMAIN__/api/social/facebook/oauth/callback
+            FACEBOOK_PAGE_ID=__FB_PAGE_ID__
+
+            INSTAGRAM_REDIRECT_URI=https://__MC_DOMAIN__/api/social/instagram/oauth/callback
+            INSTAGRAM_BUSINESS_ACCOUNT_ID=
+
+            THREADS_REDIRECT_URI=https://__MC_DOMAIN__/api/social/threads/oauth/callback
+            # THREADS_CLIENT_ID/SECRET fallback automatically to FACEBOOK_CLIENT_ID/SECRET
+
+            # Pinterest (separate app)
+            PINTEREST_CLIENT_ID=__PIN_ID__
+            PINTEREST_CLIENT_SECRET=__PIN_SECRET__
+            PINTEREST_REDIRECT_URI=https://__MC_DOMAIN__/api/social/pinterest/oauth/callback
+            PINTEREST_BOARD_ID=
+
+            # Activation flags
+            SOCIAL_FACEBOOK_ENABLED=__EN_FB__
+            SOCIAL_THREADS_ENABLED=__EN_TH__
+            SOCIAL_INSTAGRAM_ENABLED=__EN_IG__
+            SOCIAL_PINTEREST_ENABLED=__EN_PIN__
+            # === END SOCIAL PLATFORMS ===
+            ENVBLOCK
+
+            echo "=== Substitute placeholders with real values ==="
+            sed -i "s|__FB_ID__|${FACEBOOK_CLIENT_ID}|g" .env.production
+            sed -i "s|__FB_SECRET__|${FACEBOOK_CLIENT_SECRET}|g" .env.production
+            sed -i "s|__FB_PAGE_ID__|${FACEBOOK_PAGE_ID}|g" .env.production
+            sed -i "s|__MC_DOMAIN__|${MC_DOMAIN}|g" .env.production
+            sed -i "s|__PIN_ID__|${PINTEREST_CLIENT_ID}|g" .env.production
+            sed -i "s|__PIN_SECRET__|${PINTEREST_CLIENT_SECRET}|g" .env.production
+            sed -i "s|__EN_FB__|${ENABLE_FACEBOOK}|g" .env.production
+            sed -i "s|__EN_TH__|${ENABLE_THREADS}|g" .env.production
+            sed -i "s|__EN_IG__|${ENABLE_INSTAGRAM}|g" .env.production
+            sed -i "s|__EN_PIN__|${ENABLE_PINTEREST}|g" .env.production
+
+            echo "=== Verify lines were written (count, no values shown) ==="
+            grep -c "^SOCIAL_\|^FACEBOOK_\|^INSTAGRAM_\|^THREADS_\|^PINTEREST_" .env.production || true
+
+            echo "=== Clear Laravel caches ==="
+            docker exec inf-app php artisan config:clear || true
+            docker exec inf-app php artisan cache:clear || true
+            docker exec inf-app php artisan route:clear || true
+
+            echo "=== DONE — social credentials are live ==="
+        env:
+          FACEBOOK_CLIENT_ID: ${{ inputs.facebook_client_id }}
+          FACEBOOK_CLIENT_SECRET: ${{ inputs.facebook_client_secret }}
+          FACEBOOK_PAGE_ID: ${{ inputs.facebook_page_id }}
+          MC_DOMAIN: ${{ inputs.mission_control_domain }}
+          PINTEREST_CLIENT_ID: ${{ inputs.pinterest_client_id }}
+          PINTEREST_CLIENT_SECRET: ${{ inputs.pinterest_client_secret }}
+          ENABLE_FACEBOOK: ${{ inputs.enable_facebook }}
+          ENABLE_THREADS: ${{ inputs.enable_threads }}
+          ENABLE_INSTAGRAM: ${{ inputs.enable_instagram }}
+          ENABLE_PINTEREST: ${{ inputs.enable_pinterest }}
