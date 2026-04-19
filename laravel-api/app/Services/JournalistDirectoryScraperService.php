@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PressContact;
+use App\Services\Scraping\AntiBanService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -460,6 +461,16 @@ class JournalistDirectoryScraperService
 
     private function fetch(string $url): ?string
     {
+        $domain = parse_url($url, PHP_URL_HOST) ?? 'unknown';
+        $antiBan = app(AntiBanService::class);
+
+        if ($antiBan->isCircuitOpen($domain)) {
+            Log::info('JournalistScraper: circuit open, skip', ['url' => $url]);
+            return null;
+        }
+
+        $antiBan->registerHit($domain);
+
         try {
             $ua = self::USER_AGENTS[array_rand(self::USER_AGENTS)];
             $response = Http::timeout(self::TIMEOUT)
@@ -472,7 +483,12 @@ class JournalistDirectoryScraperService
                 ])
                 ->get($url);
 
-            return $response->successful() ? $response->body() : null;
+            if ($response->successful()) {
+                return $response->body();
+            }
+
+            $antiBan->registerFailure($domain, $response->status());
+            return null;
         } catch (\Throwable $e) {
             Log::debug("JournalistDirectoryScraperService: fetch failed for {$url}: " . $e->getMessage());
             return null;

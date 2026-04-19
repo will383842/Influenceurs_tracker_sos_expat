@@ -7,6 +7,7 @@ use App\Models\ContentContact;
 use App\Models\ContentExternalLink;
 use App\Models\ContentSource;
 use App\Services\ContentScraperService;
+use App\Services\CountryLanguageMapper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -101,7 +102,7 @@ class ScrapeFrancaisEtrangerJob implements ShouldQueue
                         'content_text'     => $content['content_text'],
                         'content_html'     => $content['content_html'],
                         'word_count'       => $content['word_count'],
-                        'language'         => 'fr',
+                        'language'         => app(CountryLanguageMapper::class)->resolveLanguage('France'),
                         'external_links'   => $content['external_links'],
                         'ads_and_sponsors' => $content['ads_and_sponsors'],
                         'images'           => $content['images'],
@@ -127,7 +128,7 @@ class ScrapeFrancaisEtrangerJob implements ShouldQueue
                                 'context'      => $link['context'],
                                 'link_type'    => $link['link_type'],
                                 'is_affiliate' => $link['is_affiliate'],
-                                'language'     => 'fr',
+                                'language'     => app(CountryLanguageMapper::class)->resolveLanguage('France'),
                             ]);
                             $existingLinkHashes[$linkHash] = true;
                         }
@@ -179,7 +180,7 @@ class ScrapeFrancaisEtrangerJob implements ShouldQueue
                 'sector'      => 'media',
                 'linkedin'    => 'https://www.linkedin.com/company/journaldesfrancaisaletranger/',
                 'page_url'    => $baseUrl . '/contact/',
-                'language'    => 'fr',
+                'language'    => app(CountryLanguageMapper::class)->resolveLanguage('France'),
                 'scraped_at'  => now(),
             ]
         );
@@ -221,7 +222,7 @@ class ScrapeFrancaisEtrangerJob implements ShouldQueue
                         'company_url' => $baseUrl,
                         'sector'     => 'media',
                         'page_url'   => $loc,
-                        'language'   => 'fr',
+                        'language'   => app(CountryLanguageMapper::class)->resolveLanguage('France'),
                         'notes'      => 'Profil auteur: ' . $loc,
                         'scraped_at' => now(),
                     ]

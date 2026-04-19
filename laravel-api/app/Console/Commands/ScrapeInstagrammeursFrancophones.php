@@ -4,10 +4,13 @@ namespace App\Console\Commands;
 
 use App\Models\Influenceur;
 use App\Models\User;
+use App\Services\AI\PerplexityHealthChecker;
 use App\Services\AI\PerplexityService;
-use App\Services\AI\ClaudeService;
 use App\Services\InstagramProfileScraperService;
+use App\Services\Scraping\ScraperRunRecorder;
+use App\Services\Social\TelegramAlertService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -26,6 +29,7 @@ class ScrapeInstagrammeursFrancophones extends Command
                             {--region=asie : Région (asie, europe, amerique, afrique, moyen-orient, oceanie, all)}
                             {--pays= : Traiter un seul pays}
                             {--dry-run : Affiche sans sauvegarder}
+                            {--rotation : Mode cron — 1 pays sélectionné via ScraperRotationService}
                             {--skip-scrape : Utilise uniquement Perplexity, sans scraper Instagram}';
 
     protected $description = 'Recherche les Instagrammeurs francophones pays par pays via Perplexity et les importe dans Mission Control';
@@ -72,32 +76,44 @@ class ScrapeInstagrammeursFrancophones extends Command
         ],
     ];
 
-    public function handle(PerplexityService $perplexity, ClaudeService $claude, InstagramProfileScraperService $igScraper): int
-    {
-        // Choisir le service IA : Perplexity si quota OK, Claude sinon
-        $ai = null;
-        if ($perplexity->isConfigured()) {
-            $ping = $perplexity->search('test');
-            if ($ping['success'] || !str_contains($ping['error'] ?? '', '401')) {
-                $ai = $perplexity;
-                $this->info('🔍 Moteur IA : Perplexity Sonar (recherche web temps réel)');
-            }
+    public function handle(
+        PerplexityService $perplexity,
+        PerplexityHealthChecker $healthChecker,
+        InstagramProfileScraperService $igScraper,
+        ScraperRunRecorder $recorder
+    ): int {
+        $health = $healthChecker->isUsable();
+        if (!$health['usable']) {
+            $reason = $health['reason'];
+            $this->warn("⏸️  Scraper skipped — {$reason}");
+            $this->alertSkipped($reason);
+            $run = $recorder->open('instagram-scrape-francophones', null, true);
+            $recorder->markSkipped($run, $reason);
+            return 0;
         }
-        if (!$ai && $claude->isConfigured()) {
-            $ai = $claude;
-            $this->info('🤖 Moteur IA : Claude Haiku (connaissances entraînement)');
-        }
-        if (!$ai) {
-            $this->error('Aucune clé API disponible (PERPLEXITY_API_KEY quota épuisé, ANTHROPIC_API_KEY absent)');
-            return 1;
-        }
+
+        $ai = $perplexity;
+        $this->info('🔍 Moteur IA : Perplexity Sonar');
 
         $isDryRun   = $this->option('dry-run');
         $skipScrape = $this->option('skip-scrape');
         $singlePays = $this->option('pays');
         $regionKey  = strtolower($this->option('region') ?? 'asie');
+        $rotation   = (bool) $this->option('rotation');
 
-        if ($singlePays) {
+        if ($rotation) {
+            $allCountries = array_merge(...array_values(self::REGIONS));
+            $next = app(\App\Services\Scraping\ScraperRotationService::class)
+                ->nextCountry('instagram-scrape-francophones', $allCountries);
+            if (!$next) {
+                $this->info('🔄 Rotation: tous les pays ont été traités dans les dernières 24h, skip.');
+                $run = $recorder->open('instagram-scrape-francophones', null, true);
+                $recorder->closeOk($run, ['found' => 0, 'new' => 0, 'meta' => ['rotation_empty' => true]]);
+                return 0;
+            }
+            $countries = [$next];
+            $this->info("🔄 Rotation → pays sélectionné : {$next}");
+        } elseif ($singlePays) {
             $countries = [$singlePays];
         } elseif ($regionKey === 'all') {
             $countries = array_merge(...array_values(self::REGIONS));
@@ -108,6 +124,8 @@ class ScrapeInstagrammeursFrancophones extends Command
         $this->info('=== Instagrammeurs Francophones — ' . strtoupper($regionKey) . ' ===');
         $this->info(count($countries) . ' pays à traiter' . ($isDryRun ? ' [DRY RUN]' : ''));
         $this->newLine();
+
+        $run = $recorder->open('instagram-scrape-francophones', $countries[0] ?? null, true);
 
         $adminId = User::where('role', 'admin')->value('id') ?? User::first()?->id ?? 1;
 
@@ -215,6 +233,17 @@ class ScrapeInstagrammeursFrancophones extends Command
         $this->line("Sauvegardés           : {$totalSaved}");
         $this->line("Sans email (ignorés)  : {$totalSkipped}");
 
+        if ($rotation && !empty($countries)) {
+            app(\App\Services\Scraping\ScraperRotationService::class)
+                ->markDone('instagram-scrape-francophones', $countries[0]);
+        }
+
+        $recorder->closeOk($run, [
+            'found' => $totalFound,
+            'new'   => $totalSaved,
+            'meta'  => ['skipped' => $totalSkipped, 'dry_run' => $isDryRun],
+        ]);
+
         return 0;
     }
 
@@ -222,7 +251,7 @@ class ScrapeInstagrammeursFrancophones extends Command
     // PERPLEXITY — 3 requêtes par pays
     // =========================================================================
 
-    private function discoverWithPerplexity(PerplexityService|ClaudeService $perplexity, string $pays): array
+    private function discoverWithPerplexity(PerplexityService $perplexity, string $pays): array
     {
         $systemPrompt = <<<SYS
 Tu es un expert en veille Instagram. Tu réponds UNIQUEMENT en JSON valide, sans texte autour.
@@ -283,7 +312,7 @@ SYS;
     // PERPLEXITY — Recherche ciblée d'email
     // =========================================================================
 
-    private function findEmailWithPerplexity(PerplexityService|ClaudeService $perplexity, string $name, string $handle, string $pays): ?string
+    private function findEmailWithPerplexity(PerplexityService $perplexity, string $name, string $handle, string $pays): ?string
     {
         $handleStr = $handle ? " (@{$handle})" : '';
         $query = "Quelle est l'adresse email de contact publique de l'Instagrammeur \"{$name}\"{$handleStr} basé en {$pays} ? "
@@ -349,6 +378,27 @@ SYS;
     // =========================================================================
     // HELPERS
     // =========================================================================
+
+    /**
+     * Envoie une alerte Telegram quand le scraper est skippé parce que Perplexity
+     * n'est pas utilisable. Throttlée 12h via cache pour éviter le spam.
+     */
+    private function alertSkipped(string $reason): void
+    {
+        $cacheKey = 'scraper_skip_alert:instagram';
+        if (Cache::has($cacheKey)) {
+            return;
+        }
+        Cache::put($cacheKey, true, 12 * 3600);
+
+        try {
+            app(TelegramAlertService::class)->sendMessage(
+                "⏸️ <b>Scraper Instagrammeurs skipped</b>\nMotif : {$reason}"
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send Telegram skip alert', ['error' => $e->getMessage()]);
+        }
+    }
 
     private function normalizeLanguage(?string $lang): string
     {

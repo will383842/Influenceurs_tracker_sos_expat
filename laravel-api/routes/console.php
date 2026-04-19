@@ -366,3 +366,103 @@ Schedule::call(function () {
         \Illuminate\Support\Facades\Log::info("social:stale-recovery: {$stale->count()} posts reset to failed");
     }
 })->everyThirtyMinutes()->name('social-stale-recovery')->withoutOverlapping();
+
+// ══════════════════════════════════════════════════════════════════════
+// SCRAPING CONTACTS CONTINU (anti-ban + rotation pays)
+// ══════════════════════════════════════════════════════════════════════
+// Alimentation 24/7 de la base contacts pour campagnes backlinks.
+// - Scrapers SANS IA : tournent toujours (annuaires publics, RSS)
+// - Scrapers AVEC Perplexity : skip gracieux si quota épuisé (alerte Telegram)
+// Règles anti-ban : rotation pays par ScraperRotationService + rate limit
+// par domaine via AntiBanService + circuit breaker sur 3× 403/429.
+// ══════════════════════════════════════════════════════════════════════
+
+// ── SANS IA (tourne toujours) ──
+
+// Avocats : cycle complet (3 sources) toutes les 6h — rate limiting interne au service
+Schedule::command('lawyers:scrape all')->cron('0 */6 * * *')->withoutOverlapping(21600);
+
+// Journalistes presse : toutes les 3h, publications avec email_pattern
+Schedule::command('press:scrape-journalists')->cron('15 */3 * * *')->withoutOverlapping(10800);
+
+// Business / entreprises expatriés : 2×/jour, 4h max par run.
+// On résout l'ID de la source expat.com via pattern slug (content_sources
+// n'a pas de colonne 'type' — on utilise le même pattern que
+// ScrapingDashboardController@scrape_businesses l.227).
+Schedule::call(function () {
+    $source = \App\Models\ContentSource::where('slug', 'like', '%expat%')->first();
+    if ($source) {
+        \App\Jobs\ScrapeBusinessDirectoryJob::dispatch($source->id);
+    } else {
+        \Illuminate\Support\Facades\Log::warning('scrape-business-directory: no ContentSource matched "expat*"');
+    }
+})->twiceDaily(2, 14)->name('scrape-business-directory')->withoutOverlapping(14400);
+
+// Communautés expat (contenus FR) — 1×/jour, hors heures de pointe
+Schedule::call(function () {
+    $source = \App\Models\ContentSource::where('slug', 'femmexpat')->first();
+    if ($source) {
+        \App\Jobs\ScrapeFemmexpatJob::dispatch($source->id);
+    } else {
+        \Illuminate\Support\Facades\Log::warning('scrape-femmexpat: no ContentSource matched');
+    }
+})->dailyAt('04:00')->name('scrape-femmexpat')->withoutOverlapping();
+
+Schedule::call(function () {
+    // Slug réel en DB = 'francais-a-l-etranger' (cf ContentEngineController l.501)
+    $source = \App\Models\ContentSource::where('slug', 'francais-a-l-etranger')->first();
+    if ($source) {
+        \App\Jobs\ScrapeFrancaisEtrangerJob::dispatch($source->id);
+    } else {
+        \Illuminate\Support\Facades\Log::warning('scrape-francaisaletranger: no ContentSource matched');
+    }
+})->dailyAt('05:00')->name('scrape-francaisaletranger')->withoutOverlapping();
+
+// ── AVEC Perplexity (skip gracieux si quota épuisé) ──
+
+// Instagrammeurs : 1 pays/3h en rotation. Cron 15min offset pour éviter
+// le pic 06:00 UTC (news + linkedin:fill-calendar + social:fill-calendar + lawyers:scrape)
+Schedule::command('instagram:scrape-francophones --rotation')
+    ->cron('15 */3 * * *')
+    ->withoutOverlapping(3600);
+
+// YouTubeurs : même rythme, décalé +30min pour étaler la charge Perplexity
+Schedule::command('youtube:scrape-francophones --rotation')
+    ->cron('45 */3 * * *')
+    ->withoutOverlapping(3600);
+
+// Découverte nouveaux médias presse : 1×/jour
+Schedule::job(new \App\Jobs\DiscoverPressPublicationsJob)
+    ->name('discover-press-publications')
+    ->dailyAt('03:30')
+    ->withoutOverlapping(7200);
+
+// ── RAPPORT QUOTIDIEN Telegram 08:00 UTC ──
+
+Schedule::command('scrapers:daily-report')->dailyAt('08:00');
+
+// ══════════════════════════════════════════════════════════════════════
+// STALE RUNS RECOVERY (toutes les 30 min)
+// ══════════════════════════════════════════════════════════════════════
+// Les runs bloqués en 'running' depuis >2h = worker crashé mid-scrape.
+// On les marque 'error' pour que le rapport quotidien et le dashboard
+// les reflètent correctement, et que la prochaine rotation reparte proprement.
+// ══════════════════════════════════════════════════════════════════════
+Schedule::call(function () {
+    try {
+        $stale = \App\Models\ScraperRun::where('status', \App\Models\ScraperRun::STATUS_RUNNING)
+            ->where('started_at', '<', now()->subHours(2))
+            ->get();
+
+        foreach ($stale as $run) {
+            $run->markError('Run timeout — worker crashed or job lost.');
+        }
+
+        if ($stale->count() > 0) {
+            \Illuminate\Support\Facades\Log::info("scraper-runs stale-recovery: {$stale->count()} runs marked error");
+        }
+    } catch (\Throwable $e) {
+        // Table missing (migration pas encore appliquée) → silencieux
+    }
+})->everyThirtyMinutes()->name('scraper-runs-stale-recovery')->withoutOverlapping();
+

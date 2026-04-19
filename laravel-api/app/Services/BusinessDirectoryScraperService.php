@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\Scraping\AntiBanService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -254,11 +255,20 @@ class BusinessDirectoryScraperService
             return null;
         }
 
+        $domain = parse_url($url, PHP_URL_HOST) ?? 'unknown';
+        $antiBan = app(AntiBanService::class);
+
+        if ($antiBan->isCircuitOpen($domain)) {
+            Log::info('BusinessScraper: circuit open, skip', ['url' => $url]);
+            return null;
+        }
+
         $elapsed = microtime(true) - $this->lastRequestTime;
         if ($elapsed < self::RATE_LIMIT_SECONDS) {
             usleep((int) ((self::RATE_LIMIT_SECONDS - $elapsed) * 1_000_000));
         }
         $this->lastRequestTime = microtime(true);
+        $antiBan->registerHit($domain);
 
         try {
             $response = Http::timeout(30)
@@ -267,6 +277,7 @@ class BusinessDirectoryScraperService
                 ->get($url);
 
             if (!$response->successful()) {
+                $antiBan->registerFailure($domain, $response->status());
                 Log::warning('BusinessScraper: HTTP error', ['url' => $url, 'status' => $response->status()]);
                 return null;
             }

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\ContentBusiness;
 use App\Models\ContentSource;
 use App\Services\BusinessDirectoryScraperService;
+use App\Services\CountryLanguageMapper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -169,7 +170,7 @@ class ScrapeBusinessDirectoryJob implements ShouldQueue
                     'subcategory'      => $sub['label'] ?? null,
                     'subcategory_slug' => $sub['slug'] ?? null,
                     'subcategory_id'   => $sub['id'] ?? null,
-                    'language'         => 'fr',
+                    'language'         => app(CountryLanguageMapper::class)->resolveLanguage($location['country'] ?? null),
                     'scraped_at'       => now(),
                 ]
             );

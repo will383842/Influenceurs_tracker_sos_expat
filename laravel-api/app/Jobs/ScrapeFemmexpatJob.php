@@ -7,6 +7,7 @@ use App\Models\ContentContact;
 use App\Models\ContentExternalLink;
 use App\Models\ContentSource;
 use App\Services\ContentScraperService;
+use App\Services\CountryLanguageMapper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -233,7 +234,7 @@ class ScrapeFemmexpatJob implements ShouldQueue
                     'address'     => '6 rue d\'Uzes, 75002 Paris',
                     'sector'      => $contact['sector'] ?? 'media',
                     'page_url'    => $baseUrl . '/nous-contacter/',
-                    'language'    => 'fr',
+                    'language'    => app(CountryLanguageMapper::class)->resolveLanguage('France'),
                     'scraped_at'  => now(),
                 ]
             );

@@ -18,7 +18,7 @@ class DiscoverPressPublicationsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 600; // 10 minutes max
+    public int $timeout = 3600; // 1h max — aligné sur worker `scraper` (docker-compose --timeout=3600)
     public int $tries   = 1;
 
     public function __construct(

@@ -13,11 +13,45 @@ interface ScraperConfig {
   types: ScraperType[];
 }
 
+interface ScraperRun {
+  id: number;
+  scraper_name: string;
+  status: 'ok' | 'skipped_no_ia' | 'rate_limited' | 'circuit_broken' | 'error' | 'running';
+  country: string | null;
+  contacts_found: number;
+  contacts_new: number;
+  started_at: string;
+  ended_at: string | null;
+  error_message: string | null;
+  requires_perplexity: boolean;
+}
+
+interface Stat24h { status: string; count: number; contacts_new: number; }
+
+interface ScraperStatus {
+  latest_runs: ScraperRun[];
+  stats_24h: Stat24h[];
+  rotation_state: Array<{ scraper_name: string; last_country: string | null; last_ran_at: string | null; }>;
+  circuit_breakers: Record<string, number>;
+  generated_at: string;
+}
+
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  ok:             { label: 'OK',          cls: 'bg-emerald-500/20 text-emerald-400' },
+  running:        { label: 'En cours',    cls: 'bg-blue-500/20 text-blue-400' },
+  skipped_no_ia:  { label: 'Skip (IA KO)',cls: 'bg-amber/20 text-amber' },
+  rate_limited:   { label: 'Rate-limited',cls: 'bg-orange-500/20 text-orange-400' },
+  circuit_broken: { label: 'Circuit coupé', cls: 'bg-rose-500/20 text-rose-400' },
+  error:          { label: 'Erreur',      cls: 'bg-red-500/20 text-red-400' },
+};
+
 export default function AdminScraper() {
   const [config, setConfig] = useState<ScraperConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
+  const [status, setStatus] = useState<ScraperStatus | null>(null);
+  const [runs, setRuns] = useState<ScraperRun[]>([]);
 
   const load = async () => {
     try {
@@ -27,7 +61,23 @@ export default function AdminScraper() {
     finally { setLoading(false); }
   };
 
+  const loadStatus = async () => {
+    try {
+      const [{ data: s }, { data: r }] = await Promise.all([
+        api.get<ScraperStatus>('/scrapers/status'),
+        api.get<{ runs: ScraperRun[] }>('/scrapers/runs?limit=30'),
+      ]);
+      setStatus(s);
+      setRuns(r.runs);
+    } catch { /* ignore — table may not exist yet */ }
+  };
+
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    loadStatus();
+    const id = setInterval(loadStatus, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const toggleGlobal = async () => {
     if (!config) return;
@@ -110,6 +160,79 @@ export default function AdminScraper() {
           <li className="text-amber font-medium mt-2">⚠️ Désactive le scraper pour YouTube, TikTok, Instagram — ces sites bloquent le scraping</li>
         </ul>
       </div>
+
+{/* KPIs 24h + circuit breakers */}
+      {status && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {['ok', 'skipped_no_ia', 'rate_limited', 'error'].map(st => {
+            const s = status.stats_24h.find(x => x.status === st);
+            const meta = STATUS_BADGE[st] || { label: st, cls: '' };
+            return (
+              <div key={st} className="bg-surface border border-border rounded-xl p-3">
+                <div className={`text-xs ${meta.cls} inline-block px-2 py-0.5 rounded-full`}>{meta.label}</div>
+                <div className="text-2xl font-bold text-white mt-1">{s?.count ?? 0}</div>
+                {st === 'ok' && s && (
+                  <div className="text-[11px] text-muted">+{s.contacts_new} contacts</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {status && Object.keys(status.circuit_breakers).length > 0 && (
+        <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 text-sm text-rose-300">
+          <span className="font-semibold">🛑 Circuit coupé :</span>{' '}
+          {Object.keys(status.circuit_breakers).slice(0, 8).join(', ')}
+        </div>
+      )}
+
+      {/* Historique runs */}
+      {runs.length > 0 && (
+        <div className="bg-surface border border-border rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <h3 className="font-title font-semibold text-white">Historique des runs</h3>
+            <p className="text-[10px] text-muted mt-0.5">
+              Rafraîchi toutes les 30s · {runs.length} derniers runs
+            </p>
+          </div>
+          <div className="overflow-x-auto max-h-96">
+            <table className="w-full text-xs">
+              <thead className="bg-surface2 sticky top-0">
+                <tr className="text-left text-muted">
+                  <th className="p-2 font-medium">Date</th>
+                  <th className="p-2 font-medium">Scraper</th>
+                  <th className="p-2 font-medium">Pays</th>
+                  <th className="p-2 font-medium">Statut</th>
+                  <th className="p-2 font-medium text-right">Nouveaux</th>
+                  <th className="p-2 font-medium">Détails</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runs.map(r => {
+                  const badge = STATUS_BADGE[r.status] || { label: r.status, cls: 'bg-gray-600/20 text-gray-300' };
+                  return (
+                    <tr key={r.id} className="border-t border-border/40 hover:bg-white/5">
+                      <td className="p-2 text-muted whitespace-nowrap">
+                        {new Date(r.started_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="p-2 text-white font-mono">{r.scraper_name}</td>
+                      <td className="p-2 text-muted">{r.country ?? '—'}</td>
+                      <td className="p-2">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                      </td>
+                      <td className="p-2 text-right text-white">{r.contacts_new}</td>
+                      <td className="p-2 text-muted text-[11px] truncate max-w-xs" title={r.error_message || ''}>
+                        {r.error_message ?? '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Per-type toggles */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">

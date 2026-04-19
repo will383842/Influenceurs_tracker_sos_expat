@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Lawyer;
+use App\Services\CountryLanguageMapper;
+use App\Services\Scraping\AntiBanService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -141,6 +143,16 @@ class LawyerDirectoryScraperService
     {
         try {
             $domain = $this->getDomain($url);
+            $antiBan = app(AntiBanService::class);
+
+            // Circuit breaker : si le domaine a renvoyé 3× 403/429 en 1h, on skippe 24h
+            if ($antiBan->isCircuitOpen($domain)) {
+                Log::info('LawyerScraper: circuit open, skip', ['url' => $url]);
+                return null;
+            }
+
+            $antiBan->registerHit($domain);
+
             $response = Http::timeout(self::TIMEOUT)
                 ->withHeaders([
                     'User-Agent'      => $this->getRandomUserAgent(),
@@ -156,6 +168,9 @@ class LawyerDirectoryScraperService
             if ($response->successful()) {
                 return $response->body();
             }
+
+            // Enregistre les 403/429 pour déclencher le circuit breaker après 3 échecs
+            $antiBan->registerFailure($domain, $response->status());
 
             // Don't log 404s (expected for many URLs)
             if ($response->status() !== 404) {
@@ -793,7 +808,10 @@ class LawyerDirectoryScraperService
                     'specialty' => $data['specialty'] ?? null,
                     'bar_association' => $data['bar_association'] ?? null,
                     'bar_number' => $data['bar_number'] ?? null,
-                    'language' => $data['language'] ?? 'en',
+                    'language' => $data['language']
+                        ?? app(CountryLanguageMapper::class)->resolveLanguage(
+                            $data['country_code'] ?? $data['country'] ?? null
+                        ),
                     'is_immigration_lawyer' => Lawyer::isImmigrationSpecialty($data['specialty'] ?? null),
                     'is_francophone' => false, 'scraped_at' => now(),
                 ]

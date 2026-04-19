@@ -424,6 +424,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ============================================================
+    // SCRAPER STATUS & RUNS (anti-ban, rotation, Perplexity health)
+    // ============================================================
+    Route::prefix('scrapers')->middleware('role:admin')->group(function () {
+        Route::get('/runs', [\App\Http\Controllers\ScraperRunsController::class, 'runs']);
+        Route::get('/status', [\App\Http\Controllers\ScraperRunsController::class, 'status']);
+    });
+
+    // ============================================================
     // CONTENT SCHEDULER / ORCHESTRATOR
     // ============================================================
     Route::prefix('content/scheduler')->middleware('role:admin')->group(function () {
