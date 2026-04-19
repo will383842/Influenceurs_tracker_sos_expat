@@ -133,6 +133,8 @@ class ScrapeInstagrammeursFrancophones extends Command
         $totalSaved   = 0;
         $totalSkipped = 0;
 
+        try {
+
         foreach ($countries as $pays) {
             $this->line("🔍 <fg=yellow>{$pays}</>");
 
@@ -245,6 +247,18 @@ class ScrapeInstagrammeursFrancophones extends Command
         ]);
 
         return 0;
+
+        } catch (\Throwable $e) {
+            // Safety net : si une exception remonte, on marque le run en erreur
+            // (sinon il resterait en 'running' jusqu'à la stale-recovery 2h plus tard).
+            $recorder->closeError($run, $e->getMessage());
+            Log::error('ScrapeInstagrammeursFrancophones: exception', [
+                'error'    => $e->getMessage(),
+                'country'  => $countries[0] ?? null,
+            ]);
+            $this->error("Scraper exception: {$e->getMessage()}");
+            return 1;
+        }
     }
 
     // =========================================================================

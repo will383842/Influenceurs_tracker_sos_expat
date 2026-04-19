@@ -82,8 +82,15 @@ class AntiBanService
 
     public function circuitBreakerDomains(): array
     {
-        // Best-effort list — limité au Redis/DB cache courant
-        return (array) Cache::get('scraper:circuit_breakers', []);
+        // Best-effort list — limité au Redis/DB cache courant.
+        // Try/catch pour résilience : si le driver cache est indispo,
+        // on renvoie une liste vide plutôt que de faire crasher le controller.
+        try {
+            return (array) Cache::get('scraper:circuit_breakers', []);
+        } catch (\Throwable $e) {
+            Log::warning('AntiBanService: circuitBreakerDomains cache error', ['error' => $e->getMessage()]);
+            return [];
+        }
     }
 
     public static function hostnameFromUrl(string $url): ?string

@@ -380,43 +380,55 @@ Schedule::call(function () {
 // ── SANS IA (tourne toujours) ──
 
 // Avocats : cycle complet (3 sources) toutes les 6h — rate limiting interne au service
-Schedule::command('lawyers:scrape all')->cron('0 */6 * * *')->withoutOverlapping(21600);
+Schedule::command('lawyers:scrape all')->cron('0 */6 * * *')->withoutOverlapping(360);
 
 // Journalistes presse : toutes les 3h, publications avec email_pattern
-Schedule::command('press:scrape-journalists')->cron('15 */3 * * *')->withoutOverlapping(10800);
+Schedule::command('press:scrape-journalists')->cron('15 */3 * * *')->withoutOverlapping(180);
 
 // Business / entreprises expatriés : 2×/jour, 4h max par run.
 // On résout l'ID de la source expat.com via pattern slug (content_sources
 // n'a pas de colonne 'type' — on utilise le même pattern que
 // ScrapingDashboardController@scrape_businesses l.227).
 Schedule::call(function () {
-    $source = \App\Models\ContentSource::where('slug', 'like', '%expat%')->first();
-    if ($source) {
-        \App\Jobs\ScrapeBusinessDirectoryJob::dispatch($source->id);
-    } else {
-        \Illuminate\Support\Facades\Log::warning('scrape-business-directory: no ContentSource matched "expat*"');
+    try {
+        $source = \App\Models\ContentSource::where('slug', 'like', '%expat%')->first();
+        if ($source) {
+            \App\Jobs\ScrapeBusinessDirectoryJob::dispatch($source->id);
+        } else {
+            \Illuminate\Support\Facades\Log::warning('scrape-business-directory: no ContentSource matched "expat*"');
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('scrape-business-directory closure error', ['error' => $e->getMessage()]);
     }
-})->twiceDaily(2, 14)->name('scrape-business-directory')->withoutOverlapping(14400);
+})->twiceDaily(2, 14)->name('scrape-business-directory')->withoutOverlapping(300);
 
 // Communautés expat (contenus FR) — 1×/jour, hors heures de pointe
 Schedule::call(function () {
-    $source = \App\Models\ContentSource::where('slug', 'femmexpat')->first();
-    if ($source) {
-        \App\Jobs\ScrapeFemmexpatJob::dispatch($source->id);
-    } else {
-        \Illuminate\Support\Facades\Log::warning('scrape-femmexpat: no ContentSource matched');
+    try {
+        $source = \App\Models\ContentSource::where('slug', 'femmexpat')->first();
+        if ($source) {
+            \App\Jobs\ScrapeFemmexpatJob::dispatch($source->id);
+        } else {
+            \Illuminate\Support\Facades\Log::warning('scrape-femmexpat: no ContentSource matched');
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('scrape-femmexpat closure error', ['error' => $e->getMessage()]);
     }
-})->dailyAt('04:00')->name('scrape-femmexpat')->withoutOverlapping();
+})->dailyAt('04:00')->name('scrape-femmexpat')->withoutOverlapping(240);
 
 Schedule::call(function () {
-    // Slug réel en DB = 'francais-a-l-etranger' (cf ContentEngineController l.501)
-    $source = \App\Models\ContentSource::where('slug', 'francais-a-l-etranger')->first();
-    if ($source) {
-        \App\Jobs\ScrapeFrancaisEtrangerJob::dispatch($source->id);
-    } else {
-        \Illuminate\Support\Facades\Log::warning('scrape-francaisaletranger: no ContentSource matched');
+    try {
+        // Slug réel en DB = 'francais-a-l-etranger' (cf ContentEngineController l.501)
+        $source = \App\Models\ContentSource::where('slug', 'francais-a-l-etranger')->first();
+        if ($source) {
+            \App\Jobs\ScrapeFrancaisEtrangerJob::dispatch($source->id);
+        } else {
+            \Illuminate\Support\Facades\Log::warning('scrape-francaisaletranger: no ContentSource matched');
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('scrape-francaisaletranger closure error', ['error' => $e->getMessage()]);
     }
-})->dailyAt('05:00')->name('scrape-francaisaletranger')->withoutOverlapping();
+})->dailyAt('05:00')->name('scrape-francaisaletranger')->withoutOverlapping(240);
 
 // ── AVEC Perplexity (skip gracieux si quota épuisé) ──
 
@@ -424,18 +436,18 @@ Schedule::call(function () {
 // le pic 06:00 UTC (news + linkedin:fill-calendar + social:fill-calendar + lawyers:scrape)
 Schedule::command('instagram:scrape-francophones --rotation')
     ->cron('15 */3 * * *')
-    ->withoutOverlapping(3600);
+    ->withoutOverlapping(60);
 
 // YouTubeurs : même rythme, décalé +30min pour étaler la charge Perplexity
 Schedule::command('youtube:scrape-francophones --rotation')
     ->cron('45 */3 * * *')
-    ->withoutOverlapping(3600);
+    ->withoutOverlapping(60);
 
 // Découverte nouveaux médias presse : 1×/jour
 Schedule::job(new \App\Jobs\DiscoverPressPublicationsJob)
     ->name('discover-press-publications')
     ->dailyAt('03:30')
-    ->withoutOverlapping(7200);
+    ->withoutOverlapping(120);
 
 // ── RAPPORT QUOTIDIEN Telegram 08:00 UTC ──
 

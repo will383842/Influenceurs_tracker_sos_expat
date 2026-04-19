@@ -4,6 +4,7 @@ namespace App\Services\Scraping;
 
 use App\Models\ScraperRotationState;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Rotation pays pour les scrapers cron.
@@ -33,37 +34,50 @@ class ScraperRotationService
             return null;
         }
 
-        $state = ScraperRotationState::firstOrNew(['scraper_name' => $scraperName]);
+        // Transaction + row-level lock pour éviter la race condition si 2 crons
+        // parallèles sélectionnent simultanément le même pays.
+        return DB::transaction(function () use ($scraperName, $allCountries) {
+            // Crée la row si absente avant de la verrouiller (lockForUpdate ne protège
+            // pas les rows inexistantes sous MySQL).
+            ScraperRotationState::firstOrCreate(
+                ['scraper_name' => $scraperName],
+                ['country_queue' => [], 'recent_countries' => []]
+            );
 
-        $queue  = (array) ($state->country_queue ?? []);
-        $recent = (array) ($state->recent_countries ?? []);
+            $state = ScraperRotationState::where('scraper_name', $scraperName)
+                ->lockForUpdate()
+                ->first();
 
-        // Nettoyer les entrées recent expirées (>24h)
-        $cutoff = now()->subHours(self::COOLDOWN_HOURS)->timestamp;
-        $recent = array_filter($recent, fn ($entry) => ($entry['ts'] ?? 0) >= $cutoff);
+            $queue  = (array) ($state->country_queue ?? []);
+            $recent = (array) ($state->recent_countries ?? []);
 
-        // Recharger la queue si vide
-        if (empty($queue)) {
-            $recentNames = array_column($recent, 'country');
-            $queue = array_values(array_diff($allCountries, $recentNames));
+            // Nettoyer les entrées recent expirées (>24h)
+            $cutoff = now()->subHours(self::COOLDOWN_HOURS)->timestamp;
+            $recent = array_filter($recent, fn ($entry) => ($entry['ts'] ?? 0) >= $cutoff);
 
-            // Tous les pays vus dans les 24h → rien à faire
+            // Recharger la queue si vide
             if (empty($queue)) {
-                $state->recent_countries = array_values($recent);
-                $state->save();
-                return null;
+                $recentNames = array_column($recent, 'country');
+                $queue = array_values(array_diff($allCountries, $recentNames));
+
+                // Tous les pays vus dans les 24h → rien à faire
+                if (empty($queue)) {
+                    $state->recent_countries = array_values($recent);
+                    $state->save();
+                    return null;
+                }
             }
-        }
 
-        $next = array_shift($queue);
+            $next = array_shift($queue);
 
-        $state->country_queue   = array_values($queue);
-        $state->recent_countries = array_values($recent);
-        $state->last_country    = $next;
-        $state->last_ran_at     = now();
-        $state->save();
+            $state->country_queue    = array_values($queue);
+            $state->recent_countries = array_values($recent);
+            $state->last_country     = $next;
+            $state->last_ran_at      = now();
+            $state->save();
 
-        return $next;
+            return $next;
+        });
     }
 
     public function markDone(string $scraperName, string $country): void

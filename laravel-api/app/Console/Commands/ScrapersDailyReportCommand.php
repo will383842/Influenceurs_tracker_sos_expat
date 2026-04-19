@@ -16,9 +16,14 @@ class ScrapersDailyReportCommand extends Command
 
     public function handle(AntiBanService $antiBan): int
     {
-        $since = now()->subDay();
-
-        $runs = ScraperRun::where('started_at', '>=', $since)->get();
+        try {
+            $since = now()->subDay();
+            $runs = ScraperRun::where('started_at', '>=', $since)->get();
+        } catch (\Throwable $e) {
+            $this->error('DB error reading scraper_runs: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('scrapers:daily-report DB error', ['error' => $e->getMessage()]);
+            return 0;
+        }
 
         if ($runs->isEmpty()) {
             $this->info('Aucun run scraper dans les dernières 24h.');

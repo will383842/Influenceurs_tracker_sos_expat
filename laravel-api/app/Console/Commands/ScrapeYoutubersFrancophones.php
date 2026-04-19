@@ -136,6 +136,8 @@ class ScrapeYoutubersFrancophones extends Command
         $totalSaved  = 0;
         $totalSkipped = 0;
 
+        try {
+
         foreach ($countries as $pays) {
             $this->line("🔍 <fg=yellow>{$pays}</>");
 
@@ -251,6 +253,16 @@ class ScrapeYoutubersFrancophones extends Command
         ]);
 
         return 0;
+
+        } catch (\Throwable $e) {
+            $recorder->closeError($run, $e->getMessage());
+            Log::error('ScrapeYoutubersFrancophones: exception', [
+                'error'   => $e->getMessage(),
+                'country' => $countries[0] ?? null,
+            ]);
+            $this->error("Scraper exception: {$e->getMessage()}");
+            return 1;
+        }
     }
 
     // =========================================================================

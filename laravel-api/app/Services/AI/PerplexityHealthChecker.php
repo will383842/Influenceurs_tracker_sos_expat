@@ -20,7 +20,8 @@ use Illuminate\Support\Facades\Cache;
 class PerplexityHealthChecker
 {
     private const CACHE_KEY = 'perplexity:health';
-    private const CACHE_TTL_SECONDS = 300;
+    // 1h = 1 ping/h = 24 pings/jour. À 5min, c'était 288 pings/jour → gaspillage crédits.
+    private const CACHE_TTL_SECONDS = 3600;
 
     public function __construct(private PerplexityService $perplexity)
     {
