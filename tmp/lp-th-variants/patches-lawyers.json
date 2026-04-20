@@ -1,0 +1,511 @@
+{
+  "audience": "lawyers",
+  "parent_id": 716,
+  "notes": "Opus 4.7 translations for 4 TH lawyer LP variants — replaces Haiku/deterministic rows. Each variant includes meta_title, meta_description, sections (hero, earnings, freedom, process, faq, cta) fully localised.",
+  "variants": {
+    "en": {
+      "meta_title": "Become a partner lawyer in Thailand — SOS-Expat · all languages",
+      "meta_description": "Become a partner lawyer in Thailand in 2026: 30 € / 20 min, paid within 24 h, every nationality, every language. Free registration from 197 countries.",
+      "hero": {
+        "badge": "★ 197 countries · Every language · Independent partners 2026",
+        "h1": "Become a SOS-Expat partner lawyer in Thailand",
+        "subtitle": "Lawyers from France, Belgium, Switzerland, Canada, Morocco, Tunisia, Senegal, Côte d'Ivoire, Lebanon, United States, United Kingdom, India, Brazil, China, Germany and 182 other countries: receive international clients in Thailand in the language you practise.",
+        "cta_text": "Join as a partner",
+        "cta_subtext": "Free registration · Activation in under 5 minutes"
+      },
+      "earnings": {
+        "headline": "How much does a partner lawyer earn in Thailand?",
+        "amount": "30 €",
+        "per": "per 20-minute consultation (client pays 49 € or $55)",
+        "payment_delay": "Within 24 hours after each completed call",
+        "badges": [
+          "Payment for every completed consultation",
+          "Zero unpaid guaranteed by SOS-Expat.com",
+          "Unlimited earnings, no cap",
+          "Withdrawal from $30 accumulated",
+          "Flat $3 fee per withdrawal, no percentage",
+          "Four payment methods: Stripe, PayPal, Wise, Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "Why join SOS-Expat.com from any country?",
+        "items": [
+          "No quotas, no minimum hours imposed by the platform",
+          "Activate and deactivate your profile in one click, 24/7",
+          "Zero commercial prospecting: clients come to you via SOS-Expat.com",
+          "Independent partner from 197 countries — legal status per your local legislation (self-employed, freelance, contractor, sole practitioner)",
+          "Consultations in any language you practise: French, English, Spanish, German, Portuguese, Arabic, Hindi, Mandarin, Russian, plus Thai, Vietnamese, Japanese, Korean, or any language shared with your client",
+          "Compatible with your main activity (solo practice, group firm, in-house counsel)",
+          "Official specialties: immigration law, labour law, commercial law, international taxation, real estate law, and other international legal matters per your expertise",
+          "DSA compliance (EU Regulation 2022/2065) guaranteed by SOS-Expat.com · Legal entity WorldExpat OU, Estonia"
+        ]
+      },
+      "process": {
+        "headline": "How to become an SOS-Expat partner lawyer in Thailand in 4 steps?",
+        "steps": [
+          {"num": 1, "label": "Registration in under 5 minutes", "detail": "Create your partner lawyer profile on SOS-Expat.com from any of the 197 covered countries. Provide your identity, your bar admission, your registration number, and supporting documents. No deposit, no registration fee."},
+          {"num": 2, "label": "Partner profile configuration", "detail": "Indicate your legal specialties (immigration, labour, commercial, international taxation, real estate law), the languages you consult in (any language accepted), your availability by time zone, and your slots."},
+          {"num": 3, "label": "Receiving verified client calls", "detail": "Calls arrive via Twilio secure IVR with encrypted conference, 20 minutes guaranteed per consultation, in the common language chosen with your client. Connection delay under 5 minutes after client payment. Up to 3 connection attempts if no initial answer, 60 seconds per attempt."},
+          {"num": 4, "label": "Automatic payment within 24 hours", "detail": "Your 30 € ($30) is paid within 24 hours after each completed call via Stripe, PayPal, Wise, or Flutterwave (Mobile Money for partners based in Africa). Minimum withdrawal $30 accumulated, flat $3 fee per transaction."}
+        ]
+      },
+      "faq": {
+        "headline": "Frequently asked questions about the lawyer partnership in Thailand",
+        "items": [
+          {"q": "Who pays for the consultation and how much do I receive exactly?", "a": "The client pays 49 € ($55) for a 20-minute consultation with a partner lawyer. You, the lawyer, receive 30 € ($30) net per consultation. SOS-Expat.com retains 19 € ($25) for connection and platform operating costs (Twilio infrastructure, payment processors, support). Settlement within 24 hours after each completed call."},
+          {"q": "Am I an employee of SOS-Expat.com?", "a": "No, you are an independent partner. SOS-Expat.com is a connection platform, not a law firm or employer. Your legal status depends on the legislation of your country of residence: self-employed in France, freelance in Belgium and Switzerland, contractor in the United States and United Kingdom, equivalent status per your local obligations."},
+          {"q": "Which countries can I register from as a partner lawyer for Thailand?", "a": "From all 197 countries covered by SOS-Expat.com, without any restriction of nationality or residence. This includes France, Belgium, Switzerland, Canada, United States, United Kingdom, Australia, India, Germany, Spain, Italy, Morocco, Senegal, Japan, Singapore, South Korea, Thailand itself, UAE, Saudi Arabia, and 180+ others."},
+          {"q": "Do I need to be admitted to the Thai bar to advise clients in Thailand?", "a": "No. You can be admitted to any bar in the world and intervene remotely for clients located in Thailand. You remain solely responsible for your legal advice within the deontological and regulatory framework of your own bar. SOS-Expat.com does not provide legal advice directly — the platform simply connects you with clients who need international legal expertise."},
+          {"q": "How can I withdraw my earnings in practice?", "a": "Withdrawal from $30 accumulated, flat $3 fee per transaction, 24 h availability after each completed call. Four payment methods: Stripe (card for Europe and 44+ Stripe Express countries), PayPal (international), Wise (SEPA and SWIFT international transfer), and Flutterwave (Mobile Money for partners based in Africa)."},
+          {"q": "Can I earn more via the SOS-Expat affiliate programme?", "a": "Yes. In addition to 30 € per consultation, you can activate your partner affiliate link to earn: $2 per lawyer call generated via your link, $1 per local expert call, plus a $2 registration bonus for each new account created via your link. The affiliate programme is free to join."}
+        ]
+      },
+      "cta": {
+        "headline": "Join SOS-Expat partner lawyers in Thailand today",
+        "button": "Join as a partner",
+        "subtext": "Independent partner · No commitment on fees · Activation in under 5 minutes"
+      }
+    },
+    "es": {
+      "meta_title": "Hazte abogado socio SOS-Expat en Tailandia · todos los idiomas",
+      "meta_description": "Conviértete en abogado socio SOS-Expat en Tailandia en 2026: 30 € / 20 min, pago en 24 h, todas las nacionalidades, todos los idiomas. Registro libre desde 197 países.",
+      "hero": {
+        "badge": "★ 197 países · Todos los idiomas · Socios independientes 2026",
+        "h1": "Conviértete en abogado socio SOS-Expat en Tailandia",
+        "subtitle": "Abogados de Francia, Bélgica, Suiza, Canadá, Marruecos, Túnez, Senegal, Costa de Marfil, Líbano, Estados Unidos, Reino Unido, India, Brasil, China, Alemania y otros 182 países: recibe clientes internacionales en Tailandia en el idioma que practiques.",
+        "cta_text": "Me hago socio",
+        "cta_subtext": "Registro libre · Activación en menos de 5 minutos"
+      },
+      "earnings": {
+        "headline": "¿Cuánto gana un abogado socio en Tailandia?",
+        "amount": "30 €",
+        "per": "por consulta de 20 minutos (el cliente paga 49 € o $55)",
+        "payment_delay": "En 24 horas tras cada llamada completada",
+        "badges": [
+          "Pago en cada consulta realizada",
+          "Cero impagos garantizado por SOS-Expat.com",
+          "Acumulación de ganancias ilimitada, sin tope",
+          "Retiro desde $30 acumulados",
+          "Comisión fija de $3 por retiro, sin porcentaje",
+          "Cuatro métodos de pago: Stripe, PayPal, Wise, Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "¿Por qué unirse a SOS-Expat.com desde cualquier país?",
+        "items": [
+          "Sin cuotas, sin horas mínimas impuestas por la plataforma",
+          "Activa y desactiva tu perfil con un clic, 24h/7",
+          "Cero prospección comercial: los clientes te encuentran vía SOS-Expat.com",
+          "Socio independiente desde 197 países — estado legal según tu legislación local (autónomo, freelance, contractor, profesional liberal)",
+          "Consultas en cualquier idioma que practiques: francés, inglés, español, alemán, portugués, árabe, hindi, mandarín, ruso, y también tailandés, vietnamita, japonés, coreano, o cualquier idioma común con tu cliente",
+          "Compatible con tu actividad principal (despacho individual, despacho colectivo, solo, in-house)",
+          "Especialidades oficiales: derecho de inmigración, derecho laboral, derecho mercantil, fiscalidad internacional, derecho inmobiliario, y otras materias jurídicas internacionales según tu experiencia",
+          "Conformidad DSA (Reglamento UE 2022/2065) garantizada por SOS-Expat.com · Entidad legal WorldExpat OU, Estonia"
+        ]
+      },
+      "process": {
+        "headline": "¿Cómo convertirse en abogado socio SOS-Expat en Tailandia en 4 pasos?",
+        "steps": [
+          {"num": 1, "label": "Registro en menos de 5 minutos", "detail": "Crea tu perfil de abogado socio en SOS-Expat.com desde cualquiera de los 197 países cubiertos. Indica tu identidad, tu colegio de abogados, tu número de colegiación y tu justificante. Sin caución ni tarifa de inscripción."},
+          {"num": 2, "label": "Configuración del perfil de socio", "detail": "Indica tus especialidades jurídicas (inmigración, laboral, mercantil, fiscalidad internacional, inmobiliario), los idiomas en los que consultas (todos los idiomas aceptados), tus horarios de disponibilidad por zona horaria y tus tramos."},
+          {"num": 3, "label": "Recepción de llamadas de clientes verificados", "detail": "Las llamadas llegan vía IVR seguro Twilio con conferencia cifrada, 20 minutos garantizados por consulta, en el idioma común elegido con tu cliente. Retraso de conexión inferior a 5 minutos tras el pago del cliente. Hasta 3 intentos de conexión si no hay respuesta inicial, 60 segundos por intento."},
+          {"num": 4, "label": "Pago automático en 24 horas", "detail": "Tus 30 € ($30) se pagan en 24 horas tras cada llamada completada vía Stripe, PayPal, Wise o Flutterwave (Mobile Money para socios basados en África). Retiro mínimo de $30 acumulados, comisión fija de $3 por transacción."}
+        ]
+      },
+      "faq": {
+        "headline": "Preguntas frecuentes sobre la asociación de abogados en Tailandia",
+        "items": [
+          {"q": "¿Quién paga la consulta y cuánto recibo exactamente?", "a": "El cliente paga 49 € ($55) por una consulta de 20 minutos con un abogado socio. Tú, abogado, recibes 30 € ($30) netos por consulta. SOS-Expat.com retiene 19 € ($25) por los costes de puesta en contacto y de funcionamiento de la plataforma (infraestructura Twilio, procesadores de pago, soporte). El pago se realiza en 24 horas tras cada llamada completada."},
+          {"q": "¿Soy empleado de SOS-Expat.com?", "a": "No, eres un socio independiente. SOS-Expat.com es una plataforma de puesta en contacto, no un despacho ni un empleador. Tu estado legal depende de la legislación de tu país de residencia: autónomo en España, contractor en Estados Unidos y Reino Unido, estatuto equivalente según tus obligaciones locales."},
+          {"q": "¿Desde qué países puedo registrarme como abogado socio para Tailandia?", "a": "Desde los 197 países cubiertos por SOS-Expat.com, sin restricción alguna de nacionalidad o residencia. Incluye España, Francia, Bélgica, Suiza, Canadá, Estados Unidos, Reino Unido, Australia, India, Alemania, Italia, Marruecos, Senegal, Japón, Singapur, Corea del Sur, Tailandia, EAU, Arabia Saudita, México, Argentina, Colombia, Chile, Perú, Brasil, Portugal, y más de 170 otros."},
+          {"q": "¿Necesito estar colegiado en Tailandia para asesorar a clientes en Tailandia?", "a": "No. Puedes estar colegiado en cualquier colegio de abogados del mundo e intervenir a distancia para clientes situados en Tailandia. Sigues siendo el único responsable de tus consejos jurídicos dentro del marco deontológico y regulatorio de tu colegio de origen. SOS-Expat.com no ofrece asesoramiento jurídico directo — la plataforma solo te pone en contacto con clientes que necesitan experiencia jurídica internacional."},
+          {"q": "¿Cómo retiro mis ganancias en la práctica?", "a": "Retiro desde $30 acumulados, comisión fija de $3 por transacción, disponibilidad en 24 horas tras cada llamada completada. Cuatro métodos de pago: Stripe (tarjeta bancaria para Europa y 44+ países Stripe Express), PayPal (internacional), Wise (transferencia internacional SEPA y SWIFT) y Flutterwave (Mobile Money para socios basados en África)."},
+          {"q": "¿Puedo ganar más mediante el programa de afiliación SOS-Expat?", "a": "Sí. Además de los 30 € por consulta, puedes activar tu enlace de afiliación de socio para ganar: $2 por llamada de abogado generada vía tu enlace, $1 por llamada de experto local, más un bono de registro de $2 por cada cuenta nueva creada vía tu enlace. El programa de afiliación es gratuito para unirse."}
+        ]
+      },
+      "cta": {
+        "headline": "Únete hoy a los abogados socios SOS-Expat en Tailandia",
+        "button": "Me hago socio",
+        "subtext": "Socio independiente · Sin compromiso tarifario · Activación en menos de 5 minutos"
+      }
+    },
+    "de": {
+      "meta_title": "Partneranwalt bei SOS-Expat in Thailand · alle Sprachen",
+      "meta_description": "Werden Sie 2026 SOS-Expat-Partneranwalt in Thailand: 30 € / 20 Min., Auszahlung in 24 h, alle Nationalitäten, alle Sprachen. Freie Anmeldung aus 197 Ländern.",
+      "hero": {
+        "badge": "★ 197 Länder · Alle Sprachen · Unabhängige Partner 2026",
+        "h1": "Werden Sie SOS-Expat-Partneranwalt in Thailand",
+        "subtitle": "Anwälte aus Deutschland, Österreich, Schweiz, Frankreich, Belgien, Kanada, USA, Vereinigtem Königreich, Indien, Brasilien, China und 182 weiteren Ländern: erhalten Sie internationale Mandanten in Thailand in der Sprache, die Sie praktizieren.",
+        "cta_text": "Ich werde Partner",
+        "cta_subtext": "Freie Anmeldung · Aktivierung in unter 5 Minuten"
+      },
+      "earnings": {
+        "headline": "Was verdient ein Partneranwalt in Thailand?",
+        "amount": "30 €",
+        "per": "pro 20-minütiger Beratung (Mandant zahlt 49 € oder $55)",
+        "payment_delay": "Innerhalb von 24 Stunden nach jedem abgeschlossenen Anruf",
+        "badges": [
+          "Auszahlung bei jeder durchgeführten Beratung",
+          "Null Zahlungsausfälle — garantiert durch SOS-Expat.com",
+          "Unbegrenzte Gewinnakkumulation, keine Obergrenze",
+          "Auszahlung ab $30 angesammelt",
+          "Feste Gebühr von $3 pro Auszahlung, kein Prozentsatz",
+          "Vier Zahlungsmethoden: Stripe, PayPal, Wise, Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "Warum SOS-Expat.com aus jedem Land beitreten?",
+        "items": [
+          "Keine Quoten, keine Mindeststunden von der Plattform auferlegt",
+          "Aktivieren und deaktivieren Sie Ihr Profil mit einem Klick, rund um die Uhr",
+          "Null Akquise: Mandanten kommen zu Ihnen über SOS-Expat.com",
+          "Unabhängiger Partner aus 197 Ländern — rechtlicher Status gemäß Ihrer lokalen Gesetzgebung (Freiberufler, Selbstständige, Contractor)",
+          "Beratungen in jeder Sprache, die Sie praktizieren: Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Arabisch, Hindi, Mandarin, Russisch, sowie Thailändisch, Vietnamesisch, Japanisch, Koreanisch, oder jede gemeinsame Sprache mit Ihrem Mandanten",
+          "Kompatibel mit Ihrer Haupttätigkeit (Einzelkanzlei, Gemeinschaftskanzlei, Solo, In-House)",
+          "Offizielle Fachgebiete: Einwanderungsrecht, Arbeitsrecht, Handelsrecht, internationale Steuer, Immobilienrecht und weitere internationale Rechtsgebiete je nach Expertise",
+          "DSA-Konformität (EU-Verordnung 2022/2065) durch SOS-Expat.com garantiert · Rechtsträger WorldExpat OU, Estland"
+        ]
+      },
+      "process": {
+        "headline": "Wie wird man in 4 Schritten SOS-Expat-Partneranwalt in Thailand?",
+        "steps": [
+          {"num": 1, "label": "Anmeldung in unter 5 Minuten", "detail": "Erstellen Sie Ihr Partneranwaltsprofil auf SOS-Expat.com aus einem der 197 abgedeckten Länder. Geben Sie Identität, Kammerzugehörigkeit, Zulassungsnummer und Nachweis an. Keine Kaution, keine Anmeldegebühr."},
+          {"num": 2, "label": "Konfiguration des Partnerprofils", "detail": "Geben Sie Ihre Fachgebiete (Einwanderung, Arbeit, Handel, internationale Steuer, Immobilien), die Beratungssprachen (alle Sprachen zugelassen), Ihre Verfügbarkeitszeiten nach Zeitzone und Ihre Slots an."},
+          {"num": 3, "label": "Empfang verifizierter Mandantenanrufe", "detail": "Anrufe kommen über gesichertes Twilio IVR mit verschlüsselter Konferenz, 20 Minuten pro Beratung garantiert, in der gemeinsamen Sprache mit Ihrem Mandanten. Verbindungsverzögerung unter 5 Minuten nach Zahlung des Mandanten. Bis zu 3 Verbindungsversuche bei keiner ersten Antwort, 60 Sekunden pro Versuch."},
+          {"num": 4, "label": "Automatische Zahlung in 24 Stunden", "detail": "Ihre 30 € ($30) werden binnen 24 Stunden nach jedem abgeschlossenen Anruf über Stripe, PayPal, Wise oder Flutterwave (Mobile Money für Partner in Afrika) ausgezahlt. Mindestauszahlung $30 angesammelt, feste Gebühr $3 pro Transaktion."}
+        ]
+      },
+      "faq": {
+        "headline": "Häufige Fragen zur Anwaltspartnerschaft in Thailand",
+        "items": [
+          {"q": "Wer zahlt die Beratung und wie viel erhalte ich genau?", "a": "Der Mandant zahlt 49 € ($55) für eine 20-minütige Beratung mit einem Partneranwalt. Sie als Anwalt erhalten 30 € ($30) netto pro Beratung. SOS-Expat.com behält 19 € ($25) für Vermittlungs- und Plattformbetriebskosten (Twilio-Infrastruktur, Zahlungsprozessoren, Support). Abrechnung binnen 24 Stunden nach jedem abgeschlossenen Anruf."},
+          {"q": "Bin ich Angestellter von SOS-Expat.com?", "a": "Nein, Sie sind unabhängiger Partner. SOS-Expat.com ist eine Vermittlungsplattform, keine Anwaltskanzlei und kein Arbeitgeber. Ihr rechtlicher Status hängt von der Gesetzgebung Ihres Wohnsitzlandes ab: Freiberufler in Deutschland/Österreich, Selbstständig in der Schweiz, Contractor in den USA und UK, entsprechender Status je nach lokalen Pflichten."},
+          {"q": "Aus welchen Ländern kann ich mich als Partneranwalt für Thailand anmelden?", "a": "Aus allen 197 von SOS-Expat.com abgedeckten Ländern, ohne Einschränkung von Nationalität oder Wohnsitz. Inklusive Deutschland, Österreich, Schweiz, Frankreich, Belgien, Kanada, USA, UK, Australien, Indien, Italien, Spanien, Marokko, Senegal, Japan, Singapur, Südkorea, Thailand, VAE, Saudi-Arabien und mehr als 170 weiteren."},
+          {"q": "Muss ich in der thailändischen Kammer zugelassen sein, um Mandanten in Thailand zu beraten?", "a": "Nein. Sie können in jeder Kammer der Welt zugelassen sein und aus der Ferne für in Thailand ansässige Mandanten tätig sein. Sie bleiben allein verantwortlich für Ihre Rechtsberatung im deontologischen und regulatorischen Rahmen Ihrer Herkunftskammer. SOS-Expat.com bietet keine direkte Rechtsberatung — die Plattform vermittelt Sie lediglich an Mandanten, die internationale Rechtsberatung benötigen."},
+          {"q": "Wie ziehe ich meine Einnahmen ab?", "a": "Auszahlung ab $30 angesammelt, feste Gebühr $3 pro Transaktion, Verfügbarkeit in 24 Stunden nach jedem abgeschlossenen Anruf. Vier Zahlungsmethoden: Stripe (Kartenzahlung für Europa und 44+ Stripe-Express-Länder), PayPal (international), Wise (SEPA- und SWIFT-Überweisung) und Flutterwave (Mobile Money für Partner in Afrika)."},
+          {"q": "Kann ich über das SOS-Expat-Affiliate-Programm mehr verdienen?", "a": "Ja. Zusätzlich zu 30 € pro Beratung können Sie Ihren Partner-Affiliate-Link aktivieren, um $2 pro Anwaltsanruf über Ihren Link, $1 pro Anruf an einen lokalen Experten und einen Anmeldebonus von $2 pro neu erstelltem Konto zu verdienen. Die Teilnahme am Affiliate-Programm ist kostenlos."}
+        ]
+      },
+      "cta": {
+        "headline": "Werden Sie heute SOS-Expat-Partneranwalt in Thailand",
+        "button": "Ich werde Partner",
+        "subtext": "Unabhängiger Partner · Keine Gebührenbindung · Aktivierung in unter 5 Minuten"
+      }
+    },
+    "pt": {
+      "meta_title": "Seja advogado parceiro SOS-Expat na Tailândia · todas as línguas",
+      "meta_description": "Torne-se advogado parceiro SOS-Expat na Tailândia em 2026: 30 € / 20 min, pagamento em 24 h, todas nacionalidades, todas línguas. Inscrição livre desde 197 países.",
+      "hero": {
+        "badge": "★ 197 países · Todas as línguas · Parceiros independentes 2026",
+        "h1": "Torne-se advogado parceiro SOS-Expat na Tailândia",
+        "subtitle": "Advogados de Portugal, Brasil, Angola, Moçambique, Cabo Verde, Timor-Leste, França, Bélgica, Canadá, Estados Unidos, Reino Unido, Índia, China, Alemanha e outros 180 países: receba clientes internacionais na Tailândia na língua que pratica.",
+        "cta_text": "Torno-me parceiro",
+        "cta_subtext": "Inscrição livre · Ativação em menos de 5 minutos"
+      },
+      "earnings": {
+        "headline": "Quanto ganha um advogado parceiro na Tailândia?",
+        "amount": "30 €",
+        "per": "por consulta de 20 minutos (cliente paga 49 € ou $55)",
+        "payment_delay": "Em 24 horas após cada chamada completada",
+        "badges": [
+          "Pagamento em cada consulta realizada",
+          "Zero incobráveis garantido por SOS-Expat.com",
+          "Acumulação de ganhos ilimitada, sem teto",
+          "Levantamento a partir de $30 acumulados",
+          "Comissão fixa de $3 por levantamento, sem percentagem",
+          "Quatro métodos de pagamento: Stripe, PayPal, Wise, Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "Porque aderir a SOS-Expat.com desde qualquer país?",
+        "items": [
+          "Sem quotas, sem horas mínimas impostas pela plataforma",
+          "Ative e desative o seu perfil com um clique, 24h/24",
+          "Zero prospeção comercial: os clientes vêm ter consigo via SOS-Expat.com",
+          "Parceiro independente desde 197 países — estatuto legal conforme a sua legislação local (trabalhador por conta própria, freelance, contractor)",
+          "Consultas em qualquer língua que pratique: português, francês, inglês, espanhol, alemão, árabe, hindi, mandarim, russo, e também tailandês, vietnamita, japonês, coreano, ou qualquer língua comum com o seu cliente",
+          "Compatível com a sua atividade principal (escritório individual, escritório coletivo, solo, in-house)",
+          "Especialidades oficiais: direito de imigração, direito do trabalho, direito comercial, fiscalidade internacional, direito imobiliário, e outras matérias jurídicas internacionais conforme a sua experiência",
+          "Conformidade DSA (Regulamento UE 2022/2065) garantida por SOS-Expat.com · Entidade legal WorldExpat OU, Estónia"
+        ]
+      },
+      "process": {
+        "headline": "Como tornar-se advogado parceiro SOS-Expat na Tailândia em 4 passos?",
+        "steps": [
+          {"num": 1, "label": "Inscrição em menos de 5 minutos", "detail": "Crie o seu perfil de advogado parceiro em SOS-Expat.com desde qualquer dos 197 países cobertos. Indique a sua identidade, a sua ordem dos advogados, o seu número de inscrição e o seu comprovativo. Sem caução nem taxa de inscrição."},
+          {"num": 2, "label": "Configuração do perfil de parceiro", "detail": "Indique as suas especialidades jurídicas (imigração, trabalho, comercial, fiscalidade internacional, imobiliário), as línguas em que consulta (todas as línguas aceites), os seus horários de disponibilidade por fuso horário e os seus slots."},
+          {"num": 3, "label": "Receção de chamadas de clientes verificados", "detail": "As chamadas chegam via IVR seguro Twilio com conferência encriptada, 20 minutos garantidos por consulta, na língua comum escolhida com o seu cliente. Atraso de ligação inferior a 5 minutos após pagamento do cliente. Até 3 tentativas de ligação se não houver resposta inicial, 60 segundos por tentativa."},
+          {"num": 4, "label": "Pagamento automático em 24 horas", "detail": "Os seus 30 € ($30) são pagos em 24 horas após cada chamada completada via Stripe, PayPal, Wise ou Flutterwave (Mobile Money para parceiros baseados em África). Levantamento mínimo $30 acumulados, comissão fixa $3 por transação."}
+        ]
+      },
+      "faq": {
+        "headline": "Perguntas frequentes sobre a parceria de advogado na Tailândia",
+        "items": [
+          {"q": "Quem paga a consulta e quanto recebo exatamente?", "a": "O cliente paga 49 € ($55) por uma consulta de 20 minutos com um advogado parceiro. Você, advogado, recebe 30 € ($30) líquidos por consulta. SOS-Expat.com retém 19 € ($25) de custos de contacto e de funcionamento da plataforma (infraestrutura Twilio, processadores de pagamento, suporte). Pagamento em 24 horas após cada chamada completada."},
+          {"q": "Sou empregado de SOS-Expat.com?", "a": "Não, é um parceiro independente. SOS-Expat.com é uma plataforma de contacto, não uma sociedade de advogados nem um empregador. O seu estatuto legal depende da legislação do seu país de residência: trabalhador por conta própria em Portugal, MEI no Brasil, freelance na Bélgica e Suíça, contractor nos Estados Unidos e Reino Unido, estatuto equivalente conforme as suas obrigações locais."},
+          {"q": "De que países posso inscrever-me como advogado parceiro para a Tailândia?", "a": "Dos 197 países cobertos por SOS-Expat.com, sem restrição de nacionalidade ou residência. Inclui Portugal, Brasil, Angola, Moçambique, Cabo Verde, Timor-Leste, França, Bélgica, Suíça, Canadá, Estados Unidos, Reino Unido, Austrália, Índia, Alemanha, Espanha, Itália, Marrocos, Senegal, Japão, Singapura, Coreia do Sul, Tailândia, EAU, Arábia Saudita e mais de 170 outros."},
+          {"q": "Preciso estar inscrito na ordem dos advogados tailandesa para aconselhar clientes na Tailândia?", "a": "Não. Pode estar inscrito em qualquer ordem dos advogados do mundo e intervir à distância para clientes situados na Tailândia. Continua a ser o único responsável pelos seus conselhos jurídicos no quadro deontológico e regulamentar da sua ordem de origem. SOS-Expat.com não fornece aconselhamento jurídico direto — a plataforma apenas o coloca em contacto com clientes que precisam de expertise jurídica internacional."},
+          {"q": "Como levanto os meus ganhos na prática?", "a": "Levantamento a partir de $30 acumulados, comissão fixa de $3 por transação, disponibilidade em 24 horas após cada chamada completada. Quatro métodos de pagamento: Stripe (cartão bancário para Europa e 44+ países Stripe Express), PayPal (internacional), Wise (transferência internacional SEPA e SWIFT) e Flutterwave (Mobile Money para parceiros baseados em África)."},
+          {"q": "Posso ganhar mais via o programa de afiliação SOS-Expat?", "a": "Sim. Além dos 30 € por consulta, pode ativar o seu link de afiliação de parceiro para ganhar: $2 por chamada de advogado gerada via o seu link, $1 por chamada de expert local, mais um bónus de inscrição de $2 por cada conta nova criada via o seu link. O programa de afiliação é gratuito para aderir."}
+        ]
+      },
+      "cta": {
+        "headline": "Junte-se hoje aos advogados parceiros SOS-Expat na Tailândia",
+        "button": "Torno-me parceiro",
+        "subtext": "Parceiro independente · Sem compromisso tarifário · Ativação em menos de 5 minutos"
+      }
+    },
+    "ru": {
+      "meta_title": "Адвокат-партнёр SOS-Expat в Таиланде · все языки",
+      "meta_description": "Станьте адвокатом-партнёром SOS-Expat в Таиланде в 2026: 30 € / 20 мин, выплата за 24 ч, любые национальности и языки. Свободная регистрация из 197 стран.",
+      "hero": {
+        "badge": "★ 197 стран · Все языки · Независимые партнёры 2026",
+        "h1": "Станьте адвокатом-партнёром SOS-Expat в Таиланде",
+        "subtitle": "Адвокаты из России, Беларуси, Казахстана, Украины, Франции, Бельгии, Швейцарии, Канады, США, Великобритании, Индии, Бразилии, Китая, Германии и ещё 180+ стран: принимайте международных клиентов в Таиланде на том языке, который вы практикуете.",
+        "cta_text": "Стать партнёром",
+        "cta_subtext": "Свободная регистрация · Активация менее чем за 5 минут"
+      },
+      "earnings": {
+        "headline": "Сколько зарабатывает адвокат-партнёр в Таиланде?",
+        "amount": "30 €",
+        "per": "за 20-минутную консультацию (клиент платит 49 € или $55)",
+        "payment_delay": "В течение 24 часов после каждого завершённого звонка",
+        "badges": [
+          "Оплата за каждую проведённую консультацию",
+          "Ноль неоплат — гарантировано SOS-Expat.com",
+          "Неограниченное накопление доходов, без потолка",
+          "Вывод от $30 накопленных",
+          "Фиксированная комиссия $3 за вывод, без процентов",
+          "Четыре способа оплаты: Stripe, PayPal, Wise, Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "Зачем присоединиться к SOS-Expat.com из любой страны?",
+        "items": [
+          "Без квот, без минимума часов, навязанных платформой",
+          "Активация и деактивация вашего профиля одним кликом, 24/7",
+          "Ноль коммерческого поиска: клиенты приходят к вам через SOS-Expat.com",
+          "Независимый партнёр из 197 стран — правовой статус по вашему местному законодательству (ИП, самозанятый, фрилансер, контрактор)",
+          "Консультации на любом языке, которым вы владеете: русский, французский, английский, испанский, немецкий, португальский, арабский, хинди, мандаринский, а также тайский, вьетнамский, японский, корейский или любой общий язык с клиентом",
+          "Совместимо с основной деятельностью (индивидуальная практика, коллективная фирма, in-house)",
+          "Официальные специализации: иммиграционное право, трудовое право, коммерческое право, международное налогообложение, недвижимость и другие международные юридические направления по вашей экспертизе",
+          "Соответствие DSA (Регламент ЕС 2022/2065) гарантировано SOS-Expat.com · Юрлицо WorldExpat OU, Эстония"
+        ]
+      },
+      "process": {
+        "headline": "Как стать адвокатом-партнёром SOS-Expat в Таиланде за 4 шага?",
+        "steps": [
+          {"num": 1, "label": "Регистрация менее чем за 5 минут", "detail": "Создайте профиль адвоката-партнёра на SOS-Expat.com из любой из 197 охваченных стран. Укажите личность, адвокатскую палату, номер допуска и подтверждающий документ. Никакого залога, никакой платы за регистрацию."},
+          {"num": 2, "label": "Настройка профиля партнёра", "detail": "Укажите ваши юридические специализации (иммиграция, труд, коммерция, международное налогообложение, недвижимость), языки консультаций (все языки принимаются), ваши часы доступности по часовому поясу и слоты."},
+          {"num": 3, "label": "Приём проверенных звонков клиентов", "detail": "Звонки поступают через защищённый IVR Twilio с зашифрованной конференцией, 20 минут гарантированы на консультацию, на общем языке с клиентом. Задержка подключения менее 5 минут после оплаты клиентом. До 3 попыток подключения при отсутствии ответа, 60 секунд на попытку."},
+          {"num": 4, "label": "Автоматическая оплата в течение 24 часов", "detail": "Ваши 30 € ($30) выплачиваются в течение 24 часов после каждого завершённого звонка через Stripe, PayPal, Wise или Flutterwave (Mobile Money для партнёров в Африке). Минимальный вывод $30 накопленных, фиксированная комиссия $3 за транзакцию."}
+        ]
+      },
+      "faq": {
+        "headline": "Часто задаваемые вопросы о партнёрстве адвокатов в Таиланде",
+        "items": [
+          {"q": "Кто платит за консультацию и сколько я получаю?", "a": "Клиент платит 49 € ($55) за 20-минутную консультацию с адвокатом-партнёром. Вы, адвокат, получаете 30 € ($30) нетто за консультацию. SOS-Expat.com удерживает 19 € ($25) на расходы по соединению и функционированию платформы (инфраструктура Twilio, платёжные процессоры, поддержка). Расчёт в течение 24 часов после каждого завершённого звонка."},
+          {"q": "Я сотрудник SOS-Expat.com?", "a": "Нет, вы независимый партнёр. SOS-Expat.com — платформа для связи, не адвокатская фирма и не работодатель. Ваш правовой статус зависит от законодательства страны проживания: ИП или самозанятый в России, фрилансер в Беларуси и Казахстане, контрактор в США и Великобритании, эквивалентный статус по вашим местным обязательствам."},
+          {"q": "Из каких стран я могу зарегистрироваться как адвокат-партнёр для Таиланда?", "a": "Из всех 197 стран, охваченных SOS-Expat.com, без каких-либо ограничений по национальности или месту жительства. Включая Россию, Беларусь, Казахстан, Украину, Францию, Бельгию, Швейцарию, Канаду, США, Великобританию, Австралию, Индию, Германию, Испанию, Италию, Марокко, Сенегал, Японию, Сингапур, Южную Корею, Таиланд, ОАЭ, Саудовскую Аравию и более 170 других."},
+          {"q": "Нужно ли быть членом тайской адвокатской палаты, чтобы консультировать клиентов в Таиланде?", "a": "Нет. Вы можете быть членом любой адвокатской палаты мира и работать удалённо для клиентов, находящихся в Таиланде. Вы остаётесь единственным ответственным за ваши юридические советы в рамках деонтологии и регламентации вашей основной палаты. SOS-Expat.com не предоставляет юридические консультации напрямую — платформа просто связывает вас с клиентами, которым нужна международная юридическая экспертиза."},
+          {"q": "Как вывести свои доходы на практике?", "a": "Вывод от $30 накопленных, фиксированная комиссия $3 за транзакцию, доступность в течение 24 часов после каждого завершённого звонка. Четыре способа оплаты: Stripe (банковская карта для Европы и 44+ стран Stripe Express), PayPal (международный), Wise (международный перевод SEPA и SWIFT) и Flutterwave (Mobile Money для партнёров в Африке)."},
+          {"q": "Могу ли я заработать больше через партнёрскую программу SOS-Expat?", "a": "Да. В дополнение к 30 € за консультацию вы можете активировать вашу партнёрскую реферальную ссылку, чтобы зарабатывать: $2 за звонок адвокату, сгенерированный через вашу ссылку, $1 за звонок местному эксперту, плюс бонус за регистрацию $2 за каждый новый аккаунт, созданный через вашу ссылку. Программа бесплатная для присоединения."}
+        ]
+      },
+      "cta": {
+        "headline": "Присоединитесь сегодня к адвокатам-партнёрам SOS-Expat в Таиланде",
+        "button": "Стать партнёром",
+        "subtext": "Независимый партнёр · Без тарифных обязательств · Активация менее чем за 5 минут"
+      }
+    },
+    "zh": {
+      "meta_title": "SOS-Expat 泰国合作律师 · 全语种",
+      "meta_description": "2026 年成为 SOS-Expat 泰国合作律师：每 20 分钟咨询 30 欧元，24 小时内付款，所有国籍、所有语言。从 197 个国家免费注册。",
+      "hero": {
+        "badge": "★ 197 个国家 · 全语种 · 独立合作伙伴 2026",
+        "h1": "成为 SOS-Expat 泰国合作律师",
+        "subtitle": "来自中国大陆、香港、台湾、新加坡、马来西亚、法国、比利时、瑞士、加拿大、美国、英国、印度、巴西、德国和其他 180 多个国家的律师：在泰国用您熟练的语言接待国际客户。",
+        "cta_text": "我要成为合作伙伴",
+        "cta_subtext": "免费注册 · 5 分钟内激活"
+      },
+      "earnings": {
+        "headline": "泰国合作律师赚多少？",
+        "amount": "30 €",
+        "per": "每 20 分钟咨询（客户支付 49 欧元或 55 美元）",
+        "payment_delay": "每次通话结束后 24 小时内",
+        "badges": [
+          "每次完成咨询即付款",
+          "SOS-Expat.com 零欠款保证",
+          "收入累计无上限",
+          "累积 30 美元起即可提现",
+          "每次提现固定 3 美元手续费，无百分比",
+          "四种支付方式：Stripe、PayPal、Wise、Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "为什么从任何国家加入 SOS-Expat.com？",
+        "items": [
+          "无配额、无最低工时要求",
+          "一键激活或停用您的个人资料，全天候 24 小时",
+          "零商业推广：客户通过 SOS-Expat.com 主动找到您",
+          "来自 197 个国家的独立合作伙伴 — 法律身份依据您的本地法规（个体户、自由职业者、合同工、自营律师）",
+          "可用任何您掌握的语言咨询：中文普通话、粤语、法语、英语、西班牙语、德语、葡萄牙语、阿拉伯语、印地语、俄语，以及泰语、越南语、日语、韩语，或与客户共有的任何语言",
+          "与您的主要业务兼容（独立事务所、合伙事务所、独资、in-house）",
+          "官方专业领域：移民法、劳动法、商法、国际税务、房地产法及其他国际法律事务（依您的专长）",
+          "SOS-Expat.com 保障 DSA 合规（欧盟条例 2022/2065）· 法律主体为爱沙尼亚 WorldExpat OU"
+        ]
+      },
+      "process": {
+        "headline": "如何 4 步成为 SOS-Expat 泰国合作律师？",
+        "steps": [
+          {"num": 1, "label": "5 分钟内注册", "detail": "从 SOS-Expat.com 覆盖的 197 个国家中任一国创建合作律师档案。填写身份、所属律师协会、执业编号或同等专业凭证，以及证明文件。无保证金、无注册费。"},
+          {"num": 2, "label": "配置合作伙伴档案", "detail": "指定您的法律专业领域（移民、劳动、商业、国际税务、房地产），咨询语言（所有语言都接受），按时区的可用时间以及时段。"},
+          {"num": 3, "label": "接听经验证的客户电话", "detail": "通话经 Twilio 安全 IVR 传入，配有加密会议，每次咨询保证 20 分钟，使用与客户选定的共同语言。客户付款后连接延迟不到 5 分钟。如无初次回应，最多 3 次连接尝试，每次 60 秒。"},
+          {"num": 4, "label": "24 小时内自动付款", "detail": "每次通话结束后 24 小时内，您的 30 欧元（30 美元）通过 Stripe、PayPal、Wise 或 Flutterwave（非洲合作伙伴的移动支付）支付。累积 30 美元起可提现，每笔交易固定 3 美元手续费。"}
+        ]
+      },
+      "faq": {
+        "headline": "关于泰国律师合作的常见问题",
+        "items": [
+          {"q": "谁支付咨询费？我实际收到多少？", "a": "客户为 20 分钟的合作律师咨询支付 49 欧元（55 美元）。您作为律师，每次咨询净收入 30 欧元（30 美元）。SOS-Expat.com 保留 19 欧元（25 美元）用于连接和平台运营成本（Twilio 基础设施、支付处理、客服支持）。每次通话结束后 24 小时内结算。"},
+          {"q": "我是 SOS-Expat.com 的员工吗？", "a": "不是，您是独立合作伙伴。SOS-Expat.com 是一个对接平台，既非律师事务所也非雇主。您的法律身份取决于常住国法规：中国大陆的个体工商户、香港/台湾的自雇人士、比利时或瑞士的自由职业者、美英的合同工、当地义务对应的同等身份。您以自己的名义开具咨询发票。"},
+          {"q": "我可以从哪些国家注册为泰国的合作律师？", "a": "从 SOS-Expat.com 覆盖的 197 个国家，对国籍或居住地无任何限制。包括中国大陆、香港、台湾、新加坡、马来西亚、法国、比利时、瑞士、加拿大、美国、英国、澳大利亚、印度、德国、西班牙、意大利、摩洛哥、塞内加尔、日本、韩国、泰国、阿联酋、沙特阿拉伯以及 170 多个其他国家。"},
+          {"q": "我需要加入泰国律师协会才能为泰国的客户提供咨询吗？", "a": "不需要。您可以是世界上任何律师协会的成员，远程为身处泰国的客户服务。您在原属律师协会的职业道德和监管框架内对您的法律建议独自负责。SOS-Expat.com 不直接提供法律咨询 — 平台只是将您与需要国际法律专业知识的客户对接。"},
+          {"q": "我如何在实际操作中提取收入？", "a": "累积 30 美元起可提现，每笔交易固定 3 美元手续费，每次通话结束后 24 小时内到账。四种支付方式：Stripe（欧洲及 44+ Stripe Express 国家的银行卡）、PayPal（国际）、Wise（SEPA 和 SWIFT 国际汇款）以及 Flutterwave（非洲合作伙伴的移动支付）。"},
+          {"q": "我可以通过 SOS-Expat 的推荐计划赚得更多吗？", "a": "可以。除了每次咨询 30 欧元外，您还可激活合作伙伴推荐链接，赚取额外佣金：通过您链接生成的每次律师通话获 2 美元，每次本地专家通话获 1 美元，以及每个通过您链接创建的新账户获 2 美元注册奖励。推荐计划对所有独立合作伙伴免费开放。"}
+        ]
+      },
+      "cta": {
+        "headline": "立即加入 SOS-Expat 泰国合作律师行列",
+        "button": "我要成为合作伙伴",
+        "subtext": "独立合作伙伴 · 无费率承诺 · 5 分钟内激活"
+      }
+    },
+    "hi": {
+      "meta_title": "SOS-Expat के साथ थाईलैंड में साझेदार वकील · सभी भाषाएँ",
+      "meta_description": "2026 में थाईलैंड में SOS-Expat के साझेदार वकील बनें: 30 €/20 मिनट, 24 घंटे में भुगतान, सभी राष्ट्रीयताएँ और भाषाएँ। 197 देशों से निःशुल्क पंजीकरण।",
+      "hero": {
+        "badge": "★ 197 देश · सभी भाषाएँ · स्वतंत्र साझेदार 2026",
+        "h1": "थाईलैंड में SOS-Expat के साझेदार वकील बनें",
+        "subtitle": "भारत, पाकिस्तान, बांग्लादेश, श्रीलंका, नेपाल, यूएई, सऊदी अरब, फ्रांस, बेल्जियम, कनाडा, अमेरिका, ब्रिटेन, ब्राज़ील, चीन, जर्मनी और 180+ अन्य देशों के वकील: थाईलैंड में अंतर्राष्ट्रीय ग्राहकों को आप जिस भाषा में अभ्यास करते हैं उसी भाषा में सेवा दें।",
+        "cta_text": "मैं साझेदार बनता हूँ",
+        "cta_subtext": "निःशुल्क पंजीकरण · 5 मिनट से कम में सक्रियण"
+      },
+      "earnings": {
+        "headline": "थाईलैंड में एक साझेदार वकील कितना कमाता है?",
+        "amount": "30 €",
+        "per": "20 मिनट की प्रत्येक परामर्श के लिए (ग्राहक 49 € या $55 का भुगतान करता है)",
+        "payment_delay": "प्रत्येक पूर्ण कॉल के बाद 24 घंटों के भीतर",
+        "badges": [
+          "प्रत्येक पूर्ण परामर्श पर भुगतान",
+          "SOS-Expat.com द्वारा शून्य बकाया की गारंटी",
+          "असीमित आय संचय, कोई सीमा नहीं",
+          "$30 संचित होने पर निकासी",
+          "प्रति निकासी निश्चित $3 शुल्क, कोई प्रतिशत नहीं",
+          "चार भुगतान तरीके: Stripe, PayPal, Wise, Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "किसी भी देश से SOS-Expat.com क्यों जॉइन करें?",
+        "items": [
+          "कोई कोटा नहीं, मंच द्वारा लगाए गए न्यूनतम घंटे नहीं",
+          "एक क्लिक में, 24/7 अपनी प्रोफ़ाइल सक्रिय और निष्क्रिय करें",
+          "शून्य व्यावसायिक प्रॉस्पेक्टिंग: SOS-Expat.com के माध्यम से ग्राहक आपके पास आते हैं",
+          "197 देशों से स्वतंत्र साझेदार — आपके स्थानीय कानून के अनुसार कानूनी स्थिति (स्व-रोज़गार, फ्रीलांस, ठेकेदार)",
+          "आप जिस भाषा में अभ्यास करते हैं उसी भाषा में परामर्श: हिन्दी, अंग्रेज़ी, फ़्रेंच, स्पेनिश, जर्मन, पुर्तगाली, अरबी, मंदारिन, रूसी, साथ ही थाई, वियतनामी, जापानी, कोरियाई, या ग्राहक के साथ कोई भी साझा भाषा",
+          "आपकी मुख्य गतिविधि के साथ संगत (व्यक्तिगत फ़र्म, साझेदारी फ़र्म, सोलो, इन-हाउस)",
+          "आधिकारिक विशेषज्ञताएँ: आप्रवासन कानून, श्रम कानून, वाणिज्यिक कानून, अंतर्राष्ट्रीय कराधान, रियल एस्टेट कानून, और अन्य अंतर्राष्ट्रीय कानूनी मामले",
+          "SOS-Expat.com द्वारा DSA अनुपालन (EU विनियमन 2022/2065) की गारंटी · कानूनी इकाई WorldExpat OU, एस्टोनिया"
+        ]
+      },
+      "process": {
+        "headline": "4 चरणों में थाईलैंड में SOS-Expat साझेदार वकील कैसे बनें?",
+        "steps": [
+          {"num": 1, "label": "5 मिनट से कम में पंजीकरण", "detail": "SOS-Expat.com पर कवर किए गए 197 देशों में से किसी से भी अपनी साझेदार वकील प्रोफ़ाइल बनाएँ। अपनी पहचान, बार काउंसिल, पंजीकरण संख्या और प्रमाण दर्ज करें। कोई सिक्योरिटी नहीं, कोई पंजीकरण शुल्क नहीं।"},
+          {"num": 2, "label": "साझेदार प्रोफ़ाइल कॉन्फ़िगरेशन", "detail": "अपनी कानूनी विशेषज्ञताएँ (आप्रवासन, श्रम, वाणिज्यिक, अंतर्राष्ट्रीय कराधान, रियल एस्टेट), परामर्श की भाषाएँ (सभी भाषाएँ स्वीकार्य), समय क्षेत्र के अनुसार उपलब्धता के घंटे और अपने स्लॉट दर्ज करें।"},
+          {"num": 3, "label": "सत्यापित ग्राहक कॉल प्राप्त करना", "detail": "कॉल एन्क्रिप्टेड कॉन्फ़्रेंस के साथ Twilio सुरक्षित IVR के माध्यम से आती हैं, प्रत्येक परामर्श के लिए 20 मिनट की गारंटी, आपके ग्राहक के साथ चुनी गई सामान्य भाषा में। ग्राहक के भुगतान के बाद कनेक्शन विलंब 5 मिनट से कम। प्रारंभिक प्रतिक्रिया न होने पर अधिकतम 3 कनेक्शन प्रयास, प्रति प्रयास 60 सेकंड।"},
+          {"num": 4, "label": "24 घंटों के भीतर स्वचालित भुगतान", "detail": "आपके 30 € ($30) प्रत्येक पूर्ण कॉल के बाद 24 घंटों के भीतर Stripe, PayPal, Wise, या Flutterwave (अफ़्रीका में स्थित साझेदारों के लिए मोबाइल मनी) के माध्यम से जमा किए जाते हैं। न्यूनतम निकासी $30 संचित, प्रति लेनदेन निश्चित $3 शुल्क।"}
+        ]
+      },
+      "faq": {
+        "headline": "थाईलैंड में वकील साझेदारी पर अक्सर पूछे जाने वाले प्रश्न",
+        "items": [
+          {"q": "परामर्श के लिए कौन भुगतान करता है और मुझे वास्तव में कितना मिलता है?", "a": "ग्राहक एक साझेदार वकील के साथ 20 मिनट की परामर्श के लिए 49 € ($55) का भुगतान करता है। आप, वकील, प्रति परामर्श 30 € ($30) नेट प्राप्त करते हैं। SOS-Expat.com कनेक्शन और प्लेटफ़ॉर्म संचालन लागत (Twilio इन्फ़्रास्ट्रक्चर, भुगतान प्रोसेसर, सहायता) के लिए 19 € ($25) रखता है। प्रत्येक पूर्ण कॉल के बाद 24 घंटों के भीतर निपटान।"},
+          {"q": "क्या मैं SOS-Expat.com का कर्मचारी हूँ?", "a": "नहीं, आप एक स्वतंत्र साझेदार हैं। SOS-Expat.com एक कनेक्शन प्लेटफ़ॉर्म है, वकील फ़र्म या नियोक्ता नहीं। आपकी कानूनी स्थिति आपके निवास देश के कानून पर निर्भर करती है: भारत में स्व-रोज़गार/प्रोफ़ेशनल, अमेरिका और यूके में ठेकेदार, अपनी स्थानीय ज़िम्मेदारियों के अनुसार समकक्ष स्थिति।"},
+          {"q": "मैं थाईलैंड के लिए साझेदार वकील के रूप में किन देशों से पंजीकरण कर सकता हूँ?", "a": "SOS-Expat.com द्वारा कवर किए गए सभी 197 देशों से, राष्ट्रीयता या निवास पर कोई प्रतिबंध नहीं। इसमें भारत, पाकिस्तान, बांग्लादेश, श्रीलंका, नेपाल, यूएई, सऊदी अरब, फ्रांस, बेल्जियम, स्विट्जरलैंड, कनाडा, अमेरिका, ब्रिटेन, ऑस्ट्रेलिया, जर्मनी, स्पेन, इटली, मोरक्को, जापान, सिंगापुर, दक्षिण कोरिया, थाईलैंड और 170+ अन्य शामिल हैं।"},
+          {"q": "क्या थाईलैंड में ग्राहकों को सलाह देने के लिए मुझे थाईलैंड की बार काउंसिल का सदस्य होना चाहिए?", "a": "नहीं। आप दुनिया की किसी भी बार काउंसिल के सदस्य हो सकते हैं और थाईलैंड में स्थित ग्राहकों के लिए दूर से हस्तक्षेप कर सकते हैं। आप अपनी मूल बार काउंसिल के नैतिक और नियामक ढाँचे के भीतर अपनी कानूनी सलाह के लिए अकेले ज़िम्मेदार रहते हैं। SOS-Expat.com सीधे कानूनी सलाह नहीं देता — प्लेटफ़ॉर्म बस आपको उन ग्राहकों से जोड़ता है जिन्हें अंतर्राष्ट्रीय कानूनी विशेषज्ञता की आवश्यकता है।"},
+          {"q": "मैं व्यवहार में अपनी आय कैसे निकालूँ?", "a": "$30 संचित से निकासी, प्रति लेनदेन निश्चित $3 शुल्क, प्रत्येक पूर्ण कॉल के बाद 24 घंटों के भीतर उपलब्धता। चार भुगतान तरीके: Stripe (यूरोप और 44+ Stripe Express देशों के लिए बैंक कार्ड), PayPal (अंतर्राष्ट्रीय), Wise (SEPA और SWIFT अंतर्राष्ट्रीय हस्तांतरण), और Flutterwave (अफ़्रीका में स्थित साझेदारों के लिए मोबाइल मनी)।"},
+          {"q": "क्या मैं SOS-Expat संबद्ध कार्यक्रम के माध्यम से अधिक कमा सकता हूँ?", "a": "हाँ। प्रति परामर्श 30 € के अलावा, आप अतिरिक्त कमीशन अर्जित करने के लिए अपना साझेदार संबद्ध लिंक सक्रिय कर सकते हैं: आपके लिंक के माध्यम से उत्पन्न प्रत्येक वकील कॉल के लिए $2, स्थानीय विशेषज्ञ कॉल के लिए $1, साथ ही आपके लिंक के माध्यम से बनाए गए प्रत्येक नए खाते के लिए $2 पंजीकरण बोनस। संबद्ध कार्यक्रम शामिल होने के लिए मुफ़्त है।"}
+        ]
+      },
+      "cta": {
+        "headline": "आज ही थाईलैंड में SOS-Expat साझेदार वकीलों में शामिल हों",
+        "button": "मैं साझेदार बनता हूँ",
+        "subtext": "स्वतंत्र साझेदार · कोई शुल्क प्रतिबद्धता नहीं · 5 मिनट से कम में सक्रियण"
+      }
+    },
+    "ar": {
+      "meta_title": "محامٍ شريك SOS-Expat في تايلاند · جميع اللغات",
+      "meta_description": "كن محامياً شريكاً لدى SOS-Expat في تايلاند عام 2026: 30 €/20 دقيقة، الدفع خلال 24 ساعة، جميع الجنسيات واللغات. تسجيل مجاني من 197 دولة.",
+      "hero": {
+        "badge": "★ 197 دولة · جميع اللغات · شركاء مستقلون 2026",
+        "h1": "كن محامياً شريكاً لـ SOS-Expat في تايلاند",
+        "subtitle": "محامون من الإمارات والسعودية والكويت والبحرين وقطر وعُمان ومصر والمغرب وتونس والجزائر ولبنان وفرنسا وبلجيكا وكندا والولايات المتحدة والمملكة المتحدة والهند والبرازيل والصين وألمانيا و180+ دولة أخرى: استقبل عملاء دوليين في تايلاند باللغة التي تمارسها.",
+        "cta_text": "أنا أصبح شريكاً",
+        "cta_subtext": "تسجيل مجاني · تفعيل في أقل من 5 دقائق"
+      },
+      "earnings": {
+        "headline": "كم يكسب المحامي الشريك في تايلاند؟",
+        "amount": "30 €",
+        "per": "لكل استشارة مدتها 20 دقيقة (يدفع العميل 49 € أو 55 $)",
+        "payment_delay": "خلال 24 ساعة بعد كل مكالمة منتهية",
+        "badges": [
+          "الدفع مقابل كل استشارة منجزة",
+          "صفر متأخرات — ضمان من SOS-Expat.com",
+          "تراكم أرباح غير محدود، دون سقف",
+          "السحب ابتداءً من 30 $ متراكمة",
+          "رسوم ثابتة 3 $ لكل سحب، بدون نسبة مئوية",
+          "أربع وسائل دفع: Stripe، PayPal، Wise، Flutterwave"
+        ]
+      },
+      "freedom": {
+        "headline": "لماذا الانضمام إلى SOS-Expat.com من أي بلد؟",
+        "items": [
+          "لا حصص، لا حد أدنى من الساعات تفرضه المنصة",
+          "تفعيل وإلغاء تفعيل ملفك الشخصي بنقرة، على مدار الساعة",
+          "صفر استقطاب تجاري: العملاء يأتون إليك عبر SOS-Expat.com",
+          "شريك مستقل من 197 دولة — الوضع القانوني حسب تشريعك المحلي (عمل حر، مستقل، متعاقد، صاحب مهنة حرة)",
+          "الاستشارات بأي لغة تمارسها: العربية، الفرنسية، الإنجليزية، الإسبانية، الألمانية، البرتغالية، الهندية، الماندرين، الروسية، وأيضاً التايلاندية، الفيتنامية، اليابانية، الكورية، أو أي لغة مشتركة مع عميلك",
+          "متوافق مع نشاطك الرئيسي (مكتب فردي، مكتب جماعي، منفرد، in-house)",
+          "التخصصات الرسمية: قانون الهجرة، قانون العمل، القانون التجاري، الضرائب الدولية، قانون العقارات، وغيرها من المسائل القانونية الدولية حسب خبرتك",
+          "امتثال DSA (لائحة الاتحاد الأوروبي 2022/2065) مضمون من قبل SOS-Expat.com · الكيان القانوني WorldExpat OU، إستونيا"
+        ]
+      },
+      "process": {
+        "headline": "كيف تصبح محامياً شريكاً لـ SOS-Expat في تايلاند في 4 خطوات؟",
+        "steps": [
+          {"num": 1, "label": "التسجيل في أقل من 5 دقائق", "detail": "أنشئ ملف المحامي الشريك على SOS-Expat.com من أي من الدول الـ 197 المغطاة. قدّم هويتك، النقابة التي تنتمي إليها، رقم عضويتك والوثيقة الثبوتية. لا كفالة، لا رسوم تسجيل."},
+          {"num": 2, "label": "إعداد ملف الشريك", "detail": "أشر إلى تخصصاتك القانونية (الهجرة، العمل، التجارة، الضرائب الدولية، العقارات)، اللغات التي تستشير بها (جميع اللغات مقبولة)، ساعات التوفر حسب المنطقة الزمنية وفتراتك."},
+          {"num": 3, "label": "استقبال مكالمات العملاء الموثقين", "detail": "تصل المكالمات عبر IVR آمن من Twilio مع مؤتمر مشفر، 20 دقيقة مضمونة لكل استشارة، باللغة المشتركة المختارة مع عميلك. تأخير الاتصال أقل من 5 دقائق بعد دفع العميل. حتى 3 محاولات اتصال إن لم يرد العميل أولاً، 60 ثانية لكل محاولة."},
+          {"num": 4, "label": "الدفع التلقائي خلال 24 ساعة", "detail": "يتم دفع 30 € (30 $) خلال 24 ساعة بعد كل مكالمة منتهية عبر Stripe أو PayPal أو Wise أو Flutterwave (Mobile Money للشركاء في أفريقيا). الحد الأدنى للسحب 30 $ متراكمة، رسوم ثابتة 3 $ لكل معاملة."}
+        ]
+      },
+      "faq": {
+        "headline": "أسئلة شائعة حول شراكة المحامي في تايلاند",
+        "items": [
+          {"q": "من يدفع ثمن الاستشارة وكم أتقاضى بالضبط؟", "a": "يدفع العميل 49 € (55 $) لاستشارة مدتها 20 دقيقة مع محامٍ شريك. أنت، المحامي، تتلقى 30 € (30 $) صافية لكل استشارة. تحتفظ SOS-Expat.com بـ 19 € (25 $) كرسوم توصيل وتشغيل المنصة (بنية Twilio، معالجات الدفع، الدعم). التسوية خلال 24 ساعة بعد كل مكالمة منتهية."},
+          {"q": "هل أنا موظف في SOS-Expat.com؟", "a": "لا، أنت شريك مستقل. SOS-Expat.com منصة توصيل، وليست مكتب محاماة ولا صاحب عمل. يعتمد وضعك القانوني على تشريع بلد إقامتك: عمل حر في الإمارات والسعودية، مستقل في لبنان ومصر، متعاقد في الولايات المتحدة والمملكة المتحدة، وضع مماثل وفق التزاماتك المحلية."},
+          {"q": "من أي الدول يمكنني التسجيل كمحامٍ شريك لتايلاند؟", "a": "من جميع الدول الـ 197 التي تغطيها SOS-Expat.com، بدون أي قيد على الجنسية أو مكان الإقامة. تشمل الإمارات والسعودية والكويت والبحرين وقطر وعُمان ومصر والمغرب وتونس والجزائر ولبنان والأردن وفرنسا وبلجيكا وسويسرا وكندا والولايات المتحدة والمملكة المتحدة وأستراليا والهند وألمانيا وإسبانيا وإيطاليا واليابان وسنغافورة وكوريا الجنوبية وتايلاند وأكثر من 170 دولة أخرى."},
+          {"q": "هل يجب أن أكون مسجلاً في نقابة المحامين التايلاندية لاستشارة العملاء في تايلاند؟", "a": "لا. يمكنك أن تكون مسجلاً في أي نقابة محامين في العالم وتتدخل عن بُعد لصالح عملاء موجودين في تايلاند. تبقى المسؤول الوحيد عن نصائحك القانونية ضمن الإطار الأخلاقي والتنظيمي لنقابتك الأصلية. SOS-Expat.com لا يقدم استشارة قانونية مباشرة — المنصة تصلك فقط بعملاء يحتاجون إلى خبرة قانونية دولية."},
+          {"q": "كيف أسحب أرباحي في الواقع؟", "a": "السحب ابتداءً من 30 $ متراكمة، رسوم ثابتة 3 $ لكل معاملة، التوفر خلال 24 ساعة بعد كل مكالمة منتهية. أربع وسائل دفع: Stripe (بطاقة مصرفية لأوروبا و44+ دولة Stripe Express)، PayPal (دولي)، Wise (تحويل دولي SEPA وSWIFT)، وFlutterwave (Mobile Money للشركاء في أفريقيا)."},
+          {"q": "هل يمكنني كسب المزيد عبر برنامج الإحالة SOS-Expat؟", "a": "نعم. بالإضافة إلى 30 € لكل استشارة، يمكنك تفعيل رابط الإحالة الخاص بالشريك لكسب عمولات إضافية: 2 $ لكل مكالمة محامٍ تم إنشاؤها عبر رابطك، 1 $ لكل مكالمة خبير محلي، بالإضافة إلى مكافأة تسجيل 2 $ لكل حساب جديد أُنشئ عبر رابطك. برنامج الإحالة مجاني للانضمام."}
+        ]
+      },
+      "cta": {
+        "headline": "انضم اليوم إلى المحامين الشركاء لـ SOS-Expat في تايلاند",
+        "button": "أنا أصبح شريكاً",
+        "subtext": "شريك مستقل · بدون التزام تعريفي · تفعيل في أقل من 5 دقائق"
+      }
+    }
+  }
+}
