@@ -208,6 +208,11 @@ class ResyncBacklinkEngine extends Command
         $lTotal = $lawyerQuery->count();
         $this->info("Lawyers à synchro: {$lTotal}");
 
+        if (!BacklinkEngineWebhookService::isSyncable('avocat')) {
+            $this->warn("  Type 'avocat' non syncable → skip bloc lawyers.");
+            goto skip_lawyers;
+        }
+
         $lawyerQuery->chunk(100, function ($chunk) use (&$lSent, &$lSkipped, &$lErrors, $dryRun) {
             foreach ($chunk as $lw) {
                 $emailDomain = strtolower(explode('@', $lw->email)[1] ?? '');
@@ -264,6 +269,11 @@ class ResyncBacklinkEngine extends Command
         $bTotal = $bizQuery->count();
         $this->info("Content businesses à synchro: {$bTotal}");
 
+        if (!BacklinkEngineWebhookService::isSyncable('partenaire')) {
+            $this->warn("  Type 'partenaire' non syncable → skip bloc businesses.");
+            goto skip_businesses;
+        }
+
         $bizQuery->chunk(100, function ($chunk) use (&$bSent, &$bSkipped, &$bErrors, $dryRun) {
             foreach ($chunk as $biz) {
                 $emailDomain = strtolower(explode('@', $biz->contact_email)[1] ?? '');
@@ -318,22 +328,21 @@ class ResyncBacklinkEngine extends Command
         $cTotal = $webQuery->count();
         $this->info("Content contacts (web) à synchro: {$cTotal}");
 
-        $resolver = new ContentContactObserver();
-        // Utilise la même méthode resolveType que l'observer via reflection
-        // (pour garder un seul mapping source de vérité).
-        $typeResolver = function (?string $sector) use ($resolver): string {
-            $method = new \ReflectionMethod($resolver, 'resolveType');
-            $method->setAccessible(true);
-            return $method->invoke($resolver, $sector);
-        };
-
-        $webQuery->chunk(100, function ($chunk) use (&$cSent, &$cSkipped, &$cErrors, $dryRun, $typeResolver) {
+        // Réutilise le mapping de l'Observer (source of truth unique).
+        $webQuery->chunk(100, function ($chunk) use (&$cSent, &$cSkipped, &$cErrors, $dryRun) {
             foreach ($chunk as $c) {
                 $emailDomain = strtolower(explode('@', $c->email)[1] ?? '');
                 if (in_array($emailDomain, self::JUNK_EMAIL_DOMAINS)) {
                     $cSkipped++;
                     continue;
                 }
+
+                $type = ContentContactObserver::resolveType($c->sector);
+                if (!BacklinkEngineWebhookService::isSyncable($type)) {
+                    $cSkipped++;
+                    continue;
+                }
+
                 if ($dryRun) {
                     $cSent++;
                     continue;
@@ -342,7 +351,7 @@ class ResyncBacklinkEngine extends Command
                 $synced = BacklinkEngineWebhookService::sendContactCreated([
                     'email'        => $c->email,
                     'name'         => $c->name,
-                    'type'         => $typeResolver($c->sector),
+                    'type'         => $type,
                     'publication'  => $c->company,
                     'country'      => $c->country,
                     'language'     => $c->language,

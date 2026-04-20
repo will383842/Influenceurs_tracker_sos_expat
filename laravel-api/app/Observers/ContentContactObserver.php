@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\ContentContact;
 use App\Services\BacklinkEngineWebhookService;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Envoie les contacts web scrapés (communautés, partenaires) au Backlink Engine.
@@ -29,6 +30,15 @@ class ContentContactObserver
 
         $type = $this->resolveType($contact->sector);
 
+        if (!BacklinkEngineWebhookService::isSyncable($type)) {
+            Log::warning('ContentContactObserver: type non-syncable, skip', [
+                'sector' => $contact->sector,
+                'type'   => $type,
+                'id'     => $contact->id,
+            ]);
+            return;
+        }
+
         $synced = BacklinkEngineWebhookService::sendContactCreated([
             'email'        => $contact->email,
             'name'         => $contact->name,
@@ -50,7 +60,11 @@ class ContentContactObserver
      * Mappe le secteur (champ scraper) vers un type reconnu par le Backlink Engine.
      * Les types inconnus tombent sur 'partenaire' (syncable, catch-all B2B).
      */
-    private function resolveType(?string $sector): string
+    /**
+     * `public static` pour permettre à ResyncBacklinkEngine de réutiliser le mapping
+     * sans recourir à Reflection. Single source of truth pour secteur → type.
+     */
+    public static function resolveType(?string $sector): string
     {
         $map = [
             'media'       => 'presse',
@@ -67,6 +81,11 @@ class ContentContactObserver
         ];
 
         $key = strtolower(trim($sector ?? ''));
+
+        if ($sector && !isset($map[$key])) {
+            Log::info('ContentContact: sector inconnu mappé à partenaire', ['sector' => $sector]);
+        }
+
         return $map[$key] ?? 'partenaire';
     }
 }

@@ -29,6 +29,10 @@ class ContentBusinessObserver
             return;
         }
 
+        if (!BacklinkEngineWebhookService::isSyncable('partenaire')) {
+            return;
+        }
+
         $synced = BacklinkEngineWebhookService::sendContactCreated([
             'email'        => $email,
             'name'         => $business->contact_name ?: $business->name,

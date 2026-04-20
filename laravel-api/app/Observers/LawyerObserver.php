@@ -32,8 +32,7 @@ class LawyerObserver
             return;
         }
 
-        // Déjà synchronisé récemment et aucun changement → skip
-        if (!$isNew && !$hasSignificantChange && $lawyer->backlink_synced_at) {
+        if (!BacklinkEngineWebhookService::isSyncable('avocat')) {
             return;
         }
 
