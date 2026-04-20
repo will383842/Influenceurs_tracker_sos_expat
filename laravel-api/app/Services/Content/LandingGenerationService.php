@@ -2658,16 +2658,12 @@ RULES;
      */
     public function getCountryName(string $countryCode, string $language): string
     {
-        // 1. PHP intl extension (intl doit être activé dans php.ini)
-        if (function_exists('locale_get_display_region')) {
-            $name = locale_get_display_region('und-' . strtoupper($countryCode), $language);
-            // Valider que ICU a bien retourné un nom (pas le code brut)
-            if ($name && $name !== $countryCode && $name !== 'und-' . strtoupper($countryCode)) {
-                return $name;
-            }
-        }
-
-        // 2. Fallback hardcodé — pays prioritaires, 9 langues
+        // Hardcoded priority-country table FIRST. On minimal Docker images the
+        // ICU data tier often falls back to English for non-EN locales (e.g.
+        // locale_get_display_region('und-TH', 'es') returns "Thailand" instead
+        // of "Tailandia"), which would pollute titles like
+        // "Ayuda a expatriados en Thailand". Checking the hardcoded table
+        // first avoids that class of bug for the 50 priority countries.
         static $names = [
             'TH' => ['fr' => 'Thaïlande',       'en' => 'Thailand',           'es' => 'Tailandia',        'de' => 'Thailand',         'pt' => 'Tailândia',        'ar' => 'تايلاند',         'zh' => '泰国',      'hi' => 'थाईलैंड',   'ru' => 'Таиланд'],
             'VN' => ['fr' => 'Vietnam',           'en' => 'Vietnam',            'es' => 'Vietnam',          'de' => 'Vietnam',          'pt' => 'Vietnã',           'ar' => 'فيتنام',          'zh' => '越南',      'hi' => 'वियतनाम',   'ru' => 'Вьетнам'],
@@ -2802,8 +2798,24 @@ RULES;
             'MN' => ['fr' => 'Mongolie',                        'en' => 'Mongolia',                    'es' => 'Mongolia',                    'de' => 'Mongolei',                    'pt' => 'Mongólia',                    'ar' => 'منغوليا',                 'zh' => '蒙古',      'hi' => 'मंगोलिया',       'ru' => 'Монголия'],
         ];
 
-        return $names[$countryCode][$language]
-            ?? $names[$countryCode]['en']
+        // Priority countries: use the hardcoded translation.
+        if (isset($names[$countryCode][$language])) {
+            return $names[$countryCode][$language];
+        }
+
+        // Non-priority countries: try PHP intl (ICU). May fall back to EN for
+        // non-EN locales on minimal Docker images, but that's still better than
+        // returning the bare country code. We avoid this path for priority
+        // countries because ICU data tiers can return "Thailand" for ES.
+        if (function_exists('locale_get_display_region')) {
+            $icuName = locale_get_display_region('und-' . strtoupper($countryCode), $language);
+            if ($icuName && $icuName !== $countryCode && $icuName !== 'und-' . strtoupper($countryCode)) {
+                return $icuName;
+            }
+        }
+
+        // Last resort: EN hardcoded, FR hardcoded, or the bare code.
+        return $names[$countryCode]['en']
             ?? $names[$countryCode]['fr']
             ?? $countryCode;
     }
