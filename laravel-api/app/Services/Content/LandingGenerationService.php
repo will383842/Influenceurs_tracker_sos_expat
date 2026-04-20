@@ -435,6 +435,111 @@ class LandingGenerationService
     }
 
     // ============================================================
+    // Import manuel (Claude Opus 4.7 via chat, bypass LLM API)
+    // ============================================================
+
+    /**
+     * Importe une LP dont le contenu JSON a été produit hors-pipeline
+     * (ex: Claude Opus 4.7 via chat Max). Bypass les appels OpenAI/Claude
+     * mais applique TOUT le reste : slug ASCII, JSON-LD, hreflang, UTM,
+     * Unsplash, geo fields, internal_links, dédup, soft-delete sur échec.
+     *
+     * @param array $params audience_type, template_id, country_code, language,
+     *                      + problem_slug|category_slug|user_profile|origin_nationality
+     *                      + created_by?, parent_id?
+     * @param array $parsed Contenu JSON (title, sections, meta_*, keywords_*, cta_links, lsi_keywords, internal_links, url_slug?)
+     */
+    public function importManual(array $params, array $parsed): LandingPage
+    {
+        $shell = $this->createLandingShell($params);
+
+        try {
+            $audienceType = $params['audience_type'];
+            $templateId   = $params['template_id'];
+            $countryCode  = $params['country_code'];
+            $language     = $params['language'] ?? 'fr';
+            $countryName  = $this->getCountryName($countryCode, $language);
+            $countrySlug  = $this->getCountrySlug($countryCode, $language);
+
+            $baseData = [
+                'audience_type'     => $audienceType,
+                'template_id'       => $templateId,
+                'country_code'      => $countryCode,
+                'language'          => $language,
+                'country'           => $countryName,
+                'generation_source' => 'manual',
+                'generation_params' => array_merge(
+                    [
+                        'via'           => 'claude_max_chat',
+                        'audience_type' => $audienceType,
+                        'template_id'   => $templateId,
+                        'language'      => $language,
+                        'country_code'  => $countryCode,
+                    ],
+                    array_intersect_key($params, array_flip([
+                        'problem_slug', 'category_slug', 'user_profile', 'origin_nationality',
+                    ])),
+                ),
+                'parent_id'  => $params['parent_id'] ?? null,
+                'created_by' => $params['created_by'] ?? null,
+            ];
+
+            // Champs spécifiques par audience + clé utilisée pour buildSlug
+            $slugKey = null;
+            switch ($audienceType) {
+                case 'clients':
+                    $baseData['problem_id'] = $params['problem_slug'] ?? null;
+                    $slugKey = $params['problem_slug'] ?? null;
+                    break;
+                case 'category_pillar':
+                    $baseData['category_slug'] = $params['category_slug'] ?? null;
+                    $baseData['problem_id']    = $params['category_slug'] ?? null;
+                    $slugKey = $params['category_slug'] ?? null;
+                    break;
+                case 'profile':
+                    $baseData['user_profile'] = $params['user_profile'] ?? null;
+                    $baseData['problem_id']   = $params['user_profile'] ?? null;
+                    $slugKey = isset($params['user_profile'])
+                        ? str_replace('_', '-', $params['user_profile'])
+                        : null;
+                    break;
+                case 'nationality':
+                    $baseData['origin_nationality'] = $params['origin_nationality'] ?? null;
+                    $baseData['problem_id']         = isset($params['origin_nationality'])
+                        ? strtolower($params['origin_nationality'])
+                        : null;
+                    $slugKey = isset($params['origin_nationality'])
+                        ? $this->getNationalitySlug($params['origin_nationality'], $language)
+                        : null;
+                    break;
+            }
+
+            $slug = $this->buildSlug(
+                $audienceType,
+                $language,
+                $countrySlug,
+                $slugKey,
+                $templateId,
+                $parsed['url_slug'] ?? null,
+            );
+
+            return $this->saveLandingPage(
+                $baseData,
+                $parsed,
+                $slug,
+                $countryName,
+                $countryCode,
+                $audienceType,
+                $params,
+                $shell,
+            );
+        } catch (\Throwable $e) {
+            $shell->forceDelete();
+            throw $e;
+        }
+    }
+
+    // ============================================================
     // Génération par audience
     // ============================================================
 
