@@ -237,6 +237,31 @@ class ScraperRunsController extends Controller
                     $message = 'Rapport Telegram dispatché.';
                     break;
 
+                // Option D (2026-04-22) : 4 nouveaux scrapers
+                case 'bloggers-rss':
+                    \App\Jobs\ScrapeBloggerRssFeedsJob::dispatch();
+                    $dispatched = true;
+                    $message = 'Bloggers RSS dispatché (tous feeds actifs dus).';
+                    break;
+
+                case 'bloggers-ai':
+                    \App\Jobs\DispatchAiResearchByTypeJob::dispatch('blog');
+                    $dispatched = true;
+                    $message = 'Blogueurs IA dispatché (1 pays via rotation Perplexity).';
+                    break;
+
+                case 'podcasters-ai':
+                    \App\Jobs\DispatchAiResearchByTypeJob::dispatch('podcast_radio');
+                    $dispatched = true;
+                    $message = 'Podcasters IA dispatché (1 pays via rotation Perplexity).';
+                    break;
+
+                case 'influencers-ai':
+                    \App\Jobs\DispatchAiResearchByTypeJob::dispatch('influenceur');
+                    $dispatched = true;
+                    $message = 'Influenceurs IA dispatché (1 pays via rotation Perplexity).';
+                    break;
+
                 default:
                     return response()->json(['error' => "scraper inconnu: {$scraper}"], 422);
             }
