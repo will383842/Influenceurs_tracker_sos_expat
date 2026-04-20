@@ -71,22 +71,24 @@ Schedule::job(new FetchRssFeedsJob)->everyFourHours()->withoutOverlapping(3600);
 // ══════════════════════════════════════════════════════════════════════
 // Bloggers RSS : scrape flux RSS publics toutes les 6h (zero ban, XML public)
 // Décalé à :20 pour éviter collision minute 0/15/30/45 des autres crons.
+// IMPORTANT : name() AVANT withoutOverlapping() sinon Laravel throw LogicException
+// (CallbackEvent.php:142 require description set avant overlap check pour Schedule::job).
 Schedule::job(new \App\Jobs\ScrapeBloggerRssFeedsJob)
+    ->name('bloggers-rss')
     ->cron('20 */6 * * *')
     ->withoutOverlapping(30)
     ->runInBackground()
-    ->appendOutputTo(storage_path('logs/bloggers-rss.log'))
-    ->name('bloggers-rss');
+    ->appendOutputTo(storage_path('logs/bloggers-rss.log'));
 
 // IA par type : 1×/jour chacun, décalés pour étaler la charge Perplexity.
 // Rotation pays auto via ScraperRotationService (cooldown 24h par pays).
 // Graceful skip si PERPLEXITY_API_KEY invalide (status=skipped_no_ia).
 Schedule::job(new \App\Jobs\DispatchAiResearchByTypeJob('blog'))
-    ->dailyAt('04:15')->withoutOverlapping(10)->runInBackground()->name('ai-bloggers');
+    ->name('ai-bloggers')->dailyAt('04:15')->withoutOverlapping(10)->runInBackground();
 Schedule::job(new \App\Jobs\DispatchAiResearchByTypeJob('podcast_radio'))
-    ->dailyAt('04:45')->withoutOverlapping(10)->runInBackground()->name('ai-podcasters');
+    ->name('ai-podcasters')->dailyAt('04:45')->withoutOverlapping(10)->runInBackground();
 Schedule::job(new \App\Jobs\DispatchAiResearchByTypeJob('influenceur'))
-    ->dailyAt('05:15')->withoutOverlapping(10)->runInBackground()->name('ai-influencers');
+    ->name('ai-influencers')->dailyAt('05:15')->withoutOverlapping(10)->runInBackground();
 
 // News: auto-generate from RSS at 06:00 and 14:00 UTC (two batches per day)
 Schedule::job(new RunNewsGenerationJob)->dailyAt('06:00')->withoutOverlapping(7200);
