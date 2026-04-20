@@ -111,10 +111,6 @@ export default function Login() {
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
-
-        <p className="text-center text-[11px] text-muted mt-6 tracking-wider uppercase">
-          Nouvelle interface v2 · {new Date().toISOString().slice(0, 10)}
-        </p>
       </div>
     </div>
   );
