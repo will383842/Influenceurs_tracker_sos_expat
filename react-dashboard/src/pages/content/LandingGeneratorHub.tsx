@@ -297,6 +297,12 @@ export default function LandingGeneratorHub() {
               <p className="text-[10px] text-muted">Backfill traductions</p>
             </div>
           )}
+          {extraStats && extraStats.manual > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 text-center" title="Landings rédigées à la main (Claude Opus 4.7 via chat Pro Max) — contenu premium par langue, coût API MC : $0">
+              <p className="text-lg font-bold text-amber-300 font-mono">{extraStats.manual}</p>
+              <p className="text-[10px] text-muted">Opus manuels</p>
+            </div>
+          )}
           {extraStats && (
             <div className="bg-bg border border-border/30 rounded-xl px-4 py-2 text-center" title="Total publié (IA + backfill + manuel)">
               <p className="text-lg font-bold text-white font-mono">{extraStats.total_published}</p>
