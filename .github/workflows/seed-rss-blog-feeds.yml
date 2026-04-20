@@ -1,0 +1,38 @@
+name: Seed RSS Blog Feeds
+
+# Workflow manuel pour lancer RssBlogFeedSeeder sur prod.
+# Idempotent via updateOrCreate(['url']), re-run safe.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    name: Run RssBlogFeedSeeder on VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: SSH to VPS and seed
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            echo "=== Avant seed ==="
+            docker exec inf-app php artisan tinker --execute="echo 'rss_blog_feeds total : ' . \App\Models\RssBlogFeed::count() . PHP_EOL;" 2>&1 | tail -3
+
+            echo ""
+            echo "=== Run seeder ==="
+            docker exec inf-app php artisan db:seed --class=RssBlogFeedSeeder --force 2>&1
+
+            echo ""
+            echo "=== Apres seed ==="
+            docker exec inf-app php artisan tinker --execute="echo 'rss_blog_feeds total : ' . \App\Models\RssBlogFeed::count() . PHP_EOL; echo 'rss_blog_feeds actifs : ' . \App\Models\RssBlogFeed::where('active', true)->count() . PHP_EOL; echo 'Par categorie :' . PHP_EOL; \App\Models\RssBlogFeed::selectRaw('category, COUNT(*) as c')->groupBy('category')->get()->each(function(\$r){ echo '  ' . (\$r->category ?? 'null') . ' : ' . \$r->c . PHP_EOL; });" 2>&1 | tail -30
+
+            echo ""
+            echo "=== DONE ==="
