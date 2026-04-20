@@ -1,0 +1,43 @@
+name: Trigger scrape all blogger RSS feeds
+
+# Lance le scrape de TOUS les feeds RSS actifs (580+).
+# skipAbout=true pour ce premier run pour eviter timeout (580 × ~15s fetch
+# /about = 2.4h, ne rentre pas dans 1h timeout).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    name: Scrape all bloggers RSS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: SSH to VPS and dispatch ScrapeBloggerRssFeedsJob
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            echo "=== Etat initial ==="
+            docker exec inf-app php artisan tinker --execute="echo 'Feeds actifs : ' . \App\Models\RssBlogFeed::where('active', true)->count() . PHP_EOL; echo 'Feeds due (jamais scrapes ou > fetch_interval) : ' . \App\Models\RssBlogFeed::active()->due()->count() . PHP_EOL; echo 'Influenceurs contact_type=blog : ' . \App\Models\Influenceur::where('contact_type', 'blog')->count() . PHP_EOL;" 2>&1 | tail -5
+
+            echo ""
+            echo "=== Dispatch ScrapeBloggerRssFeedsJob (skipAbout=true, ~45-60 min) ==="
+            docker exec inf-app php artisan tinker --execute="\App\Jobs\ScrapeBloggerRssFeedsJob::dispatch(null, true); echo 'Job dispatche' . PHP_EOL;" 2>&1 | tail -3
+
+            echo ""
+            echo "=== Queue workers actifs ==="
+            docker exec inf-app php artisan queue:monitor scraper 2>&1 | tail -10 || echo "(queue:monitor non disponible)"
+
+            echo ""
+            echo "=== DONE ==="
+            echo "Le job tourne en queue (scraper). Duree estimee : 45-60 min pour 580 feeds."
+            echo "Verifier resultats dans 1h via :"
+            echo "  docker exec inf-app php artisan tinker --execute='echo count Influenceur blog'"
+            echo "  docker exec inf-app tail -50 /var/www/html/storage/logs/laravel.log"

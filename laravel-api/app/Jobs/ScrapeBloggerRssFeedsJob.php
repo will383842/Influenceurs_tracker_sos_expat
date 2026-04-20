@@ -36,14 +36,21 @@ class ScrapeBloggerRssFeedsJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    /** @var int Timeout 15min pour ~80 feeds × ~10s */
-    public int $timeout = 900;
+    /** @var int Timeout 1h pour supporter ~500-700 feeds en 1 run (sans fetch_about) */
+    public int $timeout = 3600;
 
     /** @var int Pas de retry (les erreurs transitoires seront retraitées au prochain cron) */
     public int $tries = 1;
 
-    public function __construct(private readonly ?int $feedId = null)
-    {
+    /**
+     * @param ?int  $feedId     Si fourni : scrape 1 seul feed (utile pour bouton UI)
+     * @param bool  $skipAbout  Si true : ignore fetch_about même si activé sur le feed
+     *                          (utile pour premier grand run où cache about n'existe pas)
+     */
+    public function __construct(
+        private readonly ?int $feedId = null,
+        private readonly bool $skipAbout = false,
+    ) {
         $this->onQueue('scraper');
     }
 
@@ -63,6 +70,13 @@ class ScrapeBloggerRssFeedsJob implements ShouldQueue
         ]);
 
         foreach ($feeds as $feed) {
+            // Option skipAbout : desactive fetch_about en memory pour ce run
+            // sans modifier la DB (cache persist pour les runs suivants)
+            $originalFetchAbout = $feed->fetch_about;
+            if ($this->skipAbout) {
+                $feed->fetch_about = false;
+            }
+
             $recorder->track(
                 'bloggers-rss',
                 $feed->country,
