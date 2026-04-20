@@ -429,6 +429,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('scrapers')->middleware('role:admin')->group(function () {
         Route::get('/runs', [\App\Http\Controllers\ScraperRunsController::class, 'runs']);
         Route::get('/status', [\App\Http\Controllers\ScraperRunsController::class, 'status']);
+        Route::get('/sync-state', [\App\Http\Controllers\ScraperRunsController::class, 'syncState']);
+        Route::post('/resync/{table}', [\App\Http\Controllers\ScraperRunsController::class, 'resync'])
+            ->middleware('throttle:10,5'); // max 10/5min pour éviter DDOS webhook
+        Route::post('/run/{scraper}', [\App\Http\Controllers\ScraperRunsController::class, 'runNow'])
+            ->middleware('throttle:20,5');
     });
 
     // ============================================================

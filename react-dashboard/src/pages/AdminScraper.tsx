@@ -36,6 +36,30 @@ interface ScraperStatus {
   generated_at: string;
 }
 
+interface SyncTable {
+  key: string;
+  label: string;
+  total: number;
+  synced: number;
+}
+
+interface SyncState {
+  tables: SyncTable[];
+  generated_at: string;
+}
+
+const SCRAPER_ACTIONS: Array<{ key: string; label: string; description: string; requiresAi?: boolean }> = [
+  { key: 'lawyers',             label: '⚖️ Avocats',          description: 'Scrape legal500 + abogados + enrichement sites web' },
+  { key: 'press',               label: '📰 Journalistes',     description: 'Scrape press publications + inference emails' },
+  { key: 'instagram',           label: '📸 Instagrammeurs',    description: '1 pays via rotation (Perplexity)', requiresAi: true },
+  { key: 'youtube',             label: '▶️ YouTubeurs',        description: '1 pays via rotation (Perplexity)', requiresAi: true },
+  { key: 'businesses',          label: '🏢 Entreprises',       description: 'expat.com/entreprises (~4h)' },
+  { key: 'femmexpat',           label: '👠 FemmExpat',         description: 'femmexpat.com contacts + partenaires' },
+  { key: 'francaisaletranger',  label: '🇫🇷 Français à l\'étranger', description: 'francaisaletranger.fr auteurs + articles' },
+  { key: 'discover-press',      label: '🔍 Découverte presse', description: 'Trouve nouveaux médias (Perplexity)', requiresAi: true },
+  { key: 'daily-report',        label: '📊 Rapport Telegram',  description: 'Envoie un rapport 24h maintenant' },
+];
+
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   ok:             { label: 'OK',          cls: 'bg-emerald-500/20 text-emerald-400' },
   running:        { label: 'En cours',    cls: 'bg-blue-500/20 text-blue-400' },
@@ -52,6 +76,9 @@ export default function AdminScraper() {
   const [success, setSuccess] = useState('');
   const [status, setStatus] = useState<ScraperStatus | null>(null);
   const [runs, setRuns] = useState<ScraperRun[]>([]);
+  const [syncState, setSyncState] = useState<SyncState | null>(null);
+  const [actionInFlight, setActionInFlight] = useState<string | null>(null);
+  const [actionToast, setActionToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   const load = async () => {
     try {
@@ -63,13 +90,43 @@ export default function AdminScraper() {
 
   const loadStatus = async () => {
     try {
-      const [{ data: s }, { data: r }] = await Promise.all([
+      const [{ data: s }, { data: r }, { data: sync }] = await Promise.all([
         api.get<ScraperStatus>('/scrapers/status'),
         api.get<{ runs: ScraperRun[] }>('/scrapers/runs?limit=30'),
+        api.get<SyncState>('/scrapers/sync-state'),
       ]);
       setStatus(s);
       setRuns(r.runs);
+      setSyncState(sync);
     } catch { /* ignore — table may not exist yet */ }
+  };
+
+  const triggerResync = async (table: string) => {
+    setActionInFlight(`resync-${table}`);
+    setActionToast(null);
+    try {
+      const { data } = await api.post<{ queued: boolean; message: string }>(`/scrapers/resync/${table}`);
+      setActionToast({ kind: 'ok', msg: data.message ?? 'Resync dispatché.' });
+      loadStatus();
+    } catch (e: unknown) {
+      setActionToast({ kind: 'err', msg: (e as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Erreur resync.' });
+    } finally {
+      setActionInFlight(null);
+    }
+  };
+
+  const triggerRun = async (scraper: string) => {
+    setActionInFlight(`run-${scraper}`);
+    setActionToast(null);
+    try {
+      const { data } = await api.post<{ dispatched: boolean; message: string }>(`/scrapers/run/${scraper}`);
+      setActionToast({ kind: 'ok', msg: data.message ?? 'Scraper lancé.' });
+      loadStatus();
+    } catch (e: unknown) {
+      setActionToast({ kind: 'err', msg: (e as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Erreur dispatch.' });
+    } finally {
+      setActionInFlight(null);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -159,6 +216,86 @@ export default function AdminScraper() {
           <li>4. Il met à jour automatiquement la fiche contact</li>
           <li className="text-amber font-medium mt-2">⚠️ Désactive le scraper pour YouTube, TikTok, Instagram — ces sites bloquent le scraping</li>
         </ul>
+      </div>
+
+      {/* ── Toast action ── */}
+      {actionToast && (
+        <div className={`rounded-xl p-3 text-sm border ${actionToast.kind === 'ok' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+          {actionToast.msg}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* SYNC BACKLINK ENGINE — 5 cards + bouton rattrapage par table */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {syncState && syncState.tables.length > 0 && (
+        <div className="bg-surface border border-border rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <div>
+              <h3 className="font-title font-semibold text-white">🔗 Sync Backlink Engine</h3>
+              <p className="text-[10px] text-muted mt-0.5">
+                Contacts envoyés automatiquement à <code>backlinks.life-expat.com</code> dès qu'ils sont scrapés
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 p-4">
+            {syncState.tables.map(t => {
+              const pct = t.total === 0 ? 100 : Math.round((t.synced / t.total) * 100);
+              const missing = t.total - t.synced;
+              const color = pct >= 95 ? 'emerald' : pct >= 50 ? 'amber' : 'rose';
+              return (
+                <div key={t.key} className="bg-surface2 border border-border rounded-lg p-3">
+                  <div className="text-sm font-medium text-white truncate">{t.label}</div>
+                  <div className="text-2xl font-bold text-white mt-1">{t.synced.toLocaleString()} <span className="text-xs text-muted">/ {t.total.toLocaleString()}</span></div>
+                  <div className="mt-2 w-full bg-white/5 rounded-full h-1.5">
+                    <div className={`h-1.5 rounded-full bg-${color}-500`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-[11px] text-muted mt-1">{pct}%{missing > 0 ? ` • ${missing.toLocaleString()} manquants` : ''}</div>
+                  {missing > 0 && (
+                    <button
+                      onClick={() => triggerResync(t.key)}
+                      disabled={actionInFlight !== null}
+                      className="mt-2 w-full text-[10px] px-2 py-1.5 rounded bg-violet hover:bg-violet/80 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {actionInFlight === `resync-${t.key}` ? 'En cours…' : `Rattraper ${missing.toLocaleString()}`}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* LANCER UN SCRAPER MAINTENANT — boutons action rapide      */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      <div className="bg-surface border border-border rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-border">
+          <h3 className="font-title font-semibold text-white">🚀 Lancer un scraper maintenant</h3>
+          <p className="text-[10px] text-muted mt-0.5">
+            Dispatche un job en queue (arrière-plan). Pas besoin d'attendre le cron.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 p-4">
+          {SCRAPER_ACTIONS.map(a => (
+            <button
+              key={a.key}
+              onClick={() => triggerRun(a.key)}
+              disabled={actionInFlight !== null}
+              className="text-left bg-surface2 hover:bg-white/5 border border-border hover:border-violet rounded-lg p-3 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="text-sm font-medium text-white flex items-center justify-between">
+                <span>{a.label}</span>
+                {a.requiresAi && <span className="text-[9px] text-amber bg-amber/10 px-1.5 py-0.5 rounded">IA</span>}
+              </div>
+              <div className="text-[11px] text-muted mt-1">{a.description}</div>
+              {actionInFlight === `run-${a.key}` && (
+                <div className="text-[10px] text-violet mt-1">→ Dispatch en cours…</div>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
 {/* KPIs 24h + circuit breakers */}

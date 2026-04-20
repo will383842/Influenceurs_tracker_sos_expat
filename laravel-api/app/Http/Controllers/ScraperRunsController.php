@@ -2,11 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContentBusiness;
+use App\Models\ContentContact;
+use App\Models\ContentSource;
+use App\Models\Influenceur;
+use App\Models\Lawyer;
+use App\Models\PressContact;
 use App\Models\ScraperRotationState;
 use App\Models\ScraperRun;
 use App\Services\Scraping\AntiBanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 
 class ScraperRunsController extends Controller
 {
@@ -80,6 +87,167 @@ class ScraperRunsController extends Controller
                 'generated_at'     => now()->toIso8601String(),
                 'error'            => 'scraper_runs table unavailable',
             ]);
+        }
+    }
+
+    /**
+     * État de synchronisation Backlink Engine par table.
+     * Utilisé pour afficher les 5 cards "X / Y (%)" dans AdminScraper.tsx.
+     */
+    public function syncState(): JsonResponse
+    {
+        try {
+            return response()->json([
+                'tables' => [
+                    [
+                        'key'    => 'influenceurs',
+                        'label'  => '🎬 Influenceurs',
+                        'total'  => Influenceur::whereNotNull('email')->count(),
+                        'synced' => Influenceur::whereNotNull('backlink_synced_at')->count(),
+                    ],
+                    [
+                        'key'    => 'press',
+                        'label'  => '📰 Journalistes',
+                        'total'  => PressContact::whereNotNull('email')->count(),
+                        'synced' => PressContact::whereNotNull('backlink_synced_at')->count(),
+                    ],
+                    [
+                        'key'    => 'lawyers',
+                        'label'  => '⚖️ Avocats',
+                        'total'  => Lawyer::whereNotNull('email')->count(),
+                        'synced' => Lawyer::whereNotNull('backlink_synced_at')->count(),
+                    ],
+                    [
+                        'key'    => 'businesses',
+                        'label'  => '🏢 Entreprises',
+                        'total'  => ContentBusiness::whereNotNull('contact_email')->count(),
+                        'synced' => ContentBusiness::whereNotNull('backlink_synced_at')->count(),
+                    ],
+                    [
+                        'key'    => 'web-contacts',
+                        'label'  => '🌐 Contacts web',
+                        'total'  => ContentContact::whereNotNull('email')->count(),
+                        'synced' => ContentContact::whereNotNull('backlink_synced_at')->count(),
+                    ],
+                ],
+                'generated_at' => now()->toIso8601String(),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['tables' => [], 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Lance une commande `backlink:resync --only=<table>` en queue.
+     * Réponse immédiate, le travail tourne en arrière-plan (queue `scraper`).
+     */
+    public function resync(string $table): JsonResponse
+    {
+        $allowed = ['influenceurs', 'press', 'lawyers', 'businesses', 'web-contacts'];
+        if (!in_array($table, $allowed, true)) {
+            return response()->json(['error' => 'table invalide'], 422);
+        }
+
+        try {
+            Artisan::queue('backlink:resync', ['--only' => $table]);
+            return response()->json([
+                'queued'  => true,
+                'table'   => $table,
+                'message' => "Resync de {$table} dispatché en queue. Résultat visible via logs et /api/scrapers/sync-state.",
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Lance un scraper immédiatement via la queue.
+     * Tous les runs longs partent en async → retour immédiat 202.
+     */
+    public function runNow(string $scraper): JsonResponse
+    {
+        $dispatched = false;
+        $message = '';
+
+        try {
+            switch ($scraper) {
+                case 'lawyers':
+                    Artisan::queue('lawyers:scrape', ['source' => 'all']);
+                    $dispatched = true;
+                    $message = 'Lawyers scrape (toutes sources) dispatché.';
+                    break;
+
+                case 'press':
+                    Artisan::queue('press:scrape-journalists', []);
+                    $dispatched = true;
+                    $message = 'Press scrape-journalists dispatché.';
+                    break;
+
+                case 'instagram':
+                    Artisan::queue('instagram:scrape-francophones', ['--rotation' => true]);
+                    $dispatched = true;
+                    $message = 'Instagram scrape (1 pays via rotation) dispatché.';
+                    break;
+
+                case 'youtube':
+                    Artisan::queue('youtube:scrape-francophones', ['--rotation' => true]);
+                    $dispatched = true;
+                    $message = 'YouTube scrape (1 pays via rotation) dispatché.';
+                    break;
+
+                case 'businesses':
+                    $source = ContentSource::where('slug', 'like', '%expat%')->first();
+                    if (!$source) {
+                        return response()->json(['error' => 'ContentSource expat introuvable'], 404);
+                    }
+                    \App\Jobs\ScrapeBusinessDirectoryJob::dispatch($source->id);
+                    $dispatched = true;
+                    $message = "ScrapeBusinessDirectoryJob dispatché (source #{$source->id}).";
+                    break;
+
+                case 'femmexpat':
+                    $source = ContentSource::where('slug', 'femmexpat')->first();
+                    if (!$source) {
+                        return response()->json(['error' => 'ContentSource femmexpat introuvable'], 404);
+                    }
+                    \App\Jobs\ScrapeFemmexpatJob::dispatch($source->id);
+                    $dispatched = true;
+                    $message = "ScrapeFemmexpatJob dispatché (source #{$source->id}).";
+                    break;
+
+                case 'francaisaletranger':
+                    $source = ContentSource::where('slug', 'francais-a-l-etranger')->first();
+                    if (!$source) {
+                        return response()->json(['error' => 'ContentSource francais-a-l-etranger introuvable'], 404);
+                    }
+                    \App\Jobs\ScrapeFrancaisEtrangerJob::dispatch($source->id);
+                    $dispatched = true;
+                    $message = "ScrapeFrancaisEtrangerJob dispatché (source #{$source->id}).";
+                    break;
+
+                case 'discover-press':
+                    \App\Jobs\DiscoverPressPublicationsJob::dispatch();
+                    $dispatched = true;
+                    $message = 'DiscoverPressPublicationsJob dispatché.';
+                    break;
+
+                case 'daily-report':
+                    Artisan::queue('scrapers:daily-report', []);
+                    $dispatched = true;
+                    $message = 'Rapport Telegram dispatché.';
+                    break;
+
+                default:
+                    return response()->json(['error' => "scraper inconnu: {$scraper}"], 422);
+            }
+
+            return response()->json([
+                'dispatched' => $dispatched,
+                'scraper'    => $scraper,
+                'message'    => $message,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 }
