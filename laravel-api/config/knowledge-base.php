@@ -35,6 +35,45 @@
 return [
 
     // =====================================================================
+    // 0. KB VERSIONING & TRACEABILITY
+    // =====================================================================
+    // Bump kb_version on any semantic change (pricing, commission rates, legal, etc.).
+    // Bump kb_minor_version for additive changes (new section, new audience, new rule).
+    // kb_updated_at is the last verified-against-code date.
+    //
+    // Articles MUST be tagged with the kb_version they were generated under, for
+    // traceability and automated refresh when a major bump occurs.
+
+    'meta' => [
+        'kb_version' => '2.1.0',
+        'kb_updated_at' => '2026-04-20',
+        'kb_verified_against_commit' => null, // filled by CI when running kb:validate
+        'kb_source_of_truth' => [
+            'pricing' => 'sos/firebase/functions/src/lib/pricingService.ts',
+            'subscriptions' => 'sos/firebase/functions/src/subscription/constants.ts',
+            'commission_plans' => 'sos/firebase/functions/src/unified/defaultPlans.ts',
+            'countries' => 'sos/src/data/country-languages.ts',
+            'legal_documents' => 'Firestore collection: legal_documents',
+        ],
+        'changelog' => [
+            '2.1.0 (2026-04-20)' => [
+                'Influencer discount aligned to $5 fixed (was 5% mismatch)',
+                'Milestones enabled for Influencer/Blogger/GroupAdmin (MLM all roles strategy)',
+                'Top 3 multipliers removed (never implemented in code)',
+                'Added 4th Telegram bot @sos_expat_onboarding_users_bot',
+                'Removed ghost general_affiliate program',
+                'annual_discount typed as numeric 0.20 + label',
+                'Added edge cache + backlink engine sections',
+                'Fixed KnowledgeBaseService provider_referral keys + cents rounding',
+            ],
+            '2.0.0 (2026-04-05)' => [
+                'Initial complete rewrite from 2026-04-05 audit',
+                '20 sections, full coverage of programs/pricing/legal',
+            ],
+        ],
+    ],
+
+    // =====================================================================
     // 1. IDENTITY & LEGAL ENTITY
     // =====================================================================
 
@@ -136,7 +175,8 @@ return [
             'pro' => ['eur' => 29, 'usd' => 34, 'ai_calls' => 30],
             'unlimited' => ['eur' => 49, 'usd' => 59, 'ai_calls' => -1, 'fair_use_limit' => 500],
         ],
-        'annual_discount' => '20%',
+        'annual_discount' => 0.20,
+        'annual_discount_label' => '20%',
         'grace_period_days' => 7,
         'payment_reminder_days' => 3,
     ],
@@ -146,7 +186,10 @@ return [
     // =====================================================================
 
     'coverage' => [
+        // 197 = chiffre public (Etats membres ONU). Utilise dans tout le contenu marketing.
+        // 209 = codes ISO-3166-1 alpha-2 techniquement supportes dans COUNTRY_LANGUAGES (inclut territoires, dependances).
         'countries' => 197,
+        'country_codes_supported' => 209,
         'languages' => ['fr', 'en', 'es', 'de', 'ru', 'pt', 'zh', 'hi', 'ar'],
         'language_names' => [
             'fr' => 'Francais',
@@ -159,6 +202,12 @@ return [
             'hi' => 'Hindi',
             'ar' => 'Arabiyya',
         ],
+        // Language code mapping: 'zh' is the ISO 639-1 canonical (used in URLs, hreflang, sitemaps).
+        // SOS-Expat has a legacy internal 'ch' code in SupportedLanguage type, still present in some
+        // code paths. All generated content MUST use 'zh' in URLs and references (cf. Sitemap Audit
+        // 2026-04-16 ch->zh normalization).
+        'language_code_canonical' => 'zh',
+        'language_code_legacy_internal' => 'ch',
         'availability' => '24/7 (24 heures sur 24, 7 jours sur 7)',
         'response_time' => 'Moins de 5 minutes',
         'tts_languages' => '50+ langues supportees pour les messages vocaux IVR',
@@ -256,11 +305,11 @@ return [
                 500 => 400000,  // 500 filleuls → $4,000.00
             ],
             'top3_monthly' => [
-                1 => ['cash' => 20000, 'multiplier' => 2.0],     // $200 + 2x next month
-                2 => ['cash' => 10000, 'multiplier' => 1.5],     // $100 + 1.5x next month
-                3 => ['cash' => 5000, 'multiplier' => 1.15],     // $50 + 1.15x next month
+                1 => ['cash' => 20000],     // $200
+                2 => ['cash' => 10000],     // $100
+                3 => ['cash' => 5000],      // $50
             ],
-            'top3_eligibility_minimum' => 20000,  // $200 minimum to qualify
+            'top3_eligibility_minimum' => 20000,  // $200 minimum monthly earnings to qualify
         ],
 
         // --- 7.3 CAPTAIN CHATTER ---
@@ -306,7 +355,12 @@ return [
             'milestones' => [
                 5 => 1500, 10 => 3500, 20 => 7500, 50 => 25000, 100 => 60000, 500 => 400000,
             ],
-            'top3_monthly_multipliers' => [1 => 2.0, 2 => 1.5, 3 => 1.15],
+            'top3_monthly' => [
+                1 => ['cash' => 20000],     // $200
+                2 => ['cash' => 10000],     // $100
+                3 => ['cash' => 5000],      // $50
+            ],
+            'top3_eligibility_minimum' => 20000,
         ],
 
         // --- 7.5 BLOGGER ---
@@ -368,21 +422,6 @@ return [
             ],
             'traffic_tiers' => ['< 10k', '10k-50k', '50k-100k', '100k-500k', '500k-1M', '> 1M'],
             'custom_discount' => 'Remise personnalisee par partenaire',
-        ],
-
-        // --- 7.8 GENERAL AFFILIATE (percentage-based) ---
-        'general_affiliate' => [
-            'name' => 'Programme Affiliation General',
-            'signup_bonus' => 200,              // $2.00
-            'call_commission_rate' => 0.75,     // 75% (for specific configs)
-            'subscription_rate' => 0.15,        // 15% of subscription revenue
-            'provider_validation_bonus' => 2000, // $20.00
-            'n1_call' => 100,
-            'n2_call' => 50,
-            'activation_bonus' => 500,
-            'milestones' => [
-                5 => 1500, 10 => 3500, 20 => 7500, 50 => 25000, 100 => 60000, 500 => 400000,
-            ],
         ],
 
         // --- Common to all programs ---
@@ -542,9 +581,32 @@ return [
         'affiliation' => 'Comparatif de services avec liens affilies. Banques pour expatries, assurances voyage, transferts d\'argent, VPN, outils. Objectif = conversion affiliation. Objectivite = credibilite.',
         'qr' => 'Reponse courte et directe a une question precise. 300-800 mots. Featured snippet en premier paragraphe (40-60 mots = reponse directe). FAQ 5 questions liees. NE PAS etre un guide long.',
         'news' => 'Actualite expatries/voyageurs. Ton journalistique. Evenement recent avec date, source, impact. NE PAS repeter du contenu evergreen. 800-1200 mots.',
-        'statistics' => 'Article base sur des donnees statistiques (World Bank, OECD, Eurostat). Chiffres sources avec annee, graphiques si possible. Comparer avec moyenne mondiale/regionale. NE PAS inventer de donnees.',
-        'pain_point' => 'Article centre sur une souffrance/difficulte concrete d\'expatrie. Ton empathique. Solution pratique avec etapes. CTA vers SOS-Expat.com pour aide immediate. 800-1500 mots.',
-        'testimonial' => 'Temoignage REEL d\'un utilisateur. NE JAMAIS inventer de temoignage. Citer le prenom et le pays. Si pas de temoignage reel disponible, NE PAS generer.',
+        'statistics' => 'Article base sur des donnees statistiques (World Bank, OECD, Eurostat, UN DESA, Numbeo pour cout de la vie). 1500-2500 mots. '
+            . 'Structure OBLIGATOIRE : H1 avec chiffre principal dans le titre, H2 "Chiffres cles 2026" (liste <ul> avec sources), H2 par dimension analysee. '
+            . 'Chaque chiffre DOIT avoir : valeur, annee, source citee entre parentheses, comparaison avec moyenne mondiale/OCDE. '
+            . 'Elements HTML obligatoires : <table> (pays vs donnee), <blockquote class="stat-highlight"> pour les chiffres-choc, <ol> pour le Top 10, '
+            . '<p class="source-note"> en fin de section citant la source complete. '
+            . 'JAMAIS inventer de donnees. Si une source manque, retirer la donnee. '
+            . 'CTA : "Besoin d\'aide pour naviguer ces chiffres ? Un expert SOS-Expat.com vous guide." en fin uniquement. '
+            . 'FAQ 4 questions sur "d\'ou viennent ces chiffres", "est-ce a jour", "comment ca evolue".',
+        'pain_point' => 'Article centre sur une douleur concrete d\'expatrie/voyageur. 1000-1800 mots. Ton empathique MAIS pas misérabiliste. '
+            . 'Structure OBLIGATOIRE : H1 qui nomme la douleur ("Perdu son passeport a Bangkok : le cauchemar administratif"), '
+            . 'H2 "Ce que vous ressentez (et c\'est normal)" (validation emotionnelle 150 mots), '
+            . 'H2 "Les 3 erreurs que 80% des gens commettent" (<ol> maximum 5 erreurs), '
+            . 'H2 "La marche a suivre en 5 etapes" (<ol> numerote avec <strong> sur chaque action), '
+            . 'H2 "Temoignage" (<blockquote>) si disponible, sinon supprimer la section. '
+            . 'CTA 2 fois : (1) bandeau milieu d\'article "Besoin d\'aide MAINTENANT ? Un expert SOS-Expat.com est disponible en 5 min", '
+            . '(2) CTA fin standard. FAQ 3 questions pratiques. '
+            . 'NE PAS exagerer les dangers (pas de catastrophisme). Rester factuel et rassurant.',
+        'testimonial' => 'Temoignage REEL d\'un utilisateur. NE JAMAIS inventer un temoignage. '
+            . 'Si aucun temoignage verifie n\'est disponible pour le contexte demande, NE PAS GENERER l\'article (retourner status=skipped avec raison). '
+            . 'Structure : H1 "[Prenom], [profession], [pays] : [accroche]", '
+            . '<blockquote class="testimonial-quote"> citation complete 200-400 mots, '
+            . 'H2 "Le contexte" (50-100 mots sur la situation), H2 "Le resultat" (50-100 mots, factuel), '
+            . '<cite> avec prenom + initiale nom + ville/pays + date appel. '
+            . 'Respect RGPD : JAMAIS de nom complet, JAMAIS d\'info identifiante (numero client, email). '
+            . 'Mentionner mention legale : "Temoignage recueilli avec l\'accord de l\'utilisateur" en pied. '
+            . '600-1200 mots. Pas de CTA agressif — le temoignage parle pour le service.',
         'landing' => 'Page de conversion pour le programme d\'affiliation. Avantages cles, commissions, CTA proeminent. Ton persuasif mais honnete. NE PAS utiliser le terme MLM.',
         'press_release' => 'Communique de presse officiel SOS-Expat.com. Ton professionnel et factuel. Date, lieu, contact presse. Format pyramide inversee.',
         'pillar' => 'Article PILIER exhaustif sur un pays (4000-7000 mots). Couvre TOUS les aspects : visa, logement, sante, education, cout de la vie, culture, communaute expatriee. Liens vers articles detailles.',
@@ -736,12 +798,17 @@ return [
             'languages' => '9 langues',
         ],
         'telegram' => [
-            'bots' => 3,
-            'bot_names' => ['@sos_expat_bot (business events)', '@sos_expat_inbox_bot (messages)', '@sos_expat_withdrawals_bot (retraits)'],
+            'bots' => 4,
+            'bot_names' => [
+                '@sos_expat_bot (business events)',
+                '@sos_expat_inbox_bot (messages)',
+                '@sos_expat_withdrawals_bot (retraits)',
+                '@sos_expat_onboarding_users_bot (onboarding affilies)',
+            ],
             'event_types' => [
                 'new_registration', 'call_completed', 'payment_received', 'daily_report',
                 'new_provider', 'new_contact_message', 'negative_review', 'security_alert',
-                'withdrawal_request', 'captain_application',
+                'withdrawal_request', 'captain_application', 'user_feedback', 'partner_application',
             ],
         ],
         'push' => 'Firebase Cloud Messaging (FCM) via PWA — permission a l\'installation',
@@ -753,17 +820,47 @@ return [
     // =====================================================================
 
     'infrastructure' => [
+        // Function counts are intentionally omitted here — they churn weekly with deploys.
+        // Only describe WHAT each region handles, not how many functions live there.
         'regions' => [
-            'europe-west1' => 'Belgique — Core business & APIs publiques (~206 fonctions)',
-            'us-central1' => 'Iowa, USA — Affiliate & Marketing (~201 fonctions) — latence Firestore optimale',
-            'europe-west3' => 'Francfort — Payments + Twilio PROTEGE (~252 fonctions) — temps reel critique',
+            'europe-west1' => 'Belgique — Core business & APIs publiques (APIs frontend, admin callables, KYC, backups, subscriptions)',
+            'us-central1' => 'Iowa, USA — Affiliate & Marketing (Chatter, Influencer, Blogger, GroupAdmin) — colocalise avec Firestore nam7 pour latence optimale',
+            'europe-west3' => 'Francfort — Payments + Twilio (Stripe webhooks, conferences Twilio, Cloud Tasks, triggers Firestore, crons) — temps reel critique, region protegee',
         ],
         'firestore' => 'nam7 (Iowa, US) — base de donnees principale',
         'frontend' => 'Cloudflare Pages (auto-deploy GitHub)',
-        'functions' => '650+ Cloud Functions Firebase',
-        'collections' => '100+ collections Firestore',
-        'admin_pages' => '164 pages admin',
-        'public_pages' => '50+ pages publiques',
+        'edge_cache' => 'Worker Cloudflare sur *.sos-expat.com — SSR/blog/sitemaps, latences Google 7-14s -> <50ms',
+    ],
+
+    // =====================================================================
+    // 18b. CLOUDFLARE EDGE CACHE (for perf / SEO technical articles)
+    // =====================================================================
+
+    'cloudflare_edge_cache' => [
+        'description' => 'Worker Cloudflare place en edge sur *.sos-expat.com. Cache SSR, blog, sitemaps et ressources statiques.',
+        'scope' => [
+            'blog' => 'Articles blog (fiches pays, articles, Q/R, comparatifs) — TTL dynamique selon type de contenu',
+            'sitemaps' => '605 sitemaps caches — HEAD/GET unifie pour eviter cache poisoning',
+            'ssr' => 'Pages SSR pre-rendues injectees dans CDN',
+            'static' => 'JS, CSS, images Unsplash (via UnsplashUsageTracker pour deduplication)',
+        ],
+        'latency_gains' => 'Google crawl : 7-14s avant -> <50ms apres. Permet crawl budget x20 efficace.',
+        'version_header' => 'EDGE_CACHE_VERSION incrementee a chaque bump (actuellement v14)',
+        'ai_guidance' => 'Les articles sur la performance web / SEO technique / Core Web Vitals peuvent citer ce mecanisme. Ne PAS donner de details implementation (tokens d\'authentification, structure interne).',
+    ],
+
+    // =====================================================================
+    // 18c. BACKLINK ENGINE (for B2B/partner/netlinking articles)
+    // =====================================================================
+
+    'backlink_engine' => [
+        'description' => 'Plateforme interne de netlinking alimentee par webhook Mission Control + scrapers. Stack Fastify/Prisma/BullMQ sur VPS Hetzner dedie.',
+        'purpose' => 'Acquisition backlinks de qualite vers sos-expat.com (domaines .edu, .gov, blogs expat a forte DA, annuaires sectoriels).',
+        'ai_guidance' => [
+            'Les articles B2B ou partenaires peuvent mentionner "strategie netlinking interne" sans exposer la stack technique',
+            'NE PAS citer de domaines cibles, emails contacts, ni methodes de prospection',
+            'Peut etre utilise comme point de differenciation vs concurrents (plateforme industrialisee vs outreach manuel)',
+        ],
     ],
 
     // =====================================================================
@@ -786,11 +883,7 @@ return [
     ],
 
     // =====================================================================
-    // 20. ANTI-CANNIBALIZATION RULES (for content generators)
-    // =====================================================================
-
-    // =====================================================================
-    // 21. SEARCH INTENT → CONTENT FORMAT (Google ranking factor #1)
+    // 20. SEARCH INTENT → CONTENT FORMAT (Google ranking factor #1)
     // =====================================================================
 
     'search_intent' => [
@@ -904,7 +997,7 @@ return [
     ],
 
     // =====================================================================
-    // 22. LONG-TAIL CONTENT RULES (requetes specifiques a fort taux de conversion)
+    // 21. LONG-TAIL CONTENT RULES (requetes specifiques a fort taux de conversion)
     // =====================================================================
 
     'long_tail_rules' => [
@@ -933,7 +1026,7 @@ return [
     ],
 
     // =====================================================================
-    // 23. ANTI-CANNIBALIZATION RULES (for content generators)
+    // 22. ANTI-CANNIBALIZATION RULES (for content generators)
     // =====================================================================
 
     'anti_cannibalization' => [

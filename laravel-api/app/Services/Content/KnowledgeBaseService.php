@@ -23,6 +23,31 @@ class KnowledgeBaseService
     }
 
     /**
+     * Current KB version — persist this with every generated article so we
+     * can identify which version produced it when rules change.
+     */
+    public function getVersion(): string
+    {
+        return $this->kb['meta']['kb_version'] ?? 'unknown';
+    }
+
+    /**
+     * Last-verified date for the KB (ISO-8601).
+     */
+    public function getUpdatedAt(): string
+    {
+        return $this->kb['meta']['kb_updated_at'] ?? 'unknown';
+    }
+
+    /**
+     * Full meta block — version, updated_at, source_of_truth, changelog.
+     */
+    public function getMeta(): array
+    {
+        return $this->kb['meta'] ?? [];
+    }
+
+    /**
      * Get the complete system prompt with Knowledge Base for a content type.
      */
     public function getSystemPrompt(string $contentType, ?string $country = null, ?string $language = null, ?string $searchIntent = null): string
@@ -200,8 +225,8 @@ PROMPT;
             'n1_call_commission' => 'Commission N1 (filleul direct)',
             'n2_call_commission' => 'Commission N2 (filleul indirect)',
             'activation_bonus' => 'Bonus activation',
-            'provider_recruitment_lawyer' => 'Affiliation prestataire avocat',
-            'provider_recruitment_expat' => 'Affiliation prestataire expert',
+            'provider_referral_lawyer' => 'Affiliation prestataire avocat',
+            'provider_referral_expat' => 'Affiliation prestataire expert',
             'telegram_bonus' => 'Bonus Telegram',
             'client_discount' => 'Reduction client',
         ];
@@ -369,7 +394,9 @@ BLOCK;
             $lines[] = "  {$name} : {$plan['eur']}EUR / {$plan['usd']}USD — {$calls} appels IA/mois";
         }
 
-        $lines[] = "- Reduction annuelle : {$subs['annual_discount']}";
+        $annualLabel = $subs['annual_discount_label']
+            ?? (isset($subs['annual_discount']) ? (int) round($subs['annual_discount'] * 100) . '%' : '20%');
+        $lines[] = "- Reduction annuelle : {$annualLabel}";
 
         return implode("\n", $lines);
     }
@@ -409,34 +436,31 @@ BLOCK;
 
     private function getProgramsBlock(string $contentType): string
     {
-        // Only include detailed programs for recruitment/affiliate content types
+        // Map content type -> specific affiliate program key for targeted prompts.
+        // Content types not mapped (null or absent) get the generic overview below.
         $programTypes = [
             'chatters' => 'chatter',
             'influenceurs' => 'influencer',
             'admin_groupes' => 'group_admin',
-            'avocats' => null, // No specific program
-            'expats_aidants' => null,
-            'affiliation' => 'general_affiliate',
         ];
 
         $mappedType = $this->mapContentType($contentType);
 
-        // For recruitment content, include detailed program info
-        if (isset($programTypes[$mappedType]) && $programTypes[$mappedType]) {
+        if (!empty($programTypes[$mappedType])) {
             return $this->getProgramPrompt($programTypes[$mappedType]);
         }
 
-        // For general content, just list programs with key commissions
+        // Generic overview for all other content types
         $programs = $this->kb['programs'] ?? [];
         $common = $programs['common'] ?? [];
 
         return <<<BLOCK
-5 PROGRAMMES AFFILIES SOS-EXPAT :
+6 PROGRAMMES AFFILIES SOS-EXPAT :
 - Chatter : \$5/appel avocat, \$3/appel expert, affiliation 2 niveaux (\$1 N1, \$0.50 N2), milestones \$15→\$4000
-- Captain Chatter : 5 niveaux Bronze→Diamant (\$25→\$400/mois)
-- Influenceur : \$5/\$3 par appel + \$5 reduction clients + milestones
-- Blogueur : \$5/\$3 par appel via widget + affiliation prestataires
-- Admin Groupe : \$5/\$3 par appel + affiliation 2 niveaux
+- Captain Chatter : 5 niveaux Bronze→Diamant (\$25→\$400/mois) + milestones
+- Influenceur : \$5/\$3 par appel + \$5 reduction clients + milestones + Top 3 mensuel cash \$200/\$100/\$50
+- Blogueur : \$5/\$3 par appel via widget + affiliation prestataires + milestones
+- Admin Groupe : \$5/\$3 par appel + affiliation 2 niveaux + milestones + \$5 reduction clients
 - Partenaire B2B : 15% du revenu des appels generes
 - Retrait minimum : \${$this->cents($common['withdrawal_minimum'] ?? 3000)} | Frais : \${$this->cents($common['withdrawal_fee'] ?? 300)} fixe
 BLOCK;
@@ -707,9 +731,15 @@ BLOCK;
 
     /**
      * Convert cents to dollars string.
+     * Whole-dollar amounts display without decimals ($5), sub-dollar
+     * amounts keep two decimals ($0.50) so affiliate copy never rounds
+     * $0.50 to $1 or $3.50 to $4.
      */
     private function cents(int $cents): string
     {
-        return number_format($cents / 100, 0);
+        $dollars = $cents / 100;
+        $decimals = ($cents % 100 === 0) ? 0 : 2;
+
+        return number_format($dollars, $decimals);
     }
 }
