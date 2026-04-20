@@ -454,6 +454,32 @@ Schedule::job(new \App\Jobs\DiscoverPressPublicationsJob)
 Schedule::command('scrapers:daily-report')->dailyAt('08:00');
 
 // ══════════════════════════════════════════════════════════════════════
+// BACKLINK ENGINE RESYNC (filet de sécurité horaire, self-healing)
+// ══════════════════════════════════════════════════════════════════════
+// Rattrape les contacts avec backlink_synced_at IS NULL dans les 5 tables
+// (influenceurs, press_contacts, lawyers, content_businesses, content_contacts)
+// si les Observers Eloquent ont raté un envoi (webhook bl-app en 502 / timeout).
+//
+// --limit=300 : 300 max par table × 5 tables = 1500 contacts max/run.
+//               Temps typique : ~3-5 min (usleep 100ms × N + HTTP).
+//               Worst case retry max : ~13 min (660 × 1.15s).
+//               Tient largement sous les 256m du conteneur scheduler.
+// hourlyAt(17)           : évite la minute 0 saturée (stale recoveries, relevance retry).
+// withoutOverlapping(30) : lock 30 min max (Laravel attend des MINUTES).
+//                          Couvre le worst case + marge, se relâche avant H+1:17.
+// runInBackground()      : scheduler reste réactif pour les autres crons.
+// appendOutputTo(...)    : capture les $this->info/line/warn de la commande (sinon
+//                          perdus vers /dev/null par runInBackground). Volume
+//                          app_storage partagé entre containers → tail depuis inf-api.
+// ══════════════════════════════════════════════════════════════════════
+Schedule::command('backlink:resync --limit=300')
+    ->hourlyAt(17)
+    ->withoutOverlapping(30)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/backlink-resync.log'))
+    ->name('backlink-resync');
+
+// ══════════════════════════════════════════════════════════════════════
 // STALE RUNS RECOVERY (toutes les 30 min)
 // ══════════════════════════════════════════════════════════════════════
 // Les runs bloqués en 'running' depuis >2h = worker crashé mid-scrape.
