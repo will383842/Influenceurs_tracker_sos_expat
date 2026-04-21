@@ -48,6 +48,11 @@ jobs:
               \$landings->each(function(\$lp){
                 echo '  #' . \$lp->id . '  ' . \$lp->canonical_url . PHP_EOL;
               });
-              \$n = \App\Models\LandingPage::whereIn('id', \$ids)->delete();
-              echo 'Rows deleted: ' . \$n . PHP_EOL;
+              // forceDelete() pour bypass SoftDeletes et libérer le slug+language unique.
+              \$n = 0;
+              foreach (\App\Models\LandingPage::withTrashed()->whereIn('id', \$ids)->get() as \$lp) {
+                \$lp->forceDelete();
+                \$n++;
+              }
+              echo 'Rows force-deleted: ' . \$n . PHP_EOL;
             " 2>&1 | tail -30
