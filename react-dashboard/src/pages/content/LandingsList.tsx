@@ -37,9 +37,54 @@ const LANG_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Toutes les langues' },
   { value: 'fr', label: 'Francais' },
   { value: 'en', label: 'Anglais' },
-  { value: 'de', label: 'Allemand' },
   { value: 'es', label: 'Espagnol' },
+  { value: 'de', label: 'Allemand' },
   { value: 'pt', label: 'Portugais' },
+  { value: 'ar', label: 'Arabe' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'zh', label: 'Chinois' },
+  { value: 'ru', label: 'Russe' },
+];
+
+// Thème = audience_type côté DB. Mapping business :
+//   clients = landing orientée demandeur d'aide
+//   lawyers = recrutement avocat
+//   helpers = recrutement expat-helper
+//   matching = marketing mixte
+const AUDIENCE_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Tous les themes' },
+  { value: 'clients',  label: 'Clients' },
+  { value: 'lawyers',  label: 'Avocats (recrutement)' },
+  { value: 'helpers',  label: 'Expat-helpers (recrutement)' },
+  { value: 'matching', label: 'Matching / mixte' },
+];
+
+// 197 ISO codes — seuls les premiers sont proposés par défaut. L'input est
+// aussi utilisable en texte libre si besoin d'un pays hors liste.
+const COUNTRY_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Tous les pays' },
+  { value: 'TH', label: 'Thailande (TH)' },
+  { value: 'VN', label: 'Vietnam (VN)' },
+  { value: 'SG', label: 'Singapour (SG)' },
+  { value: 'MY', label: 'Malaisie (MY)' },
+  { value: 'PH', label: 'Philippines (PH)' },
+  { value: 'JP', label: 'Japon (JP)' },
+  { value: 'AU', label: 'Australie (AU)' },
+  { value: 'MX', label: 'Mexique (MX)' },
+  { value: 'BR', label: 'Bresil (BR)' },
+  { value: 'CR', label: 'Costa Rica (CR)' },
+  { value: 'US', label: 'Etats-Unis (US)' },
+  { value: 'FR', label: 'France (FR)' },
+  { value: 'DE', label: 'Allemagne (DE)' },
+  { value: 'ES', label: 'Espagne (ES)' },
+  { value: 'IT', label: 'Italie (IT)' },
+  { value: 'GB', label: 'Royaume-Uni (GB)' },
+  { value: 'PT', label: 'Portugal (PT)' },
+  { value: 'AE', label: 'Emirats (AE)' },
+  { value: 'SA', label: 'Arabie Saoudite (SA)' },
+  { value: 'IN', label: 'Inde (IN)' },
+  { value: 'CN', label: 'Chine (CN)' },
+  { value: 'RU', label: 'Russie (RU)' },
 ];
 
 function formatDate(d: string | null): string {
@@ -60,6 +105,8 @@ export default function LandingsList() {
   const [search, setSearch] = useState('');
   const [language, setLanguage] = useState('');
   const [status, setStatus] = useState('');
+  const [country, setCountry] = useState('');
+  const [audienceType, setAudienceType] = useState('');
 
   // Delete
   const [confirmDelete, setConfirmDelete] = useState<LandingPage | null>(null);
@@ -71,6 +118,8 @@ export default function LandingsList() {
       if (search.trim()) params.search = search.trim();
       if (language) params.language = language;
       if (status) params.status = status;
+      if (country) params.country_code = country;
+      if (audienceType) params.audience_type = audienceType;
 
       const res = await fetchLandings(params);
       const data = res.data as unknown as PaginatedResponse<LandingPage>;
@@ -82,9 +131,11 @@ export default function LandingsList() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, language, status]);
+  }, [page, search, language, status, country, audienceType]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  // Add country + audienceType to deps via loadData's useCallback
+
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
@@ -149,7 +200,7 @@ export default function LandingsList() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <input
           type="text"
           value={search}
@@ -160,9 +211,24 @@ export default function LandingsList() {
         <select value={language} onChange={e => { setLanguage(e.target.value); setPage(1); }} className={inputClass}>
           {LANG_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+        <select value={country} onChange={e => { setCountry(e.target.value); setPage(1); }} className={inputClass}>
+          {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <select value={audienceType} onChange={e => { setAudienceType(e.target.value); setPage(1); }} className={inputClass}>
+          {AUDIENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
         <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={inputClass}>
           {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+        {(search || language || country || audienceType || status) && (
+          <button
+            onClick={() => { setSearch(''); setLanguage(''); setCountry(''); setAudienceType(''); setStatus(''); setPage(1); }}
+            className="text-xs text-muted hover:text-white px-3 py-2 rounded transition-colors"
+            title="Reinitialiser les filtres"
+          >
+            Reset
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -173,6 +239,8 @@ export default function LandingsList() {
               <tr className="border-b border-border text-muted text-xs uppercase tracking-wide">
                 <th className="text-left px-4 py-3">Titre</th>
                 <th className="text-left px-4 py-3">Langue</th>
+                <th className="text-left px-4 py-3">Pays</th>
+                <th className="text-left px-4 py-3">Theme</th>
                 <th className="text-left px-4 py-3">Statut</th>
                 <th className="text-left px-4 py-3">SEO</th>
                 <th className="text-left px-4 py-3">Sections</th>
@@ -194,6 +262,16 @@ export default function LandingsList() {
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded text-xs bg-violet/20 text-violet-light uppercase">
                       {landing.language}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 rounded text-xs bg-surface2 text-muted uppercase">
+                      {landing.country_code ?? '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 rounded text-xs bg-surface2 text-muted">
+                      {landing.audience_type ?? '—'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
