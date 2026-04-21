@@ -22,7 +22,7 @@ jobs:
             set -e
             cd /opt/influenceurs-tracker
             docker exec inf-app php artisan tinker --execute="
-              \$ids = [63,64,66,67,222,232,241,243,244,245,247,338,339,341,806];
+              \$ids = [63,64,66,67,222,232,241,243,244,245,247,338,339,341,806,807,808,809];
               \$n = \App\Models\LandingPage::whereIn('id', \$ids)->update(['status' => 'published', 'published_at' => now()]);
               echo 'Republished : ' . \$n . PHP_EOL;
               \App\Models\LandingPage::whereIn('id', \$ids)->get()->each(function(\$lp){
