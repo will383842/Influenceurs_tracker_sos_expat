@@ -1,0 +1,65 @@
+name: Import Opus masters (from tmp/lp-vn-sg-my-expansion)
+
+# Dispatch manuel pour importer les masters Opus FR écrits via Claude
+# Code Pro Max (chat) dans tmp/lp-vn-sg-my-expansion/.
+#
+# Options :
+# - --dispatch-variants=false (défaut) : n'appelle PAS Haiku 4.5 pour
+#   les 8 traductions → 0$. Les siblings non-FR seront remplis plus
+#   tard via `landings:backfill-translations` ou des masters Opus
+#   écrits à la main dans le chat.
+# - dir peut être surchargé pour pointer vers un autre dossier.
+#
+# Utilisation :
+#   gh workflow run import-opus-masters.yml
+#   gh workflow run import-opus-masters.yml -f dir=tmp/lp-th-expansion
+
+on:
+  workflow_dispatch:
+    inputs:
+      dir:
+        description: 'Chemin relatif vers dossier JSON masters'
+        required: true
+        default: 'tmp/lp-vn-sg-my-expansion'
+      dispatch_variants:
+        description: 'true = appelle Haiku 4.5 pour 8 traductions (coût API). false = juste FR.'
+        type: boolean
+        required: true
+        default: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: SSH + artisan landings:import
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 12m
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            DIR="${{ inputs.dir }}"
+            DISPATCH="${{ inputs.dispatch_variants }}"
+
+            echo "=== Files to import ==="
+            ls -la "$DIR" 2>&1 || { echo "Dir not found: $DIR"; exit 1; }
+
+            echo ""
+            echo "=== Landings BEFORE ==="
+            docker exec inf-app php artisan tinker --execute="echo 'Published : ' . \App\Models\LandingPage::where('status','published')->count() . PHP_EOL;" 2>&1 | tail -3
+
+            echo ""
+            echo "=== Running landings:import --dir=$DIR --dispatch-variants=$DISPATCH ==="
+            docker exec inf-app php artisan landings:import --dir="$DIR" --dispatch-variants="$DISPATCH" 2>&1 | tail -50
+
+            echo ""
+            echo "=== Landings AFTER ==="
+            docker exec inf-app php artisan tinker --execute="echo 'Published : ' . \App\Models\LandingPage::where('status','published')->count() . PHP_EOL; \App\Models\LandingPage::where('status','published')->whereIn('generation_source',['manual','manual_opus','ai_enriched'])->selectRaw('generation_source, country_code, language, COUNT(*) as c')->groupBy('generation_source','country_code','language')->orderBy('country_code')->orderBy('language')->limit(50)->get()->each(function(\$r){ echo sprintf('  %s %s/%s : %d', \$r->generation_source, \$r->country_code, \$r->language, \$r->c) . PHP_EOL; });" 2>&1 | tail -40
+
+            echo ""
+            echo "=== DONE ==="
