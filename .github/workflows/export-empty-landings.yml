@@ -1,0 +1,71 @@
+name: Export empty landings (for Opus enrichment)
+
+# Exporte la liste complète des landings "vides" (que hero, pas de section
+# riche) au format JSON dans les logs. Utilisé pour préparer l'écriture
+# manuelle de masters Opus via l'abonnement Claude Code Pro Max.
+#
+# Usage : gh workflow run export-empty-landings.yml
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: SSH + export empty landings
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 4m
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            echo "=== Empty landings by signature (audience × country × template × problem) ==="
+            docker exec inf-app php artisan tinker --execute="
+              \$empty = \App\Models\LandingPage::where('status','published')->get()->filter(function(\$lp){
+                \$types = array_column(is_array(\$lp->sections) ? \$lp->sections : [], 'type');
+                \$rich = ['intro','content','topics','categories','visa_categories','guide_steps','earnings','freedom','process'];
+                return empty(array_intersect(\$rich, \$types));
+              });
+              \$groups = \$empty->groupBy(function(\$lp){
+                return (\$lp->audience_type ?? '_') . '|' . (\$lp->template_id ?? '_') . '|' . (\$lp->country_code ?? '_') . '|' . (\$lp->problem_id ?? \$lp->category_slug ?? \$lp->user_profile ?? \$lp->origin_nationality ?? '_');
+              });
+              echo 'Total empty : ' . \$empty->count() . PHP_EOL;
+              echo 'Unique signatures : ' . \$groups->count() . PHP_EOL;
+              echo PHP_EOL . '=== SIGNATURE LIST (format: audience|template|country|problem → N landings) ===' . PHP_EOL;
+              \$groups->each(function(\$lps, \$sig){
+                \$first = \$lps->first();
+                \$langs = \$lps->pluck('language')->sort()->values()->implode(',');
+                echo sprintf('%s  |  n=%d  |  langs=%s  |  url=%s', \$sig, \$lps->count(), \$langs, \$first->canonical_url) . PHP_EOL;
+              });
+            " 2>&1 | tail -100
+
+            echo ""
+            echo "=== DETAIL JSON (first 60 rows for inspection) ==="
+            docker exec inf-app php artisan tinker --execute="
+              \$out = \App\Models\LandingPage::where('status','published')->get()->filter(function(\$lp){
+                \$types = array_column(is_array(\$lp->sections) ? \$lp->sections : [], 'type');
+                \$rich = ['intro','content','topics','categories','visa_categories','guide_steps','earnings','freedom','process'];
+                return empty(array_intersect(\$rich, \$types));
+              })->take(60)->map(function(\$lp){
+                return [
+                  'id' => \$lp->id,
+                  'audience' => \$lp->audience_type,
+                  'template' => \$lp->template_id,
+                  'country' => \$lp->country_code,
+                  'language' => \$lp->language,
+                  'problem_slug' => \$lp->problem_id,
+                  'category_slug' => \$lp->category_slug,
+                  'user_profile' => \$lp->user_profile,
+                  'origin_nationality' => \$lp->origin_nationality,
+                  'url' => \$lp->canonical_url,
+                  'parent_id' => \$lp->parent_id,
+                ];
+              });
+              echo json_encode(\$out->values(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            " 2>&1 | tail -5
