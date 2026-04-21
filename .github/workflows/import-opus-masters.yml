@@ -55,12 +55,19 @@ jobs:
             echo "=== Files to import (host view) ==="
             ls -la "$DIR_HOST" 2>&1 || { echo "Dir not found on host: $DIR_HOST"; exit 1; }
 
-            # Container mounts /opt/influenceurs-tracker → /var/www/html ;
-            # artisan --dir doit recevoir le path INSIDE le container.
-            CONTAINER_DIR="/var/www/html/${DIR_HOST}"
+            # Le container n'a pas de bind mount sur /opt/influenceurs-tracker
+            # (seul laravel-api/ est bake dans l'image). On copie les JSON via
+            # docker cp dans /tmp/landing-import/ du container.
+            CONTAINER_DIR="/tmp/landing-import"
+            docker exec inf-app mkdir -p "$CONTAINER_DIR"
+            docker exec inf-app sh -c "rm -f $CONTAINER_DIR/*.json" 2>/dev/null || true
+            for f in "$DIR_HOST"/*.json; do
+              fname=$(basename "$f")
+              docker cp "$f" "inf-app:$CONTAINER_DIR/$fname"
+            done
             echo ""
-            echo "=== Files to import (container view: $CONTAINER_DIR) ==="
-            docker exec inf-app ls -la "$CONTAINER_DIR" 2>&1 | tail -10
+            echo "=== Files now in container ($CONTAINER_DIR) ==="
+            docker exec inf-app ls -la "$CONTAINER_DIR" 2>&1 | tail -20
 
             echo ""
             echo "=== Landings BEFORE ==="
