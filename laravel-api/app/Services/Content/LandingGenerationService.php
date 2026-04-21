@@ -2001,12 +2001,18 @@ RULES;
             return $existing;
         }
 
-        // force_update=true → on va UPDATE l'existante plus bas via $shell = $existing
-        // (ça garde l'id + parent_id + ctaLinks + hreflang_map, mais remplace sections,
-        // title, meta, seo_score, json_ld, images si pas déjà définies).
+        // force_update=true → on va UPDATE l'existante plus bas via $shell = $existing.
+        // On PRÉSERVE slug + canonical_url de l'existante (car ils correspondent aux
+        // URLs publiées, avec préfixe régional /xx-yy/ attendu par le router Blog).
+        // Seul le contenu (title, meta, sections, seo_score, json_ld) est remplacé.
+        $preserveSlug         = false;
+        $canonicalUrlExisting = null;
         if ($existing && $forceUpdate) {
             $shell?->forceDelete();
-            $shell = $existing;
+            $shell                = $existing;
+            $preserveSlug         = true;
+            $slug                 = $existing->slug;
+            $canonicalUrlExisting = $existing->canonical_url;
         }
 
         $seoScore    = $this->calculateSeoScore($parsed);
@@ -2017,7 +2023,11 @@ RULES;
 
         // Geo metadata depuis CountryGeo
         $geo = CountryGeo::findByCode($countryCode);
-        $canonicalUrl = rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/') . '/' . $slug;
+        // Si force_update avec existante : on préserve canonical_url de l'existante
+        // (URL déjà publiée + indexée Google). Sinon on recalcule depuis slug.
+        $canonicalUrl = $preserveSlug
+            ? $canonicalUrlExisting
+            : rtrim(config('services.blog.site_url', 'https://sos-expat.com'), '/') . '/' . $slug;
 
         $geoFields = [];
         if ($geo) {
