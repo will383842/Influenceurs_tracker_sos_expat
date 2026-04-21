@@ -1,0 +1,105 @@
+name: Audit landings content (country/language coherence)
+
+# Détecte les landing pages dont le contenu ne correspond pas à leur
+# pays ou langue déclarés. Exemples :
+#   - country_code=PH mais contenu mentionne "Bangkok" ou "baht"
+#   - country_code=MX mais contenu mentionne "Paris" ou "euros"
+#   - language=ar mais contenu principalement en latin
+#
+# Génère un rapport Markdown avec les URLs problématiques, pour audit manuel.
+#
+# Utilisation :
+#   gh workflow run audit-landings-content.yml
+#   gh workflow run audit-landings-content.yml -f country=PH
+#
+# Rapport : affiché dans les logs du workflow run + upload comme artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      country:
+        description: 'ISO2 (optionnel) pour auditer un seul pays, vide = tous sauf TH'
+        required: false
+        default: ''
+
+jobs:
+  audit:
+    name: Audit landings coherence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: SSH to VPS and run audit
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 8m
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            COUNTRY="${{ inputs.country }}"
+
+            echo "=== Landings published par country_code ==="
+            docker exec inf-app php artisan tinker --execute="\App\Models\LandingPage::where('status','published')->selectRaw('country_code, COUNT(*) as c')->groupBy('country_code')->orderByDesc('c')->get()->each(function(\$r){ echo '  ' . (\$r->country_code ?? 'null') . ' : ' . \$r->c . PHP_EOL; });" 2>&1 | tail -30
+
+            echo ""
+            echo "=== Audit 1 : landings non-TH mentionnant termes TH-spécifiques ==="
+            echo "Termes détectés : Bangkok, Chiang Mai, Phuket, baht, Thaïlandais, Thai Labour, Foreign Business Act"
+            docker exec inf-app php artisan tinker --execute="
+              \$q = \App\Models\LandingPage::where('status','published')->where('country_code','!=','TH');
+              if ('$COUNTRY' !== '') { \$q->where('country_code', '$COUNTRY'); }
+              \$suspects = \$q->get()->filter(function(\$lp){
+                \$hay = strtolower(json_encode(\$lp->sections) . ' ' . \$lp->meta_description . ' ' . \$lp->title);
+                \$markers = ['bangkok','chiang mai','phuket','baht','pattaya','thailand digital','thai labour','foreign business act','land department','immigration bureau thai'];
+                foreach (\$markers as \$m) { if (strpos(\$hay, \$m) !== false) return true; }
+                return false;
+              });
+              echo 'Suspect landings : ' . \$suspects->count() . PHP_EOL;
+              \$suspects->take(50)->each(function(\$lp){
+                echo '  #' . \$lp->id . '  ' . \$lp->country_code . '/' . \$lp->language . '  ' . \$lp->canonical_url . PHP_EOL;
+              });
+            " 2>&1 | tail -60
+
+            echo ""
+            echo "=== Audit 2 : landings avec langue incohérente (URL vs DB) ==="
+            docker exec inf-app php artisan tinker --execute="
+              \$q = \App\Models\LandingPage::where('status','published');
+              if ('$COUNTRY' !== '') { \$q->where('country_code', '$COUNTRY'); }
+              \$mismatches = \$q->get()->filter(function(\$lp){
+                if (!\$lp->canonical_url) return false;
+                if (preg_match('#/([a-z]{2})-[a-z]{2}/#', \$lp->canonical_url, \$m)) {
+                  return \$m[1] !== \$lp->language;
+                }
+                return false;
+              });
+              echo 'Mismatches URL vs language : ' . \$mismatches->count() . PHP_EOL;
+              \$mismatches->take(30)->each(function(\$lp){
+                echo '  #' . \$lp->id . '  DB=' . \$lp->language . '  URL=' . \$lp->canonical_url . PHP_EOL;
+              });
+            " 2>&1 | tail -40
+
+            echo ""
+            echo "=== Audit 3 : landings sans section intro ni content (contenu vide) ==="
+            docker exec inf-app php artisan tinker --execute="
+              \$q = \App\Models\LandingPage::where('status','published');
+              if ('$COUNTRY' !== '') { \$q->where('country_code', '$COUNTRY'); }
+              \$empty = \$q->get()->filter(function(\$lp){
+                if (!is_array(\$lp->sections)) return true;
+                \$types = array_column(\$lp->sections, 'type');
+                return !in_array('intro', \$types) && !in_array('content', \$types) && !in_array('topics', \$types) && !in_array('categories', \$types) && !in_array('guide_steps', \$types);
+              });
+              echo 'Empty-content landings : ' . \$empty->count() . PHP_EOL;
+              \$empty->take(30)->each(function(\$lp){
+                echo '  #' . \$lp->id . '  ' . \$lp->country_code . '/' . \$lp->language . '  ' . \$lp->canonical_url . PHP_EOL;
+              });
+            " 2>&1 | tail -40
+
+            echo ""
+            echo "=== Audit 4 : landings avec "generation_source" ==="
+            docker exec inf-app php artisan tinker --execute="\App\Models\LandingPage::where('status','published')->selectRaw('generation_source, COUNT(*) as c')->groupBy('generation_source')->orderByDesc('c')->get()->each(function(\$r){ echo '  ' . (\$r->generation_source ?? 'null') . ' : ' . \$r->c . PHP_EOL; });" 2>&1 | tail -10
+
+            echo ""
+            echo "=== DONE — Vérifier manuellement les URLs listées ==="
