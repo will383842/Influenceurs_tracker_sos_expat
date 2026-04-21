@@ -1,0 +1,62 @@
+name: DELETE replicated landings (destructive)
+
+# Suppression DÉFINITIVE (soft-delete via Eloquent) de toutes les
+# landing_pages dont generation_source='replicated'. À utiliser après
+# avoir confirmé que ces landings ne servent à rien (cas du rollback
+# 2026-04-21 où la substitution de texte a produit du contenu faux).
+#
+# ⚠️  Cette opération est IRRÉVERSIBLE sans un restore de backup DB.
+# Le workflow requiert une confirmation explicite (confirm=DELETE-YES).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Tape DELETE-YES pour confirmer la suppression'
+        required: true
+        default: ''
+      keep_country:
+        description: 'ISO2 à préserver (ne pas supprimer)'
+        required: true
+        default: 'TH'
+
+jobs:
+  delete:
+    name: Delete replicated landings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Guard — require explicit confirm
+        if: ${{ inputs.confirm != 'DELETE-YES' }}
+        run: |
+          echo "❌ Abort — confirm must equal DELETE-YES (received: '${{ inputs.confirm }}')"
+          exit 1
+
+      - name: SSH to VPS and delete
+        if: ${{ inputs.confirm == 'DELETE-YES' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 8m
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            KEEP="${{ inputs.keep_country }}"
+
+            echo "=== Counts BEFORE ==="
+            docker exec inf-app php artisan tinker --execute="echo 'Replicated (all statuses) : ' . \App\Models\LandingPage::where('generation_source','replicated')->count() . PHP_EOL; echo 'Total landings          : ' . \App\Models\LandingPage::count() . PHP_EOL;" 2>&1 | tail -4
+
+            echo ""
+            echo "=== DELETING replicated landings (except $KEEP) ==="
+            docker exec inf-app php artisan tinker --execute="\$affected = \App\Models\LandingPage::where('generation_source','replicated')->where('country_code','!=','$KEEP')->delete(); echo 'Rows deleted : ' . \$affected . PHP_EOL;" 2>&1 | tail -3
+
+            echo ""
+            echo "=== Counts AFTER ==="
+            docker exec inf-app php artisan tinker --execute="echo 'Replicated (all statuses) : ' . \App\Models\LandingPage::where('generation_source','replicated')->count() . PHP_EOL; echo 'Total landings          : ' . \App\Models\LandingPage::count() . PHP_EOL; echo 'Published               : ' . \App\Models\LandingPage::where('status','published')->count() . PHP_EOL;" 2>&1 | tail -5
+
+            echo ""
+            echo "=== DONE — replicated landings deleted. ==="
