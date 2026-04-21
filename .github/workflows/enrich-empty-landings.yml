@@ -1,0 +1,76 @@
+name: Enrich empty landings (via LLM)
+
+# Régénère via LLM (OpenAI → Claude fallback) le contenu des landings
+# publiées qui n'ont qu'un hero (pas de section intro/content/topics).
+#
+# Coût estimé : ~$0.05 par landing (GPT-4o + Claude fallback).
+# 262 landings vides au 2026-04-21 → ~$13 total si tout est relancé.
+#
+# Utilisation :
+#   gh workflow run enrich-empty-landings.yml -f limit=5 -f dry_run=true
+#   gh workflow run enrich-empty-landings.yml -f limit=50 -f dry_run=false
+#   gh workflow run enrich-empty-landings.yml -f country=VN -f dry_run=false
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Max landings à enrichir (vide = toutes)'
+        required: false
+        default: '10'
+      country:
+        description: 'Filter ISO2 (optionnel)'
+        required: false
+        default: ''
+      language:
+        description: 'Filter langue (optionnel)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'true = preview sans appel LLM'
+        type: boolean
+        required: true
+        default: true
+
+jobs:
+  enrich:
+    name: Enrich landings via LLM
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: SSH to VPS and run enrich
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 55m
+          script: |
+            set -e
+            cd /opt/influenceurs-tracker
+
+            LIMIT="${{ inputs.limit }}"
+            COUNTRY="${{ inputs.country }}"
+            LANGUAGE="${{ inputs.language }}"
+            DRY="${{ inputs.dry_run }}"
+
+            FLAGS=""
+            if [ -n "$LIMIT" ]; then FLAGS="$FLAGS --limit=$LIMIT"; fi
+            if [ -n "$COUNTRY" ]; then FLAGS="$FLAGS --country=$COUNTRY"; fi
+            if [ -n "$LANGUAGE" ]; then FLAGS="$FLAGS --language=$LANGUAGE"; fi
+            if [ "$DRY" = "true" ]; then FLAGS="$FLAGS --dry-run"; fi
+
+            echo "=== Counts BEFORE ==="
+            docker exec inf-app php artisan tinker --execute="echo 'Published : ' . \App\Models\LandingPage::where('status','published')->count() . PHP_EOL;" 2>&1 | tail -3
+
+            echo ""
+            echo "=== Running enrich with flags: $FLAGS ==="
+            docker exec inf-app php artisan landings:enrich-empty $FLAGS 2>&1 | tail -200
+
+            echo ""
+            echo "=== Counts AFTER ==="
+            docker exec inf-app php artisan tinker --execute="echo 'Published : ' . \App\Models\LandingPage::where('status','published')->count() . PHP_EOL; \App\Models\LandingPage::where('status','published')->selectRaw('generation_source, COUNT(*) as c')->groupBy('generation_source')->orderByDesc('c')->get()->each(function(\$r){ echo '  ' . (\$r->generation_source ?? 'null') . ' : ' . \$r->c . PHP_EOL; });" 2>&1 | tail -10
+
+            echo ""
+            echo "=== DONE ==="
