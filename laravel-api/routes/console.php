@@ -405,10 +405,22 @@ Schedule::call(function () {
 // ── SANS IA (tourne toujours) ──
 
 // Avocats : cycle complet (3 sources) toutes les 6h — rate limiting interne au service
-Schedule::command('lawyers:scrape all')->cron('0 */6 * * *')->withoutOverlapping(360);
+// runInBackground() OBLIGATOIRE : sans ça, schedule:run reste bloqué sur cette commande
+// (peut tourner plusieurs heures) → tout le scheduler hang. Incident 2026-05-01.
+Schedule::command('lawyers:scrape all')
+    ->cron('0 */6 * * *')
+    ->withoutOverlapping(360)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/lawyers-scrape.log'))
+    ->name('lawyers-scrape');
 
 // Journalistes presse : toutes les 3h, publications avec email_pattern
-Schedule::command('press:scrape-journalists')->cron('15 */3 * * *')->withoutOverlapping(180);
+Schedule::command('press:scrape-journalists')
+    ->cron('15 */3 * * *')
+    ->withoutOverlapping(180)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/press-scrape-journalists.log'))
+    ->name('press-scrape-journalists');
 
 // Business / entreprises expatriés : 2×/jour, 4h max par run.
 // On résout l'ID de la source expat.com via pattern slug (content_sources
@@ -461,12 +473,18 @@ Schedule::call(function () {
 // le pic 06:00 UTC (news + linkedin:fill-calendar + social:fill-calendar + lawyers:scrape)
 Schedule::command('instagram:scrape-francophones --rotation')
     ->cron('15 */3 * * *')
-    ->withoutOverlapping(60);
+    ->withoutOverlapping(60)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/instagram-scrape.log'))
+    ->name('instagram-scrape-francophones');
 
 // YouTubeurs : même rythme, décalé +30min pour étaler la charge Perplexity
 Schedule::command('youtube:scrape-francophones --rotation')
     ->cron('45 */3 * * *')
-    ->withoutOverlapping(60);
+    ->withoutOverlapping(60)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/youtube-scrape.log'))
+    ->name('youtube-scrape-francophones');
 
 // Découverte nouveaux médias presse : 1×/jour
 Schedule::job(new \App\Jobs\DiscoverPressPublicationsJob)

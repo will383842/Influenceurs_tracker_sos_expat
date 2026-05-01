@@ -47,7 +47,7 @@ class CountryCampaignCommand extends Command
      * topics fall back to generic placeholders ("la capitale", etc.).
      */
     private const TOP_CITIES = [
-        // ── PRIORITY 11 + main expat hubs ──
+        // ── PRIORITY 12 + main expat hubs ──
         'TH' => ['Bangkok', 'Chiang Mai', 'Phuket', 'Pattaya', 'Krabi', 'Hua Hin', 'Koh Samui', 'Chiang Rai', 'Ayutthaya', 'Kanchanaburi'],
         'US' => ['New York', 'Miami', 'Los Angeles', 'San Francisco', 'Austin', 'Chicago', 'Seattle', 'Boston', 'Denver', 'Las Vegas'],
         'VN' => ['Ho Chi Minh-Ville', 'Hanoi', 'Da Nang', 'Hoi An', 'Nha Trang', 'Hue', 'Mui Ne', 'Dalat', 'Ha Long', 'Phu Quoc'],
@@ -748,23 +748,24 @@ class CountryCampaignCommand extends Command
 
     /**
      * Country order for auto mode — 197 sovereign states + main territories.
-     * The first 11 codes are the user-defined PRIORITY queue (Asia + Pacific + Americas),
+     * The first 12 codes are the user-defined PRIORITY queue (Asia + Pacific),
      * the rest follow alphabetically by ISO code (the actual queue order in DB
      * is set by the migration that shuffles the non-priority countries).
      */
     public const COUNTRY_ORDER = [
-        // ── PRIORITY 11 (user-defined order) ──
+        // ── PRIORITY 12 (user-defined order) ──
         'TH' => 'Thailande',
         'VN' => 'Vietnam',
-        'SG' => 'Singapour',
-        'MY' => 'Malaisie',
-        'PH' => 'Philippines',
-        'JP' => 'Japon',
         'AU' => 'Australie',
-        'MX' => 'Mexique',
-        'BR' => 'Bresil',
-        'CR' => 'Costa Rica',
-        'US' => 'Etats-Unis',
+        'KH' => 'Cambodge',
+        'ID' => 'Indonesie',
+        'JP' => 'Japon',
+        'LA' => 'Laos',
+        'MY' => 'Malaisie',
+        'MM' => 'Birmanie',
+        'PH' => 'Philippines',
+        'SG' => 'Singapour',
+        'TW' => 'Taiwan',
 
         // ── EUROPE (other) ──
         'AL' => 'Albanie',           'AD' => 'Andorre',          'AT' => 'Autriche',
@@ -787,33 +788,32 @@ class CountryCampaignCommand extends Command
         // ── ASIE (other) ──
         'AF' => 'Afghanistan',       'AM' => 'Armenie',          'AZ' => 'Azerbaidjan',
         'BH' => 'Bahrein',           'BD' => 'Bangladesh',       'BT' => 'Bhoutan',
-        'BN' => 'Brunei',            'KH' => 'Cambodge',         'CN' => 'Chine',
-        'GE' => 'Georgie',           'HK' => 'Hong Kong',        'IN' => 'Inde',
-        'ID' => 'Indonesie',         'IR' => 'Iran',             'IQ' => 'Irak',
-        'IL' => 'Israel',            'JO' => 'Jordanie',         'KZ' => 'Kazakhstan',
-        'KP' => 'Coree du Nord',     'KR' => 'Coree du Sud',     'KW' => 'Koweit',
-        'KG' => 'Kirghizistan',      'LA' => 'Laos',             'LB' => 'Liban',
+        'BN' => 'Brunei',            'CN' => 'Chine',            'GE' => 'Georgie',
+        'HK' => 'Hong Kong',         'IN' => 'Inde',             'IR' => 'Iran',
+        'IQ' => 'Irak',              'IL' => 'Israel',           'JO' => 'Jordanie',
+        'KZ' => 'Kazakhstan',        'KP' => 'Coree du Nord',    'KR' => 'Coree du Sud',
+        'KW' => 'Koweit',            'KG' => 'Kirghizistan',     'LB' => 'Liban',
         'MO' => 'Macao',             'MV' => 'Maldives',         'MN' => 'Mongolie',
-        'MM' => 'Birmanie',          'NP' => 'Nepal',            'OM' => 'Oman',
-        'PK' => 'Pakistan',          'PS' => 'Palestine',        'QA' => 'Qatar',
-        'SA' => 'Arabie saoudite',   'LK' => 'Sri Lanka',        'SY' => 'Syrie',
-        'TW' => 'Taiwan',            'TJ' => 'Tadjikistan',      'TL' => 'Timor oriental',
-        'TR' => 'Turquie',           'TM' => 'Turkmenistan',     'AE' => 'Emirats arabes unis',
-        'UZ' => 'Ouzbekistan',       'YE' => 'Yemen',
+        'NP' => 'Nepal',             'OM' => 'Oman',             'PK' => 'Pakistan',
+        'PS' => 'Palestine',         'QA' => 'Qatar',            'SA' => 'Arabie saoudite',
+        'LK' => 'Sri Lanka',         'SY' => 'Syrie',            'TJ' => 'Tadjikistan',
+        'TL' => 'Timor oriental',    'TR' => 'Turquie',          'TM' => 'Turkmenistan',
+        'AE' => 'Emirats arabes unis','UZ' => 'Ouzbekistan',     'YE' => 'Yemen',
 
         // ── AMERIQUES (other) ──
         'AG' => 'Antigua-et-Barbuda','AR' => 'Argentine',        'BS' => 'Bahamas',
         'BB' => 'Barbade',           'BZ' => 'Belize',           'BO' => 'Bolivie',
-        'CA' => 'Canada',            'CL' => 'Chili',            'CO' => 'Colombie',
-        'CU' => 'Cuba',              'DM' => 'Dominique',        'DO' => 'Republique dominicaine',
+        'BR' => 'Bresil',            'CA' => 'Canada',           'CL' => 'Chili',
+        'CO' => 'Colombie',          'CR' => 'Costa Rica',       'CU' => 'Cuba',
+        'DM' => 'Dominique',         'DO' => 'Republique dominicaine',
         'EC' => 'Equateur',          'SV' => 'El Salvador',      'GD' => 'Grenade',
         'GT' => 'Guatemala',         'GY' => 'Guyana',           'HT' => 'Haiti',
-        'HN' => 'Honduras',          'JM' => 'Jamaique',         'NI' => 'Nicaragua',
-        'PA' => 'Panama',            'PY' => 'Paraguay',         'PE' => 'Perou',
-        'KN' => 'Saint-Christophe-et-Nieves', 'LC' => 'Sainte-Lucie',
-        'VC' => 'Saint-Vincent-et-les-Grenadines',
+        'HN' => 'Honduras',          'JM' => 'Jamaique',         'MX' => 'Mexique',
+        'NI' => 'Nicaragua',         'PA' => 'Panama',           'PY' => 'Paraguay',
+        'PE' => 'Perou',             'KN' => 'Saint-Christophe-et-Nieves',
+        'LC' => 'Sainte-Lucie',      'VC' => 'Saint-Vincent-et-les-Grenadines',
         'SR' => 'Suriname',          'TT' => 'Trinite-et-Tobago','UY' => 'Uruguay',
-        'VE' => 'Venezuela',
+        'US' => 'Etats-Unis',        'VE' => 'Venezuela',
 
         // ── AFRIQUE ──
         'DZ' => 'Algerie',           'AO' => 'Angola',           'BJ' => 'Benin',
@@ -849,9 +849,9 @@ class CountryCampaignCommand extends Command
      * Defaults to "en" for any country not listed here.
      */
     public const COUNTRY_PREP = [
-        // Priority 11
-        'TH' => 'en',  'VN' => 'au',  'SG' => 'a',   'MY' => 'en',  'PH' => 'aux',
-        'JP' => 'au',  'AU' => 'en',  'MX' => 'au',  'BR' => 'au',  'CR' => 'au',  'US' => 'aux',
+        // Priority 12
+        'TH' => 'en',  'VN' => 'au',  'AU' => 'en',  'KH' => 'au',  'ID' => 'en',
+        'JP' => 'au',  'LA' => 'au',  'MY' => 'en',  'MM' => 'en',  'PH' => 'aux', 'SG' => 'a',  'TW' => 'a',
         // Europe
         'AL' => 'en',  'AD' => 'en',  'AT' => 'en',  'BE' => 'en',  'BA' => 'en',
         'BG' => 'en',  'HR' => 'en',  'CY' => 'a',   'CZ' => 'en',  'DK' => 'au',
@@ -864,21 +864,22 @@ class CountryCampaignCommand extends Command
         'SE' => 'en',  'CH' => 'en',  'UA' => 'en',  'GB' => 'au',  'VA' => 'au',  'BY' => 'en',
         // Asie
         'AF' => 'en',  'AM' => 'en',  'AZ' => 'en',  'BH' => 'a',   'BD' => 'au',
-        'BT' => 'au',  'BN' => 'au',  'KH' => 'au',  'CN' => 'en',  'GE' => 'en',
-        'HK' => 'a',   'IN' => 'en',  'ID' => 'en',  'IR' => 'en',  'IQ' => 'en',
-        'IL' => 'en',  'JO' => 'en',  'KZ' => 'au',  'KP' => 'en',  'KR' => 'en',
-        'KW' => 'au',  'KG' => 'au',  'LA' => 'au',  'LB' => 'au',  'MO' => 'a',
-        'MV' => 'aux', 'MN' => 'en',  'MM' => 'en',  'NP' => 'au',  'OM' => 'a',
-        'PK' => 'au',  'PS' => 'en',  'QA' => 'au',  'SA' => 'en',  'LK' => 'au',
-        'SY' => 'en',  'TW' => 'a',   'TJ' => 'au',  'TL' => 'au',  'TR' => 'en',
+        'BT' => 'au',  'BN' => 'au',  'CN' => 'en',  'GE' => 'en',  'HK' => 'a',
+        'IN' => 'en',  'IR' => 'en',  'IQ' => 'en',  'IL' => 'en',  'JO' => 'en',
+        'KZ' => 'au',  'KP' => 'en',  'KR' => 'en',  'KW' => 'au',  'KG' => 'au',
+        'LB' => 'au',  'MO' => 'a',   'MV' => 'aux', 'MN' => 'en',  'NP' => 'au',
+        'OM' => 'a',   'PK' => 'au',  'PS' => 'en',  'QA' => 'au',  'SA' => 'en',
+        'LK' => 'au',  'SY' => 'en',  'TJ' => 'au',  'TL' => 'au',  'TR' => 'en',
         'TM' => 'au',  'AE' => 'aux', 'UZ' => 'en',  'YE' => 'au',
         // Ameriques
         'AG' => 'a',   'AR' => 'en',  'BS' => 'aux', 'BB' => 'a',   'BZ' => 'au',
-        'BO' => 'en',  'CA' => 'au',  'CL' => 'au',  'CO' => 'en',  'CU' => 'a',
-        'DM' => 'a',   'DO' => 'en',  'EC' => 'en',  'SV' => 'au',  'GD' => 'a',
-        'GT' => 'au',  'GY' => 'au',  'HT' => 'en',  'HN' => 'au',  'JM' => 'a',
-        'NI' => 'au',  'PA' => 'au',  'PY' => 'au',  'PE' => 'au',  'KN' => 'a',
-        'LC' => 'a',   'VC' => 'a',   'SR' => 'au',  'TT' => 'a',   'UY' => 'en',  'VE' => 'au',
+        'BO' => 'en',  'BR' => 'au',  'CA' => 'au',  'CL' => 'au',  'CO' => 'en',
+        'CR' => 'au',  'CU' => 'a',   'DM' => 'a',   'DO' => 'en',  'EC' => 'en',
+        'SV' => 'au',  'GD' => 'a',   'GT' => 'au',  'GY' => 'au',  'HT' => 'en',
+        'HN' => 'au',  'JM' => 'a',   'MX' => 'au',  'NI' => 'au',  'PA' => 'au',
+        'PY' => 'au',  'PE' => 'au',  'KN' => 'a',
+        'LC' => 'a',   'VC' => 'a',   'SR' => 'au',  'TT' => 'a',   'UY' => 'en',
+        'US' => 'aux', 'VE' => 'au',
         // Afrique
         'DZ' => 'en',  'AO' => 'en',  'BJ' => 'au',  'BW' => 'au',  'BF' => 'au',
         'BI' => 'au',  'CM' => 'au',  'CV' => 'au',  'CF' => 'en',  'TD' => 'au',
@@ -903,9 +904,9 @@ class CountryCampaignCommand extends Command
      * Defaults to "de" for any country not listed here.
      */
     private const COUNTRY_DE_PREP = [
-        // Priority 11
-        'TH' => 'de',  'VN' => 'du',  'SG' => 'de',  'MY' => 'de',  'PH' => 'des',
-        'JP' => 'du',  'AU' => "d'",  'MX' => 'du',  'BR' => 'du',  'CR' => 'du',  'US' => 'des',
+        // Priority 12
+        'TH' => 'de',  'VN' => 'du',  'AU' => "d'",  'KH' => 'du',  'ID' => "d'",
+        'JP' => 'du',  'LA' => 'du',  'MY' => 'de',  'MM' => 'du',  'PH' => 'des', 'SG' => 'de', 'TW' => 'de',
         // Europe
         'AL' => "d'",  'AD' => "d'",  'AT' => "d'",  'BE' => 'de',  'BA' => 'de',
         'BG' => 'de',  'HR' => 'de',  'CY' => 'de',  'CZ' => 'de',  'DK' => 'du',
@@ -918,21 +919,22 @@ class CountryCampaignCommand extends Command
         'SE' => 'de',  'CH' => 'de',  'UA' => "d'",  'GB' => 'du',  'VA' => 'du',  'BY' => 'de',
         // Asie
         'AF' => "d'",  'AM' => "d'",  'AZ' => "d'",  'BH' => 'de',  'BD' => 'du',
-        'BT' => 'du',  'BN' => 'du',  'KH' => 'du',  'CN' => 'de',  'GE' => 'de',
-        'HK' => 'de',  'IN' => "d'",  'ID' => "d'",  'IR' => "d'",  'IQ' => "d'",
-        'IL' => "d'",  'JO' => 'de',  'KZ' => 'du',  'KP' => 'de',  'KR' => 'de',
-        'KW' => 'du',  'KG' => 'du',  'LA' => 'du',  'LB' => 'du',  'MO' => 'de',
-        'MV' => 'des', 'MN' => 'de',  'MM' => 'de',  'NP' => 'du',  'OM' => "d'",
-        'PK' => 'du',  'PS' => 'de',  'QA' => 'du',  'SA' => "d'",  'LK' => 'du',
-        'SY' => 'de',  'TW' => 'de',  'TJ' => 'du',  'TL' => 'du',  'TR' => 'de',
+        'BT' => 'du',  'BN' => 'du',  'CN' => 'de',  'GE' => 'de',  'HK' => 'de',
+        'IN' => "d'",  'IR' => "d'",  'IQ' => "d'",  'IL' => "d'",  'JO' => 'de',
+        'KZ' => 'du',  'KP' => 'de',  'KR' => 'de',  'KW' => 'du',  'KG' => 'du',
+        'LB' => 'du',  'MO' => 'de',  'MV' => 'des', 'MN' => 'de',  'NP' => 'du',
+        'OM' => "d'",  'PK' => 'du',  'PS' => 'de',  'QA' => 'du',  'SA' => "d'",
+        'LK' => 'du',  'SY' => 'de',  'TJ' => 'du',  'TL' => 'du',  'TR' => 'de',
         'TM' => 'du',  'AE' => 'des', 'UZ' => "d'",  'YE' => 'du',
         // Ameriques
         'AG' => "d'",  'AR' => "d'",  'BS' => 'des', 'BB' => 'de',  'BZ' => 'du',
-        'BO' => 'de',  'CA' => 'du',  'CL' => 'du',  'CO' => 'de',  'CU' => 'de',
-        'DM' => 'de',  'DO' => 'de',  'EC' => "d'",  'SV' => 'du',  'GD' => 'de',
-        'GT' => 'du',  'GY' => 'du',  'HT' => "d'",  'HN' => 'du',  'JM' => 'de',
-        'NI' => 'du',  'PA' => 'du',  'PY' => 'du',  'PE' => 'du',  'KN' => 'de',
-        'LC' => 'de',  'VC' => 'de',  'SR' => 'du',  'TT' => 'de',  'UY' => "d'",  'VE' => 'du',
+        'BO' => 'de',  'BR' => 'du',  'CA' => 'du',  'CL' => 'du',  'CO' => 'de',
+        'CR' => 'du',  'CU' => 'de',  'DM' => 'de',  'DO' => 'de',  'EC' => "d'",
+        'SV' => 'du',  'GD' => 'de',  'GT' => 'du',  'GY' => 'du',  'HT' => "d'",
+        'HN' => 'du',  'JM' => 'de',  'MX' => 'du',  'NI' => 'du',  'PA' => 'du',
+        'PY' => 'du',  'PE' => 'du',  'KN' => 'de',
+        'LC' => 'de',  'VC' => 'de',  'SR' => 'du',  'TT' => 'de',  'UY' => "d'",
+        'US' => 'des', 'VE' => 'du',
         // Afrique
         'DZ' => "d'",  'AO' => "d'",  'BJ' => 'du',  'BW' => 'du',  'BF' => 'du',
         'BI' => 'du',  'CM' => 'du',  'CV' => 'du',  'CF' => 'de',  'TD' => 'du',

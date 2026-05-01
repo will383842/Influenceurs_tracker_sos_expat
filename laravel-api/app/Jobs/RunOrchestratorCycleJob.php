@@ -497,11 +497,63 @@ class RunOrchestratorCycleJob implements ShouldQueue
 
         $plan = $command->getContentPlan($countryCode, $name);
 
-        // Compute expected quota per type from the plan
+        // ─────────────────────────────────────────────────────────────────
+        // QUOTA BY TYPE — two modes (configurable via DB)
+        //   'fixed_plan' (default): use the plan's hand-tuned per-type counts
+        //   'percentage': recompute per-type targets from type_distribution
+        //                 (set via dashboard "Configuration" page), applied
+        //                 to campaign_articles_per_country (262).
+        // ─────────────────────────────────────────────────────────────────
+        $orchConfig = \Illuminate\Support\Facades\DB::table('content_orchestrator_config')->first();
+        $mode = $orchConfig->campaign_distribution_mode ?? 'fixed_plan';
+        $threshold = (int) ($orchConfig->campaign_articles_per_country ?? 262);
+
         $planQuotaByType = [];
-        foreach ($plan as $item) {
-            $t = $item['type'] ?? 'article';
-            $planQuotaByType[$t] = ($planQuotaByType[$t] ?? 0) + 1;
+
+        if ($mode === 'percentage') {
+            // Map config-side type keys to DB content_type values
+            // (mirrors RunOrchestratorCycleJob::triggerGeneration mapping at line ~280)
+            $typeMapping = [
+                'qa'                     => null, // Q/R generated separately by GenerateQrBlogJob
+                'art_mots_cles'          => 'article',
+                'art_longues_traines'    => 'article',
+                'guide'                  => 'guide',
+                'guide_expat'            => 'guide',
+                'guide_vacances'         => 'guide',
+                'guide_city'             => 'guide_city',
+                'comparative'            => 'comparative',
+                'affiliation'            => 'affiliation',
+                'outreach_chatters'      => 'outreach',
+                'outreach_influenceurs'  => 'outreach',
+                'outreach_admin_groupes' => 'outreach',
+                'outreach_avocats'       => 'outreach',
+                'outreach_expats'        => 'outreach',
+                'testimonial'            => 'testimonial',
+                'brand_content'          => 'article',
+                'statistiques'           => 'statistics',
+                'pain_point'             => 'pain_point',
+            ];
+
+            $distribution = json_decode($orchConfig->type_distribution ?? '{}', true) ?? [];
+
+            foreach ($distribution as $configType => $pct) {
+                if ($pct <= 0) continue;
+                $dbType = $typeMapping[$configType] ?? null;
+                if ($dbType === null) continue; // qa skipped (separate pipeline)
+                $count = (int) round($threshold * $pct / 100);
+                $planQuotaByType[$dbType] = ($planQuotaByType[$dbType] ?? 0) + $count;
+            }
+
+            Log::info("Orchestrator Campaign: percentage mode for {$countryCode}", [
+                'threshold' => $threshold,
+                'targets'   => $planQuotaByType,
+            ]);
+        } else {
+            // fixed_plan: count per-type from the plan as before
+            foreach ($plan as $item) {
+                $t = $item['type'] ?? 'article';
+                $planQuotaByType[$t] = ($planQuotaByType[$t] ?? 0) + 1;
+            }
         }
 
         // Statuses that count as a "taken slot" for the quota. Includes in-flight
@@ -569,6 +621,22 @@ class RunOrchestratorCycleJob implements ShouldQueue
             // Skip: exact title already exists for this type (case-insensitive)
             $normalizedTopic = $normalize($item['topic']);
             if (isset($titleSetByType[$type][$normalizedTopic])) {
+                continue;
+            }
+
+            // Anti-race-condition lock: 2 orchestrator cycles can fire in close
+            // succession (cron 15 min, but worker timing varies) and both pick
+            // the SAME topic before the first one creates its DB row in
+            // 'generating' status. Cache::add() is atomic: returns true if the
+            // key didn't exist (and creates it), false if it did. TTL=15 min
+            // covers the worst-case time between dispatch and DB insert.
+            $lockKey = "campaign:dispatched:{$countryCode}:{$type}:" . md5($normalizedTopic);
+            if (!\Illuminate\Support\Facades\Cache::add($lockKey, true, 900)) {
+                Log::info("Orchestrator: topic dispatch lock active, skip", [
+                    'country' => $countryCode,
+                    'type' => $type,
+                    'topic' => $item['topic'],
+                ]);
                 continue;
             }
 
