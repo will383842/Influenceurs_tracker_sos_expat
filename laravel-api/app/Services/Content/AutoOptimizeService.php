@@ -285,7 +285,7 @@ class AutoOptimizeService
     private function improveEeat(GeneratedArticle $article, string $language): void
     {
         $result = $this->openAi->complete(
-            "Ajoute des signaux E-E-A-T a ce contenu: 1 exemple concret vecu, 1 source officielle citee entre parentheses, et la mention 'Mis a jour en 2026'. HTML. Langue: {$language}.",
+            "Ajoute des signaux E-E-A-T a ce contenu : 1 source officielle citee entre parentheses (gouvernement, ambassade, organisme international), 1-2 chiffres factuels recents avec leur source, et la mention 'Mis a jour en 2026'. HTML. Langue: {$language}. INTERDIT : inventer un temoignage, un prenom (ex. 'Marie raconte...'), un cas personnel ('un expatrie a vecu...'). Reste factuel et general.",
             "Titre: {$article->title}\nExtrait: " . mb_substr(strip_tags($article->content_html ?? ''), 0, 500),
             ['temperature' => 0.6, 'max_tokens' => 500]
         );

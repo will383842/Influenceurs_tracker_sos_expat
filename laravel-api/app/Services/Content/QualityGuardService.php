@@ -227,10 +227,15 @@ class QualityGuardService
     {
         $issues = [];
 
-        // Experience: check for concrete examples, case studies
-        $hasExamples = preg_match('/exemple|temoignage|cas concret|experience|vecu/iu', $text);
+        // Experience: check for concrete data/sources (NOT fake testimonials).
+        // 2026-05-01: removed 'temoignage' and 'vecu' from the regex — they were
+        // pushing the AI to invent personal stories ("Marie raconte...", "un expatrié
+        // a vécu...") which sound fake and hurt credibility. We now require either
+        // an "exemple" or "cas concret" (general illustration, not personal story)
+        // OR a cited source/data point, which is checked next via $hasData.
+        $hasExamples = preg_match('/exemple|cas concret|illustration|source|selon|\bd\'apr.s\b/iu', $text);
         if (!$hasExamples) {
-            $issues[] = "Manque de temoignages/exemples concrets (Experience)";
+            $issues[] = "Manque d'exemples factuels ou de sources citees (Experience)";
         }
 
         // Expertise: check for data, numbers, year mentions

@@ -50,6 +50,61 @@ class LinkSanitizer
     ];
 
     /**
+     * Validate that an /articles/{slug} or /vie-a-letranger/{slug} link
+     * actually points to a published article. If not, the surrounding <a>
+     * tag is removed (text is kept). Slugs are looked up in the local
+     * generated_articles table (Mission Control DB, mirror of Blog DB).
+     *
+     * Cached 10 min to avoid querying on every sanitize call.
+     */
+    private static function getKnownArticleSlugs(string $language): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            "linksanitizer:slugs:{$language}",
+            600,
+            fn () => \App\Models\GeneratedArticle::where('language', $language)
+                ->whereIn('status', ['published', 'review', 'approved'])
+                ->whereNotNull('slug')
+                ->pluck('slug')
+                ->map(fn ($s) => mb_strtolower(trim($s)))
+                ->unique()
+                ->values()
+                ->all(),
+        );
+    }
+
+    /**
+     * After sanitize() has rewritten formats, this final pass strips <a> tags
+     * whose href points to /articles/{slug} or /vie-a-letranger/{slug} where
+     * {slug} is NOT in the known-published set. The text inside <a> is kept,
+     * so the article reads naturally — only the broken link is removed.
+     */
+    private static function stripUnknownArticleLinks(string $html, string $language): string
+    {
+        $known = self::getKnownArticleSlugs($language);
+        if (empty($known)) return $html;
+        $knownSet = array_flip($known);
+
+        return preg_replace_callback(
+            '#<a\s+[^>]*href="(?:https?://(?:www\.)?sos-expat\.com)?/(?:[a-z]{2}-[a-z]{2}/)?(articles|vie-a-letranger)/([^"#?]+)(?:[#?][^"]*)?"[^>]*>(.*?)</a>#is',
+            function ($m) use ($knownSet) {
+                $slug = mb_strtolower(rtrim($m[2], '/'));
+                $text = $m[3];
+                if (isset($knownSet[$slug])) {
+                    return $m[0]; // keep the link
+                }
+                // fuzzy match — strip trailing -N suffixes the AI sometimes appends
+                $stripped = preg_replace('/-\d+$/', '', $slug);
+                if ($stripped !== $slug && isset($knownSet[$stripped])) {
+                    return $m[0]; // close enough, keep
+                }
+                return $text; // remove broken link, keep text
+            },
+            $html
+        );
+    }
+
+    /**
      * Sanitize all links in generated HTML content.
      */
     public static function sanitize(string $html, string $language = 'fr', ?string $countryCode = null): string
@@ -135,6 +190,11 @@ class LinkSanitizer
             },
             $html
         );
+
+        // 5. Strip <a> tags whose /articles/{slug} or /vie-a-letranger/{slug}
+        //    target doesn't exist in the published set (prevents 404s caused by
+        //    GPT-4o inventing plausible-but-fake URLs).
+        $html = self::stripUnknownArticleLinks($html, $lang);
 
         return $html;
     }
