@@ -505,9 +505,9 @@ class TranslationService
                 $data = json_decode($result['content'], true);
                 if ($data) {
                     $article->update(array_filter([
-                        'og_title' => mb_substr($data['og_title'] ?? '', 0, 95) ?: null,
-                        'og_description' => mb_substr($data['og_description'] ?? '', 0, 200) ?: null,
-                        'ai_summary' => mb_substr($data['ai_summary'] ?? '', 0, 160) ?: null,
+                        'og_title' => \App\Support\SmartTruncate::run($data['og_title'] ?? '', 95) ?: null,
+                        'og_description' => \App\Support\SmartTruncate::run($data['og_description'] ?? '', 200) ?: null,
+                        'ai_summary' => \App\Support\SmartTruncate::run($data['ai_summary'] ?? '', 160) ?: null,
                     ]));
                 }
             }

@@ -1374,11 +1374,9 @@ class ArticleGenerationService
                 }
             }
 
-            // Validation meta_description : tronquer à 155 chars
+            // Validation meta_description : smart-truncate (word-aware)
             if (mb_strlen($metaDesc) > 155) {
-                $truncated = mb_substr($metaDesc, 0, 155);
-                $lastDot = mb_strrpos($truncated, '.');
-                $metaDesc = ($lastDot && $lastDot > 100) ? mb_substr($truncated, 0, $lastDot + 1) : $truncated;
+                $metaDesc = \App\Support\SmartTruncate::run($metaDesc, 155);
             }
 
             return [
@@ -1488,9 +1486,9 @@ class ArticleGenerationService
                 $parsed = json_decode($result['content'], true);
                 if ($parsed) {
                     return [
-                        'og_title'       => mb_substr($parsed['og_title'] ?? $metaTitle, 0, 95),
-                        'og_description' => mb_substr($parsed['og_description'] ?? $metaDescription, 0, 200),
-                        'ai_summary'     => mb_substr($parsed['ai_summary'] ?? $excerpt, 0, 160),
+                        'og_title'       => \App\Support\SmartTruncate::run($parsed['og_title'] ?? $metaTitle, 95),
+                        'og_description' => \App\Support\SmartTruncate::run($parsed['og_description'] ?? $metaDescription, 200),
+                        'ai_summary'     => \App\Support\SmartTruncate::run($parsed['ai_summary'] ?? $excerpt, 160),
                     ];
                 }
             }
@@ -1500,9 +1498,9 @@ class ArticleGenerationService
 
         // Fallback: derive from existing meta
         return [
-            'og_title'       => mb_substr($title, 0, 95),
-            'og_description' => mb_substr($metaDescription, 0, 200),
-            'ai_summary'     => mb_substr($excerpt, 0, 160),
+            'og_title'       => \App\Support\SmartTruncate::run($title, 95),
+            'og_description' => \App\Support\SmartTruncate::run($metaDescription, 200),
+            'ai_summary'     => \App\Support\SmartTruncate::run($excerpt, 160),
         ];
     }
 
