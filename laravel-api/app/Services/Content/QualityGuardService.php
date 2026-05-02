@@ -133,6 +133,26 @@ class QualityGuardService
             $warnings[] = "AEO: ai_summary manquant ou trop long (max 160 caracteres)";
         }
 
+        // ── 8b. FEATURED SNIPPET (AI Overview / Position 0) ──
+        // A proper featured snippet = <div class="featured-snippet"><p>50-80 words</p></div>
+        // at the top of the article. Without it, AI Overview / ChatGPT Search will
+        // pick a random sentence — usually a bad one. This is a hard requirement
+        // for AEO 2026, not a nice-to-have.
+        $featuredSnippetOk = false;
+        $featuredSnippetWords = 0;
+        if (preg_match('/<div\s+class="featured-snippet"[^>]*>\s*<p\b[^>]*>(.+?)<\/p>\s*<\/div>/s', $html, $fm)) {
+            $featuredSnippetWords = str_word_count(strip_tags($fm[1]));
+            $featuredSnippetOk = $featuredSnippetWords >= 50 && $featuredSnippetWords <= 90;
+        }
+        $checks['featured_snippet'] = $featuredSnippetOk;
+        if (!$featuredSnippetOk) {
+            if ($featuredSnippetWords === 0) {
+                $issues[] = "Featured snippet: <div class='featured-snippet'> manquant (CRITIQUE pour AI Overview)";
+            } else {
+                $issues[] = "Featured snippet: {$featuredSnippetWords} mots (cible 50-80, AI Overview)";
+            }
+        }
+
         // ── 9. META TAGS ──
         $metaTitleLen = mb_strlen($article->meta_title ?? '');
         $metaDescLen = mb_strlen($article->meta_description ?? '');
