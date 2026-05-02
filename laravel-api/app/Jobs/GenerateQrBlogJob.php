@@ -412,9 +412,26 @@ PROMPT;
             if (!empty($result['success']) && !empty($result['content'])) {
                 return $result['content'];
             }
-            Log::warning('GenerateQrBlogJob: GPT primary failed, falling back to Claude', [
-                'gpt_model' => $gptModel,
-                'error'     => $result['error'] ?? 'unknown',
+            $err = $result['error'] ?? 'unknown';
+
+            // Cost protection (2026-05-02): on GPT billing failure, do NOT fall
+            // back to Claude. Sonnet costs ~20× more per call than GPT-4o; an
+            // unattended fallback drained $21 of Anthropic credits in 4h on
+            // 2026-05-01.
+            if (str_contains(strtolower($err), 'billing')
+                || str_contains(strtolower($err), 'quota')
+                || str_contains(strtolower($err), 'insufficient')
+                || str_contains($err, '402')) {
+                Log::error('GenerateQrBlogJob: GPT billing error — STOP, no Claude fallback', [
+                    'gpt_model' => $model,
+                    'error'     => mb_substr($err, 0, 200),
+                ]);
+                return null;
+            }
+
+            Log::warning('GenerateQrBlogJob: GPT non-billing failure, trying Claude fallback', [
+                'gpt_model' => $model,
+                'error'     => mb_substr($err, 0, 100),
             ]);
         }
 

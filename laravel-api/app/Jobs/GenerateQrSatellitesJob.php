@@ -307,9 +307,24 @@ class GenerateQrSatellitesJob implements ShouldQueue
             if (!empty($result['success']) && !empty($result['content'])) {
                 return $result['content'];
             }
-            Log::warning('QrSatellites: GPT primary failed, falling back to Claude', [
+            $err = $result['error'] ?? 'unknown';
+
+            // Cost protection (2026-05-02): never fall back to Claude on GPT
+            // billing failure. Sonnet is ~20× pricier than GPT-4o per call.
+            if (str_contains(strtolower($err), 'billing')
+                || str_contains(strtolower($err), 'quota')
+                || str_contains(strtolower($err), 'insufficient')
+                || str_contains($err, '402')) {
+                Log::error('QrSatellites: GPT billing error — STOP, no Claude fallback', [
+                    'gpt_model' => $gptModel,
+                    'error'     => mb_substr($err, 0, 200),
+                ]);
+                return null;
+            }
+
+            Log::warning('QrSatellites: GPT non-billing failure, trying Claude fallback', [
                 'gpt_model' => $gptModel,
-                'error'     => $result['error'] ?? 'unknown',
+                'error'     => mb_substr($err, 0, 100),
             ]);
         }
 

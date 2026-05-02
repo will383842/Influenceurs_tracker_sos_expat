@@ -3341,32 +3341,60 @@ class ArticleGenerationService
             }
         }
 
-        // Check if GPT has a billing/quota problem — only then try Claude
+        // Check if GPT has a billing/quota problem (insufficient_quota / 402).
+        // CRITICAL POLICY (2026-05-02): we DO NOT fall back to Claude on GPT billing
+        // failure. Claude Sonnet costs ~20× more than GPT-4o for the same prompt
+        // (see incident 2026-05-01 17h-22h UTC: $21 of Claude credits drained in
+        // 4h after GPT key hit insufficient_quota — 13 articles × 9 langs × 11 AI
+        // calls/article all silently routed to Claude Sonnet at ~$0.10/call).
+        //
+        // Behaviour now:
+        //   - GPT billing error → return the failure immediately (job marked failed).
+        //   - The orchestrator retries the article on the next cycle (GPT may be
+        //     unblocked by then), and the operator gets an alert via Telegram.
+        //   - Claude is reserved for non-billing transient cases handled below.
         $isGptBillingError = str_contains(strtolower($gptError), 'billing')
             || str_contains(strtolower($gptError), 'quota')
             || str_contains(strtolower($gptError), 'insufficient')
             || str_contains($gptError, '402');
 
         if ($isGptBillingError) {
-            $claudeFallback = $isClaudeRequested ? $requestedModel : 'claude-sonnet-4-6';
-            Log::warning('aiComplete: GPT billing error, falling back to Claude', [
-                'gpt_model'       => $gptModel,
-                'claude_fallback' => $claudeFallback,
-                'gpt_error'       => mb_substr($gptError, 0, 100),
+            Log::error('aiComplete: GPT billing error — STOP, no Claude fallback (cost protection)', [
+                'gpt_model' => $gptModel,
+                'error'     => mb_substr($gptError, 0, 200),
+                'action'    => 'job will fail; recharge OpenAI to resume',
             ]);
-
-            $claudeOptions = $options;
-            $claudeOptions['model'] = $claudeFallback;
-            return $this->claude->complete($systemPrompt, $userPrompt, $claudeOptions);
+            // Optional: ping Telegram so the operator notices fast.
+            try {
+                $tgUrl = config('services.telegram.engine_url');
+                $tgKey = config('services.telegram.engine_key');
+                if ($tgUrl && $tgKey) {
+                    \Illuminate\Support\Facades\Http::withToken($tgKey)->timeout(5)
+                        ->post(rtrim($tgUrl, '/') . '/api/events/security-alert', [
+                            'level'   => 'critical',
+                            'title'   => 'OpenAI quota épuisé',
+                            'message' => "Génération arrêtée. Erreur: " . mb_substr($gptError, 0, 200),
+                        ]);
+                }
+            } catch (\Throwable $e) {
+                // best-effort, don't fail the whole call on telegram
+            }
+            return $result; // billing failure surfaces to caller
         }
 
-        // GPT failed for non-billing reason and retry didn't help — return the failure
-        // Do NOT try Claude (it would just waste Anthropic credits for a GPT-side issue)
-        Log::warning('aiComplete: GPT failed (non-billing), no Claude fallback', [
-            'model' => $gptModel,
-            'error' => mb_substr($gptError, 0, 200),
+        // GPT failed for a non-billing reason (e.g. content moderation, schema validation)
+        // and retries didn't help. Try Claude Haiku as a last resort — it's 10× cheaper
+        // than Sonnet and good enough for the small post-failure rescue cases this
+        // path covers (typically <1% of calls).
+        $claudeFallback = $isClaudeRequested ? $requestedModel : 'claude-haiku-4-5-20251001';
+        Log::warning('aiComplete: GPT non-billing failure, trying Claude Haiku fallback', [
+            'gpt_model'       => $gptModel,
+            'claude_fallback' => $claudeFallback,
+            'gpt_error'       => mb_substr($gptError, 0, 100),
         ]);
 
-        return $result;
+        $claudeOptions = $options;
+        $claudeOptions['model'] = $claudeFallback;
+        return $this->claude->complete($systemPrompt, $userPrompt, $claudeOptions);
     }
 }
