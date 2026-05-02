@@ -86,7 +86,7 @@ class LinkSanitizer
         $knownSet = array_flip($known);
 
         return preg_replace_callback(
-            '#<a\s+[^>]*href="(?:https?://(?:www\.)?sos-expat\.com)?/(?:[a-z]{2}-[a-z]{2}/)?(articles|vie-a-letranger)/([^"#?]+)(?:[#?][^"]*)?"[^>]*>(.*?)</a>#is',
+            '~<a\s+[^>]*href="(?:https?://(?:www\.)?sos-expat\.com)?/(?:[a-z]{2}-[a-z]{2}/)?(articles|vie-a-letranger)/([^"#?]+)(?:[#?][^"]*)?"[^>]*>(.*?)</a>~is',
             function ($m) use ($knownSet) {
                 $slug = mb_strtolower(rtrim($m[2], '/'));
                 $text = $m[3];

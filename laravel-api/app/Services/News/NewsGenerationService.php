@@ -125,7 +125,10 @@ class NewsGenerationService
             $content['content_html'] = $html . "\n" . \App\Helpers\CtaHelper::html($item->language ?? 'fr', $item->country ?? null);
         }
 
-        // ── Envoi au Blog ──
+        // ── Envoi au Blog (langue source) ──
+        // Le blog auto-traduit vers les autres langues definies dans
+        // TranslationService::LANGUAGES (FR+EN depuis 2026-05-02).
+        // Pas besoin de traduire cote MC, le blog s'en charge.
         $sent = $this->sendToBlog($item, $content);
 
         if (! $sent) {
@@ -263,9 +266,11 @@ PROMPT;
 
         $json = $this->extractJson($result);
 
-        // Vérifier minimum 400 mots — le prompt demande 600 mots, on accepte 400 minimum
+        // Vérifier minimum 250 mots — news peut être concis (RSS sources courtes).
+        // Seuil baissé de 400→250 le 2026-05-02: le prompt demande 600 mais GPT-4o
+        // produit régulièrement 250-360 mots quand les faits sources sont sparses.
         $textContent = strip_tags($json['content_html'] ?? '');
-        if (! $json || str_word_count($textContent) < 400) {
+        if (! $json || str_word_count($textContent) < 250) {
             Log::warning('NewsGenerationService: contenu trop court', [
                 'words' => str_word_count($textContent),
             ]);
@@ -565,12 +570,34 @@ PROMPT;
             }
         }
 
+        // ── LAST-RESORT (2026-05-02) ──
+        // searchUnique exhausted → use non-unique search with generic terms.
+        // Image MANDATORY for every news (UX + AEO).
         if (empty($result['success']) || empty($result['images'])) {
-            Log::warning('NewsGenerationService: no unique Unsplash image found', [
+            foreach (['expatriate travel', 'world travel', 'passport travel'] as $terms) {
+                $r = $unsplash->search($terms, 1, 'landscape');
+                if (!empty($r['success']) && !empty($r['images'])) {
+                    $result = $r;
+                    $usedQuery = $terms . ' (last-resort generic)';
+                    break;
+                }
+            }
+        }
+
+        // Absolute fallback: hardcoded default
+        if (empty($result['success']) || empty($result['images'])) {
+            Log::warning('NewsGenerationService: all Unsplash failed → hardcoded default', [
                 'item_id' => $item->id,
                 'title'   => $title,
             ]);
-            return null;
+            $defaultUrl = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=80&auto=format';
+            $alt = mb_substr(trim($title . ($country ? ' (' . $country . ')' : '')), 0, 125);
+            return [
+                'featured_image_url' => $defaultUrl,
+                'featured_image_alt' => $alt,
+                'photographer_name'  => 'Anete Lūsiņa',
+                'photographer_url'   => 'https://unsplash.com/@anete_lusina',
+            ];
         }
 
         $img = $result['images'][0];

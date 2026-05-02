@@ -590,12 +590,15 @@ class ArticleGenerationService
                 ]);
             }
 
-            // Phase 15: Auto-dispatch translations to all 8 target languages
+            // Phase 15: Auto-dispatch translations
+            // Reduit a FR + EN le 2026-05-02 pour optimiser couts
+            // (etait : fr,en,es,de,pt,ru,zh,ar,hi - 9 langues - cout x9 sur traductions).
+            // Pour reactiver toutes les langues : restaurer la liste complete.
             try {
-                $targetLanguages = ['fr', 'en', 'es', 'de', 'pt', 'ru', 'zh', 'ar', 'hi'];
+                $targetLanguages = ['fr', 'en'];
                 $article->refresh();
                 $this->phase15_dispatchTranslations($article, $targetLanguages);
-                Log::info('Phase 15: translations dispatched for 8 languages', ['article_id' => $article->id]);
+                Log::info('Phase 15: translations dispatched (FR+EN only)', ['article_id' => $article->id]);
             } catch (\Throwable $e) {
                 Log::warning('Phase 15 (translations) failed, continuing', ['error' => $e->getMessage(), 'article_id' => $article->id]);
                 $this->sendTelegramAlert('15 — Traductions', $e->getMessage(), $article);
@@ -1888,8 +1891,57 @@ class ArticleGenerationService
             }
         }
 
-        // Fallback: if no image source worked, log warning
-        Log::warning('Phase 12: No featured image set (both DALL-E and Unsplash failed or unconfigured)', [
+        // ── LAST-RESORT FALLBACK (2026-05-02) ──
+        // Image is MANDATORY for every article. If searchUnique() exhausted
+        // (all matching photos already used), do a non-unique search with
+        // ultra-generic terms — duplicate photos are better than no photo.
+        if ($this->unsplash->isConfigured()) {
+            $genericTerms = ['expatriate travel', 'world travel', 'passport travel'];
+            foreach ($genericTerms as $terms) {
+                $r = $this->unsplash->search($terms, 1, 'landscape');
+                if (!empty($r['success']) && !empty($r['images'])) {
+                    $img = $r['images'][0];
+                    $alt = mb_substr(trim($article->title . ($article->country ? ' (' . $article->country . ')' : '')), 0, 125);
+                    $article->images()->create([
+                        'url' => $img['url'],
+                        'alt_text' => $alt,
+                        'source' => 'unsplash',
+                        'attribution' => $img['attribution'] ?? 'Unsplash',
+                        'width' => $img['width'] ?? null,
+                        'height' => $img['height'] ?? null,
+                        'sort_order' => 0,
+                    ]);
+                    $article->update([
+                        'featured_image_url' => $img['url'],
+                        'featured_image_alt' => $alt,
+                        'featured_image_attribution' => $img['attribution'] ?? null,
+                        'featured_image_srcset' => $img['srcset'] ?? null,
+                        'photographer_name' => $img['photographer_name'] ?? null,
+                        'photographer_url' => $img['photographer_url'] ?? null,
+                    ]);
+                    Log::info('Phase 12: Featured image set via last-resort generic fallback', [
+                        'article_id' => $article->id,
+                        'query' => $terms,
+                    ]);
+                    return;
+                }
+            }
+        }
+
+        // ── ABSOLUTE FALLBACK: hardcoded default cover ──
+        // Reached only if Unsplash is fully unreachable. Better a default
+        // than nothing — articles MUST have an image (UX + AEO requirement).
+        $defaultUrl = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=80&auto=format';
+        $alt = mb_substr(trim($article->title . ($article->country ? ' (' . $article->country . ')' : '')), 0, 125);
+        $article->update([
+            'featured_image_url' => $defaultUrl,
+            'featured_image_alt' => $alt,
+            'featured_image_attribution' => 'Photo by Anete Lūsiņa on Unsplash',
+            'photographer_name' => 'Anete Lūsiņa',
+            'photographer_url' => 'https://unsplash.com/@anete_lusina',
+        ]);
+
+        Log::warning('Phase 12: All image sources failed → hardcoded default cover used', [
             'article_id' => $article->id,
             'unsplash_configured' => $this->unsplash->isConfigured(),
         ]);

@@ -59,22 +59,65 @@ class GenerateArticleJob implements ShouldQueue
         //
         // Re-check the DB right here. If a matching article exists in any
         // non-deleted/non-failed state, abort — saving ~$0.50 of GPT calls.
+        //
+        // Match on THREE signals (any is enough):
+        //   1. Exact title match (catches early-stage duplicates before AI
+        //      rewrites the title)
+        //   2. Same primary keyword (full match, normalized) — no time limit.
+        //      AI generating identical keywords for same (country, lang, type)
+        //      always produces semantically duplicate content.
+        //   3. STATISTICS type: max 1 per (country, language). Statistics are
+        //      country-level numerical data — only one canonical article per
+        //      country makes sense.
+        //
+        // History (2026-05-02): seuils précédents (60-min window for kw) ne
+        // catchaient pas: TH stats avait 9 doublons générés sur plusieurs jours,
+        // KH avait 2 générés à 2h d'écart. Time window supprimé → matching
+        // permanent par mot-clé.
         if ($topic && $country) {
             $normalizedTopic = mb_strtolower(trim($topic));
-            $existing = \App\Models\GeneratedArticle::where('country', $country)
+            $primaryKeyword = mb_strtolower(trim($this->params['keywords'][0] ?? ''));
+            // Normalize keyword like dedup script: strip non-alphanumeric for tolerant match
+            $normalizedKeyword = $primaryKeyword !== ''
+                ? trim(preg_replace('/[^a-z0-9 ]/', '', $primaryKeyword))
+                : '';
+
+            $query = \App\Models\GeneratedArticle::where('country', $country)
                 ->where('language', $lang)
                 ->where('content_type', $type)
                 ->whereIn('status', ['generating', 'draft', 'review', 'approved', 'published', 'translating', 'translated'])
                 ->whereNull('parent_article_id')
-                ->whereRaw('LOWER(TRIM(title)) = ?', [$normalizedTopic])
-                ->first(['id', 'title', 'status']);
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($normalizedTopic, $normalizedKeyword, $type) {
+                    // Signal 1: title matches input topic (initial state)
+                    $q->whereRaw('LOWER(TRIM(title)) = ?', [$normalizedTopic]);
+
+                    // Signal 2: same normalized primary keyword (any time)
+                    if ($normalizedKeyword !== '') {
+                        $q->orWhereRaw(
+                            "TRIM(REGEXP_REPLACE(LOWER(COALESCE(keywords_primary,'')), '[^a-z0-9 ]', '', 'g')) = ?",
+                            [$normalizedKeyword]
+                        );
+                    }
+
+                    // Signal 3: statistics → max 1 per (country, lang)
+                    // (already filtered by where above, so any existing row matches)
+                    if ($type === 'statistics') {
+                        $q->orWhereRaw('1=1'); // unconditional → any existing row triggers dup
+                    }
+                });
+
+            $existing = $query->first(['id', 'title', 'status', 'keywords_primary', 'created_at']);
 
             if ($existing) {
                 Log::warning('GenerateArticleJob: duplicate detected pre-AI, aborting (cost protection)', [
                     'topic'           => $topic,
                     'existing_id'     => $existing->id,
+                    'existing_title'  => $existing->title,
                     'existing_status' => $existing->status,
+                    'existing_kw'     => $existing->keywords_primary,
                     'country'         => $country,
+                    'content_type'    => $type,
                 ]);
                 return; // ABORT — no AI call, no retry (job ends successfully)
             }
