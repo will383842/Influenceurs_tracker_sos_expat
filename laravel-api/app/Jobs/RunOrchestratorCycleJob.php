@@ -752,7 +752,12 @@ class RunOrchestratorCycleJob implements ShouldQueue
         // Status filter is aligned with getNextCampaignArticles() quota check: we count
         // every in-flight or completed article as a "slot taken", so the country-level
         // threshold check stays consistent with the per-type quota enforcement.
-        $counts = \Illuminate\Support\Facades\Cache::remember('country_campaign_counts', 600, function () {
+        // TTL 60s (was 600s): cycles run every 15 min, a 10-min cache caused 2-3
+        // consecutive cycles to see the SAME counts → round-robin clustered all
+        // dispatches on the same country (eg 3 VN dispatches in a row 2026-05-03
+        // 06:00/06:15/06:30 instead of rotating across the top 12). 60s keeps
+        // query cost low while letting each cycle see fresh counts.
+        $counts = \Illuminate\Support\Facades\Cache::remember('country_campaign_counts', 60, function () {
             return \App\Models\GeneratedArticle::where('language', 'fr')
                 ->whereIn('status', ['generating', 'draft', 'review', 'approved', 'published', 'translating', 'translated'])
                 ->whereNotNull('country')
