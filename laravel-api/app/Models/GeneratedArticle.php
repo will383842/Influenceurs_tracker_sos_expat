@@ -26,7 +26,7 @@ class GeneratedArticle extends Model
         'keywords_primary', 'keywords_secondary', 'keyword_density',
         'featured_image_url', 'featured_image_alt', 'featured_image_attribution',
         'featured_image_srcset', 'photographer_name', 'photographer_url',
-        'language', 'country', 'content_type', 'source_slug', 'input_quality',
+        'language', 'country', 'content_type', 'search_intent', 'source_slug', 'input_quality',
         'json_ld', 'hreflang_map',
         'seo_score', 'quality_score', 'fact_check_score', 'editorial_score', 'editorial_review', 'readability_score',
         'word_count', 'reading_time_minutes',

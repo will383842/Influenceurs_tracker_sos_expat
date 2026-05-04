@@ -246,6 +246,7 @@ PROMPT;
             'uuid' => $uuid,
             'event' => 'create',
             'content_type' => 'qa',
+            'search_intent' => 'informational',
             'language' => 'fr',
             'title' => $content['meta_title'] ?? '',
             'content_html' => $content['content_html'] ?? '',

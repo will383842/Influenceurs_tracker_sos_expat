@@ -304,6 +304,7 @@ PROMPT;
             'uuid'               => $uuid,
             'event'              => 'create',
             'content_type'       => 'news',
+            'search_intent'      => 'informational',
             'language'           => $item->language,
             'title'              => $title,
             'content_html'       => $content['content_html'] ?? '',

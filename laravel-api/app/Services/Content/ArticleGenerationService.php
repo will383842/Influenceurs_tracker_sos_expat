@@ -56,10 +56,52 @@ class ArticleGenerationService
     ) {}
 
     /**
-     * Default search intent per content type.
+     * Default search intent per content type — with optional title/keyword hint.
+     *
      * Google ranks content higher when it matches search intent (since 2023).
+     * If a hint (title + keywords concatenated) is supplied we apply regex first,
+     * which catches misclassified content_types (e.g. a "qa" article whose title
+     * is actually "Wise vs Revolut" should be commercial_investigation, not
+     * informational). Falls back to content_type mapping when no signal matches.
+     *
+     * Backwards-compatible: $hint is optional, all existing call sites still work.
      */
-    private static function defaultIntent(string $contentType): string
+    private static function defaultIntent(string $contentType, ?string $hint = null): string
+    {
+        if ($hint !== null && $hint !== '') {
+            $h = mb_strtolower($hint);
+
+            // Commercial investigation: comparison shopping
+            if (preg_match('/(\bvs\b|\bversus\b|\bcomparaison\b|\bcomparatif\b|\bmeilleur(e|s|es)?\b|\bclassement\b|\btop\s+\d+\b|\balternative(s)?\b)/iu', $h)) {
+                return 'commercial_investigation';
+            }
+
+            // Urgency: pain points, emergencies, what-to-do queries.
+            // Note: \bsos\b is intentionally excluded — the brand "SOS-Expat" appears
+            // in many titles and would generate false positives.
+            if (preg_match('/(j\'ai\s+perdu|bloqu[eé]e?|refus[eé]e?|arnaque|escroquerie|urgent|harcel|victime|vol[eé]e?|que\s+faire|au\s+secours|emergency|danger|piratage|hack[eé]|attaque|agression)/iu', $h)) {
+                return 'urgency';
+            }
+
+            // Transactional: clear purchase/action intent
+            if (preg_match('/(s\'inscrire|inscription|commander|r[eé]server|acheter|ach[eè]te|payer|s\'abonner|t[eé]l[eé]charger|download|buy\s+now|prix\b|tarifs?\b|devis|book(ing)?|order|sign\s*up)/iu', $h)) {
+                return 'transactional';
+            }
+
+            // Local: geographic proximity queries
+            if (preg_match('/(pr[eè]s\s+de\s+moi|near\s+me|[aà]\s+proximit[eé]|autour\s+de\s+moi|in\s+my\s+area)/iu', $h)) {
+                return 'local';
+            }
+        }
+
+        return self::intentFromContentType($contentType);
+    }
+
+    /**
+     * Pure content_type → intent fallback. Extracted to keep defaultIntent readable
+     * and to allow direct calls when no hint is available.
+     */
+    private static function intentFromContentType(string $contentType): string
     {
         return match ($contentType) {
             'guide', 'guide_city', 'pillar'              => 'informational',
@@ -82,7 +124,14 @@ class ArticleGenerationService
 
         // Load content-type-specific AI configuration (with search intent override)
         $contentType = $params['content_type'] ?? 'article';
-        $searchIntent = $params['search_intent'] ?? $params['intent'] ?? self::defaultIntent($contentType);
+        // Build a regex hint from the topic/title + keywords so the heuristic can
+        // upgrade misclassified content_types (e.g. a "qa" with title "X vs Y").
+        $intentHint = trim(
+            ($params['title'] ?? $params['topic'] ?? '')
+            . ' ' . ($params['keywords_primary'] ?? '')
+            . ' ' . (is_array($params['keywords'] ?? null) ? implode(' ', $params['keywords']) : '')
+        );
+        $searchIntent = $params['search_intent'] ?? $params['intent'] ?? self::defaultIntent($contentType, $intentHint);
         $typeConfig = ContentTypeConfig::withIntent($contentType, $searchIntent);
         $typeConfig['_search_intent'] = $searchIntent; // Pass intent to all phases via typeConfig
         $language = $params['language'] ?? 'fr';
@@ -143,7 +192,14 @@ class ArticleGenerationService
         // 1. Use pre-created article if article_id provided, otherwise create new
         if (!empty($params['article_id'])) {
             $article = GeneratedArticle::findOrFail($params['article_id']);
-            $article->update(['status' => 'generating']);
+            // Status + intent: backfill intent on pre-created articles that were
+            // saved before this column existed (preserves any explicit intent set by
+            // the caller on $article).
+            $update = ['status' => 'generating'];
+            if (empty($article->search_intent)) {
+                $update['search_intent'] = $searchIntent;
+            }
+            $article->update($update);
         } else {
             $uuid = (string) Str::uuid();
             $article = GeneratedArticle::create([
@@ -153,6 +209,7 @@ class ArticleGenerationService
                 'language' => $params['language'] ?? 'fr',
                 'country' => $params['country'] ?? null,
                 'content_type' => $params['content_type'] ?? 'article',
+                'search_intent' => $searchIntent,
                 'keywords_primary' => $params['keywords'][0] ?? '',
                 'keywords_secondary' => array_slice($params['keywords'] ?? [], 1),
                 'status' => 'generating',

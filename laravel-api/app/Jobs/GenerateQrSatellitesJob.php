@@ -208,6 +208,7 @@ class GenerateQrSatellitesJob implements ShouldQueue
             'uuid' => $uuid,
             'event' => 'create',
             'content_type' => 'qa',
+            'search_intent' => 'informational',
             'language' => $parent->language ?? 'fr',
             'title' => $content['meta_title'] ?? mb_substr($question, 0, 60),
             'content_html' => $content['content_html'] ?? '',
